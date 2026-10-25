@@ -1,4 +1,5 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../common/Button';
 import {
   ArrowRight,
@@ -9,19 +10,47 @@ import {
   Volume2,
   VolumeX,
   Keyboard,
+  HandMetal,
   Sparkles,
 } from 'lucide-react';
+import { KeyboardGuide } from '../academy/KeyboardGuide';
+import { HandGuide } from '../academy/HandGuide';
+import { getGuidePreferences, saveGuidePreferences } from '../../utils/lessonProgress';
 
 const SAMPLE_TEXT = 'the quick brown fox jumps over the lazy dog and flows with speed';
 
 export const HeroSection = () => {
+  const navigate = useNavigate();
   const [inputVal, setInputVal] = useState('');
   const [startTime, setStartTime] = useState(null);
   const [wpm, setWpm] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
   const [isCompleted, setIsCompleted] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(false);
+  const [keyboardGuideOn, setKeyboardGuideOn] = useState(() => getGuidePreferences().keyboardGuide);
+  const [handGuideOn, setHandGuideOn] = useState(false);
   const inputRef = useRef(null);
+
+  const currentTargetChar = useMemo(() => {
+    if (inputVal.length >= SAMPLE_TEXT.length) return null;
+    return SAMPLE_TEXT[inputVal.length];
+  }, [inputVal]);
+
+  const toggleKeyboardGuide = () => {
+    setKeyboardGuideOn((prev) => {
+      const next = !prev;
+      saveGuidePreferences(next, handGuideOn);
+      return next;
+    });
+  };
+
+  const toggleHandGuide = () => {
+    setHandGuideOn((prev) => {
+      const next = !prev;
+      saveGuidePreferences(keyboardGuideOn, next);
+      return next;
+    });
+  };
 
   // Play subtle mechanical key click audio using Web Audio API
   const playClick = () => {
@@ -119,21 +148,16 @@ export const HeroSection = () => {
                 variant="primary"
                 size="md"
                 icon={ArrowRight}
-                onClick={() => {
-                  const el = document.getElementById('curriculum');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
+                onClick={() => navigate('/workstation')}
               >
-                Enroll in Level 1
+                Launch Workstation
               </Button>
               <Button
                 variant="secondary"
                 size="md"
-                onClick={() => {
-                  if (inputRef.current) inputRef.current.focus();
-                }}
+                onClick={() => navigate('/academy')}
               >
-                Try Live Sandbox
+                Explore 7-Stage Academy
               </Button>
             </div>
 
@@ -193,8 +217,38 @@ export const HeroSection = () => {
                   </div>
                 </div>
 
-                {/* Right controls: Audio & Reset */}
-                <div className="flex items-center gap-2">
+                {/* Right controls: KB Guide, Hand Guide, Audio & Reset */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={toggleKeyboardGuide}
+                    className={`px-2 py-1 rounded-md border text-[11px] font-mono flex items-center gap-1 transition-colors cursor-pointer ${
+                      keyboardGuideOn
+                        ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-elevated)]'
+                        : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
+                    title={keyboardGuideOn ? 'Keyboard Guide ON' : 'Keyboard Guide OFF'}
+                    aria-pressed={keyboardGuideOn}
+                  >
+                    <Keyboard className="w-3 h-3" />
+                    <span>KB {keyboardGuideOn ? 'ON' : 'OFF'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={toggleHandGuide}
+                    className={`px-2 py-1 rounded-md border text-[11px] font-mono flex items-center gap-1 transition-colors cursor-pointer ${
+                      handGuideOn
+                        ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-elevated)]'
+                        : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
+                    title={handGuideOn ? 'Hand Guide ON' : 'Hand Guide OFF'}
+                    aria-pressed={handGuideOn}
+                  >
+                    <HandMetal className="w-3 h-3" />
+                    <span>Hand {handGuideOn ? 'ON' : 'OFF'}</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setSoundEnabled(!soundEnabled)}
@@ -207,9 +261,6 @@ export const HeroSection = () => {
                     aria-label="Toggle mechanical audio"
                   >
                     {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-                    <span className="text-[10px] font-mono hidden sm:inline">
-                      {soundEnabled ? 'Audio ON' : 'Audio'}
-                    </span>
                   </button>
 
                   <Button variant="outline" size="sm" icon={RotateCcw} onClick={handleReset}>
@@ -255,18 +306,50 @@ export const HeroSection = () => {
                 />
               </div>
 
+              {/* Synchronized Live Visual Guides */}
+              {(keyboardGuideOn || handGuideOn) && (
+                <div className="mt-3 p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3 animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)] border-b border-[var(--border)] pb-2">
+                    <span>Target Key: <strong className="text-[var(--accent)] text-xs font-bold">{currentTargetChar === ' ' ? '⎵ Space' : currentTargetChar ?? '—'}</strong></span>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/workstation')}
+                      className="text-[var(--accent)] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Open Full Workstation</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  {keyboardGuideOn && (
+                    <KeyboardGuide targetChar={currentTargetChar} isVisible={keyboardGuideOn} />
+                  )}
+
+                  {handGuideOn && (
+                    <div className="flex justify-center pt-1">
+                      <HandGuide targetChar={currentTargetChar} isVisible={handGuideOn} />
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Sprint Completed Feedback Card */}
               {isCompleted && (
-                <div className="mt-3 p-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--accent)] flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                <div className="mt-3 p-3.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--accent)] flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-200">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[var(--accent)] shrink-0" />
                     <span className="text-xs font-semibold text-[var(--text-primary)]">
-                      Sprint finished: {wpm} WPM at {accuracy}% accuracy!
+                      Sprint finished: <strong>{wpm} WPM</strong> at <strong>{accuracy}% accuracy</strong>!
                     </span>
                   </div>
-                  <Button variant="primary" size="sm" onClick={handleReset}>
-                    Retry Sprint
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handleReset}>
+                      Retry Sprint
+                    </Button>
+                    <Button variant="primary" size="sm" icon={ArrowRight} onClick={() => navigate('/workstation')}>
+                      Open Full Workstation
+                    </Button>
+                  </div>
                 </div>
               )}
 

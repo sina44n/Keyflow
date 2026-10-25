@@ -27,6 +27,7 @@ urlpatterns = [
 
     # Lessons Academy
     path('api/lessons/', include('lessons.urls')),
+    path('api/v1/lessons/', include('lessons.urls')),
 
     # Practice & Typing Sessions
     path('api/practice/', include('practice.urls')),

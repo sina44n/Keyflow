@@ -26,13 +26,13 @@ export const THEMES = [
   {
     id: 'burgundy-cream',
     name: 'Burgundy & Cream',
-    subtitle: 'Warm vintage typography and luxury warmth',
-    mode: 'dark',
-    accent: '#E8C5A5',
-    bg: '#1A0B10',
-    surface: '#261219',
-    border: '#451F2D',
-    tag: 'Warm',
+    subtitle: 'Warm luxury cream parchment and deep wine burgundy',
+    mode: 'light',
+    accent: '#9E2A2B',
+    bg: '#FFFDF9',
+    surface: '#F7F2EA',
+    border: '#D5C5B8',
+    tag: 'Masterpiece',
   },
   {
     id: 'midnight-blue',
@@ -138,10 +138,10 @@ export const THEMES = [
 const THEME_STORAGE_KEY = 'keyflow-theme';
 
 const ThemeContext = createContext({
-  theme: 'dark-charcoal-lime',
+  theme: 'burgundy-cream',
   setTheme: () => {},
   themes: THEMES,
-  currentThemeObj: THEMES[0],
+  currentThemeObj: THEMES.find((t) => t.id === 'burgundy-cream') || THEMES[0],
 });
 
 export const ThemeProvider = ({ children }) => {
@@ -154,7 +154,7 @@ export const ThemeProvider = ({ children }) => {
     } catch {
       // Fallback if localStorage is inaccessible
     }
-    return 'dark-charcoal-lime';
+    return 'burgundy-cream';
   });
 
   const setTheme = (themeId) => {
