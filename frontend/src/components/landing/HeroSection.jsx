@@ -1,7 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Button } from '../common/Button';
 import {
-  Sparkles,
   ArrowRight,
   Zap,
   Gauge,
@@ -9,6 +8,8 @@ import {
   RotateCcw,
   Volume2,
   VolumeX,
+  Keyboard,
+  Sparkles,
 } from 'lucide-react';
 
 const SAMPLE_TEXT = 'the quick brown fox jumps over the lazy dog and flows with speed';
@@ -22,7 +23,7 @@ export const HeroSection = () => {
   const [soundEnabled, setSoundEnabled] = useState(false);
   const inputRef = useRef(null);
 
-  // Play subtle mechanical click audio using Web Audio API
+  // Play subtle mechanical key click audio using Web Audio API
   const playClick = () => {
     if (!soundEnabled) return;
     try {
@@ -32,14 +33,14 @@ export const HeroSection = () => {
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(600, audioCtx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.04);
-      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
       osc.connect(gain);
       gain.connect(audioCtx.destination);
       osc.start();
       osc.stop(audioCtx.currentTime + 0.05);
     } catch {
-      // Audio context not allowed or failed
+      // Audio context error or blocked
     }
   };
 
@@ -53,7 +54,6 @@ export const HeroSection = () => {
 
     setInputVal(val);
 
-    // Calculate real-time metrics
     if (val.length > 0) {
       const elapsedMinutes = startTime ? (Date.now() - startTime) / 60000 : 0.01;
       const wordsTyped = val.length / 5;
@@ -83,169 +83,205 @@ export const HeroSection = () => {
   };
 
   return (
-    <section className="relative pt-12 pb-20 overflow-hidden">
-      {/* Background radial gradient glow */}
+    <section className="section-spacing pt-8 sm:pt-12 pb-16 relative overflow-hidden">
+      {/* Background ambient radial glow */}
       <div
-        className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[350px] rounded-full blur-[120px] pointer-events-none opacity-20"
+        className="absolute top-1/4 right-1/4 w-[480px] h-[320px] rounded-full blur-[140px] pointer-events-none opacity-15"
         style={{ backgroundColor: 'var(--accent)' }}
+        aria-hidden="true"
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Top Pill Announcement */}
-        <div className="flex justify-center mb-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--text-secondary)] shadow-xs">
-            <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-ping" />
-            <span className="font-medium text-[var(--text-primary)]">KEYFLOW v1.0 Live</span>
-            <span className="text-[var(--border)]">|</span>
-            <span className="text-[var(--text-muted)]">7 Levels • 3 Arcade Games • 12 Themes</span>
-          </div>
-        </div>
-
-        {/* Main Headline */}
-        <div className="text-center max-w-4xl mx-auto mb-10 space-y-4">
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.08] text-[var(--text-primary)]">
-            Type with intuition.{' '}
-            <span className="bg-gradient-to-r from-[var(--accent)] to-[var(--accent-hover)] bg-clip-text text-transparent underline decoration-[var(--accent)]/40 decoration-wavy decoration-2">
-              Flow without friction.
-            </span>
-          </h1>
-          <p className="text-base sm:text-xl text-[var(--text-secondary)] max-w-2xl mx-auto leading-relaxed">
-            The next-generation typing academy designed to rewire motor memory, eliminate
-            glance habits, and reach 100+ WPM through deliberate neuromuscular conditioning.
-          </p>
-
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-3">
-            <Button
-              variant="primary"
-              size="lg"
-              icon={ArrowRight}
-              onClick={() => {
-                if (inputRef.current) inputRef.current.focus();
-              }}
-            >
-              Test Your Speed Now
-            </Button>
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={() => {
-                const el = document.getElementById('curriculum');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
-            >
-              Explore 7-Level Academy
-            </Button>
-          </div>
-        </div>
-
-        {/* Interactive Typing Sandbox Teaser */}
-        <div
-          id="sandbox"
-          className="max-w-3xl mx-auto rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-6 sm:p-8 transition-all hover:border-[var(--accent)]/60"
-        >
-          {/* Teaser Header & Metrics Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 mb-6 border-b border-[var(--border)]">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-2">
-                <Gauge className="w-4 h-4 text-[var(--accent)]" />
-                <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-mono">
-                  WPM:
-                </span>
-                <span className="text-xl font-bold font-mono text-[var(--text-primary)]">
-                  {wpm}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Target className="w-4 h-4 text-[var(--ui-success)]" />
-                <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-mono">
-                  Accuracy:
-                </span>
-                <span className="text-xl font-bold font-mono text-[var(--text-primary)]">
-                  {accuracy}%
-                </span>
-              </div>
+      <div className="container-app relative z-10 space-y-12 sm:space-y-16">
+        {/* Main Balanced 2-Column Hero Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-center">
+          {/* Left Column: Value Proposition & CTAs */}
+          <div className="lg:col-span-5 space-y-5 text-left">
+            {/* Status Chip */}
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--text-secondary)] font-mono">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
+              <span>Studio Engine v1.0 • 7 Levels</span>
             </div>
 
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className={`p-2 rounded-lg border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
-                  soundEnabled
-                    ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-elevated)]'
-                    : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
-                title={soundEnabled ? 'Mechanical audio ON' : 'Mechanical audio OFF'}
+            {/* Headline */}
+            <h1 className="text-3xl sm:text-4xl xl:text-5xl font-extrabold tracking-tight leading-[1.12] text-[var(--text-primary)]">
+              Type with intuition.<br />
+              <span className="text-[var(--accent)]">Flow without friction.</span>
+            </h1>
+
+            {/* Subtitle */}
+            <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed max-w-lg">
+              A masterclass typing education platform engineered to rewire neuromuscular memory, eliminate keyboard glancing, and achieve effortless 100+ WPM velocity.
+            </p>
+
+            {/* CTAs */}
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Button
+                variant="primary"
+                size="md"
+                icon={ArrowRight}
+                onClick={() => {
+                  const el = document.getElementById('curriculum');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
               >
-                {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-                <span className="text-[10px] hidden sm:inline">Audio</span>
-              </button>
-              <Button variant="outline" size="sm" icon={RotateCcw} onClick={handleReset}>
-                Reset
+                Enroll in Level 1
               </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => {
+                  if (inputRef.current) inputRef.current.focus();
+                }}
+              >
+                Try Live Sandbox
+              </Button>
+            </div>
+
+            {/* Micro Highlights */}
+            <div className="pt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-mono text-[var(--text-muted)]">
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--ui-success)]" />
+                <span>0ms Input Latency</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
+                <span>Zero-Glance Anchoring</span>
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)]" />
+                <span>12 Studio Themes</span>
+              </span>
             </div>
           </div>
 
-          {/* Typing Stream Display */}
-          <div
-            onClick={() => inputRef.current && inputRef.current.focus()}
-            className="p-5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] font-mono text-lg sm:text-xl leading-relaxed tracking-wider select-none cursor-text min-h-[100px] relative transition-colors"
-          >
-            {SAMPLE_TEXT.split('').map((char, idx) => {
-              let charClass = 'text-[var(--typing-untyped)]';
-              if (idx < inputVal.length) {
-                if (inputVal[idx] === char) {
-                  charClass = 'text-[var(--typing-correct)]';
-                } else {
-                  charClass = 'text-[var(--typing-incorrect)] bg-[var(--typing-incorrect)]/20 rounded-xs';
-                }
-              } else if (idx === inputVal.length) {
-                charClass = 'text-[var(--text-primary)] border-b-2 border-[var(--typing-caret)] animate-pulse';
-              }
-              return (
-                <span key={idx} className={charClass}>
-                  {char}
-                </span>
-              );
-            })}
+          {/* Right Column: Integrated Tactile Typing Workstation */}
+          <div className="lg:col-span-7">
+            <div
+              id="sandbox"
+              className="card-panel p-5 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-200"
+            >
+              {/* Terminal Titlebar & Metrics Header */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-[var(--border)]">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[var(--border)]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[var(--border)]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[var(--border)]" />
+                    <span className="ml-1 text-[11px] font-mono text-[var(--text-muted)] hidden sm:inline">
+                      sandbox.terminal
+                    </span>
+                  </div>
 
-            {/* Hidden Input field for capture */}
-            <input
-              ref={inputRef}
-              type="text"
-              value={inputVal}
-              onChange={handleInputChange}
-              className="absolute inset-0 opacity-0 cursor-default"
-              autoFocus
-              aria-label="Live typing sandbox"
-            />
-          </div>
+                  <div className="h-4 w-px bg-[var(--border)] hidden sm:block" />
 
-          {/* Completion Banner */}
-          {isCompleted && (
-            <div className="mt-4 p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)] flex items-center justify-between gap-4 animate-in fade-in zoom-in-95">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-[var(--accent)]" />
-                <span className="text-sm font-semibold text-[var(--text-primary)]">
-                  Sprint Complete! {wpm} WPM at {accuracy}% precision.
-                </span>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-1.5">
+                      <Gauge className="w-3.5 h-3.5 text-[var(--accent)]" />
+                      <span className="text-[10px] uppercase font-mono text-[var(--text-muted)]">WPM</span>
+                      <span className="text-base font-bold font-mono text-[var(--text-primary)]">
+                        {wpm}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5 text-[var(--ui-success)]" />
+                      <span className="text-[10px] uppercase font-mono text-[var(--text-muted)]">ACC</span>
+                      <span className="text-base font-bold font-mono text-[var(--text-primary)]">
+                        {accuracy}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right controls: Audio & Reset */}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setSoundEnabled(!soundEnabled)}
+                    className={`px-2 py-1 rounded-md border text-xs flex items-center gap-1 transition-colors cursor-pointer ${
+                      soundEnabled
+                        ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-elevated)]'
+                        : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                    }`}
+                    title={soundEnabled ? 'Mechanical audio feedback ON' : 'Mechanical audio feedback OFF'}
+                    aria-label="Toggle mechanical audio"
+                  >
+                    {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+                    <span className="text-[10px] font-mono hidden sm:inline">
+                      {soundEnabled ? 'Audio ON' : 'Audio'}
+                    </span>
+                  </button>
+
+                  <Button variant="outline" size="sm" icon={RotateCcw} onClick={handleReset}>
+                    Reset
+                  </Button>
+                </div>
               </div>
-              <Button variant="primary" size="sm" onClick={handleReset}>
-                Try Again
-              </Button>
-            </div>
-          )}
 
-          {/* Instruction hint */}
-          <div className="mt-4 flex items-center justify-between text-xs text-[var(--text-muted)] font-mono">
-            <span>Click inside to test real-time tactile response</span>
-            <span className="hidden sm:inline">Supports mechanical key audio feedback</span>
+              {/* Typing Passage Stream */}
+              <div
+                onClick={() => inputRef.current && inputRef.current.focus()}
+                className="p-4 sm:p-5 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] font-mono text-base sm:text-lg leading-relaxed tracking-wide select-none cursor-text min-h-[96px] relative transition-colors"
+                role="region"
+                aria-label="Live interactive typing passage"
+              >
+                {SAMPLE_TEXT.split('').map((char, idx) => {
+                  let charClass = 'char-untyped';
+                  if (idx < inputVal.length) {
+                    if (inputVal[idx] === char) {
+                      charClass = 'char-correct';
+                    } else {
+                      charClass = 'char-incorrect';
+                    }
+                  } else if (idx === inputVal.length) {
+                    charClass = 'char-current';
+                  }
+                  return (
+                    <span key={idx} className={charClass}>
+                      {char}
+                    </span>
+                  );
+                })}
+
+                {/* Invisible input capturing keystrokes */}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={inputVal}
+                  onChange={handleInputChange}
+                  className="absolute inset-0 opacity-0 cursor-default"
+                  autoFocus
+                  aria-label="Type the text passage above"
+                />
+              </div>
+
+              {/* Sprint Completed Feedback Card */}
+              {isCompleted && (
+                <div className="mt-3 p-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--accent)] flex items-center justify-between gap-3 animate-in fade-in duration-200">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[var(--accent)] shrink-0" />
+                    <span className="text-xs font-semibold text-[var(--text-primary)]">
+                      Sprint finished: {wpm} WPM at {accuracy}% accuracy!
+                    </span>
+                  </div>
+                  <Button variant="primary" size="sm" onClick={handleReset}>
+                    Retry Sprint
+                  </Button>
+                </div>
+              )}
+
+              {/* Workstation Footer Hint */}
+              <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)]">
+                <span>Click inside terminal to type directly</span>
+                <span className="hidden sm:inline">Shortcuts: Tab + Enter to reset</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Feature Highlights Grid */}
-        <div className="mt-16 grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          <div className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-2">
+        {/* 3 Core Architecture Pillars Aligned to Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 pt-2">
+          <div className="p-4 sm:p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-2">
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] text-[var(--accent)] flex items-center justify-center">
               <Zap className="w-4 h-4" />
             </div>
@@ -255,21 +291,21 @@ export const HeroSection = () => {
             </p>
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-2">
+          <div className="p-4 sm:p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-2">
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] text-[var(--ui-success)] flex items-center justify-center">
-              <Target className="w-4 h-4" />
+              <Keyboard className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">Neuromuscular Curriculum</h3>
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">7-Stage Academy</h3>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              7 scientific stages from Home Row foundation to programmer bracket ergonomics and blind endurance.
+              Progressive stages from tactile Home Row anchors to programmer bracket syntax and high-speed endurance.
             </p>
           </div>
 
-          <div className="p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-2">
+          <div className="p-4 sm:p-5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-2">
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] text-[var(--accent)] flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">12 Curated Themes</h3>
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">12 Studio Themes</h3>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
               Engineered with CSS custom properties for instant zero-flash switching and persistent profile sync.
             </p>
