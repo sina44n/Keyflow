@@ -14,7 +14,6 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { KeyboardGuide } from '../academy/KeyboardGuide';
-import { HandGuide } from '../academy/HandGuide';
 import { getGuidePreferences, saveGuidePreferences } from '../../utils/lessonProgress';
 
 const SAMPLE_TEXT = 'the quick brown fox jumps over the lazy dog and flows with speed';
@@ -321,13 +320,13 @@ export const HeroSection = () => {
                     </button>
                   </div>
 
-                  {keyboardGuideOn && (
-                    <KeyboardGuide targetChar={currentTargetChar} isVisible={keyboardGuideOn} />
-                  )}
-
-                  {handGuideOn && (
-                    <div className="flex justify-center pt-1">
-                      <HandGuide targetChar={currentTargetChar} isVisible={handGuideOn} />
+                  {(keyboardGuideOn || handGuideOn) && (
+                    <div className="w-full flex justify-center pt-2">
+                      <KeyboardGuide
+                        targetChar={currentTargetChar}
+                        isVisible={keyboardGuideOn}
+                        handGuideVisible={handGuideOn}
+                      />
                     </div>
                   )}
                 </div>

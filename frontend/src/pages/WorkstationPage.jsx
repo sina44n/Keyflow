@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { KeyboardGuide } from '../components/academy/KeyboardGuide';
-import { HandGuide } from '../components/academy/HandGuide';
 import { getGuidePreferences, saveGuidePreferences } from '../utils/lessonProgress';
 
 const PRACTICE_PASSAGES = [
@@ -466,192 +465,155 @@ export const WorkstationPage = () => {
         </div>
       </div>
 
-      {/* Main Workstation Layout */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-        {/* Left Column (Typing Arena) */}
-        <div className={keyboardGuideOn || handGuideOn ? 'xl:col-span-8 space-y-4' : 'xl:col-span-12 space-y-4'}>
-          {/* Live Telemetry Bar */}
-          <div className="flex items-center justify-between px-2 text-xs font-mono text-[var(--text-muted)]">
-            <div className="flex items-center gap-6">
+      {/* Main Workstation Layout — Symmetrical Centered Composition */}
+      <div className="w-full max-w-[820px] mx-auto space-y-6">
+        {/* Live Telemetry Bar */}
+        <div className="flex items-center justify-between px-2 text-xs font-mono text-[var(--text-muted)]">
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-1.5">
+              <Gauge className="w-4 h-4 text-[var(--accent)]" />
+              <span className="text-[11px] uppercase">Live WPM:</span>
+              <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveWpm}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Target className="w-4 h-4 text-[var(--ui-success)]" />
+              <span className="text-[11px] uppercase">Accuracy:</span>
+              <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveAccuracy}%</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {mode === 'timed' ? (
               <div className="flex items-center gap-1.5">
-                <Gauge className="w-4 h-4 text-[var(--accent)]" />
-                <span className="text-[11px] uppercase">Live WPM:</span>
-                <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveWpm}</span>
+                <Clock className="w-4 h-4 text-[var(--accent)]" />
+                <span className="text-base font-bold text-[var(--accent)] font-mono">{remainingTime}s</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Target className="w-4 h-4 text-[var(--ui-success)]" />
-                <span className="text-[11px] uppercase">Accuracy:</span>
-                <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveAccuracy}%</span>
+            ) : (
+              <div className="flex items-center gap-1">
+                <span>{typed.length}</span>
+                <span>/</span>
+                <span>{currentTargetText.length} chars</span>
               </div>
-            </div>
-
-            <div className="flex items-center gap-4">
-              {mode === 'timed' ? (
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-[var(--accent)]" />
-                  <span className="text-base font-bold text-[var(--accent)] font-mono">{remainingTime}s</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <span>{typed.length}</span>
-                  <span>/</span>
-                  <span>{currentTargetText.length} chars</span>
-                </div>
-              )}
-            </div>
+            )}
           </div>
-
-          {/* Typing Area Box */}
-          <div
-            onClick={() => inputRef.current && inputRef.current.focus()}
-            className={`p-6 sm:p-8 rounded-2xl border transition-all cursor-text min-h-[160px] relative select-none leading-relaxed font-mono text-lg sm:text-2xl ${
-              isCompleted
-                ? 'opacity-85 border-[var(--border)]'
-                : 'border-[var(--accent)] shadow-sm'
-            }`}
-            style={{ background: 'var(--bg-surface)' }}
-          >
-            {currentTargetText.split('').map((char, idx) => {
-              let cls = 'char-untyped';
-              if (idx < typed.length) {
-                cls = typed[idx] === char ? 'char-correct' : 'char-incorrect';
-              } else if (idx === typed.length && !isCompleted) {
-                cls = 'char-current';
-              }
-              return (
-                <span key={idx} className={cls}>
-                  {char}
-                </span>
-              );
-            })}
-
-            <input
-              ref={inputRef}
-              type="text"
-              value={typed}
-              onChange={handleInputChange}
-              disabled={isCompleted}
-              className="absolute inset-0 opacity-0 cursor-default"
-              autoFocus
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              aria-label="Type the passage text here"
-            />
-          </div>
-
-          {/* Quick instructions & Shortcuts */}
-          <div className="flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)] px-2">
-            <span>Click inside to start typing directly</span>
-            <span>Shortcuts: Escape to restart session</span>
-          </div>
-
-          {/* Session Complete Results Card */}
-          {isCompleted && sessionResults && (
-            <div className="card-panel p-6 space-y-5 animate-in fade-in duration-200 border-2 border-[var(--accent)]">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center font-extrabold text-xl font-mono shadow-md">
-                    {sessionResults.netWpm}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-xl font-bold text-[var(--text-primary)]">
-                        {sessionResults.tier} Performance
-                      </h2>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--accent)]">
-                        {sessionResults.netWpm} WPM
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                      Completed {mode} test in {sessionResults.duration} seconds with {sessionResults.accuracy}% accuracy.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <Button variant="secondary" size="md" icon={RotateCcw} onClick={handleReset}>
-                    Retry Test
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    icon={ArrowRight}
-                    onClick={() => navigate('/academy')}
-                  >
-                    Academy Training
-                  </Button>
-                </div>
-              </div>
-
-              {/* Stats Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                  <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Net Velocity</div>
-                  <div className="text-2xl font-extrabold font-mono text-[var(--accent)]">
-                    {sessionResults.netWpm} <span className="text-xs text-[var(--text-muted)]">WPM</span>
-                  </div>
-                </div>
-                <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                  <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Accuracy Rate</div>
-                  <div className="text-2xl font-extrabold font-mono text-[var(--ui-success)]">
-                    {sessionResults.accuracy}%
-                  </div>
-                </div>
-                <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                  <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Gross Velocity</div>
-                  <div className="text-2xl font-extrabold font-mono text-[var(--text-primary)]">
-                    {sessionResults.grossWpm} <span className="text-xs text-[var(--text-muted)]">WPM</span>
-                  </div>
-                </div>
-                <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                  <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Uncorrected Typos</div>
-                  <div className="text-2xl font-extrabold font-mono text-[var(--ui-error)]">
-                    {sessionResults.mistakes}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right Column: Visual Guides (Keyboard + Hand Guide) */}
-        {(keyboardGuideOn || handGuideOn) && (
-          <div className="xl:col-span-4 space-y-4">
-            <div className="card-panel p-5 space-y-4 sticky top-20">
-              {/* Target Character Indicator */}
-              <div className="flex items-center justify-between pb-3 border-b border-[var(--border)]">
-                <div className="text-xs font-mono uppercase tracking-wider text-[var(--text-muted)]">
-                  Target Keystroke:
+        {/* Typing Area Box */}
+        <div
+          onClick={() => inputRef.current && inputRef.current.focus()}
+          className={`p-6 sm:p-8 rounded-2xl border transition-all cursor-text min-h-[160px] relative select-none leading-relaxed font-mono text-lg sm:text-2xl ${
+            isCompleted
+              ? 'opacity-85 border-[var(--border)]'
+              : 'border-[var(--accent)] shadow-sm'
+          }`}
+          style={{ background: 'var(--bg-surface)' }}
+        >
+          {currentTargetText.split('').map((char, idx) => {
+            let cls = 'char-untyped';
+            if (idx < typed.length) {
+              cls = typed[idx] === char ? 'char-correct' : 'char-incorrect';
+            } else if (idx === typed.length && !isCompleted) {
+              cls = 'char-current';
+            }
+            return (
+              <span key={idx} className={cls}>
+                {char}
+              </span>
+            );
+          })}
+
+          <input
+            ref={inputRef}
+            type="text"
+            value={typed}
+            onChange={handleInputChange}
+            disabled={isCompleted}
+            className="absolute inset-0 opacity-0 cursor-default"
+            autoFocus
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            aria-label="Type the passage text here"
+          />
+        </div>
+
+        {/* Session Complete Results Card */}
+        {isCompleted && sessionResults && (
+          <div className="card-panel p-6 space-y-5 animate-in fade-in duration-200 border-2 border-[var(--accent)]">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center font-extrabold text-xl font-mono shadow-md">
+                  {sessionResults.netWpm}
                 </div>
-                <div className="px-3 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] font-mono font-bold text-sm text-[var(--accent)]">
-                  {currentTargetChar === ' ' ? '⎵ Space' : currentTargetChar ?? 'Complete'}
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-bold text-[var(--text-primary)]">
+                      {sessionResults.tier} Performance
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--accent)]">
+                      {sessionResults.netWpm} WPM
+                    </span>
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    Completed {mode} test in {sessionResults.duration} seconds with {sessionResults.accuracy}% accuracy.
+                  </p>
                 </div>
               </div>
 
-              {/* Interactive Virtual Keyboard Guide */}
-              {keyboardGuideOn && (
-                <div className="space-y-2">
-                  <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-muted)] flex items-center justify-between">
-                    <span>Virtual Keyboard Guide</span>
-                    <span className="text-[var(--accent)] text-[10px]">Active Tracking</span>
-                  </div>
-                  <KeyboardGuide targetChar={currentTargetChar} isVisible={keyboardGuideOn} />
-                </div>
-              )}
-
-              {/* Anatomical Hand Guide */}
-              {handGuideOn && (
-                <div className="space-y-2 pt-2 border-t border-[var(--border)]">
-                  <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-muted)] flex items-center justify-between">
-                    <span>Hand & Finger Guide</span>
-                    <span className="text-[var(--accent)] text-[10px]">Ergonomic Reach</span>
-                  </div>
-                  <HandGuide targetChar={currentTargetChar} isVisible={handGuideOn} />
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="md" icon={RotateCcw} onClick={handleReset}>
+                  Retry Test
+                </Button>
+                <Button
+                  variant="primary"
+                  size="md"
+                  icon={ArrowRight}
+                  onClick={() => navigate('/academy')}
+                >
+                  Academy Training
+                </Button>
+              </div>
             </div>
+
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Net Velocity</div>
+                <div className="text-2xl font-extrabold font-mono text-[var(--accent)]">
+                  {sessionResults.netWpm} <span className="text-xs text-[var(--text-muted)]">WPM</span>
+                </div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Accuracy Rate</div>
+                <div className="text-2xl font-extrabold font-mono text-[var(--ui-success)]">
+                  {sessionResults.accuracy}%
+                </div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Gross Velocity</div>
+                <div className="text-2xl font-extrabold font-mono text-[var(--text-primary)]">
+                  {sessionResults.grossWpm} <span className="text-xs text-[var(--text-muted)]">WPM</span>
+                </div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Uncorrected Typos</div>
+                <div className="text-2xl font-extrabold font-mono text-[var(--ui-error)]">
+                  {sessionResults.mistakes}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Precision Virtual Keyboard + Realistic Hand Overlay (Centered) */}
+        {(keyboardGuideOn || handGuideOn) && (
+          <div className="w-full flex flex-col items-center pt-2">
+            <KeyboardGuide
+              targetChar={currentTargetChar}
+              isVisible={keyboardGuideOn}
+              handGuideVisible={handGuideOn}
+            />
           </div>
         )}
       </div>

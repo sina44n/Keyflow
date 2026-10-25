@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { Palette, Check, Sparkles, X } from 'lucide-react';
 
-export const ThemeSwitcher = () => {
+export const ThemeSwitcher = ({ compact = false }) => {
   const { theme, setTheme, themes, currentThemeObj } = useTheme();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -33,21 +33,25 @@ export const ThemeSwitcher = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-medium transition-colors cursor-pointer min-h-[36px]"
+        className={compact 
+          ? "p-2 rounded-lg transition-colors cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] relative flex items-center justify-center"
+          : "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-medium transition-colors cursor-pointer min-h-[36px]"}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label={`Current theme: ${currentThemeObj.name}. Click to change theme.`}
         id="theme-switcher-trigger"
       >
         <span
-          className="w-3.5 h-3.5 rounded-full border border-black/20 shrink-0 shadow-xs"
+          className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs absolute top-1.5 right-1.5"
           style={{ backgroundColor: currentThemeObj.accent }}
           aria-hidden="true"
         />
-        <span className="hidden sm:inline font-mono text-[11px] uppercase tracking-wider text-[var(--text-primary)]">
-          {currentThemeObj.name}
-        </span>
-        <Palette className="w-3.5 h-3.5 opacity-60" aria-hidden="true" />
+        <Palette className="w-4 h-4 opacity-75" aria-hidden="true" />
+        {!compact && (
+          <span className="hidden sm:inline font-mono text-[11px] uppercase tracking-wider text-[var(--text-primary)] ml-1">
+            {currentThemeObj.name}
+          </span>
+        )}
       </button>
 
       {/* Flyout Menu / Modal */}

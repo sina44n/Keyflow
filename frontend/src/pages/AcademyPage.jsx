@@ -74,6 +74,27 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     progress.unlockedStages?.[progress.unlockedStages.length - 1] ?? 1
   );
 
+  // If active lesson view is selected, render LessonPlayer as dedicated full-viewport experience
+  if (view === VIEW.LESSON) {
+    return (
+      <LessonPlayer
+        stageId={activeStageId}
+        lessonNum={activeLessonNum}
+        onBack={handleBackToStage}
+        onNextLesson={hasNextLesson ? handleNextLesson : undefined}
+        onNextStage={hasNextStage ? () => {
+          const next = getNextLessonId(activeStageId, activeLessonNum);
+          if (next) {
+            setActiveStageId(next.stageId);
+            setActiveLessonNum(next.lessonNum);
+          }
+        } : undefined}
+        hasNextLesson={hasNextLesson}
+        hasNextStage={hasNextStage}
+      />
+    );
+  }
+
   return (
     <div className="container-app py-8 sm:py-12 space-y-6">
       {/* Breadcrumb header */}
@@ -107,12 +128,6 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                   >
                     {activeStageMeta?.title}
                   </button>
-                </>
-              )}
-              {view === VIEW.LESSON && (
-                <>
-                  <span className="text-[var(--text-muted)]">/</span>
-                  <span className="text-[var(--text-primary)]">Lesson {activeLessonNum}</span>
                 </>
               )}
             </div>
@@ -163,24 +178,6 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
             onSelectLesson={handleSelectLesson}
           />
         </div>
-      )}
-
-      {view === VIEW.LESSON && (
-        <LessonPlayer
-          stageId={activeStageId}
-          lessonNum={activeLessonNum}
-          onBack={handleBackToStage}
-          onNextLesson={hasNextLesson ? handleNextLesson : undefined}
-          onNextStage={hasNextStage ? () => {
-            const next = getNextLessonId(activeStageId, activeLessonNum);
-            if (next) {
-              setActiveStageId(next.stageId);
-              setActiveLessonNum(next.lessonNum);
-            }
-          } : undefined}
-          hasNextLesson={hasNextLesson}
-          hasNextStage={hasNextStage}
-        />
       )}
     </div>
   );
