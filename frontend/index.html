@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark-charcoal-lime">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="KEYFLOW — Build typing speed, accuracy, and confidence. Less looking. More flowing." />
+    <meta name="theme-color" content="#10120F" />
+    <title>KEYFLOW — Less looking. More flowing.</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    <!--
+      Theme flash prevention script — runs synchronously before any render.
+      Reads localStorage and applies data-theme to <html> immediately,
+      preventing a flash of the wrong/default theme on page load.
+    -->
+    <script>
+      (function() {
+        var stored = localStorage.getItem('keyflow-theme');
+        var validThemes = [
+          'dark-charcoal-lime','classic-black-white','burgundy-cream',
+          'midnight-blue','lavender-purple','forest-green','ocean-teal',
+          'sunset-orange','rose-pink','arctic-blue','solarized-light','warm-sand'
+        ];
+        if (stored && validThemes.indexOf(stored) !== -1) {
+          document.documentElement.setAttribute('data-theme', stored);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

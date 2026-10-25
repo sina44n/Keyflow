@@ -1,0 +1,1098 @@
+@import "tailwindcss";
+
+/*
+ * KEYFLOW — Global Design System & Multi-Theme CSS Architecture
+ * ============================================================
+ * Architecture: CSS Custom Properties per data-theme attribute.
+ * Every component consumes semantic tokens ONLY — no hardcoded colors.
+ * Adding a new theme requires only a new [data-theme="..."] block here.
+ *
+ * Token Naming Convention:
+ *   --bg-*        Background layers (main, surface, elevated, card)
+ *   --text-*      Text colors (primary, secondary, muted)
+ *   --accent-*    Primary brand accent (base, hover, fg = text on accent)
+ *   --border-*    Border colors (default, subtle, focus ring)
+ *   --typing-*    Typing engine specific (correct, incorrect, caret, untyped)
+ *   --key-*       Virtual keyboard key colors
+ *   --chart-*     Recharts colors
+ *   --ui-*        Miscellaneous UI states (success, warning, error)
+ *   --modal-*     Modal/overlay colors
+ *   --input-*     Form input colors
+ */
+
+/* ========================================================== */
+/* THEME 1: Dark Charcoal + Lime  [DEFAULT]                  */
+/* ========================================================== */
+:root,
+[data-theme="dark-charcoal-lime"] {
+  --bg-main:         #10120F;
+  --bg-surface:      #191C17;
+  --bg-elevated:     #212519;
+  --bg-card:         #1E211A;
+
+  --text-primary:    #E8EAE2;
+  --text-secondary:  #A9ADA1;
+  --text-muted:      #656960;
+
+  --accent:          #C8F36A;
+  --accent-hover:    #D4F77E;
+  --accent-fg:       #10120F;
+
+  --border:          #2E342A;
+  --border-subtle:   #252921;
+  --border-focus:    #C8F36A;
+
+  --typing-correct:  #65B87A;
+  --typing-incorrect:#F06B72;
+  --typing-caret:    #C8F36A;
+  --typing-untyped:  #656960;
+  --typing-bg:       #191C17;
+
+  --key-bg:          #252921;
+  --key-border:      #2E342A;
+  --key-text:        #A9ADA1;
+  --key-active-bg:   #C8F36A;
+  --key-active-border:#D4F77E;
+  --key-active-text: #10120F;
+  --key-home-row:    #1C2B1A;
+
+  --chart-primary:   #C8F36A;
+  --chart-secondary: #65B87A;
+  --chart-tertiary:  #3B8A4F;
+  --chart-grid:      #252921;
+  --chart-tooltip-bg:#212519;
+
+  --sidebar-bg:      #141710;
+  --sidebar-border:  #252921;
+  --sidebar-text:    #A9ADA1;
+  --sidebar-active:  #C8F36A;
+  --sidebar-active-bg:#1E2A18;
+
+  --input-bg:        #252921;
+  --input-border:    #2E342A;
+  --input-text:      #E8EAE2;
+  --input-placeholder:#656960;
+
+  --modal-bg:        #191C17;
+  --modal-overlay:   rgba(0,0,0,0.7);
+  --modal-border:    #2E342A;
+
+  --tooltip-bg:      #212519;
+  --tooltip-text:    #E8EAE2;
+  --tooltip-border:  #2E342A;
+
+  --ui-success:      #65B87A;
+  --ui-warning:      #E5A92E;
+  --ui-error:        #F06B72;
+
+  --btn-primary-bg:  #C8F36A;
+  --btn-primary-text:#10120F;
+  --btn-primary-hover:#D4F77E;
+  --btn-secondary-bg:#252921;
+  --btn-secondary-text:#E8EAE2;
+  --btn-secondary-border:#2E342A;
+
+  --scrollbar-thumb: #2E342A;
+  --scrollbar-track: #10120F;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.6);
+}
+
+/* ========================================================== */
+/* THEME 2: Classic Black + White                             */
+/* ========================================================== */
+[data-theme="classic-black-white"] {
+  --bg-main:         #000000;
+  --bg-surface:      #111111;
+  --bg-elevated:     #1A1A1A;
+  --bg-card:         #161616;
+
+  --text-primary:    #F5F5F5;
+  --text-secondary:  #ABABAB;
+  --text-muted:      #666666;
+
+  --accent:          #FFFFFF;
+  --accent-hover:    #E0E0E0;
+  --accent-fg:       #000000;
+
+  --border:          #2A2A2A;
+  --border-subtle:   #1F1F1F;
+  --border-focus:    #FFFFFF;
+
+  --typing-correct:  #6FCF6F;
+  --typing-incorrect:#E06060;
+  --typing-caret:    #FFFFFF;
+  --typing-untyped:  #666666;
+  --typing-bg:       #111111;
+
+  --key-bg:          #1A1A1A;
+  --key-border:      #333333;
+  --key-text:        #ABABAB;
+  --key-active-bg:   #FFFFFF;
+  --key-active-border:#FFFFFF;
+  --key-active-text: #000000;
+  --key-home-row:    #1F1F22;
+
+  --chart-primary:   #FFFFFF;
+  --chart-secondary: #AAAAAA;
+  --chart-tertiary:  #666666;
+  --chart-grid:      #1F1F1F;
+  --chart-tooltip-bg:#1A1A1A;
+
+  --sidebar-bg:      #0A0A0A;
+  --sidebar-border:  #222222;
+  --sidebar-text:    #ABABAB;
+  --sidebar-active:  #FFFFFF;
+  --sidebar-active-bg:#1A1A1A;
+
+  --input-bg:        #1A1A1A;
+  --input-border:    #333333;
+  --input-text:      #F5F5F5;
+  --input-placeholder:#666666;
+
+  --modal-bg:        #111111;
+  --modal-overlay:   rgba(0,0,0,0.85);
+  --modal-border:    #2A2A2A;
+
+  --tooltip-bg:      #1A1A1A;
+  --tooltip-text:    #F5F5F5;
+  --tooltip-border:  #333333;
+
+  --ui-success:      #6FCF6F;
+  --ui-warning:      #D4A017;
+  --ui-error:        #E06060;
+
+  --btn-primary-bg:  #FFFFFF;
+  --btn-primary-text:#000000;
+  --btn-primary-hover:#E0E0E0;
+  --btn-secondary-bg:#1A1A1A;
+  --btn-secondary-text:#F5F5F5;
+  --btn-secondary-border:#333333;
+
+  --scrollbar-thumb: #333333;
+  --scrollbar-track: #000000;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.6);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.7);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.8);
+}
+
+/* ========================================================== */
+/* THEME 3: Burgundy + Cream                                  */
+/* ========================================================== */
+[data-theme="burgundy-cream"] {
+  --bg-main:         #FFFDF9;
+  --bg-surface:      #F7F2EA;
+  --bg-elevated:     #EDE5D8;
+  --bg-card:         #F4EEE4;
+
+  --text-primary:    #2D1E1E;
+  --text-secondary:  #6B4C4C;
+  --text-muted:      #9E7E7E;
+
+  --accent:          #9E2A2B;
+  --accent-hover:    #7E1F20;
+  --accent-fg:       #FFFDF9;
+
+  --border:          #D5C5B8;
+  --border-subtle:   #E5DDD2;
+  --border-focus:    #9E2A2B;
+
+  --typing-correct:  #2D7A4F;
+  --typing-incorrect:#C0392B;
+  --typing-caret:    #9E2A2B;
+  --typing-untyped:  #9E7E7E;
+  --typing-bg:       #F7F2EA;
+
+  --key-bg:          #EDE5D8;
+  --key-border:      #D5C5B8;
+  --key-text:        #6B4C4C;
+  --key-active-bg:   #9E2A2B;
+  --key-active-border:#7E1F20;
+  --key-active-text: #FFFDF9;
+  --key-home-row:    #E8DDD0;
+
+  --chart-primary:   #9E2A2B;
+  --chart-secondary: #C06B3A;
+  --chart-tertiary:  #8B5E3C;
+  --chart-grid:      #E5DDD2;
+  --chart-tooltip-bg:#EDE5D8;
+
+  --sidebar-bg:      #F4EEE4;
+  --sidebar-border:  #D5C5B8;
+  --sidebar-text:    #6B4C4C;
+  --sidebar-active:  #9E2A2B;
+  --sidebar-active-bg:#EDE5D8;
+
+  --input-bg:        #EDE5D8;
+  --input-border:    #D5C5B8;
+  --input-text:      #2D1E1E;
+  --input-placeholder:#9E7E7E;
+
+  --modal-bg:        #F7F2EA;
+  --modal-overlay:   rgba(45,30,30,0.5);
+  --modal-border:    #D5C5B8;
+
+  --tooltip-bg:      #EDE5D8;
+  --tooltip-text:    #2D1E1E;
+  --tooltip-border:  #D5C5B8;
+
+  --ui-success:      #2D7A4F;
+  --ui-warning:      #B07A00;
+  --ui-error:        #C0392B;
+
+  --btn-primary-bg:  #9E2A2B;
+  --btn-primary-text:#FFFDF9;
+  --btn-primary-hover:#7E1F20;
+  --btn-secondary-bg:#EDE5D8;
+  --btn-secondary-text:#2D1E1E;
+  --btn-secondary-border:#D5C5B8;
+
+  --scrollbar-thumb: #D5C5B8;
+  --scrollbar-track: #F7F2EA;
+
+  --shadow-sm:       0 1px 3px rgba(45,30,30,0.1);
+  --shadow-md:       0 4px 16px rgba(45,30,30,0.15);
+  --shadow-lg:       0 8px 32px rgba(45,30,30,0.2);
+}
+
+/* ========================================================== */
+/* THEME 4: Midnight Blue                                     */
+/* ========================================================== */
+[data-theme="midnight-blue"] {
+  --bg-main:         #0B1120;
+  --bg-surface:      #1E293B;
+  --bg-elevated:     #253347;
+  --bg-card:         #1A2840;
+
+  --text-primary:    #F8FAFC;
+  --text-secondary:  #94A3B8;
+  --text-muted:      #64748B;
+
+  --accent:          #38BDF8;
+  --accent-hover:    #7DD3FC;
+  --accent-fg:       #0B1120;
+
+  --border:          #334155;
+  --border-subtle:   #1E293B;
+  --border-focus:    #38BDF8;
+
+  --typing-correct:  #4ADE80;
+  --typing-incorrect:#FB7185;
+  --typing-caret:    #38BDF8;
+  --typing-untyped:  #64748B;
+  --typing-bg:       #1E293B;
+
+  --key-bg:          #253347;
+  --key-border:      #334155;
+  --key-text:        #94A3B8;
+  --key-active-bg:   #38BDF8;
+  --key-active-border:#7DD3FC;
+  --key-active-text: #0B1120;
+  --key-home-row:    #1E3050;
+
+  --chart-primary:   #38BDF8;
+  --chart-secondary: #818CF8;
+  --chart-tertiary:  #4ADE80;
+  --chart-grid:      #253347;
+  --chart-tooltip-bg:#1E293B;
+
+  --sidebar-bg:      #0D1627;
+  --sidebar-border:  #334155;
+  --sidebar-text:    #94A3B8;
+  --sidebar-active:  #38BDF8;
+  --sidebar-active-bg:#1E3050;
+
+  --input-bg:        #253347;
+  --input-border:    #334155;
+  --input-text:      #F8FAFC;
+  --input-placeholder:#64748B;
+
+  --modal-bg:        #1E293B;
+  --modal-overlay:   rgba(0,0,0,0.75);
+  --modal-border:    #334155;
+
+  --tooltip-bg:      #253347;
+  --tooltip-text:    #F8FAFC;
+  --tooltip-border:  #334155;
+
+  --ui-success:      #4ADE80;
+  --ui-warning:      #FBBF24;
+  --ui-error:        #FB7185;
+
+  --btn-primary-bg:  #38BDF8;
+  --btn-primary-text:#0B1120;
+  --btn-primary-hover:#7DD3FC;
+  --btn-secondary-bg:#253347;
+  --btn-secondary-text:#F8FAFC;
+  --btn-secondary-border:#334155;
+
+  --scrollbar-thumb: #334155;
+  --scrollbar-track: #0B1120;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.6);
+}
+
+/* ========================================================== */
+/* THEME 5: Lavender + Purple                                 */
+/* ========================================================== */
+[data-theme="lavender-purple"] {
+  --bg-main:         #FAF5FF;
+  --bg-surface:      #F3E8FF;
+  --bg-elevated:     #EDD5FF;
+  --bg-card:         #F0E0FF;
+
+  --text-primary:    #3B0764;
+  --text-secondary:  #7C3AED;
+  --text-muted:      #A78BFA;
+
+  --accent:          #7C3AED;
+  --accent-hover:    #6D28D9;
+  --accent-fg:       #FAF5FF;
+
+  --border:          #DDD6FE;
+  --border-subtle:   #EDD5FF;
+  --border-focus:    #7C3AED;
+
+  --typing-correct:  #16A34A;
+  --typing-incorrect:#DC2626;
+  --typing-caret:    #7C3AED;
+  --typing-untyped:  #A78BFA;
+  --typing-bg:       #F3E8FF;
+
+  --key-bg:          #EDD5FF;
+  --key-border:      #DDD6FE;
+  --key-text:        #7C3AED;
+  --key-active-bg:   #7C3AED;
+  --key-active-border:#6D28D9;
+  --key-active-text: #FAF5FF;
+  --key-home-row:    #E8D5FF;
+
+  --chart-primary:   #7C3AED;
+  --chart-secondary: #EC4899;
+  --chart-tertiary:  #8B5CF6;
+  --chart-grid:      #EDD5FF;
+  --chart-tooltip-bg:#F3E8FF;
+
+  --sidebar-bg:      #F5F0FF;
+  --sidebar-border:  #DDD6FE;
+  --sidebar-text:    #7C3AED;
+  --sidebar-active:  #6D28D9;
+  --sidebar-active-bg:#EDD5FF;
+
+  --input-bg:        #EDD5FF;
+  --input-border:    #DDD6FE;
+  --input-text:      #3B0764;
+  --input-placeholder:#A78BFA;
+
+  --modal-bg:        #F3E8FF;
+  --modal-overlay:   rgba(59,7,100,0.4);
+  --modal-border:    #DDD6FE;
+
+  --tooltip-bg:      #EDD5FF;
+  --tooltip-text:    #3B0764;
+  --tooltip-border:  #DDD6FE;
+
+  --ui-success:      #16A34A;
+  --ui-warning:      #D97706;
+  --ui-error:        #DC2626;
+
+  --btn-primary-bg:  #7C3AED;
+  --btn-primary-text:#FAF5FF;
+  --btn-primary-hover:#6D28D9;
+  --btn-secondary-bg:#EDD5FF;
+  --btn-secondary-text:#3B0764;
+  --btn-secondary-border:#DDD6FE;
+
+  --scrollbar-thumb: #DDD6FE;
+  --scrollbar-track: #FAF5FF;
+
+  --shadow-sm:       0 1px 3px rgba(59,7,100,0.1);
+  --shadow-md:       0 4px 16px rgba(59,7,100,0.15);
+  --shadow-lg:       0 8px 32px rgba(59,7,100,0.2);
+}
+
+/* ========================================================== */
+/* THEME 6: Forest Green                                      */
+/* ========================================================== */
+[data-theme="forest-green"] {
+  --bg-main:         #0D1F15;
+  --bg-surface:      #163323;
+  --bg-elevated:     #1E4230;
+  --bg-card:         #1A3B28;
+
+  --text-primary:    #ECFDF5;
+  --text-secondary:  #6EE7B7;
+  --text-muted:      #4D7A63;
+
+  --accent:          #4ADE80;
+  --accent-hover:    #22C55E;
+  --accent-fg:       #0D1F15;
+
+  --border:          #2D5240;
+  --border-subtle:   #1E4230;
+  --border-focus:    #4ADE80;
+
+  --typing-correct:  #4ADE80;
+  --typing-incorrect:#F87171;
+  --typing-caret:    #4ADE80;
+  --typing-untyped:  #4D7A63;
+  --typing-bg:       #163323;
+
+  --key-bg:          #1E4230;
+  --key-border:      #2D5240;
+  --key-text:        #6EE7B7;
+  --key-active-bg:   #4ADE80;
+  --key-active-border:#22C55E;
+  --key-active-text: #0D1F15;
+  --key-home-row:    #1A4030;
+
+  --chart-primary:   #4ADE80;
+  --chart-secondary: #34D399;
+  --chart-tertiary:  #6EE7B7;
+  --chart-grid:      #1E4230;
+  --chart-tooltip-bg:#163323;
+
+  --sidebar-bg:      #0A1910;
+  --sidebar-border:  #2D5240;
+  --sidebar-text:    #6EE7B7;
+  --sidebar-active:  #4ADE80;
+  --sidebar-active-bg:#1E4230;
+
+  --input-bg:        #1E4230;
+  --input-border:    #2D5240;
+  --input-text:      #ECFDF5;
+  --input-placeholder:#4D7A63;
+
+  --modal-bg:        #163323;
+  --modal-overlay:   rgba(0,0,0,0.75);
+  --modal-border:    #2D5240;
+
+  --tooltip-bg:      #1E4230;
+  --tooltip-text:    #ECFDF5;
+  --tooltip-border:  #2D5240;
+
+  --ui-success:      #4ADE80;
+  --ui-warning:      #FCD34D;
+  --ui-error:        #F87171;
+
+  --btn-primary-bg:  #4ADE80;
+  --btn-primary-text:#0D1F15;
+  --btn-primary-hover:#22C55E;
+  --btn-secondary-bg:#1E4230;
+  --btn-secondary-text:#ECFDF5;
+  --btn-secondary-border:#2D5240;
+
+  --scrollbar-thumb: #2D5240;
+  --scrollbar-track: #0D1F15;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.6);
+}
+
+/* ========================================================== */
+/* THEME 7: Ocean Teal                                        */
+/* ========================================================== */
+[data-theme="ocean-teal"] {
+  --bg-main:         #0A1926;
+  --bg-surface:      #132B3E;
+  --bg-elevated:     #1A3850;
+  --bg-card:         #163245;
+
+  --text-primary:    #F0FDFA;
+  --text-secondary:  #5EEAD4;
+  --text-muted:      #2D7A70;
+
+  --accent:          #14B8A6;
+  --accent-hover:    #0D9488;
+  --accent-fg:       #0A1926;
+
+  --border:          #1E4A60;
+  --border-subtle:   #132B3E;
+  --border-focus:    #14B8A6;
+
+  --typing-correct:  #2DD4BF;
+  --typing-incorrect:#F87171;
+  --typing-caret:    #14B8A6;
+  --typing-untyped:  #2D7A70;
+  --typing-bg:       #132B3E;
+
+  --key-bg:          #1A3850;
+  --key-border:      #1E4A60;
+  --key-text:        #5EEAD4;
+  --key-active-bg:   #14B8A6;
+  --key-active-border:#0D9488;
+  --key-active-text: #0A1926;
+  --key-home-row:    #163848;
+
+  --chart-primary:   #14B8A6;
+  --chart-secondary: #06B6D4;
+  --chart-tertiary:  #2DD4BF;
+  --chart-grid:      #1A3850;
+  --chart-tooltip-bg:#132B3E;
+
+  --sidebar-bg:      #071420;
+  --sidebar-border:  #1E4A60;
+  --sidebar-text:    #5EEAD4;
+  --sidebar-active:  #14B8A6;
+  --sidebar-active-bg:#163245;
+
+  --input-bg:        #1A3850;
+  --input-border:    #1E4A60;
+  --input-text:      #F0FDFA;
+  --input-placeholder:#2D7A70;
+
+  --modal-bg:        #132B3E;
+  --modal-overlay:   rgba(0,0,0,0.75);
+  --modal-border:    #1E4A60;
+
+  --tooltip-bg:      #1A3850;
+  --tooltip-text:    #F0FDFA;
+  --tooltip-border:  #1E4A60;
+
+  --ui-success:      #2DD4BF;
+  --ui-warning:      #FCD34D;
+  --ui-error:        #F87171;
+
+  --btn-primary-bg:  #14B8A6;
+  --btn-primary-text:#0A1926;
+  --btn-primary-hover:#0D9488;
+  --btn-secondary-bg:#1A3850;
+  --btn-secondary-text:#F0FDFA;
+  --btn-secondary-border:#1E4A60;
+
+  --scrollbar-thumb: #1E4A60;
+  --scrollbar-track: #0A1926;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.6);
+}
+
+/* ========================================================== */
+/* THEME 8: Sunset Orange                                     */
+/* ========================================================== */
+[data-theme="sunset-orange"] {
+  --bg-main:         #1A1412;
+  --bg-surface:      #2B1F1B;
+  --bg-elevated:     #3A2820;
+  --bg-card:         #33231F;
+
+  --text-primary:    #FFF7ED;
+  --text-secondary:  #FDBA74;
+  --text-muted:      #7C4A30;
+
+  --accent:          #F97316;
+  --accent-hover:    #EA6B0A;
+  --accent-fg:       #1A1412;
+
+  --border:          #4A3028;
+  --border-subtle:   #3A2820;
+  --border-focus:    #F97316;
+
+  --typing-correct:  #4ADE80;
+  --typing-incorrect:#F87171;
+  --typing-caret:    #F97316;
+  --typing-untyped:  #7C4A30;
+  --typing-bg:       #2B1F1B;
+
+  --key-bg:          #3A2820;
+  --key-border:      #4A3028;
+  --key-text:        #FDBA74;
+  --key-active-bg:   #F97316;
+  --key-active-border:#EA6B0A;
+  --key-active-text: #1A1412;
+  --key-home-row:    #3A2A20;
+
+  --chart-primary:   #F97316;
+  --chart-secondary: #FBBF24;
+  --chart-tertiary:  #F43F5E;
+  --chart-grid:      #3A2820;
+  --chart-tooltip-bg:#2B1F1B;
+
+  --sidebar-bg:      #140F0D;
+  --sidebar-border:  #4A3028;
+  --sidebar-text:    #FDBA74;
+  --sidebar-active:  #F97316;
+  --sidebar-active-bg:#33231F;
+
+  --input-bg:        #3A2820;
+  --input-border:    #4A3028;
+  --input-text:      #FFF7ED;
+  --input-placeholder:#7C4A30;
+
+  --modal-bg:        #2B1F1B;
+  --modal-overlay:   rgba(0,0,0,0.75);
+  --modal-border:    #4A3028;
+
+  --tooltip-bg:      #3A2820;
+  --tooltip-text:    #FFF7ED;
+  --tooltip-border:  #4A3028;
+
+  --ui-success:      #4ADE80;
+  --ui-warning:      #FBBF24;
+  --ui-error:        #F87171;
+
+  --btn-primary-bg:  #F97316;
+  --btn-primary-text:#1A1412;
+  --btn-primary-hover:#EA6B0A;
+  --btn-secondary-bg:#3A2820;
+  --btn-secondary-text:#FFF7ED;
+  --btn-secondary-border:#4A3028;
+
+  --scrollbar-thumb: #4A3028;
+  --scrollbar-track: #1A1412;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.6);
+}
+
+/* ========================================================== */
+/* THEME 9: Rose Pink                                         */
+/* ========================================================== */
+[data-theme="rose-pink"] {
+  --bg-main:         #FFF1F2;
+  --bg-surface:      #FFE4E6;
+  --bg-elevated:     #FECDD3;
+  --bg-card:         #FFD8DC;
+
+  --text-primary:    #4C0519;
+  --text-secondary:  #9F1239;
+  --text-muted:      #E11D48;
+
+  --accent:          #F43F5E;
+  --accent-hover:    #E11D48;
+  --accent-fg:       #FFF1F2;
+
+  --border:          #FECDD3;
+  --border-subtle:   #FFE4E6;
+  --border-focus:    #F43F5E;
+
+  --typing-correct:  #16A34A;
+  --typing-incorrect:#DC2626;
+  --typing-caret:    #F43F5E;
+  --typing-untyped:  #E11D48;
+  --typing-bg:       #FFE4E6;
+
+  --key-bg:          #FECDD3;
+  --key-border:      #FCA5A5;
+  --key-text:        #9F1239;
+  --key-active-bg:   #F43F5E;
+  --key-active-border:#E11D48;
+  --key-active-text: #FFF1F2;
+  --key-home-row:    #FFD0D6;
+
+  --chart-primary:   #F43F5E;
+  --chart-secondary: #FB7185;
+  --chart-tertiary:  #EC4899;
+  --chart-grid:      #FECDD3;
+  --chart-tooltip-bg:#FFE4E6;
+
+  --sidebar-bg:      #FFF5F6;
+  --sidebar-border:  #FECDD3;
+  --sidebar-text:    #9F1239;
+  --sidebar-active:  #F43F5E;
+  --sidebar-active-bg:#FECDD3;
+
+  --input-bg:        #FECDD3;
+  --input-border:    #FCA5A5;
+  --input-text:      #4C0519;
+  --input-placeholder:#E11D48;
+
+  --modal-bg:        #FFE4E6;
+  --modal-overlay:   rgba(76,5,25,0.4);
+  --modal-border:    #FECDD3;
+
+  --tooltip-bg:      #FECDD3;
+  --tooltip-text:    #4C0519;
+  --tooltip-border:  #FCA5A5;
+
+  --ui-success:      #16A34A;
+  --ui-warning:      #D97706;
+  --ui-error:        #DC2626;
+
+  --btn-primary-bg:  #F43F5E;
+  --btn-primary-text:#FFF1F2;
+  --btn-primary-hover:#E11D48;
+  --btn-secondary-bg:#FECDD3;
+  --btn-secondary-text:#4C0519;
+  --btn-secondary-border:#FCA5A5;
+
+  --scrollbar-thumb: #FECDD3;
+  --scrollbar-track: #FFF1F2;
+
+  --shadow-sm:       0 1px 3px rgba(76,5,25,0.1);
+  --shadow-md:       0 4px 16px rgba(76,5,25,0.15);
+  --shadow-lg:       0 8px 32px rgba(76,5,25,0.2);
+}
+
+/* ========================================================== */
+/* THEME 10: Arctic Blue                                      */
+/* ========================================================== */
+[data-theme="arctic-blue"] {
+  --bg-main:         #0F172A;
+  --bg-surface:      #1E293B;
+  --bg-elevated:     #263548;
+  --bg-card:         #1F3040;
+
+  --text-primary:    #E2E8F0;
+  --text-secondary:  #94A3B8;
+  --text-muted:      #475569;
+
+  --accent:          #06B6D4;
+  --accent-hover:    #22D3EE;
+  --accent-fg:       #0F172A;
+
+  --border:          #334155;
+  --border-subtle:   #1E293B;
+  --border-focus:    #06B6D4;
+
+  --typing-correct:  #34D399;
+  --typing-incorrect:#F87171;
+  --typing-caret:    #06B6D4;
+  --typing-untyped:  #475569;
+  --typing-bg:       #1E293B;
+
+  --key-bg:          #263548;
+  --key-border:      #334155;
+  --key-text:        #94A3B8;
+  --key-active-bg:   #06B6D4;
+  --key-active-border:#22D3EE;
+  --key-active-text: #0F172A;
+  --key-home-row:    #1F3550;
+
+  --chart-primary:   #06B6D4;
+  --chart-secondary: #3B82F6;
+  --chart-tertiary:  #8B5CF6;
+  --chart-grid:      #263548;
+  --chart-tooltip-bg:#1E293B;
+
+  --sidebar-bg:      #0B1325;
+  --sidebar-border:  #334155;
+  --sidebar-text:    #94A3B8;
+  --sidebar-active:  #06B6D4;
+  --sidebar-active-bg:#1F3040;
+
+  --input-bg:        #263548;
+  --input-border:    #334155;
+  --input-text:      #E2E8F0;
+  --input-placeholder:#475569;
+
+  --modal-bg:        #1E293B;
+  --modal-overlay:   rgba(0,0,0,0.75);
+  --modal-border:    #334155;
+
+  --tooltip-bg:      #263548;
+  --tooltip-text:    #E2E8F0;
+  --tooltip-border:  #334155;
+
+  --ui-success:      #34D399;
+  --ui-warning:      #FBBF24;
+  --ui-error:        #F87171;
+
+  --btn-primary-bg:  #06B6D4;
+  --btn-primary-text:#0F172A;
+  --btn-primary-hover:#22D3EE;
+  --btn-secondary-bg:#263548;
+  --btn-secondary-text:#E2E8F0;
+  --btn-secondary-border:#334155;
+
+  --scrollbar-thumb: #334155;
+  --scrollbar-track: #0F172A;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.4);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.5);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.6);
+}
+
+/* ========================================================== */
+/* THEME 11: Solarized Light                                  */
+/* ========================================================== */
+[data-theme="solarized-light"] {
+  --bg-main:         #FDF6E3;
+  --bg-surface:      #EEE8D5;
+  --bg-elevated:     #E5DECC;
+  --bg-card:         #EAE3D0;
+
+  --text-primary:    #073642;
+  --text-secondary:  #586E75;
+  --text-muted:      #93A1A1;
+
+  --accent:          #268BD2;
+  --accent-hover:    #1A6FAA;
+  --accent-fg:       #FDF6E3;
+
+  --border:          #D4CEBC;
+  --border-subtle:   #E5DECC;
+  --border-focus:    #268BD2;
+
+  --typing-correct:  #2AA198;
+  --typing-incorrect:#DC322F;
+  --typing-caret:    #268BD2;
+  --typing-untyped:  #93A1A1;
+  --typing-bg:       #EEE8D5;
+
+  --key-bg:          #E5DECC;
+  --key-border:      #D4CEBC;
+  --key-text:        #586E75;
+  --key-active-bg:   #268BD2;
+  --key-active-border:#1A6FAA;
+  --key-active-text: #FDF6E3;
+  --key-home-row:    #E0D9C6;
+
+  --chart-primary:   #268BD2;
+  --chart-secondary: #2AA198;
+  --chart-tertiary:  #859900;
+  --chart-grid:      #E5DECC;
+  --chart-tooltip-bg:#EEE8D5;
+
+  --sidebar-bg:      #F5EFD8;
+  --sidebar-border:  #D4CEBC;
+  --sidebar-text:    #586E75;
+  --sidebar-active:  #268BD2;
+  --sidebar-active-bg:#E5DECC;
+
+  --input-bg:        #E5DECC;
+  --input-border:    #D4CEBC;
+  --input-text:      #073642;
+  --input-placeholder:#93A1A1;
+
+  --modal-bg:        #EEE8D5;
+  --modal-overlay:   rgba(7,54,66,0.4);
+  --modal-border:    #D4CEBC;
+
+  --tooltip-bg:      #E5DECC;
+  --tooltip-text:    #073642;
+  --tooltip-border:  #D4CEBC;
+
+  --ui-success:      #2AA198;
+  --ui-warning:      #B58900;
+  --ui-error:        #DC322F;
+
+  --btn-primary-bg:  #268BD2;
+  --btn-primary-text:#FDF6E3;
+  --btn-primary-hover:#1A6FAA;
+  --btn-secondary-bg:#E5DECC;
+  --btn-secondary-text:#073642;
+  --btn-secondary-border:#D4CEBC;
+
+  --scrollbar-thumb: #D4CEBC;
+  --scrollbar-track: #FDF6E3;
+
+  --shadow-sm:       0 1px 3px rgba(7,54,66,0.1);
+  --shadow-md:       0 4px 16px rgba(7,54,66,0.12);
+  --shadow-lg:       0 8px 32px rgba(7,54,66,0.16);
+}
+
+/* ========================================================== */
+/* THEME 12: Warm Sand                                        */
+/* ========================================================== */
+[data-theme="warm-sand"] {
+  --bg-main:         #FDFBF7;
+  --bg-surface:      #F5EFE6;
+  --bg-elevated:     #EDE3D2;
+  --bg-card:         #F0E8D8;
+
+  --text-primary:    #451A03;
+  --text-secondary:  #92400E;
+  --text-muted:      #B45309;
+
+  --accent:          #D97706;
+  --accent-hover:    #B45309;
+  --accent-fg:       #FDFBF7;
+
+  --border:          #DDD0B8;
+  --border-subtle:   #EDE3D2;
+  --border-focus:    #D97706;
+
+  --typing-correct:  #16A34A;
+  --typing-incorrect:#DC2626;
+  --typing-caret:    #D97706;
+  --typing-untyped:  #B45309;
+  --typing-bg:       #F5EFE6;
+
+  --key-bg:          #EDE3D2;
+  --key-border:      #DDD0B8;
+  --key-text:        #92400E;
+  --key-active-bg:   #D97706;
+  --key-active-border:#B45309;
+  --key-active-text: #FDFBF7;
+  --key-home-row:    #E8DCC8;
+
+  --chart-primary:   #D97706;
+  --chart-secondary: #C2410C;
+  --chart-tertiary:  #92400E;
+  --chart-grid:      #EDE3D2;
+  --chart-tooltip-bg:#F5EFE6;
+
+  --sidebar-bg:      #F8F4EC;
+  --sidebar-border:  #DDD0B8;
+  --sidebar-text:    #92400E;
+  --sidebar-active:  #D97706;
+  --sidebar-active-bg:#EDE3D2;
+
+  --input-bg:        #EDE3D2;
+  --input-border:    #DDD0B8;
+  --input-text:      #451A03;
+  --input-placeholder:#B45309;
+
+  --modal-bg:        #F5EFE6;
+  --modal-overlay:   rgba(69,26,3,0.4);
+  --modal-border:    #DDD0B8;
+
+  --tooltip-bg:      #EDE3D2;
+  --tooltip-text:    #451A03;
+  --tooltip-border:  #DDD0B8;
+
+  --ui-success:      #16A34A;
+  --ui-warning:      #D97706;
+  --ui-error:        #DC2626;
+
+  --btn-primary-bg:  #D97706;
+  --btn-primary-text:#FDFBF7;
+  --btn-primary-hover:#B45309;
+  --btn-secondary-bg:#EDE3D2;
+  --btn-secondary-text:#451A03;
+  --btn-secondary-border:#DDD0B8;
+
+  --scrollbar-thumb: #DDD0B8;
+  --scrollbar-track: #FDFBF7;
+
+  --shadow-sm:       0 1px 3px rgba(69,26,3,0.1);
+  --shadow-md:       0 4px 16px rgba(69,26,3,0.12);
+  --shadow-lg:       0 8px 32px rgba(69,26,3,0.16);
+}
+
+/* ========================================================== */
+/* GLOBAL BASE STYLES — Theme-Agnostic                       */
+/* ========================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  min-height: 100vh;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+/* Links */
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 150ms ease;
+}
+a:hover {
+  color: var(--accent-hover);
+}
+
+/* Monospace — typing engine, keyboards, metrics */
+.font-mono, code, pre, kbd,
+.typing-passage, .typing-metric, .key-label {
+  font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* Focus Ring — keyboard accessibility */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border);
+}
+
+/* Selection highlight */
+::selection {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+/* Transitions — theme switching */
+*:not([data-no-transition]) {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
+/* ========================================================== */
+/* UTILITY CLASSES                                            */
+/* ========================================================== */
+
+/* Background token utilities */
+.bg-main       { background-color: var(--bg-main); }
+.bg-surface    { background-color: var(--bg-surface); }
+.bg-elevated   { background-color: var(--bg-elevated); }
+.bg-card       { background-color: var(--bg-card); }
+
+/* Text token utilities */
+.text-primary   { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted     { color: var(--text-muted); }
+.text-accent    { color: var(--accent); }
+
+/* Border utilities */
+.border-token        { border-color: var(--border); }
+.border-subtle-token { border-color: var(--border-subtle); }
+
+/* Status colors */
+.text-success { color: var(--ui-success); }
+.text-warning { color: var(--ui-warning); }
+.text-error   { color: var(--ui-error); }
+
+/* Typing engine states */
+.char-correct   { color: var(--typing-correct); }
+.char-incorrect { color: var(--typing-incorrect); text-decoration: underline; }
+.char-current   { color: var(--text-primary); border-bottom: 2px solid var(--typing-caret); }
+.char-untyped   { color: var(--typing-untyped); }

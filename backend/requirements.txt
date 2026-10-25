@@ -1,0 +1,42 @@
+# ============================================================
+# KEYFLOW Backend — Python Dependencies
+# Verified compatible: Python 3.14.5 + Django 5.2 LTS
+# ============================================================
+
+# Core Framework
+Django==5.2.18
+djangorestframework==3.18.3
+
+# PostgreSQL Adapter — Psycopg 3 (modern, native Django 4.2+ support)
+# IMPORTANT: Do NOT also install psycopg2 — they conflict
+psycopg[binary]==3.3.6
+
+# Database URL parsing (reads DATABASE_URL env var)
+dj-database-url==2.3.0
+
+# Token Authentication — per-device, multi-session, revocable
+# Package is django-rest-knox (not django-knox)
+django-rest-knox==5.1.0
+
+# CORS headers for React frontend communication
+django-cors-headers==4.7.0
+
+# Password reset via secure tokens sent to email
+django-rest-passwordreset==1.5.0
+
+# Environment variable management
+python-decouple==3.8
+
+# Timezone utilities
+pytz==2025.2
+
+# Production WSGI server
+gunicorn==23.0.0
+
+# Static files serving (production)
+whitenoise==6.9.0
+
+# Testing
+pytest==8.3.5
+pytest-django==4.9.0
+faker==37.3.0
