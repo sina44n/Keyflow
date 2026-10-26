@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { KeyboardGuide } from '../academy/KeyboardGuide';
 import { getGuidePreferences, saveGuidePreferences } from '../../utils/lessonProgress';
+import { getCharacterFeedback, countCorrectChars } from '../../utils/typingFeedback';
 
 const SAMPLE_TEXT = 'the quick brown fox jumps over the lazy dog and flows with speed';
 
@@ -88,10 +89,7 @@ export const HeroSection = () => {
       const calculatedWpm = Math.round(wordsTyped / Math.max(elapsedMinutes, 0.01));
       setWpm(calculatedWpm);
 
-      let correctChars = 0;
-      for (let i = 0; i < val.length; i++) {
-        if (val[i] === SAMPLE_TEXT[i]) correctChars++;
-      }
+      const correctChars = countCorrectChars(val, SAMPLE_TEXT);
       const acc = Math.round((correctChars / val.length) * 100);
       setAccuracy(acc);
     }
@@ -276,18 +274,9 @@ export const HeroSection = () => {
                 aria-label="Live interactive typing passage"
               >
                 {SAMPLE_TEXT.split('').map((char, idx) => {
-                  let charClass = 'char-untyped';
-                  if (idx < inputVal.length) {
-                    if (inputVal[idx] === char) {
-                      charClass = 'char-correct';
-                    } else {
-                      charClass = 'char-incorrect';
-                    }
-                  } else if (idx === inputVal.length) {
-                    charClass = 'char-current';
-                  }
+                  const feedback = getCharacterFeedback(idx, inputVal, SAMPLE_TEXT, false);
                   return (
-                    <span key={idx} className={charClass}>
+                    <span key={idx} className={feedback.className}>
                       {char}
                     </span>
                   );

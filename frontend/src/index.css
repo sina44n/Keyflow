@@ -596,7 +596,7 @@
   --border-subtle:   #132B3E;
   --border-focus:    #14B8A6;
 
-  --typing-correct:  #2DD4BF;
+  --typing-correct:  #34D399;
   --typing-incorrect:#F87171;
   --typing-caret:    #14B8A6;
   --typing-untyped:  #2D7A70;
@@ -912,7 +912,7 @@
   --border-subtle:   #E5DECC;
   --border-focus:    #268BD2;
 
-  --typing-correct:  #2AA198;
+  --typing-correct:  #859900;
   --typing-incorrect:#DC322F;
   --typing-caret:    #268BD2;
   --typing-untyped:  #93A1A1;

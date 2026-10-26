@@ -18,6 +18,7 @@ import {
 import { Button } from '../components/common/Button';
 import { KeyboardGuide } from '../components/academy/KeyboardGuide';
 import { getGuidePreferences, saveGuidePreferences } from '../utils/lessonProgress';
+import { getCharacterFeedback, countCorrectChars } from '../utils/typingFeedback';
 
 const PRACTICE_PASSAGES = [
   {
@@ -155,11 +156,7 @@ export const WorkstationPage = () => {
 
   // Live metrics calculations
   const correctChars = useMemo(() => {
-    let count = 0;
-    for (let i = 0; i < typed.length; i++) {
-      if (typed[i] === currentTargetText[i]) count++;
-    }
-    return count;
+    return countCorrectChars(typed, currentTargetText);
   }, [typed, currentTargetText]);
 
   const elapsedMinutes = Math.max((elapsedSeconds || 1) / 60, 0.016);
@@ -501,7 +498,7 @@ export const WorkstationPage = () => {
         {/* Typing Area Box */}
         <div
           onClick={() => inputRef.current && inputRef.current.focus()}
-          className={`p-6 sm:p-8 rounded-2xl border transition-all cursor-text min-h-[160px] relative select-none leading-relaxed font-mono text-lg sm:text-2xl ${
+          className={`p-6 sm:p-8 rounded-2xl border transition-all cursor-text min-h-[160px] relative select-none leading-relaxed font-mono text-lg sm:text-2xl whitespace-pre-wrap ${
             isCompleted
               ? 'opacity-85 border-[var(--border)]'
               : 'border-[var(--accent)] shadow-sm'
@@ -509,14 +506,9 @@ export const WorkstationPage = () => {
           style={{ background: 'var(--bg-surface)' }}
         >
           {currentTargetText.split('').map((char, idx) => {
-            let cls = 'char-untyped';
-            if (idx < typed.length) {
-              cls = typed[idx] === char ? 'char-correct' : 'char-incorrect';
-            } else if (idx === typed.length && !isCompleted) {
-              cls = 'char-current';
-            }
+            const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted);
             return (
-              <span key={idx} className={cls}>
+              <span key={idx} className={feedback.className}>
                 {char}
               </span>
             );

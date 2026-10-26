@@ -12,6 +12,7 @@ import {
   recordLessonResult, calculateStars,
   getGuidePreferences, saveGuidePreferences,
 } from '../../utils/lessonProgress';
+import { getCharacterFeedback, countCorrectChars } from '../../utils/typingFeedback';
 
 /**
  * LessonPlayer — Masterpiece Typing Workstation matching the reference design.
@@ -85,11 +86,7 @@ export const LessonPlayer = ({
   }, [typed, targetText]);
 
   const correctChars = useMemo(() => {
-    let count = 0;
-    for (let i = 0; i < typed.length; i++) {
-      if (typed[i] === targetText[i]) count++;
-    }
-    return count;
+    return countCorrectChars(typed, targetText);
   }, [typed, targetText]);
 
   const elapsedMinutes = Math.max((elapsedSeconds || 1) / 60, 0.016);
@@ -200,10 +197,7 @@ export const LessonPlayer = ({
 
       const finalDuration = Math.max(1, Math.floor((Date.now() - (startTime || Date.now())) / 1000));
       const finalMinutes = finalDuration / 60;
-      let finalCorrect = 0;
-      for (let i = 0; i < targetText.length; i++) {
-        if (value[i] === targetText[i]) finalCorrect++;
-      }
+      const finalCorrect = countCorrectChars(value, targetText);
       const finalWpm = Math.max(0, Math.round((finalCorrect / 5) / Math.max(finalMinutes, 0.016)));
       const finalStrokes = totalStrokes + 1;
       const finalMistakes = isCorrect ? mistakes : mistakes + 1;
@@ -305,7 +299,6 @@ export const LessonPlayer = ({
 
   return (
     <div
-      data-theme="dark-theme"
       className="fixed inset-0 z-50 flex flex-col items-center bg-[var(--bg-main,#0b1120)] text-[var(--text-primary)] overflow-y-auto overflow-x-hidden selection:bg-[var(--accent)] selection:text-black"
       style={{
         fontFamily: 'Inter, system-ui, sans-serif',
@@ -509,15 +502,13 @@ export const LessonPlayer = ({
                   <span key={word.key} className="inline">
                     {word.text.split('').map((sp, spIdx) => {
                       const absoluteIdx = word.startIndex + spIdx;
-                      let spCls = 'text-[var(--text-muted)] opacity-30';
-                      if (absoluteIdx < currentTypedIndex) {
-                        spCls =
-                          typed[absoluteIdx] === ' '
-                            ? 'text-[var(--accent)]'
-                            : 'text-[var(--ui-error,#ef4444)] underline';
+                      const feedback = getCharacterFeedback(absoluteIdx, typed, targetText, isCompleted);
+                      let spCls = 'char-untyped opacity-40';
+                      if (feedback.isTyped) {
+                        spCls = feedback.className;
                       }
                       return (
-                        <span key={spIdx} className={spCls}>
+                        <span key={spIdx} className={`inline ${spCls}`}>
                           {' '}
                         </span>
                       );
@@ -537,16 +528,8 @@ export const LessonPlayer = ({
                 >
                   {word.text.split('').map((char, charIdx) => {
                     const charAbsoluteIdx = word.startIndex + charIdx;
-                    const isTyped = charAbsoluteIdx < currentTypedIndex;
-                    const isAtCaret =
-                      charAbsoluteIdx === currentTypedIndex && !isCompleted;
-                    const isCorrect = isTyped && typed[charAbsoluteIdx] === char;
-                    const isIncorrect = isTyped && !isCorrect;
-
-                    let charColor =
-                      'color-mix(in srgb, var(--text-muted, #64748b) 60%, transparent)';
-                    if (isCorrect) charColor = 'var(--accent, #06b6d4)';
-                    if (isIncorrect) charColor = 'var(--ui-error, #ef4444)';
+                    const feedback = getCharacterFeedback(charAbsoluteIdx, typed, targetText, isCompleted);
+                    const isAtCaret = feedback.isCurrent;
 
                     return (
                       <span key={charIdx} className="relative inline">
@@ -561,9 +544,9 @@ export const LessonPlayer = ({
                           />
                         )}
                         <span
+                          className={feedback.className}
                           style={{
-                            color: charColor,
-                            fontWeight: isTyped || isCurrentWord ? '500' : '400',
+                            fontWeight: feedback.isTyped || isCurrentWord ? '500' : '400',
                           }}
                         >
                           {char}
