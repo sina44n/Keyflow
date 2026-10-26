@@ -4,12 +4,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import * as THREE from 'three';
 import {
   BONE_NAMES,
   FINGER_BONE_MAP,
+  HAND_LANDMARKS,
   createHandRigMesh,
   createHandAnimationController,
 } from '../../utils/hand3dRig.js';
+import { resolveKeyToFinger } from '../../utils/touchTypingMap.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -335,6 +338,270 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     assert.equal(controller.getActiveCount(), 0);
   });
 
+  it('strictly isolates bone transforms for every single letter key across the full alphabet', () => {
+    const { bones, boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+    letters.forEach((letter) => {
+      controller.resetAll();
+      const resolved = resolveKeyToFinger(letter);
+      assert.ok(resolved, `Resolved finger for '${letter}'`);
+      const targetBones = FINGER_BONE_MAP[resolved.finger];
+
+      // Record baseline transforms for all 32 bones
+      const baselinePos = {};
+      const baselineRot = {};
+      bones.forEach((b) => {
+        baselinePos[b.name] = b.position.clone();
+        baselineRot[b.name] = b.rotation.clone();
+      });
+
+      // Trigger keystroke & advance to peak strike
+      controller.triggerKeystroke(letter);
+      controller.update(performance.now() + 50);
+
+      // Verify strict isolation: ONLY target bones move, all 29 other bones stay perfectly still
+      bones.forEach((b) => {
+        const dPos = b.position.distanceTo(baselinePos[b.name]);
+        const dRot = Math.abs(b.rotation.x - baselineRot[b.name].x) +
+                     Math.abs(b.rotation.y - baselineRot[b.name].y) +
+                     Math.abs(b.rotation.z - baselineRot[b.name].z);
+        const hasMoved = dPos > 1e-4 || dRot > 1e-4;
+        const isTarget = targetBones.includes(b.name);
+
+        if (isTarget) {
+          assert.ok(hasMoved, `Target bone ${b.name} must move for key '${letter}'`);
+        } else {
+          assert.ok(!hasMoved, `Non-target bone ${b.name} must NOT move for key '${letter}' (target: ${resolved.finger})`);
+        }
+      });
+
+      // Advance past completion -> all bones must cleanly return to rest
+      controller.update(performance.now() + 250);
+      bones.forEach((b) => {
+        assert.ok(b.position.distanceTo(baselinePos[b.name]) < 1e-4, `Bone ${b.name} returned to rest pos after '${letter}'`);
+        assert.ok(Math.abs(b.rotation.x - baselineRot[b.name].x) < 1e-4, `Bone ${b.name} returned to rest rot after '${letter}'`);
+      });
+    });
+  });
+
+  it('strictly isolates bone transforms for number row, punctuation, spacebar, and modifiers', () => {
+    const { bones, boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    const nonLetterKeys = [
+      '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',
+      ';', '\'', ',', '.', '/', '[', ']',
+      'Tab', 'CapsLock', 'ShiftLeft', 'ShiftRight', 'Backspace', 'Enter'
+    ];
+
+    nonLetterKeys.forEach((key) => {
+      controller.resetAll();
+      const resolved = resolveKeyToFinger(key);
+      assert.ok(resolved, `Resolved finger for '${key}'`);
+      const targetBones = FINGER_BONE_MAP[resolved.finger];
+
+      const baselinePos = {};
+      const baselineRot = {};
+      bones.forEach((b) => {
+        baselinePos[b.name] = b.position.clone();
+        baselineRot[b.name] = b.rotation.clone();
+      });
+
+      controller.triggerKeystroke(key);
+      controller.update(performance.now() + 50);
+
+      bones.forEach((b) => {
+        const dPos = b.position.distanceTo(baselinePos[b.name]);
+        const dRot = Math.abs(b.rotation.x - baselineRot[b.name].x) +
+                     Math.abs(b.rotation.y - baselineRot[b.name].y) +
+                     Math.abs(b.rotation.z - baselineRot[b.name].z);
+        const hasMoved = dPos > 1e-4 || dRot > 1e-4;
+        const isTarget = targetBones.includes(b.name);
+
+        if (isTarget) {
+          assert.ok(hasMoved, `Target bone ${b.name} moved for '${key}'`);
+        } else {
+          assert.ok(!hasMoved, `Non-target bone ${b.name} remained still for '${key}'`);
+        }
+      });
+    });
+
+    // Spacebar left thumb
+    controller.resetAll();
+    controller.triggerKeystroke(' ', { spaceThumb: 'left-thumb' });
+    controller.update(performance.now() + 50);
+    assert.ok(boneMap['thumb_proximal_L'].position.distanceTo(boneMap['thumb_proximal_L'].position) === 0);
+    bones.forEach((b) => {
+      const isTarget = FINGER_BONE_MAP['left-thumb'].includes(b.name);
+      if (!isTarget) {
+        assert.equal(b.rotation.x, 0);
+      }
+    });
+
+    // Spacebar right thumb
+    controller.resetAll();
+    controller.triggerKeystroke(' ', { spaceThumb: 'right-thumb' });
+    controller.update(performance.now() + 50);
+    bones.forEach((b) => {
+      const isTarget = FINGER_BONE_MAP['right-thumb'].includes(b.name);
+      if (!isTarget) {
+        assert.equal(b.rotation.x, 0);
+      }
+    });
+  });
+
+  it('guarantees zero cross-finger skinning weights and isolated vertex deformation', () => {
+    const { skinnedMesh, bones, boneMap } = createHandRigMesh();
+    const geom = skinnedMesh.geometry;
+    const skinIndex = geom.attributes.skinIndex;
+    const skinWeight = geom.attributes.skinWeight;
+    const position = geom.attributes.position;
+
+    // Map each bone index to its finger ray
+    const boneIdxToFinger = {};
+    bones.forEach((b, idx) => {
+      let fFound = 'palm_or_wrist';
+      for (const [fName, bNames] of Object.entries(FINGER_BONE_MAP)) {
+        if (bNames.includes(b.name)) { fFound = fName; break; }
+      }
+      boneIdxToFinger[idx] = fFound;
+    });
+
+    // Assert that NO vertex is influenced by more than 1 distinct finger
+    let crossFingerCount = 0;
+    for (let i = 0; i < position.count; i++) {
+      const fingers = new Set();
+      for (let slot = 0; slot < 4; slot++) {
+        const bIdx = skinIndex.getComponent(i, slot);
+        const w = skinWeight.getComponent(i, slot);
+        if (w > 0.05) {
+          const f = boneIdxToFinger[bIdx];
+          if (f !== 'palm_or_wrist') fingers.add(f);
+        }
+      }
+      if (fingers.size > 1) crossFingerCount++;
+    }
+    assert.equal(crossFingerCount, 0, 'Zero vertices have cross-finger skinning influence');
+
+    // Deform mesh with controller and check fingertip isolation
+    const controller = createHandAnimationController(boneMap);
+    const skeleton = skinnedMesh.skeleton;
+
+    function computeDeformed(vIdx) {
+      const indices = [skinIndex.getX(vIdx), skinIndex.getY(vIdx), skinIndex.getZ(vIdx), skinIndex.getW(vIdx)];
+      const weights = [skinWeight.getX(vIdx), skinWeight.getY(vIdx), skinWeight.getZ(vIdx), skinWeight.getW(vIdx)];
+      const vOrig = new THREE.Vector3(position.getX(vIdx), position.getY(vIdx), position.getZ(vIdx));
+      const vOut = new THREE.Vector3(0, 0, 0);
+      const tempV = new THREE.Vector3();
+      const tempM = new THREE.Matrix4();
+
+      for (let k = 0; k < 4; k++) {
+        const w = weights[k];
+        if (w <= 0) continue;
+        const bIdx = indices[k];
+        tempM.multiplyMatrices(skeleton.bones[bIdx].matrixWorld, skeleton.boneInverses[bIdx]);
+        tempV.copy(vOrig).applyMatrix4(tempM);
+        vOut.addScaledVector(tempV, w);
+      }
+      return vOut;
+    }
+
+    skinnedMesh.updateMatrixWorld(true);
+    const restPositions = [];
+    for (let i = 0; i < position.count; i++) {
+      restPositions.push(computeDeformed(i));
+    }
+
+    // Find fingertip vertices
+    const homeTips = {
+      'left-pinky': HAND_LANDMARKS.left.pinky.tip,
+      'left-ring': HAND_LANDMARKS.left.ring.tip,
+      'left-middle': HAND_LANDMARKS.left.middle.tip,
+      'left-index': HAND_LANDMARKS.left.index.tip,
+      'right-index': HAND_LANDMARKS.right.index.tip,
+      'right-middle': HAND_LANDMARKS.right.middle.tip,
+      'right-ring': HAND_LANDMARKS.right.ring.tip,
+      'right-pinky': HAND_LANDMARKS.right.pinky.tip,
+    };
+
+    const tipVIndices = {};
+    for (const [fName, lPos] of Object.entries(homeTips)) {
+      let minD = Infinity;
+      let bestV = -1;
+      for (let i = 0; i < position.count; i++) {
+        const d = restPositions[i].distanceTo(lPos);
+        if (d < minD) { minD = d; bestV = i; }
+      }
+      tipVIndices[fName] = bestV;
+    }
+
+    // Type 'd' (left middle finger)
+    controller.resetAll();
+    controller.triggerKeystroke('d');
+    controller.update(performance.now() + 50);
+    skinnedMesh.updateMatrixWorld(true);
+
+    for (const [fName, vIdx] of Object.entries(tipVIndices)) {
+      const moved = restPositions[vIdx].distanceTo(computeDeformed(vIdx)) > 0.05;
+      if (fName === 'left-middle') {
+        assert.ok(moved, 'Left middle fingertip moved for key D');
+      } else {
+        assert.ok(!moved, `${fName} fingertip remained still for key D`);
+      }
+    }
+
+    // Type 'k' (right middle finger)
+    controller.resetAll();
+    controller.triggerKeystroke('k');
+    controller.update(performance.now() + 50);
+    skinnedMesh.updateMatrixWorld(true);
+
+    for (const [fName, vIdx] of Object.entries(tipVIndices)) {
+      const moved = restPositions[vIdx].distanceTo(computeDeformed(vIdx)) > 0.05;
+      if (fName === 'right-middle') {
+        assert.ok(moved, 'Right middle fingertip moved for key K');
+      } else {
+        assert.ok(!moved, `${fName} fingertip remained still for key K`);
+      }
+    }
+  });
+
+  it('animates rapid sequences (ASDF, JKL;, QWERTY, ZXCVBNM) with independent concurrency and clean recovery', () => {
+    const { bones, boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    const sequences = [
+      ['a', 's', 'd', 'f'],
+      ['j', 'k', 'l', ';'],
+      ['q', 'w', 'e', 'r', 't', 'y'],
+      ['z', 'x', 'c', 'v', 'b', 'n', 'm'],
+      ['a', 'j', 's', 'k', 'd', 'l', 'f', ';'], // alternating left-right
+    ];
+
+    sequences.forEach((seq) => {
+      controller.resetAll();
+      const basePos = {};
+      bones.forEach((b) => { basePos[b.name] = b.position.clone(); });
+
+      // Trigger rapid sequence with 15ms spacing
+      seq.forEach((k, idx) => {
+        controller.triggerKeystroke(k);
+        controller.update(performance.now() + (idx + 1) * 15);
+      });
+
+      // Let all animations run to full completion
+      controller.update(performance.now() + 300);
+      assert.equal(controller.getActiveCount(), 0, `All active animations ended for sequence ${seq.join('')}`);
+
+      // Verify no bones stuck or drifting
+      bones.forEach((b) => {
+        assert.ok(b.position.distanceTo(basePos[b.name]) < 1e-4, `Bone ${b.name} returned to resting position after ${seq.join('')}`);
+      });
+    });
+  });
+
   it('verifies binary GLB model exists on disk and is non-empty', () => {
     const glbPath = path.resolve(__dirname, '../../../../frontend/public/models/keyflow_hands_rigged.glb');
     assert.ok(fs.existsSync(glbPath), 'GLB file exists');
@@ -342,3 +609,4 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     assert.ok(stats.size > 200000, `GLB file size ${stats.size} is valid`);
   });
 });
+

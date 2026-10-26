@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
+import { computeIsolatedSkinWeights } from '../src/utils/hand3dRig.js';
 
 // Polyfill FileReader for Node.js
 if (typeof globalThis.FileReader === 'undefined') {
@@ -195,60 +196,8 @@ async function buildRiggedHandModel() {
   // Offset geometry to match SVG placement: x = 64..814 (center = 439 -> -11 in 3D), y = 96..460 (center = 278 -> -103 in 3D)
   geometry.translate(-11, -103, 0);
 
-  // Compute Bone Indices and Skin Weights for every vertex
-  const position = geometry.attributes.position;
-  const skinIndices = [];
-  const skinWeights = [];
-
-  // World bone positions map
-  const boneWorldPos = {};
-  wrist_L.updateWorldMatrix(true, true);
-  wrist_R.updateWorldMatrix(true, true);
-  bones.forEach((b, idx) => {
-    const wp = new THREE.Vector3();
-    b.getWorldPosition(wp);
-    boneWorldPos[b.name] = { idx, pos: wp };
-  });
-
-  for (let i = 0; i < position.count; i++) {
-    const vx = position.getX(i);
-    const vy = position.getY(i);
-    const vPos = new THREE.Vector3(vx, vy, 0);
-
-    // Find nearest bones based on anatomical regions
-    const isLeft = vx < 0;
-    const prefix = isLeft ? '_L' : '_R';
-
-    const dists = [];
-    bones.forEach((b) => {
-      // Only attach to same side
-      if (b.name.endsWith(prefix)) {
-        const d = vPos.distanceTo(boneWorldPos[b.name].pos);
-        dists.push({ name: b.name, idx: boneWorldPos[b.name].idx, dist: d });
-      }
-    });
-
-    dists.sort((a, b) => a.dist - b.dist);
-
-    // Pick top 4 influencing bones
-    const b0 = dists[0];
-    const b1 = dists[1] || b0;
-    const b2 = dists[2] || b0;
-    const b3 = dists[3] || b0;
-
-    // Inverse distance weighting with power 2.5
-    const w0 = 1 / Math.pow(Math.max(b0.dist, 4), 2.5);
-    const w1 = 1 / Math.pow(Math.max(b1.dist, 4), 2.5);
-    const w2 = 1 / Math.pow(Math.max(b2.dist, 4), 2.5);
-    const w3 = 1 / Math.pow(Math.max(b3.dist, 4), 2.5);
-    const totalW = w0 + w1 + w2 + w3;
-
-    skinIndices.push(b0.idx, b1.idx, b2.idx, b3.idx);
-    skinWeights.push(w0 / totalW, w1 / totalW, w2 / totalW, w3 / totalW);
-  }
-
-  geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndices, 4));
-  geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeights, 4));
+  // Compute strictly isolated skin weights (no cross-finger deformation)
+  computeIsolatedSkinWeights(geometry, bones, landmarks);
 
   // Material setup
   const material = new THREE.MeshStandardMaterial({

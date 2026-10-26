@@ -134,6 +134,136 @@ export const HAND_LANDMARKS = {
 };
 
 /**
+ * Helper: Distance from a 2D point to a line segment [a, b].
+ */
+function distToSegment(p, a, b) {
+  const abX = b.x - a.x;
+  const abY = b.y - a.y;
+  const apX = p.x - a.x;
+  const apY = p.y - a.y;
+  const abLenSq = abX * abX + abY * abY;
+  if (abLenSq === 0) return Math.hypot(apX, apY);
+  let t = (apX * abX + apY * abY) / abLenSq;
+  t = Math.max(0, Math.min(1, t));
+  const projX = a.x + t * abX;
+  const projY = a.y + t * abY;
+  return Math.hypot(p.x - projX, p.y - projY);
+}
+
+/**
+ * Helper: Minimum distance from a point to a finger centerline chain.
+ */
+function fingerDist(p, fingerChain) {
+  let minDist = Infinity;
+  for (let i = 0; i < fingerChain.length - 1; i++) {
+    const d = distToSegment(p, fingerChain[i], fingerChain[i + 1]);
+    if (d < minDist) minDist = d;
+  }
+  return minDist;
+}
+
+/**
+ * Computes strictly isolated linear-blend skinning weights.
+ * 
+ * Enforces anatomical one-finger isolation:
+ * - Every vertex on any finger is influenced strictly by its own finger's bones + palm.
+ * - Under no circumstances does a finger vertex receive weight from an adjacent finger.
+ * - This eliminates cross-finger deformation where two or more fingers move together or appear stuck.
+ */
+export function computeIsolatedSkinWeights(geometry, bones, landmarks) {
+  const position = geometry.attributes.position;
+  const skinIndices = [];
+  const skinWeights = [];
+
+  const boneWorldPos = {};
+  bones.forEach((b, idx) => {
+    const wp = new THREE.Vector3();
+    b.getWorldPosition(wp);
+    boneWorldPos[b.name] = { idx, pos: wp };
+  });
+
+  const L = landmarks.left;
+  const R = landmarks.right;
+
+  const leftChains = {
+    'left-pinky': [L.pinky.mcp, L.pinky.pip, L.pinky.dip, L.pinky.tip],
+    'left-ring': [L.ring.mcp, L.ring.pip, L.ring.dip, L.ring.tip],
+    'left-middle': [L.middle.mcp, L.middle.pip, L.middle.dip, L.middle.tip],
+    'left-index': [L.index.mcp, L.index.pip, L.index.dip, L.index.tip],
+    'left-thumb': [L.thumb.base, L.thumb.mid, L.thumb.tip],
+  };
+
+  const rightChains = {
+    'right-thumb': [R.thumb.base, R.thumb.mid, R.thumb.tip],
+    'right-index': [R.index.mcp, R.index.pip, R.index.dip, R.index.tip],
+    'right-middle': [R.middle.mcp, R.middle.pip, R.middle.dip, R.middle.tip],
+    'right-ring': [R.ring.mcp, R.ring.pip, R.ring.dip, R.ring.tip],
+    'right-pinky': [R.pinky.mcp, R.pinky.pip, R.pinky.dip, R.pinky.tip],
+  };
+
+  for (let i = 0; i < position.count; i++) {
+    const vx = position.getX(i);
+    const vy = position.getY(i);
+    const vPos = { x: vx, y: vy };
+
+    const isLeft = vx < 0;
+    const prefix = isLeft ? '_L' : '_R';
+    const chains = isLeft ? leftChains : rightChains;
+    const palmBone = boneWorldPos['palm' + prefix];
+    const wristBone = boneWorldPos['wrist' + prefix];
+
+    // Find the single closest finger ray for this vertex
+    let bestFinger = null;
+    let minFDist = Infinity;
+    for (const [fName, chain] of Object.entries(chains)) {
+      const d = fingerDist(vPos, chain);
+      if (d < minFDist) {
+        minFDist = d;
+        bestFinger = fName;
+      }
+    }
+
+    // Candidate bones: strictly ONLY the assigned finger's bones + palm (+ wrist for lower palm)
+    const fingerBoneNames = FINGER_BONE_MAP[bestFinger];
+    const candidateBones = [];
+
+    // Add finger bones
+    fingerBoneNames.forEach((bName) => {
+      const bInfo = boneWorldPos[bName];
+      const d = Math.hypot(vx - bInfo.pos.x, vy - bInfo.pos.y);
+      candidateBones.push({ name: bName, idx: bInfo.idx, dist: d });
+    });
+
+    // Add palm bone
+    const dPalm = Math.hypot(vx - palmBone.pos.x, vy - palmBone.pos.y);
+    candidateBones.push({ name: 'palm' + prefix, idx: palmBone.idx, dist: dPalm });
+
+    // Add wrist bone if in lower hand region or fewer than 4 bones
+    if (candidateBones.length < 4 || vy < -60) {
+      const dWrist = Math.hypot(vx - wristBone.pos.x, vy - wristBone.pos.y);
+      candidateBones.push({ name: 'wrist' + prefix, idx: wristBone.idx, dist: dWrist });
+    }
+
+    // Sort candidate bones by distance and keep top 4
+    candidateBones.sort((a, b) => a.dist - b.dist);
+    const top4 = candidateBones.slice(0, 4);
+    while (top4.length < 4) top4.push(top4[0]);
+
+    // Compute smooth inverse-distance weights with power 2.5
+    const rawWeights = top4.map((c) => 1 / Math.pow(Math.max(c.dist, 4), 2.5));
+    const sumW = rawWeights.reduce((acc, w) => acc + w, 0);
+
+    top4.forEach((c, slot) => {
+      skinIndices.push(c.idx);
+      skinWeights.push(rawWeights[slot] / sumW);
+    });
+  }
+
+  geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndices, 4));
+  geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeights, 4));
+}
+
+/**
  * Creates the complete rigged 3D SkinnedMesh with 32-bone skeletal hierarchy.
  */
 export function createHandRigMesh(texture = null) {
@@ -204,55 +334,8 @@ export function createHandRigMesh(texture = null) {
   const geometry = new THREE.PlaneGeometry(meshWidth, meshHeight, 80, 48);
   geometry.translate(-11, -103, 0);
 
-  // Skinning indices & weights
-  const position = geometry.attributes.position;
-  const skinIndices = [];
-  const skinWeights = [];
-
-  const boneWorldPos = {};
-  wrist_L.updateWorldMatrix(true, true);
-  wrist_R.updateWorldMatrix(true, true);
-  bones.forEach((b, idx) => {
-    const wp = new THREE.Vector3();
-    b.getWorldPosition(wp);
-    boneWorldPos[b.name] = { idx, pos: wp };
-  });
-
-  for (let i = 0; i < position.count; i++) {
-    const vx = position.getX(i);
-    const vy = position.getY(i);
-    const vPos = new THREE.Vector3(vx, vy, 0);
-
-    const isLeft = vx < 0;
-    const prefix = isLeft ? '_L' : '_R';
-
-    const dists = [];
-    bones.forEach((b) => {
-      if (b.name.endsWith(prefix)) {
-        const d = vPos.distanceTo(boneWorldPos[b.name].pos);
-        dists.push({ name: b.name, idx: boneWorldPos[b.name].idx, dist: d });
-      }
-    });
-
-    dists.sort((a, b) => a.dist - b.dist);
-
-    const b0 = dists[0];
-    const b1 = dists[1] || b0;
-    const b2 = dists[2] || b0;
-    const b3 = dists[3] || b0;
-
-    const w0 = 1 / Math.pow(Math.max(b0.dist, 4), 2.5);
-    const w1 = 1 / Math.pow(Math.max(b1.dist, 4), 2.5);
-    const w2 = 1 / Math.pow(Math.max(b2.dist, 4), 2.5);
-    const w3 = 1 / Math.pow(Math.max(b3.dist, 4), 2.5);
-    const totalW = w0 + w1 + w2 + w3;
-
-    skinIndices.push(b0.idx, b1.idx, b2.idx, b3.idx);
-    skinWeights.push(w0 / totalW, w1 / totalW, w2 / totalW, w3 / totalW);
-  }
-
-  geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndices, 4));
-  geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeights, 4));
+  // Compute strictly isolated skin weights (no cross-finger deformation)
+  computeIsolatedSkinWeights(geometry, bones, HAND_LANDMARKS);
 
   // High-fidelity skin material
   const material = new THREE.MeshBasicMaterial({
