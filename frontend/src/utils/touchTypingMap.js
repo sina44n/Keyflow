@@ -358,16 +358,16 @@ export const CODE_TO_KEY_ID = {
  * hand asset positioned at x=64, y=96, w=750, h=364 in the 900x350 viewBox.
  */
 export const FINGERTIP_POSITIONS = {
-  'left-pinky':  { x: 153, y: 161, homeKey: 'a' },
-  'left-ring':   { x: 212, y: 131, homeKey: 's' },
-  'left-middle': { x: 254, y: 112, homeKey: 'd' },
-  'left-index':  { x: 317, y: 130, homeKey: 'f' },
-  'left-thumb':  { x: 379, y: 263, homeKey: 'space' },
-  'right-thumb': { x: 456, y: 267, homeKey: 'space' },
-  'right-index': { x: 488, y: 142, homeKey: 'j' },
-  'right-middle':{ x: 543, y: 118, homeKey: 'k' },
-  'right-ring':  { x: 606, y: 124, homeKey: 'l' },
-  'right-pinky': { x: 680, y: 142, homeKey: ';' },
+  'left-pinky':  { x: 147, y: 146, homeKey: 'a' },
+  'left-ring':   { x: 210, y: 148, homeKey: 's' },
+  'left-middle': { x: 265, y: 146, homeKey: 'd' },
+  'left-index':  { x: 320, y: 152, homeKey: 'f' },
+  'left-thumb':  { x: 380, y: 255, homeKey: 'space' },
+  'right-thumb': { x: 460, y: 255, homeKey: 'space' },
+  'right-index': { x: 492, y: 148, homeKey: 'j' },
+  'right-middle':{ x: 550, y: 145, homeKey: 'k' },
+  'right-ring':  { x: 605, y: 146, homeKey: 'l' },
+  'right-pinky': { x: 665, y: 142, homeKey: ';' },
 };
 
 /**

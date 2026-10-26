@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as THREE from 'three';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
-import { computeIsolatedSkinWeights } from '../src/utils/hand3dRig.js';
+import { computeIsolatedSkinWeights, HAND_LANDMARKS } from '../src/utils/hand3dRig.js';
 
 // Polyfill FileReader for Node.js
 if (typeof globalThis.FileReader === 'undefined') {
@@ -39,78 +39,7 @@ async function buildRiggedHandModel() {
     fs.mkdirSync(modelsDir, { recursive: true });
   }
 
-  // Joint Landmark Calibration (in 900x350 keyboard coordinates)
-  // X: 0 to 900, Y: 0 to 350 (Y inverted in 3D: Y_3d = 350 - Y_svg)
-  const to3D = (x, y, z = 0) => new THREE.Vector3(x - 450, 175 - y, z);
-
-  const landmarks = {
-    left: {
-      wrist: to3D(220, 360, 5),
-      palm: to3D(240, 260, 10),
-      thumb: {
-        base: to3D(330, 310, 8),
-        mid: to3D(355, 285, 12),
-        tip: to3D(379, 263, 6),
-      },
-      index: {
-        mcp: to3D(316, 194, 12),
-        pip: to3D(316, 162, 16),
-        dip: to3D(317, 144, 12),
-        tip: to3D(317, 130, 4),
-      },
-      middle: {
-        mcp: to3D(260, 190, 14),
-        pip: to3D(257, 151, 18),
-        dip: to3D(255, 130, 13),
-        tip: to3D(254, 112, 4),
-      },
-      ring: {
-        mcp: to3D(206, 196, 13),
-        pip: to3D(209, 163, 17),
-        dip: to3D(211, 146, 12),
-        tip: to3D(212, 131, 4),
-      },
-      pinky: {
-        mcp: to3D(150, 212, 10),
-        pip: to3D(151, 186, 14),
-        dip: to3D(152, 172, 10),
-        tip: to3D(153, 161, 4),
-      },
-    },
-    right: {
-      wrist: to3D(590, 360, 5),
-      palm: to3D(570, 260, 10),
-      thumb: {
-        base: to3D(480, 310, 8),
-        mid: to3D(468, 288, 12),
-        tip: to3D(456, 267, 6),
-      },
-      index: {
-        mcp: to3D(492, 194, 12),
-        pip: to3D(490, 168, 16),
-        dip: to3D(489, 154, 12),
-        tip: to3D(488, 142, 4),
-      },
-      middle: {
-        mcp: to3D(548, 188, 14),
-        pip: to3D(546, 153, 18),
-        dip: to3D(544, 134, 13),
-        tip: to3D(543, 118, 4),
-      },
-      ring: {
-        mcp: to3D(610, 192, 13),
-        pip: to3D(608, 158, 17),
-        dip: to3D(607, 140, 12),
-        tip: to3D(606, 124, 4),
-      },
-      pinky: {
-        mcp: to3D(675, 204, 10),
-        pip: to3D(677, 173, 14),
-        dip: to3D(679, 156, 10),
-        tip: to3D(680, 142, 4),
-      },
-    },
-  };
+  const landmarks = HAND_LANDMARKS;
 
   // Build Skeletal Bone Hierarchy for Left & Right Hand
   const bones = [];
