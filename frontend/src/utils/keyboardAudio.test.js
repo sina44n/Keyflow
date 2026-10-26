@@ -26,13 +26,13 @@ describe('Tactile Keyboard Audio Studio Engine', () => {
     };
   });
 
-  it('contains exactly 16 curated keyboard sound profiles', () => {
-    assert.equal(SOUND_PROFILES.length, 16);
+  it('contains exactly 20 curated keyboard sound profiles', () => {
+    assert.equal(SOUND_PROFILES.length, 20);
   });
 
-  it('contains all 6 profiles in the Mechanical Collection', () => {
+  it('contains all 9 profiles in the Mechanical Collection including enthusiast switches', () => {
     const mechanicalProfiles = SOUND_PROFILES.filter((p) => p.category === 'mechanical');
-    assert.equal(mechanicalProfiles.length, 6);
+    assert.equal(mechanicalProfiles.length, 9);
     const ids = mechanicalProfiles.map((p) => p.id);
     assert.ok(ids.includes('mechanical-blue'), 'Mechanical Blue');
     assert.ok(ids.includes('mechanical-red'), 'Mechanical Red');
@@ -40,11 +40,14 @@ describe('Tactile Keyboard Audio Studio Engine', () => {
     assert.ok(ids.includes('creamy-thock'), 'Creamy Thock');
     assert.ok(ids.includes('marble-pop'), 'Marble Pop');
     assert.ok(ids.includes('box-jade'), 'Box Jade');
+    assert.ok(ids.includes('holy-panda'), 'Holy Panda');
+    assert.ok(ids.includes('buckling-spring'), 'Buckling Spring');
+    assert.ok(ids.includes('gateron-yellow'), 'Gateron Yellow Pro');
   });
 
-  it('contains all 6 profiles in the Desk Setup Collection', () => {
+  it('contains all 7 profiles in the Desk Setup Collection including Topre', () => {
     const deskProfiles = SOUND_PROFILES.filter((p) => p.category === 'desk');
-    assert.equal(deskProfiles.length, 6);
+    assert.equal(deskProfiles.length, 7);
     const ids = deskProfiles.map((p) => p.id);
     assert.ok(ids.includes('silent-office'), 'Silent Office');
     assert.ok(ids.includes('laptop-chiclet'), 'Laptop Chiclet');
@@ -52,6 +55,7 @@ describe('Tactile Keyboard Audio Studio Engine', () => {
     assert.ok(ids.includes('retro-typewriter'), 'Retro Typewriter');
     assert.ok(ids.includes('soft-foam'), 'Soft Foam');
     assert.ok(ids.includes('studio-linear'), 'Studio Linear');
+    assert.ok(ids.includes('topre-electro'), 'Topre Electro-Capacitive');
   });
 
   it('contains all 4 profiles in the Experimental Collection', () => {
@@ -104,10 +108,10 @@ describe('Tactile Keyboard Audio Studio Engine', () => {
     assert.equal(restored.enabled, true);
     assert.equal(restored.profile, 'creamy-thock');
 
-    saveSoundSettings({ enabled: false, profile: 'retro-typewriter' });
+    saveSoundSettings({ enabled: false, profile: 'holy-panda' });
     const disabled = getSoundSettings();
     assert.equal(disabled.enabled, false);
-    assert.equal(disabled.profile, 'retro-typewriter');
+    assert.equal(disabled.profile, 'holy-panda');
   });
 
   it('seamlessly migrates legacy profile IDs', () => {
@@ -135,8 +139,8 @@ describe('Tactile Keyboard Audio Studio Engine', () => {
     assert.equal(settings.profile, 'mechanical-blue');
   });
 
-  it('safely handles playKeySound for all 16 profiles without throwing', () => {
-    // Testing all 16 profiles with regular keypress, error keystroke, and preview mode
+  it('safely handles playKeySound for all 20 profiles without throwing', () => {
+    // Testing all 20 profiles with regular keypress, error keystroke, and preview mode
     for (const profile of SOUND_PROFILES) {
       assert.doesNotThrow(() => {
         playKeySound(profile.id, false, false);

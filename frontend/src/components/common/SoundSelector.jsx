@@ -205,7 +205,7 @@ export const SoundSelector = ({
                     Sound Studio
                   </h3>
                   <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-semibold">
-                    16 Profiles
+                    {profiles.length} Profiles
                   </span>
                 </div>
                 <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
