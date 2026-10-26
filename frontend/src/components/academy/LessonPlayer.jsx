@@ -208,7 +208,7 @@ export const LessonPlayer = ({
       const finalStrokes = totalStrokes + 1;
       const finalMistakes = isCorrect ? mistakes : mistakes + 1;
       const finalAccuracy = Math.max(0, Math.min(100, Math.round((finalCorrect / Math.max(finalCorrect + finalMistakes, 1)) * 100)));
-      const finalStars = calculateStars(finalWpm, finalAccuracy, lesson?.targetWpm || 20, lesson?.targetAccuracy || 90);
+      const finalStars = calculateStars(finalAccuracy, lesson?.targetAccuracy || 90, finalWpm, lesson?.targetWpm || 20);
       const passed = finalWpm >= (lesson?.targetWpm || 20) && finalAccuracy >= (lesson?.targetAccuracy || 90);
 
       const result = {
@@ -223,12 +223,15 @@ export const LessonPlayer = ({
       };
       setCompletedResult(result);
 
-      if (lesson?.id) {
+      if (lesson) {
         try {
-          recordLessonResult(lesson.id, {
+          const sId = lesson.stageId || 1;
+          const lNum = lesson.lessonNum || 1;
+          recordLessonResult(sId, lNum, {
             wpm: finalWpm,
             accuracy: finalAccuracy,
             stars: finalStars,
+            passed,
             mistakes: finalMistakes,
             duration: finalDuration,
             completedAt: new Date().toISOString(),
@@ -302,6 +305,7 @@ export const LessonPlayer = ({
 
   return (
     <div
+      data-theme="dark-theme"
       className="fixed inset-0 z-50 flex flex-col items-center bg-[var(--bg-main,#0b1120)] text-[var(--text-primary)] overflow-y-auto overflow-x-hidden selection:bg-[var(--accent)] selection:text-black"
       style={{
         fontFamily: 'Inter, system-ui, sans-serif',
@@ -816,24 +820,22 @@ export const LessonPlayer = ({
                     </p>
                   </div>
                 </div>
-                {completedResult.passed && (
-                  <div className="flex items-center gap-0.5">
-                    {[1, 2, 3].map(star => (
-                      <span
-                        key={star}
-                        className="text-xl"
-                        style={{
-                          color:
-                            star <= completedResult.stars
-                              ? '#FBBF24'
-                              : 'var(--border)',
-                        }}
-                      >
-                        ★
-                      </span>
-                    ))}
-                  </div>
-                )}
+                <div className="flex items-center gap-0.5" aria-label={`Rating: ${completedResult.passed ? completedResult.stars : 0} of 5 stars`}>
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <span
+                      key={star}
+                      className="text-xl"
+                      style={{
+                        color:
+                          completedResult.passed && star <= completedResult.stars
+                            ? '#FFC247'
+                            : 'var(--border)',
+                      }}
+                    >
+                      ★
+                    </span>
+                  ))}
+                </div>
               </div>
 
               {/* Stats grid */}

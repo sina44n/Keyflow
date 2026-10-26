@@ -144,25 +144,27 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     const hasNextStage = nextLessonId !== null && nextLessonId.stageId !== activeStageId;
 
     return (
-      <LessonPlayer
-        stageId={activeStageId}
-        lessonNum={activeLessonNum}
-        onBack={handleBackToDashboard}
-        onNextLesson={hasNextLesson ? handleNextLesson : undefined}
-        onNextStage={hasNextStage ? () => {
-          if (nextLessonId) {
-            setActiveStageId(nextLessonId.stageId);
-            setActiveLessonNum(nextLessonId.lessonNum);
-          }
-        } : undefined}
-        hasNextLesson={hasNextLesson}
-        hasNextStage={hasNextStage}
-      />
+      <div data-theme="dark-theme" className="w-full">
+        <LessonPlayer
+          stageId={activeStageId}
+          lessonNum={activeLessonNum}
+          onBack={handleBackToDashboard}
+          onNextLesson={hasNextLesson ? handleNextLesson : undefined}
+          onNextStage={hasNextStage ? () => {
+            if (nextLessonId) {
+              setActiveStageId(nextLessonId.stageId);
+              setActiveLessonNum(nextLessonId.lessonNum);
+            }
+          } : undefined}
+          hasNextLesson={hasNextLesson}
+          hasNextStage={hasNextStage}
+        />
+      </div>
     );
   }
 
   return (
-    <div className="relative min-h-screen bg-[#050608] text-[#F5F7FA] pb-16 overflow-x-hidden selection:bg-[#FF1744] selection:text-white">
+    <div data-theme="dark-theme" className="relative min-h-screen bg-[#050608] text-[#F5F7FA] pb-16 overflow-x-hidden selection:bg-[#FF1744] selection:text-white">
       {/* Subtle Atmospheric Red Edge Glow Effects (Reference B) */}
       <div
         className="pointer-events-none fixed inset-0 z-0 opacity-40"

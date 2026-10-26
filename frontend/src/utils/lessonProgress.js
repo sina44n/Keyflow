@@ -92,9 +92,35 @@ export function getNextRecommendedLesson(stageId) {
 }
 
 export function calculateStars(accuracy, targetAccuracy, wpm, targetWpm) {
-  if (accuracy < targetAccuracy || wpm < targetWpm) return 0;
-  if (accuracy >= 98 && wpm >= targetWpm * 1.15) return 3;
-  if (accuracy >= 95) return 2;
+  // Fail if below required target threshold
+  if (accuracy < targetAccuracy || wpm < targetWpm) {
+    return 0;
+  }
+
+  // 5 Stars: Flawless mastery (99%+ accuracy with 25%+ over target speed, or 98%+ with 30%+)
+  if ((accuracy >= 99 && wpm >= targetWpm * 1.25) || (accuracy >= 98 && wpm >= targetWpm * 1.3)) {
+    return 5;
+  }
+
+  // 4 Stars: Excellent (97%+ accuracy and 15%+ over target speed)
+  if (accuracy >= 97 && wpm >= targetWpm * 1.15) {
+    return 4;
+  }
+
+  // 3 Stars: Great (95%+ accuracy and 10%+ over target speed, or 98%+ accuracy)
+  if ((accuracy >= 95 && wpm >= targetWpm * 1.1) || (accuracy >= 98 && wpm >= targetWpm)) {
+    return 3;
+  }
+
+  // 2 Stars: Good (accuracy at least 2% over target, or 5%+ over target speed)
+  if (
+    (accuracy >= targetAccuracy + 2 && wpm >= targetWpm) ||
+    (accuracy >= targetAccuracy && wpm >= targetWpm * 1.05)
+  ) {
+    return 2;
+  }
+
+  // 1 Star: Baseline passed (met target accuracy and target WPM)
   return 1;
 }
 
@@ -113,26 +139,45 @@ export function recordLessonResult(stageId, lessonNum, options = {}) {
     }
   }
 
-  const { wpm = 0, accuracy = 0, mistakes = 0, duration = 0, passed = true, stars = 3 } = data;
+  // Validate inputs: remove misleading defaults of 3 stars and passed: true
+  const rawData = data && typeof data === 'object' ? data : {};
+  const wpm = typeof rawData.wpm === 'number' && !isNaN(rawData.wpm) ? Math.max(0, Math.round(rawData.wpm)) : 0;
+  const accuracy = typeof rawData.accuracy === 'number' && !isNaN(rawData.accuracy)
+    ? Math.max(0, Math.min(100, Math.round(rawData.accuracy)))
+    : 0;
+  const mistakes = typeof rawData.mistakes === 'number' && !isNaN(rawData.mistakes) ? Math.max(0, Math.round(rawData.mistakes)) : 0;
+  const duration = typeof rawData.duration === 'number' && !isNaN(rawData.duration) ? Math.max(0, Math.round(rawData.duration)) : 0;
+  const passed = Boolean(rawData.passed);
+  const stars = typeof rawData.stars === 'number' && !isNaN(rawData.stars)
+    ? Math.max(0, Math.min(5, Math.floor(rawData.stars)))
+    : 0;
+
   const state = loadState();
   const key = `s${sId}_l${lNum}`;
   const existing = state.lessons[key];
 
+  // Preserve existing completed status if previously passed; failed lessons must never default to passed
+  const isCompleted = passed || (existing?.completed ?? false);
+
   state.lessons[key] = {
-    completed: passed || (existing?.completed ?? false),
+    completed: isCompleted,
     bestWpm: existing ? Math.max(existing.bestWpm || 0, wpm) : wpm,
     bestAccuracy: existing ? Math.max(existing.bestAccuracy || 0, accuracy) : accuracy,
     stars: existing ? Math.max(existing.stars || 0, stars) : stars,
     attempts: (existing?.attempts || 0) + 1,
     lastMistakes: mistakes,
     lastDuration: duration,
-    completedAt: passed ? new Date().toISOString() : (existing?.completedAt ?? null),
+    completedAt: passed
+      ? (rawData.completedAt || new Date().toISOString())
+      : (existing?.completedAt ?? null),
   };
 
-  // Update stage progress tracker
-  if (!state.stageProgress) state.stageProgress = {};
-  const currentMax = state.stageProgress[sId] || 0;
-  if (lNum > currentMax) state.stageProgress[sId] = lNum;
+  // Update stage progress tracker only if completed
+  if (isCompleted) {
+    if (!state.stageProgress) state.stageProgress = {};
+    const currentMax = state.stageProgress[sId] || 0;
+    if (lNum > currentMax) state.stageProgress[sId] = lNum;
+  }
 
   // Unlock next stage if lesson 600 of current stage is passed
   if (passed && lNum >= 600 && sId < 7) {
@@ -187,17 +232,14 @@ export function getGuidePreferences() {
   };
 }
 
-export function getAcademyDashboardStats(stageId = 1) {
+export function getAcademyDashboardStats(_stageId = 1) {
   const state = loadState();
-  let totalLessonsInStage = 20;
-  let completedCount = 0;
   let totalAccuracy = 0;
   let accuracyCount = 0;
   const completedUnits = new Set();
   
   Object.entries(state.lessons || {}).forEach(([key, rec]) => {
     if (rec && rec.completed) {
-      completedCount++;
       if (typeof rec.bestAccuracy === 'number' && rec.bestAccuracy > 0) {
         totalAccuracy += rec.bestAccuracy;
         accuracyCount++;

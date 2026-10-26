@@ -48,16 +48,26 @@ export const getLevelStats = (levelNumber) => {
 };
 
 /**
- * Calculates earned stars (1 to 3) based on accuracy and speed.
+ * Calculates earned stars (1 to 5) based on accuracy and speed.
  */
 export const calculateStars = (accuracy, targetAccuracy, wpm, targetWpm) => {
   if (accuracy < targetAccuracy || wpm < targetWpm) {
     return 0; // Did not pass threshold
   }
-  if (accuracy >= 98 && wpm >= targetWpm * 1.1) {
+  if ((accuracy >= 99 && wpm >= targetWpm * 1.25) || (accuracy >= 98 && wpm >= targetWpm * 1.3)) {
+    return 5;
+  }
+  if (accuracy >= 97 && wpm >= targetWpm * 1.15) {
+    return 4;
+  }
+  if ((accuracy >= 95 && wpm >= targetWpm * 1.1) || (accuracy >= 98 && wpm >= targetWpm)) {
     return 3;
   }
-  if (accuracy >= 95) {
+  // 2 Stars: Good (accuracy at least 2% over target, or 5%+ over target speed)
+  if (
+    (accuracy >= targetAccuracy + 2 && wpm >= targetWpm) ||
+    (accuracy >= targetAccuracy && wpm >= targetWpm * 1.05)
+  ) {
     return 2;
   }
   return 1;
@@ -66,24 +76,39 @@ export const calculateStars = (accuracy, targetAccuracy, wpm, targetWpm) => {
 /**
  * Records a completed lesson attempt, updating best scores and unlocking next stage.
  */
-export const recordLessonResult = (levelNumber, { wpm, accuracy, mistakes, duration, passed, stars }) => {
+export const recordLessonResult = (levelNumber, options = {}) => {
   try {
     const progress = getAcademyProgress();
     const levelKey = String(levelNumber);
     const existing = progress.completedLevels[levelKey];
 
+    const rawData = options && typeof options === 'object' ? options : {};
+    const wpm = typeof rawData.wpm === 'number' && !isNaN(rawData.wpm) ? Math.max(0, Math.round(rawData.wpm)) : 0;
+    const accuracy = typeof rawData.accuracy === 'number' && !isNaN(rawData.accuracy)
+      ? Math.max(0, Math.min(100, Math.round(rawData.accuracy)))
+      : 0;
+    const mistakes = typeof rawData.mistakes === 'number' && !isNaN(rawData.mistakes) ? Math.max(0, Math.round(rawData.mistakes)) : 0;
+    const duration = typeof rawData.duration === 'number' && !isNaN(rawData.duration) ? Math.max(0, Math.round(rawData.duration)) : 0;
+    const passed = Boolean(rawData.passed);
+    const stars = typeof rawData.stars === 'number' && !isNaN(rawData.stars)
+      ? Math.max(0, Math.min(5, Math.floor(rawData.stars)))
+      : 0;
+
+    const isCompleted = passed || (existing?.completed ?? false);
     const updatedBestWpm = existing ? Math.max(existing.bestWpm || 0, wpm) : wpm;
     const updatedBestAccuracy = existing ? Math.max(existing.bestAccuracy || 0, accuracy) : accuracy;
     const updatedStars = existing ? Math.max(existing.stars || 0, stars) : stars;
 
     progress.completedLevels[levelKey] = {
-      completed: true,
+      completed: isCompleted,
       bestWpm: updatedBestWpm,
       bestAccuracy: updatedBestAccuracy,
       stars: updatedStars,
       lastMistakes: mistakes,
       lastDuration: duration,
-      completedAt: new Date().toISOString(),
+      completedAt: passed
+        ? (rawData.completedAt || new Date().toISOString())
+        : (existing?.completedAt ?? null),
     };
 
     // Unlock subsequent level if passed and currently at highest unlocked

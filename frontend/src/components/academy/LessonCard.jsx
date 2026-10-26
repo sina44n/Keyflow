@@ -19,8 +19,7 @@ export const LessonCard = React.forwardRef(({
 
   const isCompleted = !!lesson.record?.completed;
   const isUnlocked = !!lesson.unlocked;
-  const isLocked = !isUnlocked;
-  const starsEarned = lesson.record?.stars || (isCompleted ? 3 : 0);
+  const starsEarned = typeof lesson.record?.stars === 'number' ? Math.max(0, Math.min(5, lesson.record.stars)) : 0;
   const formattedNumber = String(lesson.lessonNum).padStart(2, '0');
 
   const handleClick = (e) => {

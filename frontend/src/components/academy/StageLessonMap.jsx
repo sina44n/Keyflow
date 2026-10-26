@@ -155,7 +155,7 @@ export const StageLessonMap = ({ stageId, onSelectLesson }) => {
             {/* Stars if completed */}
             {lesson.record?.completed && lesson.record.stars > 0 && (
               <div className="flex gap-0.5 mb-1">
-                {[1,2,3].map(s => (
+                {[1, 2, 3, 4, 5].map(s => (
                   <span key={s} className={`text-[9px] ${s <= lesson.record.stars ? 'text-amber-400' : 'text-[var(--border)]'}`}>★</span>
                 ))}
               </div>
