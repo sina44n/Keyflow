@@ -7,13 +7,13 @@ import {
   Gauge,
   Target,
   RotateCcw,
-  Volume2,
-  VolumeX,
   Keyboard,
   HandMetal,
   Sparkles,
 } from 'lucide-react';
 import { KeyboardGuide } from '../academy/KeyboardGuide';
+import { SoundSelector } from '../common/SoundSelector';
+import { useKeyboardSound } from '../../context/SoundContext';
 import { getGuidePreferences, saveGuidePreferences } from '../../utils/lessonProgress';
 import { getCharacterFeedback, countCorrectChars } from '../../utils/typingFeedback';
 
@@ -26,7 +26,7 @@ export const HeroSection = () => {
   const [wpm, setWpm] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  const { playClick } = useKeyboardSound();
   const [keyboardGuideOn, setKeyboardGuideOn] = useState(() => getGuidePreferences().keyboardGuide);
   const [handGuideOn, setHandGuideOn] = useState(false);
   const inputRef = useRef(null);
@@ -52,30 +52,14 @@ export const HeroSection = () => {
     });
   };
 
-  // Play subtle mechanical key click audio using Web Audio API
-  const playClick = () => {
-    if (!soundEnabled) return;
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(600, audioCtx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.04);
-      gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.05);
-    } catch {
-      // Audio context error or blocked
-    }
-  };
-
   const handleInputChange = (e) => {
     const val = e.target.value;
-    playClick();
+
+    if (val.length > inputVal.length) {
+      const charIndex = val.length - 1;
+      const isError = val[charIndex] !== SAMPLE_TEXT[charIndex];
+      playClick(isError);
+    }
 
     if (!startTime && val.length > 0) {
       setStartTime(Date.now());
@@ -246,19 +230,8 @@ export const HeroSection = () => {
                     <span>Hand {handGuideOn ? 'ON' : 'OFF'}</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setSoundEnabled(!soundEnabled)}
-                    className={`px-2 py-1 rounded-md border text-xs flex items-center gap-1 transition-colors cursor-pointer ${
-                      soundEnabled
-                        ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-elevated)]'
-                        : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                    }`}
-                    title={soundEnabled ? 'Mechanical audio feedback ON' : 'Mechanical audio feedback OFF'}
-                    aria-label="Toggle mechanical audio"
-                  >
-                    {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
-                  </button>
+                  {/* Sound Selector Popover */}
+                  <SoundSelector variant="compact" />
 
                   <Button variant="outline" size="sm" icon={RotateCcw} onClick={handleReset}>
                     Reset

@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom';
 import {
   RotateCcw,
-  Volume2,
-  VolumeX,
   Gauge,
   Target,
   Keyboard,
@@ -19,6 +17,8 @@ import { Button } from '../components/common/Button';
 import { KeyboardGuide } from '../components/academy/KeyboardGuide';
 import { getGuidePreferences, saveGuidePreferences } from '../utils/lessonProgress';
 import { getCharacterFeedback, countCorrectChars } from '../utils/typingFeedback';
+import { SoundSelector } from '../components/common/SoundSelector';
+import { useKeyboardSound } from '../context/SoundContext';
 
 const PRACTICE_PASSAGES = [
   {
@@ -80,7 +80,7 @@ export const WorkstationPage = () => {
   // Guide toggles (independent)
   const [keyboardGuideOn, setKeyboardGuideOn] = useState(() => getGuidePreferences().keyboardGuide);
   const [handGuideOn, setHandGuideOn] = useState(() => getGuidePreferences().handGuide);
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  const { playClick } = useKeyboardSound();
 
   // Typing session state
   const [typed, setTyped] = useState('');
@@ -130,29 +130,7 @@ export const WorkstationPage = () => {
     });
   };
 
-  // Mechanical sound feedback
-  const playClick = useCallback(
-    (isError = false) => {
-      if (!soundEnabled) return;
-      try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = isError ? 'sawtooth' : 'triangle';
-        osc.frequency.setValueAtTime(isError ? 220 : 620, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.04);
-        gain.gain.setValueAtTime(isError ? 0.18 : 0.12, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.04);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.05);
-      } catch {
-        /* audio blocked or unsupported */
-      }
-    },
-    [soundEnabled]
-  );
+
 
   // Live metrics calculations
   const correctChars = useMemo(() => {
@@ -441,19 +419,8 @@ export const WorkstationPage = () => {
             <span>Hand Guide {handGuideOn ? 'ON' : 'OFF'}</span>
           </button>
 
-          {/* Audio Click Toggle */}
-          <button
-            type="button"
-            onClick={() => setSoundEnabled((s) => !s)}
-            className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-              soundEnabled
-                ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-elevated)]'
-                : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-            }`}
-            title={soundEnabled ? 'Mechanical audio ON' : 'Audio OFF'}
-          >
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </button>
+          {/* Sound Selector Popover */}
+          <SoundSelector variant="toolbar" />
 
           {/* Reset */}
           <Button variant="outline" size="sm" icon={RotateCcw} onClick={handleReset}>

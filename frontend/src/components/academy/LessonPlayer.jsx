@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
-  RotateCcw, Volume2, VolumeX, ArrowRight, ArrowLeft,
+  RotateCcw, ArrowRight, ArrowLeft,
   CheckCircle2, AlertCircle, Keyboard, Hand,
   Zap, Target, Flame, Clock, ChevronDown,
 } from 'lucide-react';
@@ -12,6 +12,8 @@ import {
   recordLessonResult, calculateStars,
   getGuidePreferences, saveGuidePreferences,
 } from '../../utils/lessonProgress';
+import { SoundSelector } from '../common/SoundSelector';
+import { useKeyboardSound } from '../../context/SoundContext';
 import { getCharacterFeedback, countCorrectChars } from '../../utils/typingFeedback';
 
 /**
@@ -69,7 +71,7 @@ export const LessonPlayer = ({
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  const { playClick } = useKeyboardSound();
   const [completedResult, setCompletedResult] = useState(null);
 
   const inputRef = useRef(null);
@@ -98,24 +100,7 @@ export const LessonPlayer = ({
 
   const timeDisplay = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`;
 
-  // ── Audio Feedback ───────────────────────────────────────────────────────
-  const playClick = useCallback((isError = false) => {
-    if (!soundEnabled) return;
-    try {
-      const ctx = new (window.AudioContext || window.webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = isError ? 'sawtooth' : 'triangle';
-      osc.frequency.setValueAtTime(isError ? 240 : 580, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.04);
-      gain.gain.setValueAtTime(isError ? 0.2 : 0.12, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.04);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.05);
-    } catch { /* audio context blocked */ }
-  }, [soundEnabled]);
+
 
   // ── Reset ────────────────────────────────────────────────────────────────
   const handleReset = useCallback(() => {
@@ -406,17 +391,8 @@ export const LessonPlayer = ({
               <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
-            {/* Sound Toggle */}
-            <button
-              type="button"
-              onClick={() => setSoundEnabled(p => !p)}
-              title={soundEnabled ? 'Mute Sound' : 'Enable Sound'}
-              aria-label={`Sound ${soundEnabled ? 'on' : 'off'}`}
-              className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer hidden sm:flex"
-              style={{ color: soundEnabled ? 'var(--accent, #06b6d4)' : 'var(--text-muted)' }}
-            >
-              {soundEnabled ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-            </button>
+            {/* Sound Selector Popover */}
+            <SoundSelector variant="navbar" />
 
             {/* Divider */}
             <div className="hidden sm:block w-px h-5 mx-1 bg-[var(--border,#1e293b)]" />
