@@ -56,14 +56,14 @@ export const ShortcutBar = ({
 
   return (
     <footer
-      className="sticky bottom-0 z-30 w-full backdrop-blur-md bg-[#050608]/90 border-t border-[#222B38] py-2 px-4 sm:px-8 transition-colors"
+      className="sticky bottom-0 z-30 w-full backdrop-blur-md bg-[color-mix(in_srgb,var(--bg-main)_90%,transparent)] border-t border-[var(--border)] py-2 px-4 sm:px-8 transition-colors"
       aria-label="Keyboard Shortcuts and System Status"
     >
       <div className="container-app flex items-center justify-between gap-4 text-xs font-mono">
         {/* Left: Keyboard Shortcuts */}
         <div className="flex items-center gap-3 sm:gap-6 flex-wrap">
-          <div className="flex items-center gap-1.5 text-[#6F7B8D]">
-            <Keyboard className="w-3.5 h-3.5 text-[#A6B0C0]" />
+          <div className="flex items-center gap-1.5 text-[var(--text-muted)]">
+            <Keyboard className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
             <span className="hidden sm:inline font-semibold">Shortcuts:</span>
           </div>
 
@@ -71,37 +71,37 @@ export const ShortcutBar = ({
           <button
             type="button"
             onClick={onNextLesson}
-            className="flex items-center gap-1.5 text-[#A6B0C0] hover:text-white transition-colors cursor-pointer group"
+            className="flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer group"
           >
-            <span className="px-1.5 py-0.5 rounded bg-[#101722] border border-[#222B38] text-[10px] text-white group-hover:border-[#FF1744]">
+            <span className="px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border)] text-[10px] text-[var(--text-primary)] group-hover:border-[var(--accent)]">
               Tab
             </span>
-            <span className="text-[#6F7B8D]">→</span>
-            <span className="group-hover:text-[#FF1744]">Next Lesson</span>
+            <span className="text-[var(--text-muted)]">→</span>
+            <span className="group-hover:text-[var(--accent)]">Next Lesson</span>
           </button>
 
           {/* Restart */}
           <button
             type="button"
             onClick={onRestart}
-            className="flex items-center gap-1.5 text-[#A6B0C0] hover:text-white transition-colors cursor-pointer group"
+            className="flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer group"
           >
-            <span className="px-1.5 py-0.5 rounded bg-[#101722] border border-[#222B38] text-[10px] text-white group-hover:border-[#FF1744]">
+            <span className="px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border)] text-[10px] text-[var(--text-primary)] group-hover:border-[var(--accent)]">
               R
             </span>
-            <span className="group-hover:text-[#FF1744]">Restart</span>
+            <span className="group-hover:text-[var(--accent)]">Restart</span>
           </button>
 
           {/* Back */}
           <button
             type="button"
             onClick={onBack}
-            className="flex items-center gap-1.5 text-[#A6B0C0] hover:text-white transition-colors cursor-pointer group"
+            className="flex items-center gap-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer group"
           >
-            <span className="px-1.5 py-0.5 rounded bg-[#101722] border border-[#222B38] text-[10px] text-white group-hover:border-[#FF1744]">
+            <span className="px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border)] text-[10px] text-[var(--text-primary)] group-hover:border-[var(--accent)]">
               Esc
             </span>
-            <span className="group-hover:text-[#FF1744]">Back</span>
+            <span className="group-hover:text-[var(--accent)]">Back</span>
           </button>
         </div>
 
@@ -109,10 +109,10 @@ export const ShortcutBar = ({
         <div className="flex items-center gap-2 shrink-0">
           <span
             className={`w-2 h-2 rounded-full ${
-              isOnline ? 'bg-[#22D889] shadow-[0_0_8px_#22D889] animate-pulse' : 'bg-[#FF1744]'
+              isOnline ? 'bg-[var(--ui-success)] shadow-[0_0_8px_var(--ui-success)] animate-pulse' : 'bg-[var(--accent)]'
             }`}
           />
-          <span className="text-[#A6B0C0] text-[11px] font-medium hidden xs:inline">
+          <span className="text-[var(--text-secondary)] text-[11px] font-medium hidden xs:inline">
             {systemStatus}
           </span>
         </div>

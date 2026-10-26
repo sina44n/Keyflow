@@ -42,28 +42,28 @@ export const LessonCard = React.forwardRef(({
   };
 
   // Determine state style tokens
-  let cardBorder = 'border-[#222B38]';
-  let cardBg = 'bg-[#0B1018]';
+  let cardBorder = 'border-[var(--border)]';
+  let cardBg = 'bg-[var(--bg-card)]';
   let glowStyle = {};
   let cardOpacity = 'opacity-100';
 
   if (isCurrent) {
-    cardBorder = 'border-[#FF1744]';
-    cardBg = 'bg-[#101722]';
+    cardBorder = 'border-[var(--accent)]';
+    cardBg = 'bg-[var(--bg-elevated)]';
     glowStyle = {
-      boxShadow: '0 0 24px rgba(255, 23, 68, 0.35), inset 0 0 16px rgba(255, 23, 68, 0.08)',
+      boxShadow: '0 0 24px color-mix(in srgb, var(--accent) 35%, transparent), inset 0 0 16px color-mix(in srgb, var(--accent) 8%, transparent)',
     };
   } else if (isCompleted) {
-    cardBorder = 'border-[#22D889]/40 hover:border-[#22D889]';
-    cardBg = 'bg-[#0B1018] hover:bg-[#0E1520]';
+    cardBorder = 'border-[var(--ui-success)]/40 hover:border-[var(--ui-success)]';
+    cardBg = 'bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)]';
   } else if (isLocked) {
-    cardBorder = 'border-[#1A222E]';
-    cardBg = 'bg-[#080B10]';
+    cardBorder = 'border-[var(--border-subtle)]';
+    cardBg = 'bg-[var(--bg-surface)]';
     cardOpacity = 'opacity-65 hover:opacity-85';
   } else {
     // Available
-    cardBorder = 'border-[#222B38] hover:border-[#FF1744]/60';
-    cardBg = 'bg-[#0B1018] hover:bg-[#101722]';
+    cardBorder = 'border-[var(--border)] hover:border-[var(--accent)]/60';
+    cardBg = 'bg-[var(--bg-card)] hover:bg-[var(--bg-elevated)]';
   }
 
   return (
@@ -77,37 +77,37 @@ export const LessonCard = React.forwardRef(({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={glowStyle}
-      className={`relative group rounded-2xl border ${cardBorder} ${cardBg} ${cardOpacity} p-4 flex flex-col justify-between transition-all duration-200 cursor-pointer text-left select-none outline-none focus-visible:ring-2 focus-visible:ring-[#FF1744] min-h-[220px] shadow-lg`}
+      className={`relative group rounded-2xl border ${cardBorder} ${cardBg} ${cardOpacity} p-4 flex flex-col justify-between transition-all duration-200 cursor-pointer text-left select-none outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] min-h-[220px] shadow-lg`}
     >
       {/* Top Header: Lesson Number + State Badge */}
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className={`font-mono text-base font-extrabold tracking-wider ${isCurrent ? 'text-[#FF1744]' : isCompleted ? 'text-[#22D889]' : isLocked ? 'text-[#6F7B8D]' : 'text-[#F5F7FA]'}`}>
+        <span className={`font-mono text-base font-extrabold tracking-wider ${isCurrent ? 'text-[var(--accent)]' : isCompleted ? 'text-[var(--ui-success)]' : isLocked ? 'text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}>
           {formattedNumber}
         </span>
 
         {/* State Badges */}
         <div>
           {isCurrent && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#FF1744] text-white text-[10px] font-mono font-bold tracking-wider uppercase shadow-[0_0_10px_rgba(255,23,68,0.5)]">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] text-[10px] font-mono font-bold tracking-wider uppercase shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)]">
               <span>NEXT UP</span>
               <Play className="w-2.5 h-2.5 fill-current" />
             </span>
           )}
 
           {isCompleted && (
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#22D889]/15 border border-[#22D889]/50 text-[#22D889]">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[var(--ui-success)]/15 border border-[var(--ui-success)]/50 text-[var(--ui-success)]">
               <Check className="w-3.5 h-3.5 stroke-[2.5]" />
             </span>
           )}
 
           {isLocked && (
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#151D28] text-[#6F7B8D]">
+            <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-[var(--border-subtle)] text-[var(--text-muted)]">
               <Lock className="w-3.5 h-3.5" />
             </span>
           )}
 
           {!isCurrent && !isCompleted && !isLocked && (
-            <span className="w-2 h-2 rounded-full bg-[#222B38] group-hover:bg-[#FF1744] transition-colors" />
+            <span className="w-2 h-2 rounded-full bg-[var(--border)] group-hover:bg-[var(--accent)] transition-colors" />
           )}
         </div>
       </div>
@@ -121,7 +121,7 @@ export const LessonCard = React.forwardRef(({
         {/* Subtle hover play overlay on available cards */}
         {isHovered && isUnlocked && !isCurrent && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl backdrop-blur-[2px] transition-all">
-            <div className="w-9 h-9 rounded-full bg-[#FF1744] text-white flex items-center justify-center shadow-[0_0_15px_#FF1744]">
+            <div className="w-9 h-9 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center shadow-[0_0_15px_var(--accent)]">
               <Play className="w-4 h-4 fill-current ml-0.5" />
             </div>
           </div>
@@ -129,9 +129,9 @@ export const LessonCard = React.forwardRef(({
       </div>
 
       {/* Bottom Metadata: Title, Duration, 5-Star Rating */}
-      <div className="mt-2 space-y-2 pt-2 border-t border-[#1C2533]">
+      <div className="mt-2 space-y-2 pt-2 border-t border-[var(--border)]">
         <div className="min-h-[36px] flex flex-col justify-center">
-          <h3 className={`text-xs font-bold leading-snug line-clamp-2 transition-colors ${isCurrent ? 'text-white' : isCompleted ? 'text-[#F5F7FA]' : isLocked ? 'text-[#6F7B8D]' : 'text-[#E2E8F0] group-hover:text-white'}`}>
+          <h3 className={`text-xs font-bold leading-snug line-clamp-2 transition-colors ${isCurrent ? 'text-[var(--text-primary)]' : isCompleted ? 'text-[var(--text-primary)]' : isLocked ? 'text-[var(--text-muted)]' : 'text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]'}`}>
             {lesson.customTitle || lesson.title}
           </h3>
         </div>
@@ -139,11 +139,11 @@ export const LessonCard = React.forwardRef(({
         {/* Footer row: Key preview / Duration & Stars */}
         <div className="flex items-center justify-between text-[11px] font-mono">
           {/* Duration or WPM */}
-          <div className="flex items-center gap-1.5 text-[#6F7B8D]">
-            <Clock className="w-3 h-3 text-[#6F7B8D]" />
+          <div className="flex items-center gap-1.5 text-[var(--text-muted)]">
+            <Clock className="w-3 h-3 text-[var(--text-muted)]" />
             <span>{lesson.estimatedMinutes || '2'} min</span>
             {isCompleted && lesson.record?.bestWpm && (
-              <span className="text-[#22D889] font-bold ml-1">{lesson.record.bestWpm} WPM</span>
+              <span className="text-[var(--ui-success)] font-bold ml-1">{lesson.record.bestWpm} WPM</span>
             )}
           </div>
 
@@ -154,7 +154,7 @@ export const LessonCard = React.forwardRef(({
               return (
                 <Star
                   key={starIndex}
-                  className={`w-3 h-3 ${isFilled ? 'text-[#FFC247] fill-[#FFC247]' : 'text-[#222B38] fill-[#151D28]'}`}
+                  className={`w-3 h-3 ${isFilled ? 'text-[#FFC247] fill-[#FFC247]' : 'text-[var(--border)] fill-[var(--border-subtle)]'}`}
                 />
               );
             })}

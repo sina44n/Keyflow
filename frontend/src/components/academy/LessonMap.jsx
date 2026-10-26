@@ -80,28 +80,28 @@ export const LessonMap = ({
   return (
     <div className="space-y-6">
       {/* Unit Header Bar with Red Accent Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#1E2633]">
-        <div className="border-l-4 border-[#FF1744] pl-3.5 space-y-0.5">
-          <h2 className="text-xl sm:text-2xl font-extrabold text-[#F5F7FA] tracking-tight">
-            Unit {String(activeUnit).padStart(2, '0')} — <span className="text-white">{unitLabel}</span>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
+        <div className="border-l-4 border-[var(--accent)] pl-3.5 space-y-0.5">
+          <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
+            Unit {String(activeUnit).padStart(2, '0')} — <span className="text-[var(--text-primary)]">{unitLabel}</span>
           </h2>
-          <div className="text-xs font-mono text-[#6F7B8D]">
+          <div className="text-xs font-mono text-[var(--text-muted)]">
             Lessons 1 – 20
           </div>
         </div>
 
         {/* Legend / Status hints */}
-        <div className="flex items-center gap-4 text-[11px] font-mono text-[#A6B0C0] self-start sm:self-auto">
+        <div className="flex items-center gap-4 text-[11px] font-mono text-[var(--text-secondary)] self-start sm:self-auto">
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#FF1744] shadow-[0_0_6px_#FF1744]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_6px_var(--accent)]" />
             <span>Next Up</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#22D889]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[var(--ui-success)]" />
             <span>Completed</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#222B38]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-[var(--border)]" />
             <span>Upcoming</span>
           </div>
         </div>
@@ -109,15 +109,15 @@ export const LessonMap = ({
 
       {/* Locked Requirement Toast Notification */}
       {lockedToast && (
-        <div className="p-3 rounded-xl bg-[#140C10] border border-[#FF1744]/40 text-xs font-mono text-[#F5F7FA] flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-200 shadow-xl">
+        <div className="p-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 text-xs font-mono text-[var(--text-primary)] flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-200 shadow-xl">
           <div className="flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-[#FF1744] shrink-0" />
+            <AlertCircle className="w-4 h-4 text-[var(--accent)] shrink-0" />
             <span>{lockedToast}</span>
           </div>
           <button
             type="button"
             onClick={() => setLockedToast(null)}
-            className="text-[#6F7B8D] hover:text-white p-1"
+            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1"
           >
             <X className="w-3.5 h-3.5" />
           </button>

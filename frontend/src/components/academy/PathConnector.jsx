@@ -146,14 +146,14 @@ export const PathConnector = ({ containerRef, cardRefs, lessons, activeLessonNum
     >
       <defs>
         <filter id="circuitRedGlow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#FF1744" floodOpacity="0.8" />
+          <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="var(--accent, #FF1744)" floodOpacity="0.8" />
         </filter>
         <filter id="circuitGreenGlow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#22D889" floodOpacity="0.8" />
+          <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="var(--ui-success, #22D889)" floodOpacity="0.8" />
         </filter>
         <linearGradient id="activeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#FF1744" />
-          <stop offset="100%" stopColor="#FF304F" />
+          <stop offset="0%" stopColor="var(--accent, #FF1744)" />
+          <stop offset="100%" stopColor="var(--accent-hover, #FF304F)" />
         </linearGradient>
       </defs>
 
@@ -163,7 +163,7 @@ export const PathConnector = ({ containerRef, cardRefs, lessons, activeLessonNum
           key={`bg-${p.id}`}
           d={p.d}
           fill="none"
-          stroke="#1F2837"
+          stroke="var(--border, #1F2837)"
           strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -179,7 +179,7 @@ export const PathConnector = ({ containerRef, cardRefs, lessons, activeLessonNum
             key={`fg-${p.id}`}
             d={p.d}
             fill="none"
-            stroke={p.isCompleted ? "#22D889" : "url(#activeGradient)"}
+            stroke={p.isCompleted ? "var(--ui-success, #22D889)" : "url(#activeGradient)"}
             strokeWidth="2.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -196,8 +196,8 @@ export const PathConnector = ({ containerRef, cardRefs, lessons, activeLessonNum
           cx={n.x}
           cy={n.y}
           r={n.active ? 3.5 : 2.5}
-          fill={n.active ? '#FF1744' : '#222B38'}
-          stroke={n.active ? '#FFFFFF' : '#151D28'}
+          fill={n.active ? 'var(--accent, #FF1744)' : 'var(--border, #222B38)'}
+          stroke={n.active ? 'var(--text-primary, #FFFFFF)' : 'var(--border-subtle, #151D28)'}
           strokeWidth="1"
           filter={n.active ? "url(#circuitRedGlow)" : undefined}
           className="transition-all duration-300"

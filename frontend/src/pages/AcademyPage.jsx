@@ -144,7 +144,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     const hasNextStage = nextLessonId !== null && nextLessonId.stageId !== activeStageId;
 
     return (
-      <div data-theme="dark-theme" className="w-full">
+      <div className="w-full">
         <LessonPlayer
           stageId={activeStageId}
           lessonNum={activeLessonNum}
@@ -164,15 +164,15 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   }
 
   return (
-    <div data-theme="dark-theme" className="relative min-h-screen bg-[#050608] text-[#F5F7FA] pb-16 overflow-x-hidden selection:bg-[#FF1744] selection:text-white">
-      {/* Subtle Atmospheric Red Edge Glow Effects (Reference B) */}
+    <div className="relative min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)] pb-16 overflow-x-hidden selection:bg-[var(--accent)] selection:text-[var(--accent-fg)]">
+      {/* Subtle Atmospheric Accent Edge Glow Effects */}
       <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-40"
+        className="pointer-events-none fixed inset-0 z-0 opacity-30"
         style={{
           backgroundImage: `
-            radial-gradient(ellipse at 50% -10%, rgba(255, 23, 68, 0.12) 0%, transparent 60%),
-            radial-gradient(ellipse at 95% 40%, rgba(255, 23, 68, 0.05) 0%, transparent 45%),
-            radial-gradient(ellipse at 5% 85%, rgba(255, 23, 68, 0.04) 0%, transparent 50%)
+            radial-gradient(ellipse at 50% -10%, color-mix(in srgb, var(--accent) 15%, transparent) 0%, transparent 60%),
+            radial-gradient(ellipse at 95% 40%, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 45%),
+            radial-gradient(ellipse at 5% 85%, color-mix(in srgb, var(--accent) 6%, transparent) 0%, transparent 50%)
           `,
         }}
         aria-hidden="true"
@@ -183,7 +183,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
           <div className="flex items-center gap-3">
             {onExit && (
-              <Button variant="outline" size="sm" onClick={onExit} className="border-[#222B38] text-[#A6B0C0] hover:text-white">
+              <Button variant="outline" size="sm" onClick={onExit} className="border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                 ← Home
               </Button>
             )}
@@ -193,22 +193,22 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
               <button
                 type="button"
                 onClick={() => setStageMenuOpen(!stageMenuOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#090C12] border border-[#222B38] hover:border-[#FF1744]/60 text-[#F5F7FA] font-mono text-xs cursor-pointer shadow-sm transition-all"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--accent)]/60 text-[var(--text-primary)] font-mono text-xs cursor-pointer shadow-xs transition-all"
                 aria-expanded={stageMenuOpen}
                 aria-label="Switch Curriculum Stage"
               >
-                <div className="w-2 h-2 rounded-full bg-[#FF1744] shadow-[0_0_6px_#FF1744]" />
-                <span className="text-[#A6B0C0]">Stage {activeStageId}:</span>
-                <span className="font-bold text-white">{activeStageMeta.title}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-[#6F7B8D] ml-1" />
+                <div className="w-2 h-2 rounded-full bg-[var(--accent)] shadow-[0_0_6px_var(--accent)]" />
+                <span className="text-[var(--text-secondary)]">Stage {activeStageId}:</span>
+                <span className="font-bold text-[var(--text-primary)]">{activeStageMeta.title}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)] ml-1" />
               </button>
 
               {/* Stage Selection Flyout */}
               {stageMenuOpen && (
-                <div className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl bg-[#090C12] border border-[#222B38] shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3 py-2 border-b border-[#1A222E] flex items-center justify-between text-[11px] text-[#A6B0C0]">
+                <div className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
                     <span>7 Neuromuscular Stages</span>
-                    <span className="text-[10px] text-[#FF1744]">4,200 Lessons</span>
+                    <span className="text-[10px] text-[var(--accent)]">4,200 Lessons</span>
                   </div>
                   <div className="space-y-1 mt-1 max-h-64 overflow-y-auto pr-1">
                     {STAGE_META.map((st) => {
@@ -227,10 +227,10 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                           }}
                           className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
                             isStActive
-                              ? 'bg-[#101722] border border-[#FF1744] text-white shadow-xs'
+                              ? 'bg-[var(--bg-elevated)] border border-[var(--accent)] text-[var(--text-primary)] shadow-xs'
                               : isStUnlocked
-                              ? 'hover:bg-[#101722]/80 text-[#A6B0C0] hover:text-white border border-transparent'
-                              : 'opacity-40 cursor-not-allowed text-[#6F7B8D] border border-transparent'
+                              ? 'hover:bg-[var(--bg-elevated)]/80 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent'
+                              : 'opacity-40 cursor-not-allowed text-[var(--text-muted)] border border-transparent'
                           }`}
                         >
                           <div className="flex items-center gap-2.5">
@@ -239,7 +239,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                             </span>
                             <span className="text-xs font-medium">{st.title}</span>
                           </div>
-                          {!isStUnlocked && <Lock className="w-3 h-3 text-[#6F7B8D]" />}
+                          {!isStUnlocked && <Lock className="w-3 h-3 text-[var(--text-muted)]" />}
                         </button>
                       );
                     })}
@@ -251,13 +251,13 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
 
           {/* Quick Resume Link */}
           <div className="flex items-center gap-3">
-            <span className="text-[#6F7B8D] hidden sm:inline">
-              Recommended: <span className="text-[#FF1744] font-bold">Lesson {recommended.lessonNum}</span>
+            <span className="text-[var(--text-muted)] hidden sm:inline">
+              Recommended: <span className="text-[var(--accent)] font-bold">Lesson {recommended.lessonNum}</span>
             </span>
             <button
               type="button"
               onClick={() => handleSelectLesson(recommended.stageId, recommended.lessonNum)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#140D14] border border-[#FF1744]/40 hover:border-[#FF1744] text-[#FF1744] hover:text-white hover:bg-[#FF1744] text-xs font-mono font-bold shadow-[0_0_12px_rgba(255,23,68,0.25)] transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 hover:border-[var(--accent)] text-[var(--accent)] hover:text-[var(--accent-fg)] hover:bg-[var(--accent)] text-xs font-mono font-bold shadow-xs transition-all cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5 fill-current" />
               <span>Resume</span>
@@ -277,12 +277,12 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
 
         {/* 2. Horizontal 20-Unit Selector (Reference B) */}
         <section aria-label="Units Navigation" className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-mono text-[#A6B0C0]">
-            <span className="font-semibold tracking-wider uppercase text-[11px] text-[#6F7B8D]">
+          <div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
+            <span className="font-semibold tracking-wider uppercase text-[11px] text-[var(--text-muted)]">
               Select Learning Unit (1–20):
             </span>
-            <span className="text-[11px] text-[#A6B0C0]">
-              Active: <span className="text-[#FF1744] font-bold">Unit {String(activeUnit).padStart(2, '0')}</span>
+            <span className="text-[11px] text-[var(--text-secondary)]">
+              Active: <span className="text-[var(--accent)] font-bold">Unit {String(activeUnit).padStart(2, '0')}</span>
             </span>
           </div>
 
