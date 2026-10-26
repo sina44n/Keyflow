@@ -22,7 +22,7 @@ import {
 
 export { KEY_COORDS };
 
-export function HandGuide({ targetChar, isVisible = true, standalone = false }) {
+export function HandGuide({ targetChar, isVisible = true, standalone = false, hideHandsImage = false }) {
   // Resolve active finger and key target
   const { activeFinger, targetPos, isHomeRowTarget } = useMemo(() => {
     if (!targetChar) return { activeFinger: null, targetPos: null, isHomeRowTarget: false };
@@ -104,20 +104,22 @@ export function HandGuide({ targetChar, isVisible = true, standalone = false }) 
 
       {/* ── PHOTOREALISTIC HUMAN HANDS ASSET ───────────────────────── */}
       {/* Positioned accurately over home row with natural wrist extension */}
-      <g mask="url(#wristFadeMask)">
-        <image
-          href="/realistic_hands_both.png"
-          x="64"
-          y="96"
-          width="750"
-          height="364"
-          preserveAspectRatio="none"
-          style={{
-            filter: 'drop-shadow(0 20px 40px rgba(0, 0, 0, 0.75))',
-            pointerEvents: 'none',
-          }}
-        />
-      </g>
+      {!hideHandsImage && (
+        <g mask="url(#wristFadeMask)">
+          <image
+            href="/realistic_hands_both.png"
+            x="64"
+            y="96"
+            width="750"
+            height="364"
+            preserveAspectRatio="none"
+            style={{
+              filter: 'drop-shadow(0 20px 40px rgba(0, 0, 0, 0.75))',
+              pointerEvents: 'none',
+            }}
+          />
+        </g>
+      )}
 
       {/* ── DYNAMIC FINGER GUIDANCE: AMBIENT RED KEY REFLECTION ──────── */}
       {/* Lights up the active finger subtly with authentic neon-red glow */}

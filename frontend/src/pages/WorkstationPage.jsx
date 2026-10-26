@@ -90,6 +90,7 @@ export const WorkstationPage = () => {
   const [mistakes, setMistakes] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
   const [sessionResults, setSessionResults] = useState(null);
+  const [lastKeystroke, setLastKeystroke] = useState(null);
 
   const inputRef = useRef(null);
   const timerRef = useRef(null);
@@ -217,6 +218,9 @@ export const WorkstationPage = () => {
       if (isError) {
         setMistakes((m) => m + 1);
       }
+      setLastKeystroke({ key: actualChar, code: '', id: performance.now() });
+    } else if (val.length < typed.length) {
+      setLastKeystroke({ key: 'backspace', code: 'Backspace', id: performance.now() });
     }
 
     setTyped(val);
@@ -237,6 +241,7 @@ export const WorkstationPage = () => {
     setMistakes(0);
     setIsCompleted(false);
     setSessionResults(null);
+    setLastKeystroke(null);
     clearInterval(timerRef.current);
     setTimeout(() => {
       if (inputRef.current) inputRef.current.focus();
@@ -486,6 +491,13 @@ export const WorkstationPage = () => {
             type="text"
             value={typed}
             onChange={handleInputChange}
+            onKeyDown={(e) => {
+              if (isCompleted) return;
+              if (e.key === 'Escape' || e.key === 'Tab') return;
+              if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
+                setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+              }
+            }}
             disabled={isCompleted}
             className="absolute inset-0 opacity-0 cursor-default"
             autoFocus
@@ -570,6 +582,7 @@ export const WorkstationPage = () => {
           <div className="w-full flex flex-col items-center pt-2">
             <KeyboardGuide
               targetChar={currentTargetChar}
+              lastKeystroke={lastKeystroke}
               isVisible={keyboardGuideOn}
               handGuideVisible={handGuideOn}
             />

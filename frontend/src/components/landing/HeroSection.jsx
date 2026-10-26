@@ -29,6 +29,7 @@ export const HeroSection = () => {
   const { playClick } = useKeyboardSound();
   const [keyboardGuideOn, setKeyboardGuideOn] = useState(() => getGuidePreferences().keyboardGuide);
   const [handGuideOn, setHandGuideOn] = useState(false);
+  const [lastKeystroke, setLastKeystroke] = useState(null);
   const inputRef = useRef(null);
 
   const currentTargetChar = useMemo(() => {
@@ -57,8 +58,12 @@ export const HeroSection = () => {
 
     if (val.length > inputVal.length) {
       const charIndex = val.length - 1;
-      const isError = val[charIndex] !== SAMPLE_TEXT[charIndex];
+      const actualChar = val[charIndex];
+      const isError = actualChar !== SAMPLE_TEXT[charIndex];
       playClick(isError);
+      setLastKeystroke({ key: actualChar, code: '', id: performance.now() });
+    } else if (val.length < inputVal.length) {
+      setLastKeystroke({ key: 'backspace', code: 'Backspace', id: performance.now() });
     }
 
     if (!startTime && val.length > 0) {
@@ -89,6 +94,7 @@ export const HeroSection = () => {
     setWpm(0);
     setAccuracy(100);
     setIsCompleted(false);
+    setLastKeystroke(null);
     if (inputRef.current) inputRef.current.focus();
   };
 
@@ -261,6 +267,12 @@ export const HeroSection = () => {
                   type="text"
                   value={inputVal}
                   onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape' || e.key === 'Tab') return;
+                    if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
+                      setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+                    }
+                  }}
                   className="absolute inset-0 opacity-0 cursor-default"
                   autoFocus
                   aria-label="Type the text passage above"
@@ -286,6 +298,7 @@ export const HeroSection = () => {
                     <div className="w-full flex justify-center pt-2">
                       <KeyboardGuide
                         targetChar={currentTargetChar}
+                        lastKeystroke={lastKeystroke}
                         isVisible={keyboardGuideOn}
                         handGuideVisible={handGuideOn}
                       />

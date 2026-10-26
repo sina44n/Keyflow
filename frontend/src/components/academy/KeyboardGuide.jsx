@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { HandGuide } from './HandGuide';
+import { Hand3DGuide } from './Hand3DGuide';
 
 /**
  * KeyboardGuide — Precision-Engineered ANSI 60% Virtual Keyboard.
@@ -9,7 +10,7 @@ import { HandGuide } from './HandGuide';
  * - Key Area: x = 20 to 880 (centered at x = 450.0)
  * - Symmetrical 12px chassis padding on both left and right (chassis: x = 8 to 892)
  * Features dual glyphs, tactile bumps on F & J, and signature KEYFLOW neon-red key glow.
- * Integrates realistic human hands naturally positioned over the keys.
+ * Integrates realistic articulated human hands naturally positioned over the keys.
  */
 
 import {
@@ -21,8 +22,10 @@ export { SHIFT_MAP, CALIBRATED_KEYS };
 
 export function KeyboardGuide({
   targetChar,
+  lastKeystroke,
   isVisible = true,
   handGuideVisible = true,
+  spaceThumb = 'right-thumb',
   children,
 }) {
   // Determine target key and shift requirement
@@ -208,14 +211,35 @@ export function KeyboardGuide({
             );
           })}
 
-        {/* ── REALISTIC HUMAN HAND GUIDE OVERLAY ─────────────────────── */}
-        {handGuideVisible && (
-          <HandGuide targetChar={targetChar} isVisible={handGuideVisible} />
-        )}
-
         {/* Any injected children */}
         {children}
       </svg>
+
+      {/* ── 3D ARTICULATED REALISTIC HUMAN HAND RIG ─────────────────── */}
+      {handGuideVisible && (
+        <Hand3DGuide
+          targetChar={targetChar}
+          lastKeystroke={lastKeystroke}
+          isVisible={handGuideVisible}
+          spaceThumb={spaceThumb}
+        />
+      )}
+
+      {/* ── ACTIVE FINGERTIP NEON-RED ILLUMINATION OVERLAY ─────────── */}
+      {handGuideVisible && (
+        <div className="absolute inset-0 w-full h-full pointer-events-none select-none z-20">
+          <svg
+            viewBox="0 0 900 350"
+            className="w-full h-auto block overflow-visible"
+          >
+            <HandGuide
+              targetChar={targetChar}
+              isVisible={handGuideVisible}
+              hideHandsImage={true}
+            />
+          </svg>
+        </div>
+      )}
     </div>
   );
 }

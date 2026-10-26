@@ -73,6 +73,7 @@ export const LessonPlayer = ({
   const [isCompleted, setIsCompleted] = useState(false);
   const { playClick } = useKeyboardSound();
   const [completedResult, setCompletedResult] = useState(null);
+  const [lastKeystroke, setLastKeystroke] = useState(null);
 
   const inputRef = useRef(null);
   const timerRef = useRef(null);
@@ -114,6 +115,7 @@ export const LessonPlayer = ({
     streakRef.current = 0;
     setIsCompleted(false);
     setCompletedResult(null);
+    setLastKeystroke(null);
     completionFiredRef.current = false;
     clearInterval(timerRef.current);
     setTimeout(() => { if (inputRef.current) inputRef.current.focus(); }, 50);
@@ -138,6 +140,14 @@ export const LessonPlayer = ({
   }, []);
 
   // ── Input handler ────────────────────────────────────────────────────────
+  const handleInputKeyDown = useCallback((e) => {
+    if (isCompleted) return;
+    if (e.key === 'Escape' || e.key === 'Tab') return;
+    if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
+      setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+    }
+  }, [isCompleted]);
+
   const handleInputChange = useCallback((e) => {
     if (isCompleted || !targetText) return;
     const value = e.target.value;
@@ -150,6 +160,7 @@ export const LessonPlayer = ({
       setTyped(value);
       streakRef.current = 0;
       setStreak(0);
+      setLastKeystroke({ key: 'backspace', code: 'Backspace', id: performance.now() });
       return;
     }
 
@@ -173,6 +184,7 @@ export const LessonPlayer = ({
     }
 
     setTyped(value);
+    setLastKeystroke({ key: newChar, code: '', id: performance.now() });
 
     // Completion check
     if (value.length >= targetText.length && !completionFiredRef.current) {
@@ -551,6 +563,7 @@ export const LessonPlayer = ({
             type="text"
             value={typed}
             onChange={handleInputChange}
+            onKeyDown={handleInputKeyDown}
             disabled={isCompleted}
             className="absolute inset-0 opacity-0 w-full h-full cursor-default"
             autoFocus
@@ -630,6 +643,7 @@ export const LessonPlayer = ({
         <div className="w-full min-w-0 flex items-center justify-center">
           <KeyboardGuide
             targetChar={currentTargetChar}
+            lastKeystroke={lastKeystroke}
             isVisible={keyboardGuideOn}
             handGuideVisible={handGuideOn}
           />
