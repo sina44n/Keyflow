@@ -2,6 +2,17 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 export const THEMES = [
   {
+    id: 'dark-theme',
+    name: 'Dark Theme',
+    subtitle: 'Obsidian black with precision neon-red highlights',
+    mode: 'dark',
+    accent: '#FF1744',
+    bg: '#050608',
+    surface: '#090C12',
+    border: '#222B38',
+    tag: 'Signature',
+  },
+  {
     id: 'dark-charcoal-lime',
     name: 'Charcoal Lime',
     subtitle: 'High contrast terminal green on deep obsidian',
@@ -10,7 +21,7 @@ export const THEMES = [
     bg: '#10120F',
     surface: '#191C17',
     border: '#2E342A',
-    tag: 'Default',
+    tag: 'Lime',
   },
   {
     id: 'classic-black-white',
@@ -138,10 +149,10 @@ export const THEMES = [
 const THEME_STORAGE_KEY = 'keyflow-theme';
 
 const ThemeContext = createContext({
-  theme: 'burgundy-cream',
+  theme: 'dark-theme',
   setTheme: () => {},
   themes: THEMES,
-  currentThemeObj: THEMES.find((t) => t.id === 'burgundy-cream') || THEMES[0],
+  currentThemeObj: THEMES.find((t) => t.id === 'dark-theme') || THEMES[0],
 });
 
 export const ThemeProvider = ({ children }) => {
@@ -154,7 +165,7 @@ export const ThemeProvider = ({ children }) => {
     } catch {
       // Fallback if localStorage is inaccessible
     }
-    return 'burgundy-cream';
+    return 'dark-theme';
   });
 
   const setTheme = (themeId) => {

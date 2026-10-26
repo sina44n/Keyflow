@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
-import { Palette, Check, Sparkles, X } from 'lucide-react';
+import { Check, Sparkles, X, ChevronDown, Sun } from 'lucide-react';
 
 export const ThemeSwitcher = ({ compact = false }) => {
   const { theme, setTheme, themes, currentThemeObj } = useTheme();
@@ -34,24 +34,25 @@ export const ThemeSwitcher = ({ compact = false }) => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={compact 
-          ? "p-2 rounded-lg transition-colors cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] relative flex items-center justify-center"
-          : "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-medium transition-colors cursor-pointer min-h-[36px]"}
+          ? "p-2 rounded-lg transition-colors cursor-pointer text-[#A6B0C0] hover:text-white hover:bg-[#101722] relative flex items-center justify-center border border-[#222B38]"
+          : "flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#222B38] bg-[#090C12] hover:border-[#FF1744]/50 text-[#A6B0C0] hover:text-white text-xs font-mono font-medium transition-all cursor-pointer min-h-[38px]"}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label={`Current theme: ${currentThemeObj.name}. Click to change theme.`}
         id="theme-switcher-trigger"
       >
         <span
-          className="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs absolute top-1.5 right-1.5"
-          style={{ backgroundColor: currentThemeObj.accent }}
+          className="w-2 h-2 rounded-full shrink-0 shadow-[0_0_6px_currentColor]"
+          style={{ backgroundColor: currentThemeObj.accent, color: currentThemeObj.accent }}
           aria-hidden="true"
         />
-        <Palette className="w-4 h-4 opacity-75" aria-hidden="true" />
+        <Sun className="w-3.5 h-3.5 text-[#A6B0C0]" aria-hidden="true" />
         {!compact && (
-          <span className="hidden sm:inline font-mono text-[11px] uppercase tracking-wider text-[var(--text-primary)] ml-1">
+          <span className="hidden sm:inline text-[11px] font-semibold tracking-wide text-[#F5F7FA]">
             {currentThemeObj.name}
           </span>
         )}
+        <ChevronDown className="w-3 h-3 text-[#6F7B8D] ml-0.5" />
       </button>
 
       {/* Flyout Menu / Modal */}

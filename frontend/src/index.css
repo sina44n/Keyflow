@@ -21,9 +21,89 @@
  */
 
 /* ========================================================== */
-/* THEME 1: Dark Charcoal + Lime  [DEFAULT]                  */
+/* SIGNATURE THEME: KEYFLOW Red & Black (Reference B)        */
 /* ========================================================== */
 :root,
+[data-theme="dark-theme"],
+[data-theme="keyflow-red"] {
+  --bg-main:         #050608;
+  --bg-surface:      #090C12;
+  --bg-elevated:     #101722;
+  --bg-card:         #0B1018;
+
+  --text-primary:    #F5F7FA;
+  --text-secondary:  #A6B0C0;
+  --text-muted:      #6F7B8D;
+
+  --accent:          #FF1744;
+  --accent-hover:    #FF304F;
+  --accent-fg:       #FFFFFF;
+
+  --border:          #222B38;
+  --border-subtle:   #151D28;
+  --border-focus:    #FF1744;
+
+  --typing-correct:  #22D889;
+  --typing-incorrect:#FF1744;
+  --typing-caret:    #FF1744;
+  --typing-untyped:  #6F7B8D;
+  --typing-bg:       #090C12;
+
+  --key-bg:          #101722;
+  --key-border:      #222B38;
+  --key-text:        #A6B0C0;
+  --key-active-bg:   #FF1744;
+  --key-active-border:#FF304F;
+  --key-active-text: #FFFFFF;
+  --key-home-row:    #181014;
+
+  --chart-primary:   #FF1744;
+  --chart-secondary: #FFC247;
+  --chart-tertiary:  #22D889;
+  --chart-grid:      #222B38;
+  --chart-tooltip-bg:#101722;
+
+  --sidebar-bg:      #050608;
+  --sidebar-border:  #222B38;
+  --sidebar-text:    #A6B0C0;
+  --sidebar-active:  #FF1744;
+  --sidebar-active-bg:#180C14;
+
+  --input-bg:        #101722;
+  --input-border:    #222B38;
+  --input-text:      #F5F7FA;
+  --input-placeholder:#6F7B8D;
+
+  --modal-bg:        #090C12;
+  --modal-overlay:   rgba(5,6,8,0.85);
+  --modal-border:    #222B38;
+
+  --tooltip-bg:      #101722;
+  --tooltip-text:    #F5F7FA;
+  --tooltip-border:  #222B38;
+
+  --ui-success:      #22D889;
+  --ui-warning:      #FFC247;
+  --ui-error:        #FF1744;
+
+  --btn-primary-bg:  #FF1744;
+  --btn-primary-text:#FFFFFF;
+  --btn-primary-hover:#FF304F;
+  --btn-secondary-bg:#101722;
+  --btn-secondary-text:#F5F7FA;
+  --btn-secondary-border:#222B38;
+
+  --scrollbar-thumb: #222B38;
+  --scrollbar-track: #050608;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.6);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.7);
+  --shadow-lg:       0 8px 32px rgba(255,23,68,0.15);
+}
+
+/* ========================================================== */
+/* THEME 1: Dark Charcoal + Lime                             */
+/* ========================================================== */
 [data-theme="dark-charcoal-lime"] {
   --bg-main:         #10120F;
   --bg-surface:      #191C17;

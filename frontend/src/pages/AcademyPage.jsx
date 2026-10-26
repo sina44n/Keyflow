@@ -1,47 +1,123 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { STAGE_META, getNextLessonId } from '../data/curriculumEngine';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { STAGE_META, getStageUnits, getLessonMeta, getNextLessonId } from '../data/curriculumEngine';
 import {
-  isStageUnlocked, isLessonUnlocked, getStageCompletedCount,
-  getNextRecommendedLesson, getLessonProgress,
+  isStageUnlocked,
+  isLessonUnlocked,
+  getLessonRecord,
+  getNextRecommendedLesson,
+  getLessonProgress,
+  getAcademyDashboardStats,
 } from '../utils/lessonProgress';
 import { LessonPlayer } from '../components/academy/LessonPlayer';
-import { StageLessonMap } from '../components/academy/StageLessonMap';
+import { AcademyHero } from '../components/academy/AcademyHero';
+import { UnitSelector } from '../components/academy/UnitSelector';
+import { LessonMap } from '../components/academy/LessonMap';
+import { ShortcutBar } from '../components/academy/ShortcutBar';
 import { Button } from '../components/common/Button';
 import {
-  BookOpen, Lock, ChevronRight, Zap, BarChart3,
-  Trophy, ArrowLeft,
+  Lock,
+  ChevronDown,
+  Zap,
 } from 'lucide-react';
 
-// Views within the Academy
 const VIEW = {
-  OVERVIEW: 'overview',    // 7-stage grid overview
-  STAGE: 'stage',          // Stage detail + lesson map
-  LESSON: 'lesson',        // Active lesson player
+  DASHBOARD: 'dashboard',
+  LESSON: 'lesson',
+  ALL_STAGES: 'all_stages',
 };
 
 export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const initialLessonParam = searchParams ? parseInt(searchParams.get('lesson'), 10) : null;
   const initialStageParam = searchParams ? parseInt(searchParams.get('stage'), 10) : null;
+  const initialUnitParam = searchParams ? parseInt(searchParams.get('unit'), 10) : null;
 
-  const [view, setView] = useState(initialLessonParam ? VIEW.LESSON : VIEW.OVERVIEW);
+  const [view, setView] = useState(initialLessonParam ? VIEW.LESSON : VIEW.DASHBOARD);
   const [activeStageId, setActiveStageId] = useState(initialStageParam || initialLevelId || 1);
+  const [activeUnit, setActiveUnit] = useState(initialUnitParam || 1);
   const [activeLessonNum, setActiveLessonNum] = useState(initialLessonParam || 1);
   const [progress, setProgress] = useState(getLessonProgress);
+  const [dashboardStats, setDashboardStats] = useState(() => getAcademyDashboardStats(1));
+  const [stageMenuOpen, setStageMenuOpen] = useState(false);
 
-  // Refresh progress on external updates
+  // Sync progress on external updates (e.g. lesson completion)
+  const refreshProgress = useCallback(() => {
+    setProgress(getLessonProgress());
+    setDashboardStats(getAcademyDashboardStats(activeStageId));
+  }, [activeStageId]);
+
   useEffect(() => {
-    const handler = () => setProgress(getLessonProgress());
-    window.addEventListener('keyflow-lesson-progress-updated', handler);
-    return () => window.removeEventListener('keyflow-lesson-progress-updated', handler);
-  }, []);
+    window.addEventListener('keyflow-lesson-progress-updated', refreshProgress);
+    return () => window.removeEventListener('keyflow-lesson-progress-updated', refreshProgress);
+  }, [refreshProgress]);
 
-  const handleSelectStage = useCallback((stageId) => {
-    if (!isStageUnlocked(stageId)) return;
-    setActiveStageId(stageId);
-    setView(VIEW.STAGE);
-  }, []);
+  // Stage metadata & Units
+  const activeStageMeta = STAGE_META[activeStageId - 1] || STAGE_META[0];
+  const unitsData = useMemo(() => getStageUnits(activeStageId), [activeStageId]);
+  const currentUnit = unitsData[activeUnit - 1] || unitsData[0];
 
+  // Global recommended next lesson across unlocked stages
+  const recommended = useMemo(() => {
+    return getNextRecommendedLesson(activeStageId);
+  }, [activeStageId, progress]);
+
+  // Handle "Continue Practice" event dispatched from Navbar or Hero
+  useEffect(() => {
+    const handleContinuePractice = () => {
+      const targetStage = recommended?.stageId || activeStageId;
+      const targetLesson = recommended?.lessonNum || 1;
+      setActiveStageId(targetStage);
+      setActiveLessonNum(targetLesson);
+      setView(VIEW.LESSON);
+    };
+
+    window.addEventListener('keyflow-continue-practice', handleContinuePractice);
+    return () => window.removeEventListener('keyflow-continue-practice', handleContinuePractice);
+  }, [recommended, activeStageId]);
+
+  // Calculate unit completion and progress for all 20 units
+  const unitProgress = useMemo(() => {
+    const map = {};
+    unitsData.forEach((u) => {
+      let done = 0;
+      for (let l = u.startLesson; l <= u.endLesson; l++) {
+        if (progress.lessons?.[`s${activeStageId}_l${l}`]?.completed) {
+          done++;
+        }
+      }
+      map[u.unitNumber] = {
+        completed: done >= 15, // Considered mastered at 15+ lessons
+        count: done,
+        total: 20,
+      };
+    });
+    return map;
+  }, [unitsData, activeStageId, progress]);
+
+  // Generate 20 lessons for the currently selected unit
+  const currentUnitLessons = useMemo(() => {
+    if (!currentUnit) return [];
+    const lessons = [];
+    const start = currentUnit.startLesson;
+    const end = Math.min(currentUnit.endLesson, start + 19);
+
+    for (let l = start; l <= end; l++) {
+      const meta = getLessonMeta(activeStageId, l);
+      const record = getLessonRecord(activeStageId, l);
+      const unlocked = isLessonUnlocked(activeStageId, l);
+      const isNextUp = recommended.stageId === activeStageId && recommended.lessonNum === l;
+
+      lessons.push({
+        ...meta,
+        record,
+        unlocked,
+        isNextUp,
+      });
+    }
+    return lessons;
+  }, [activeStageId, currentUnit, recommended, progress]);
+
+  // Lesson selection handler
   const handleSelectLesson = useCallback((stageId, lessonNum) => {
     if (!isLessonUnlocked(stageId, lessonNum)) return;
     setActiveStageId(stageId);
@@ -52,45 +128,31 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   const handleNextLesson = useCallback(() => {
     const next = getNextLessonId(activeStageId, activeLessonNum);
     if (!next) return;
-    if (next.stageId === activeStageId) {
-      setActiveLessonNum(next.lessonNum);
-    } else {
-      setActiveStageId(next.stageId);
-      setActiveLessonNum(next.lessonNum);
-    }
+    setActiveStageId(next.stageId);
+    setActiveLessonNum(next.lessonNum);
   }, [activeStageId, activeLessonNum]);
 
-  const handleBackToStage = useCallback(() => {
-    setView(VIEW.STAGE);
-  }, []);
+  const handleBackToDashboard = useCallback(() => {
+    setView(VIEW.DASHBOARD);
+    refreshProgress();
+  }, [refreshProgress]);
 
-  const handleBackToOverview = useCallback(() => {
-    setView(VIEW.OVERVIEW);
-  }, []);
-
-  const activeStageMeta = STAGE_META[activeStageId - 1];
-  const nextLessonId = getNextLessonId(activeStageId, activeLessonNum);
-  const hasNextLesson = nextLessonId !== null && nextLessonId.stageId === activeStageId;
-  const hasNextStage = nextLessonId !== null && nextLessonId.stageId !== activeStageId;
-
-  // Recommended lesson across all stages
-  const recommended = getNextRecommendedLesson(
-    progress.unlockedStages?.[progress.unlockedStages.length - 1] ?? 1
-  );
-
-  // If active lesson view is selected, render LessonPlayer as dedicated full-viewport experience
+  // If active lesson view is selected, render LessonPlayer as dedicated full experience
   if (view === VIEW.LESSON) {
+    const nextLessonId = getNextLessonId(activeStageId, activeLessonNum);
+    const hasNextLesson = nextLessonId !== null && nextLessonId.stageId === activeStageId;
+    const hasNextStage = nextLessonId !== null && nextLessonId.stageId !== activeStageId;
+
     return (
       <LessonPlayer
         stageId={activeStageId}
         lessonNum={activeLessonNum}
-        onBack={handleBackToStage}
+        onBack={handleBackToDashboard}
         onNextLesson={hasNextLesson ? handleNextLesson : undefined}
         onNextStage={hasNextStage ? () => {
-          const next = getNextLessonId(activeStageId, activeLessonNum);
-          if (next) {
-            setActiveStageId(next.stageId);
-            setActiveLessonNum(next.lessonNum);
+          if (nextLessonId) {
+            setActiveStageId(nextLessonId.stageId);
+            setActiveLessonNum(nextLessonId.lessonNum);
           }
         } : undefined}
         hasNextLesson={hasNextLesson}
@@ -100,246 +162,161 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   }
 
   return (
-    <div className="container-app py-8 sm:py-12 space-y-6">
-      {/* Breadcrumb header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
-        <div className="flex items-center gap-3">
-          {onExit && (
-            <Button variant="outline" size="sm" onClick={onExit}>← Home</Button>
-          )}
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[11px] font-mono text-[var(--accent)]">
-              <BookOpen className="w-3 h-3" />
-              <span>7-Stage Neuromuscular Academy — 4,200 Lessons</span>
-            </div>
+    <div className="relative min-h-screen bg-[#050608] text-[#F5F7FA] pb-16 overflow-x-hidden selection:bg-[#FF1744] selection:text-white">
+      {/* Subtle Atmospheric Red Edge Glow Effects (Reference B) */}
+      <div
+        className="pointer-events-none fixed inset-0 z-0 opacity-40"
+        style={{
+          backgroundImage: `
+            radial-gradient(ellipse at 50% -10%, rgba(255, 23, 68, 0.12) 0%, transparent 60%),
+            radial-gradient(ellipse at 95% 40%, rgba(255, 23, 68, 0.05) 0%, transparent 45%),
+            radial-gradient(ellipse at 5% 85%, rgba(255, 23, 68, 0.04) 0%, transparent 50%)
+          `,
+        }}
+        aria-hidden="true"
+      />
 
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 mt-1 text-sm font-semibold text-[var(--text-primary)]">
+      <div className="relative z-10 container-app py-6 space-y-7">
+        {/* Stage Switcher Header Bar (Subtle Stage Selector & Exit) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex items-center gap-3">
+            {onExit && (
+              <Button variant="outline" size="sm" onClick={onExit} className="border-[#222B38] text-[#A6B0C0] hover:text-white">
+                ← Home
+              </Button>
+            )}
+
+            {/* Stage Dropdown Selector */}
+            <div className="relative">
               <button
                 type="button"
-                onClick={handleBackToOverview}
-                className={`hover:text-[var(--accent)] transition-colors ${view === VIEW.OVERVIEW ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}
+                onClick={() => setStageMenuOpen(!stageMenuOpen)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#090C12] border border-[#222B38] hover:border-[#FF1744]/60 text-[#F5F7FA] font-mono text-xs cursor-pointer shadow-sm transition-all"
+                aria-expanded={stageMenuOpen}
+                aria-label="Switch Curriculum Stage"
               >
-                Academy
+                <div className="w-2 h-2 rounded-full bg-[#FF1744] shadow-[0_0_6px_#FF1744]" />
+                <span className="text-[#A6B0C0]">Stage {activeStageId}:</span>
+                <span className="font-bold text-white">{activeStageMeta.title}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-[#6F7B8D] ml-1" />
               </button>
-              {view !== VIEW.OVERVIEW && (
-                <>
-                  <span className="text-[var(--text-muted)]">/</span>
-                  <button
-                    type="button"
-                    onClick={handleBackToStage}
-                    className={`hover:text-[var(--accent)] transition-colors ${view === VIEW.STAGE ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}
-                  >
-                    {activeStageMeta?.title}
-                  </button>
-                </>
+
+              {/* Stage Selection Flyout */}
+              {stageMenuOpen && (
+                <div className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl bg-[#090C12] border border-[#222B38] shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-2 border-b border-[#1A222E] flex items-center justify-between text-[11px] text-[#A6B0C0]">
+                    <span>7 Neuromuscular Stages</span>
+                    <span className="text-[10px] text-[#FF1744]">4,200 Lessons</span>
+                  </div>
+                  <div className="space-y-1 mt-1 max-h-64 overflow-y-auto pr-1">
+                    {STAGE_META.map((st) => {
+                      const isStUnlocked = isStageUnlocked(st.stageId);
+                      const isStActive = st.stageId === activeStageId;
+
+                      return (
+                        <button
+                          key={st.stageId}
+                          type="button"
+                          disabled={!isStUnlocked}
+                          onClick={() => {
+                            setActiveStageId(st.stageId);
+                            setActiveUnit(1);
+                            setStageMenuOpen(false);
+                          }}
+                          className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+                            isStActive
+                              ? 'bg-[#101722] border border-[#FF1744] text-white shadow-xs'
+                              : isStUnlocked
+                              ? 'hover:bg-[#101722]/80 text-[#A6B0C0] hover:text-white border border-transparent'
+                              : 'opacity-40 cursor-not-allowed text-[#6F7B8D] border border-transparent'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className="font-mono text-xs font-bold w-4 text-center">
+                              {st.stageId}
+                            </span>
+                            <span className="text-xs font-medium">{st.title}</span>
+                          </div>
+                          {!isStUnlocked && <Lock className="w-3 h-3 text-[#6F7B8D]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               )}
             </div>
           </div>
+
+          {/* Quick Resume Link */}
+          <div className="flex items-center gap-3">
+            <span className="text-[#6F7B8D] hidden sm:inline">
+              Recommended: <span className="text-[#FF1744] font-bold">Lesson {recommended.lessonNum}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => handleSelectLesson(recommended.stageId, recommended.lessonNum)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#140D14] border border-[#FF1744]/40 hover:border-[#FF1744] text-[#FF1744] hover:text-white hover:bg-[#FF1744] text-xs font-mono font-bold shadow-[0_0_12px_rgba(255,23,68,0.25)] transition-all cursor-pointer"
+            >
+              <Zap className="w-3.5 h-3.5 fill-current" />
+              <span>Resume</span>
+            </button>
+          </div>
         </div>
 
-        {/* Overall progress */}
-        <div className="flex items-center gap-3 text-xs font-mono">
-          <div className="bg-[var(--bg-elevated)] px-3 py-1.5 rounded-lg border border-[var(--border)] flex items-center gap-2">
-            <span className="text-[var(--text-muted)]">Stages Unlocked:</span>
-            <span className="font-bold text-[var(--accent)]">{progress.unlockedStages?.length ?? 1} / 7</span>
+        {/* 1. Dashboard Hero with 3 Statistics Cards (Reference B) */}
+        <AcademyHero
+          overallProgress={dashboardStats.overallProgress}
+          completedUnits={dashboardStats.completedUnits}
+          totalUnits={dashboardStats.totalUnits}
+          streak={dashboardStats.streak}
+          accuracy={dashboardStats.accuracy}
+          accuracyChange={dashboardStats.accuracyChange}
+        />
+
+        {/* 2. Horizontal 20-Unit Selector (Reference B) */}
+        <section aria-label="Units Navigation" className="space-y-2">
+          <div className="flex items-center justify-between text-xs font-mono text-[#A6B0C0]">
+            <span className="font-semibold tracking-wider uppercase text-[11px] text-[#6F7B8D]">
+              Select Learning Unit (1–20):
+            </span>
+            <span className="text-[11px] text-[#A6B0C0]">
+              Active: <span className="text-[#FF1744] font-bold">Unit {String(activeUnit).padStart(2, '0')}</span>
+            </span>
           </div>
-          {recommended && (
-            <Button
-              variant="primary"
-              size="sm"
-              icon={Zap}
-              onClick={() => handleSelectLesson(recommended.stageId, recommended.lessonNum)}
-            >
-              Resume
-            </Button>
-          )}
-        </div>
+
+          <UnitSelector
+            activeUnit={activeUnit}
+            onSelectUnit={(unitNum) => setActiveUnit(unitNum)}
+            unitProgress={unitProgress}
+            unlockedUnitCount={20}
+          />
+        </section>
+
+        {/* 3. The Masterpiece Lesson Map (Reference A layout & illustrations in Reference B colors) */}
+        <section aria-label="Lesson Journey Map" className="pt-2">
+          <LessonMap
+            stageId={activeStageId}
+            activeUnit={activeUnit}
+            unitLabel={currentUnit?.unitLabel || 'Home Row Foundations'}
+            lessons={currentUnitLessons}
+            activeLessonNum={recommended.stageId === activeStageId ? recommended.lessonNum : 1}
+            onSelectLesson={handleSelectLesson}
+            onSelectUnit={(unitNum) => setActiveUnit(unitNum)}
+            unitsData={unitsData}
+            unitProgress={unitProgress}
+            unlockedUnitCount={20}
+          />
+        </section>
       </div>
 
-      {/* Views */}
-      {view === VIEW.OVERVIEW && (
-        <AcademyOverview
-          progress={progress}
-          onSelectStage={handleSelectStage}
-          onResumeLesson={(stageId, lessonNum) => {
-            setActiveStageId(stageId);
-            setActiveLessonNum(lessonNum);
-            setView(VIEW.LESSON);
-          }}
-        />
-      )}
-
-      {view === VIEW.STAGE && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" icon={ArrowLeft} onClick={handleBackToOverview}>
-              All Stages
-            </Button>
-          </div>
-          <StageLessonMap
-            stageId={activeStageId}
-            onSelectLesson={handleSelectLesson}
-          />
-        </div>
-      )}
+      {/* 4. Bottom Shortcut Bar (Reference B) */}
+      <ShortcutBar
+        onNextLesson={() => handleSelectLesson(recommended.stageId, recommended.lessonNum)}
+        onRestart={() => handleSelectLesson(activeStageId, 1)}
+        onBack={onExit || (() => {})}
+        systemStatus="System Online"
+        isOnline={true}
+      />
     </div>
   );
 };
-
-// ============================================================
-// Academy Overview — 7 Stage Cards
-// ============================================================
-function AcademyOverview({ progress, onSelectStage, onResumeLesson }) {
-  const stageColors = {
-    emerald: { bg: 'rgba(16,185,129,0.1)', border: 'rgba(16,185,129,0.3)', text: '#10b981' },
-    blue:    { bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)', text: '#3b82f6' },
-    violet:  { bg: 'rgba(139,92,246,0.1)', border: 'rgba(139,92,246,0.3)', text: '#8b5cf6' },
-    amber:   { bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)', text: '#f59e0b' },
-    cyan:    { bg: 'rgba(6,182,212,0.1)',  border: 'rgba(6,182,212,0.3)',  text: '#06b6d4' },
-    rose:    { bg: 'rgba(244,63,94,0.1)',  border: 'rgba(244,63,94,0.3)',  text: '#f43f5e' },
-    orange:  { bg: 'rgba(249,115,22,0.1)', border: 'rgba(249,115,22,0.3)', text: '#f97316' },
-  };
-
-  const unlockedStages = progress.unlockedStages ?? [1];
-
-  return (
-    <div className="space-y-6">
-      {/* Intro */}
-      <div className="max-w-2xl">
-        <h1 className="text-2xl font-extrabold text-[var(--text-primary)] mb-2">
-          Neuromuscular Typing Academy
-        </h1>
-        <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-          Seven structured stages with 600 individual lessons each — 4,200 lessons total.
-          Progress from tactile home-row anchoring through sentence rhythm to full precision mastery.
-        </p>
-      </div>
-
-      {/* 7 stage cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {STAGE_META.map((stage) => {
-          const unlocked = unlockedStages.includes(stage.stageId);
-          const completedCount = getStageCompletedCount(stage.stageId);
-          const completedPct = Math.round((completedCount / 600) * 100);
-          const colorScheme = stageColors[stage.color] ?? stageColors.emerald;
-          const nextLesson = getNextRecommendedLesson(stage.stageId);
-
-          return (
-            <button
-              key={stage.stageId}
-              type="button"
-              disabled={!unlocked}
-              onClick={() => onSelectStage(stage.stageId)}
-              className={`text-left p-5 rounded-2xl border transition-all duration-150 space-y-4 group ${
-                unlocked
-                  ? 'cursor-pointer hover:shadow-lg'
-                  : 'opacity-50 cursor-not-allowed'
-              }`}
-              style={{
-                background: unlocked ? colorScheme.bg : 'var(--bg-surface)',
-                borderColor: unlocked ? colorScheme.border : 'var(--border)',
-              }}
-              aria-label={`Stage ${stage.stageId}: ${stage.title}${unlocked ? '' : ' (locked)'}`}
-            >
-              {/* Stage number + badge */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center font-mono font-bold text-lg"
-                    style={{
-                      background: unlocked ? colorScheme.text : 'var(--bg-elevated)',
-                      color: unlocked ? '#fff' : 'var(--text-muted)',
-                    }}
-                  >
-                    {completedPct >= 100 ? '✓' : unlocked ? stage.stageId : <Lock className="w-4 h-4" />}
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-mono uppercase tracking-wider" style={{ color: unlocked ? colorScheme.text : 'var(--text-muted)' }}>
-                      Stage {stage.stageId} of 7
-                    </div>
-                    <div className="text-sm font-bold text-[var(--text-primary)]">{stage.title}</div>
-                  </div>
-                </div>
-                {unlocked && <ChevronRight className="w-4 h-4 text-[var(--text-muted)] group-hover:translate-x-0.5 transition-transform" />}
-              </div>
-
-              {/* Subtitle */}
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{stage.subtitle}</p>
-
-              {/* Progress bar */}
-              {unlocked && (
-                <div className="space-y-1">
-                  <div className="flex justify-between text-[10px] font-mono" style={{ color: colorScheme.text }}>
-                    <span>{completedCount} lessons done</span>
-                    <span>{completedPct}%</span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-[var(--bg-elevated)] overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-300"
-                      style={{ width: `${completedPct}%`, background: colorScheme.text }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Stats row */}
-              <div className="flex items-center gap-3 text-[10px] font-mono text-[var(--text-muted)]">
-                <span>{stage.totalLessons} lessons</span>
-                <span>•</span>
-                <span>{stage.targetWpm} WPM gate</span>
-                <span>•</span>
-                <span>{stage.targetAccuracy}% acc gate</span>
-              </div>
-
-              {/* Resume button */}
-              {unlocked && nextLesson.stageId === stage.stageId && completedPct < 100 && (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (onResumeLesson) onResumeLesson(stage.stageId, nextLesson.lessonNum);
-                  }}
-                  className="text-[10px] font-mono font-semibold flex items-center gap-1 hover:underline cursor-pointer"
-                  style={{ color: colorScheme.text }}
-                >
-                  <Zap className="w-3 h-3" />
-                  Resume lesson {nextLesson.lessonNum}
-                </div>
-              )}
-
-              {!unlocked && (
-                <div className="text-[10px] font-mono text-[var(--text-muted)] flex items-center gap-1">
-                  <Lock className="w-3 h-3" />
-                  Complete Stage {stage.stageId - 1} to unlock
-                </div>
-              )}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Curriculum stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-        {[
-          { label: 'Total Lessons', value: '4,200', icon: BookOpen },
-          { label: 'Stages', value: '7', icon: Trophy },
-          { label: 'Lessons / Stage', value: '600', icon: BarChart3 },
-          { label: 'Units / Stage', value: '20', icon: Zap },
-        ].map(stat => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.label} className="card-panel p-3 flex items-center gap-3">
-              <Icon className="w-4 h-4 text-[var(--accent)] shrink-0" />
-              <div>
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">{stat.label}</div>
-                <div className="text-lg font-bold font-mono text-[var(--text-primary)]">{stat.value}</div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
