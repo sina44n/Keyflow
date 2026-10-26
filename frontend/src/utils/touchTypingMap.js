@@ -1,0 +1,290 @@
+/**
+ * Touch Typing Calibration & Finger Mapping Engine for KEYFLOW.
+ * 
+ * Symmetrical 15.0 Unit calibration across all 5 rows (ViewBox: 0 0 900 350).
+ * Matches ANSI 60% standard touch-typing finger assignments.
+ */
+
+export const ROW_START_Y = 16;
+export const ROW_HEIGHT = 46;
+export const ROW_GAP = 7;
+export const KEY_GAP = 7;
+export const UNIT = (860 - 14 * KEY_GAP) / 15; // ~50.8px
+
+export function computeKeyWidth(u) {
+  return u * UNIT + (u - 1) * KEY_GAP;
+}
+
+export const ROW_DEFS = [
+  {
+    y: ROW_START_Y, // cy = 39
+    keys: [
+      { id: '`', top: '~', bot: '`', u: 1.0 },
+      { id: '1', top: '!', bot: '1', u: 1.0 },
+      { id: '2', top: '@', bot: '2', u: 1.0 },
+      { id: '3', top: '#', bot: '3', u: 1.0 },
+      { id: '4', top: '$', bot: '4', u: 1.0 },
+      { id: '5', top: '%', bot: '5', u: 1.0 },
+      { id: '6', top: '^', bot: '6', u: 1.0 },
+      { id: '7', top: '&', bot: '7', u: 1.0 },
+      { id: '8', top: '*', bot: '8', u: 1.0 },
+      { id: '9', top: '(', bot: '9', u: 1.0 },
+      { id: '0', top: ')', bot: '0', u: 1.0 },
+      { id: '-', top: '_', bot: '-', u: 1.0 },
+      { id: '=', top: '+', bot: '=', u: 1.0 },
+      { id: 'backspace', label: 'backspace', u: 2.0, isSpecial: true },
+    ],
+  },
+  {
+    y: ROW_START_Y + (ROW_HEIGHT + ROW_GAP), // cy = 92
+    keys: [
+      { id: 'tab', label: 'tab', u: 1.5, isSpecial: true },
+      { id: 'q', label: 'q', u: 1.0 },
+      { id: 'w', label: 'w', u: 1.0 },
+      { id: 'e', label: 'e', u: 1.0 },
+      { id: 'r', label: 'r', u: 1.0 },
+      { id: 't', label: 't', u: 1.0 },
+      { id: 'y', label: 'y', u: 1.0 },
+      { id: 'u', label: 'u', u: 1.0 },
+      { id: 'i', label: 'i', u: 1.0 },
+      { id: 'o', label: 'o', u: 1.0 },
+      { id: 'p', label: 'p', u: 1.0 },
+      { id: '[', top: '{', bot: '[', u: 1.0 },
+      { id: ']', top: '}', bot: ']', u: 1.0 },
+      { id: '\\', top: '|', bot: '\\', u: 1.5, isSpecial: true },
+    ],
+  },
+  {
+    y: ROW_START_Y + 2 * (ROW_HEIGHT + ROW_GAP), // cy = 145
+    keys: [
+      { id: 'caps', label: 'caps lock', u: 1.75, isSpecial: true },
+      { id: 'a', label: 'a', u: 1.0, isHome: true },
+      { id: 's', label: 's', u: 1.0, isHome: true },
+      { id: 'd', label: 'd', u: 1.0, isHome: true },
+      { id: 'f', label: 'f', u: 1.0, isHome: true, hasBump: true },
+      { id: 'g', label: 'g', u: 1.0 },
+      { id: 'h', label: 'h', u: 1.0 },
+      { id: 'j', label: 'j', u: 1.0, isHome: true, hasBump: true },
+      { id: 'k', label: 'k', u: 1.0, isHome: true },
+      { id: 'l', label: 'l', u: 1.0, isHome: true },
+      { id: ';', top: ':', bot: ';', u: 1.0, isHome: true },
+      { id: "'", top: '"', bot: "'", u: 1.0 },
+      { id: 'enter', label: 'enter', u: 2.25, isSpecial: true },
+    ],
+  },
+  {
+    y: ROW_START_Y + 3 * (ROW_HEIGHT + ROW_GAP), // cy = 198
+    keys: [
+      { id: 'shift-left', label: 'shift', u: 2.25, isSpecial: true },
+      { id: 'z', label: 'z', u: 1.0 },
+      { id: 'x', label: 'x', u: 1.0 },
+      { id: 'c', label: 'c', u: 1.0 },
+      { id: 'v', label: 'v', u: 1.0 },
+      { id: 'b', label: 'b', u: 1.0 },
+      { id: 'n', label: 'n', u: 1.0 },
+      { id: 'm', label: 'm', u: 1.0 },
+      { id: ',', top: '<', bot: ',', u: 1.0 },
+      { id: '.', top: '>', bot: '.', u: 1.0 },
+      { id: '/', top: '?', bot: '/', u: 1.0 },
+      { id: 'shift-right', label: 'shift', u: 2.75, isSpecial: true },
+    ],
+  },
+  {
+    y: ROW_START_Y + 4 * (ROW_HEIGHT + ROW_GAP), // cy = 251
+    keys: [
+      { id: 'control-left', label: 'control', u: 1.75, isSpecial: true },
+      { id: 'option-left', label: 'option', u: 1.5, isSpecial: true },
+      { id: 'space', label: 'space', u: 8.5, isSpecial: true },
+      { id: 'option-right', label: 'option', u: 1.5, isSpecial: true },
+      { id: 'control-right', label: 'control', u: 1.75, isSpecial: true },
+    ],
+  },
+];
+
+// Dual-character shift map: shifted symbol -> base key
+export const SHIFT_MAP = {
+  '~':'`', '!':'1', '@':'2', '#':'3', '$':'4', '%':'5', '^':'6', '&':'7', '*':'8', '(':'9', ')':'0',
+  '_':'-', '+':'=', '{':'[', '}':']', '|':'\\', ':':';', '"':"'", '<':',', '>':'.', '?':'/',
+};
+
+// Compute exact key centers
+export const KEY_COORDS = {};
+ROW_DEFS.forEach((r) => {
+  let curX = 20;
+  r.keys.forEach((k) => {
+    const width = computeKeyWidth(k.u);
+    KEY_COORDS[k.id] = {
+      x: curX,
+      y: r.y,
+      w: width,
+      h: ROW_HEIGHT,
+      cx: +(curX + width / 2).toFixed(1),
+      cy: +(r.y + ROW_HEIGHT / 2).toFixed(1),
+    };
+    curX += width + KEY_GAP;
+  });
+});
+
+export function generateLayout() {
+  const allKeys = [];
+  ROW_DEFS.forEach((r) => {
+    let currentX = 20;
+    r.keys.forEach((k) => {
+      const w = computeKeyWidth(k.u);
+      allKeys.push({
+        ...k,
+        x: currentX,
+        y: r.y,
+        w,
+        h: ROW_HEIGHT,
+        cx: currentX + w / 2,
+        cy: r.y + ROW_HEIGHT / 2,
+      });
+      currentX += w + KEY_GAP;
+    });
+  });
+  return allKeys;
+}
+
+export const CALIBRATED_KEYS = generateLayout();
+
+// Touch-typing finger assignments
+export const KEY_FINGER_MAP = {
+  // Left Pinky
+  '`': { finger: 'left-pinky', x: KEY_COORDS['`'].cx, y: KEY_COORDS['`'].cy },
+  '~': { finger: 'left-pinky', x: KEY_COORDS['`'].cx, y: KEY_COORDS['`'].cy },
+  '1': { finger: 'left-pinky', x: KEY_COORDS['1'].cx, y: KEY_COORDS['1'].cy },
+  '!': { finger: 'left-pinky', x: KEY_COORDS['1'].cx, y: KEY_COORDS['1'].cy },
+  'tab': { finger: 'left-pinky', x: KEY_COORDS['tab'].cx, y: KEY_COORDS['tab'].cy },
+  'q': { finger: 'left-pinky', x: KEY_COORDS['q'].cx, y: KEY_COORDS['q'].cy },
+  'Q': { finger: 'left-pinky', x: KEY_COORDS['q'].cx, y: KEY_COORDS['q'].cy },
+  'caps': { finger: 'left-pinky', x: KEY_COORDS['caps'].cx, y: KEY_COORDS['caps'].cy },
+  'a': { finger: 'left-pinky', x: KEY_COORDS['a'].cx, y: KEY_COORDS['a'].cy },
+  'A': { finger: 'left-pinky', x: KEY_COORDS['a'].cx, y: KEY_COORDS['a'].cy },
+  'shift-left': { finger: 'left-pinky', x: KEY_COORDS['shift-left'].cx, y: KEY_COORDS['shift-left'].cy },
+  'z': { finger: 'left-pinky', x: KEY_COORDS['z'].cx, y: KEY_COORDS['z'].cy },
+  'Z': { finger: 'left-pinky', x: KEY_COORDS['z'].cx, y: KEY_COORDS['z'].cy },
+
+  // Left Ring
+  '2': { finger: 'left-ring', x: KEY_COORDS['2'].cx, y: KEY_COORDS['2'].cy },
+  '@': { finger: 'left-ring', x: KEY_COORDS['2'].cx, y: KEY_COORDS['2'].cy },
+  'w': { finger: 'left-ring', x: KEY_COORDS['w'].cx, y: KEY_COORDS['w'].cy },
+  'W': { finger: 'left-ring', x: KEY_COORDS['w'].cx, y: KEY_COORDS['w'].cy },
+  's': { finger: 'left-ring', x: KEY_COORDS['s'].cx, y: KEY_COORDS['s'].cy },
+  'S': { finger: 'left-ring', x: KEY_COORDS['s'].cx, y: KEY_COORDS['s'].cy },
+  'x': { finger: 'left-ring', x: KEY_COORDS['x'].cx, y: KEY_COORDS['x'].cy },
+  'X': { finger: 'left-ring', x: KEY_COORDS['x'].cx, y: KEY_COORDS['x'].cy },
+
+  // Left Middle
+  '3': { finger: 'left-middle', x: KEY_COORDS['3'].cx, y: KEY_COORDS['3'].cy },
+  '#': { finger: 'left-middle', x: KEY_COORDS['3'].cx, y: KEY_COORDS['3'].cy },
+  'e': { finger: 'left-middle', x: KEY_COORDS['e'].cx, y: KEY_COORDS['e'].cy },
+  'E': { finger: 'left-middle', x: KEY_COORDS['e'].cx, y: KEY_COORDS['e'].cy },
+  'd': { finger: 'left-middle', x: KEY_COORDS['d'].cx, y: KEY_COORDS['d'].cy },
+  'D': { finger: 'left-middle', x: KEY_COORDS['d'].cx, y: KEY_COORDS['d'].cy },
+  'c': { finger: 'left-middle', x: KEY_COORDS['c'].cx, y: KEY_COORDS['c'].cy },
+  'C': { finger: 'left-middle', x: KEY_COORDS['c'].cx, y: KEY_COORDS['c'].cy },
+
+  // Left Index
+  '4': { finger: 'left-index', x: KEY_COORDS['4'].cx, y: KEY_COORDS['4'].cy },
+  '$': { finger: 'left-index', x: KEY_COORDS['4'].cx, y: KEY_COORDS['4'].cy },
+  '5': { finger: 'left-index', x: KEY_COORDS['5'].cx, y: KEY_COORDS['5'].cy },
+  '%': { finger: 'left-index', x: KEY_COORDS['5'].cx, y: KEY_COORDS['5'].cy },
+  'r': { finger: 'left-index', x: KEY_COORDS['r'].cx, y: KEY_COORDS['r'].cy },
+  'R': { finger: 'left-index', x: KEY_COORDS['r'].cx, y: KEY_COORDS['r'].cy },
+  't': { finger: 'left-index', x: KEY_COORDS['t'].cx, y: KEY_COORDS['t'].cy },
+  'T': { finger: 'left-index', x: KEY_COORDS['t'].cx, y: KEY_COORDS['t'].cy },
+  'f': { finger: 'left-index', x: KEY_COORDS['f'].cx, y: KEY_COORDS['f'].cy },
+  'F': { finger: 'left-index', x: KEY_COORDS['f'].cx, y: KEY_COORDS['f'].cy },
+  'g': { finger: 'left-index', x: KEY_COORDS['g'].cx, y: KEY_COORDS['g'].cy },
+  'G': { finger: 'left-index', x: KEY_COORDS['g'].cx, y: KEY_COORDS['g'].cy },
+  'v': { finger: 'left-index', x: KEY_COORDS['v'].cx, y: KEY_COORDS['v'].cy },
+  'V': { finger: 'left-index', x: KEY_COORDS['v'].cx, y: KEY_COORDS['v'].cy },
+  'b': { finger: 'left-index', x: KEY_COORDS['b'].cx, y: KEY_COORDS['b'].cy },
+  'B': { finger: 'left-index', x: KEY_COORDS['b'].cx, y: KEY_COORDS['b'].cy },
+
+  // Thumbs
+  ' ': { finger: 'thumb', x: KEY_COORDS['space'].cx, y: KEY_COORDS['space'].cy },
+  'space': { finger: 'thumb', x: KEY_COORDS['space'].cx, y: KEY_COORDS['space'].cy },
+
+  // Right Index
+  '6': { finger: 'right-index', x: KEY_COORDS['6'].cx, y: KEY_COORDS['6'].cy },
+  '^': { finger: 'right-index', x: KEY_COORDS['6'].cx, y: KEY_COORDS['6'].cy },
+  '7': { finger: 'right-index', x: KEY_COORDS['7'].cx, y: KEY_COORDS['7'].cy },
+  '&': { finger: 'right-index', x: KEY_COORDS['7'].cx, y: KEY_COORDS['7'].cy },
+  'y': { finger: 'right-index', x: KEY_COORDS['y'].cx, y: KEY_COORDS['y'].cy },
+  'Y': { finger: 'right-index', x: KEY_COORDS['y'].cx, y: KEY_COORDS['y'].cy },
+  'u': { finger: 'right-index', x: KEY_COORDS['u'].cx, y: KEY_COORDS['u'].cy },
+  'U': { finger: 'right-index', x: KEY_COORDS['u'].cx, y: KEY_COORDS['u'].cy },
+  'h': { finger: 'right-index', x: KEY_COORDS['h'].cx, y: KEY_COORDS['h'].cy },
+  'H': { finger: 'right-index', x: KEY_COORDS['h'].cx, y: KEY_COORDS['h'].cy },
+  'j': { finger: 'right-index', x: KEY_COORDS['j'].cx, y: KEY_COORDS['j'].cy },
+  'J': { finger: 'right-index', x: KEY_COORDS['j'].cx, y: KEY_COORDS['j'].cy },
+  'n': { finger: 'right-index', x: KEY_COORDS['n'].cx, y: KEY_COORDS['n'].cy },
+  'N': { finger: 'right-index', x: KEY_COORDS['n'].cx, y: KEY_COORDS['n'].cy },
+  'm': { finger: 'right-index', x: KEY_COORDS['m'].cx, y: KEY_COORDS['m'].cy },
+  'M': { finger: 'right-index', x: KEY_COORDS['m'].cx, y: KEY_COORDS['m'].cy },
+
+  // Right Middle
+  '8': { finger: 'right-middle', x: KEY_COORDS['8'].cx, y: KEY_COORDS['8'].cy },
+  '*': { finger: 'right-middle', x: KEY_COORDS['8'].cx, y: KEY_COORDS['8'].cy },
+  'i': { finger: 'right-middle', x: KEY_COORDS['i'].cx, y: KEY_COORDS['i'].cy },
+  'I': { finger: 'right-middle', x: KEY_COORDS['i'].cx, y: KEY_COORDS['i'].cy },
+  'k': { finger: 'right-middle', x: KEY_COORDS['k'].cx, y: KEY_COORDS['k'].cy },
+  'K': { finger: 'right-middle', x: KEY_COORDS['k'].cx, y: KEY_COORDS['k'].cy },
+  ',': { finger: 'right-middle', x: KEY_COORDS[','].cx, y: KEY_COORDS[','].cy },
+  '<': { finger: 'right-middle', x: KEY_COORDS[','].cx, y: KEY_COORDS[','].cy },
+
+  // Right Ring
+  '9': { finger: 'right-ring', x: KEY_COORDS['9'].cx, y: KEY_COORDS['9'].cy },
+  '(': { finger: 'right-ring', x: KEY_COORDS['9'].cx, y: KEY_COORDS['9'].cy },
+  'o': { finger: 'right-ring', x: KEY_COORDS['o'].cx, y: KEY_COORDS['o'].cy },
+  'O': { finger: 'right-ring', x: KEY_COORDS['o'].cx, y: KEY_COORDS['o'].cy },
+  'l': { finger: 'right-ring', x: KEY_COORDS['l'].cx, y: KEY_COORDS['l'].cy },
+  'L': { finger: 'right-ring', x: KEY_COORDS['l'].cx, y: KEY_COORDS['l'].cy },
+  '.': { finger: 'right-ring', x: KEY_COORDS['.'].cx, y: KEY_COORDS['.'].cy },
+  '>': { finger: 'right-ring', x: KEY_COORDS['.'].cx, y: KEY_COORDS['.'].cy },
+
+  // Right Pinky
+  '0': { finger: 'right-pinky', x: KEY_COORDS['0'].cx, y: KEY_COORDS['0'].cy },
+  ')': { finger: 'right-pinky', x: KEY_COORDS['0'].cx, y: KEY_COORDS['0'].cy },
+  '-': { finger: 'right-pinky', x: KEY_COORDS['-'].cx, y: KEY_COORDS['-'].cy },
+  '_': { finger: 'right-pinky', x: KEY_COORDS['-'].cx, y: KEY_COORDS['-'].cy },
+  '=': { finger: 'right-pinky', x: KEY_COORDS['='].cx, y: KEY_COORDS['='].cy },
+  '+': { finger: 'right-pinky', x: KEY_COORDS['='].cx, y: KEY_COORDS['='].cy },
+  'backspace': { finger: 'right-pinky', x: KEY_COORDS['backspace'].cx, y: KEY_COORDS['backspace'].cy },
+  'p': { finger: 'right-pinky', x: KEY_COORDS['p'].cx, y: KEY_COORDS['p'].cy },
+  'P': { finger: 'right-pinky', x: KEY_COORDS['p'].cx, y: KEY_COORDS['p'].cy },
+  '[': { finger: 'right-pinky', x: KEY_COORDS['['].cx, y: KEY_COORDS['['].cy },
+  '{': { finger: 'right-pinky', x: KEY_COORDS['['].cx, y: KEY_COORDS['['].cy },
+  ']': { finger: 'right-pinky', x: KEY_COORDS[']'].cx, y: KEY_COORDS[']'].cy },
+  '}': { finger: 'right-pinky', x: KEY_COORDS[']'].cx, y: KEY_COORDS[']'].cy },
+  '\\': { finger: 'right-pinky', x: KEY_COORDS['\\'].cx, y: KEY_COORDS['\\'].cy },
+  '|': { finger: 'right-pinky', x: KEY_COORDS['\\'].cx, y: KEY_COORDS['\\'].cy },
+  ';': { finger: 'right-pinky', x: KEY_COORDS[';'].cx, y: KEY_COORDS[';'].cy },
+  ':': { finger: 'right-pinky', x: KEY_COORDS[';'].cx, y: KEY_COORDS[';'].cy },
+  "'": { finger: 'right-pinky', x: KEY_COORDS["'"].cx, y: KEY_COORDS["'"].cy },
+  '"': { finger: 'right-pinky', x: KEY_COORDS["'"].cx, y: KEY_COORDS["'"].cy },
+  'enter': { finger: 'right-pinky', x: KEY_COORDS['enter'].cx, y: KEY_COORDS['enter'].cy },
+  '\n': { finger: 'right-pinky', x: KEY_COORDS['enter'].cx, y: KEY_COORDS['enter'].cy },
+  '/': { finger: 'right-pinky', x: KEY_COORDS['/'].cx, y: KEY_COORDS['/'].cy },
+  '?': { finger: 'right-pinky', x: KEY_COORDS['/'].cx, y: KEY_COORDS['/'].cy },
+  'shift-right': { finger: 'right-pinky', x: KEY_COORDS['shift-right'].cx, y: KEY_COORDS['shift-right'].cy },
+};
+
+/**
+ * Exact anatomical fingertip contact coordinates calibrated to the photographic
+ * hand asset positioned at x=64, y=96, w=750, h=364 in the 900x350 viewBox.
+ */
+export const FINGERTIP_POSITIONS = {
+  'left-pinky':  { x: 153, y: 161, homeKey: 'a' },
+  'left-ring':   { x: 212, y: 131, homeKey: 's' },
+  'left-middle': { x: 254, y: 112, homeKey: 'd' },
+  'left-index':  { x: 317, y: 130, homeKey: 'f' },
+  'left-thumb':  { x: 379, y: 263, homeKey: 'space' },
+  'right-thumb': { x: 456, y: 267, homeKey: 'space' },
+  'right-index': { x: 488, y: 142, homeKey: 'j' },
+  'right-middle':{ x: 543, y: 118, homeKey: 'k' },
+  'right-ring':  { x: 606, y: 124, homeKey: 'l' },
+  'right-pinky': { x: 680, y: 142, homeKey: ';' },
+};

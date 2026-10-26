@@ -296,10 +296,10 @@ export const LessonPlayer = ({
         viewBox="0 0 1440 900"
         aria-hidden="true"
       >
-        <path d="M -80 180 C 180 320, 80 620, -40 820" stroke="var(--accent, #06b6d4)" strokeWidth="1.2" fill="none" opacity="0.4" />
-        <path d="M -60 130 C 220 290, 120 670, -10 870" stroke="var(--accent, #06b6d4)" strokeWidth="0.8" fill="none" opacity="0.25" />
-        <path d="M 1520 180 C 1260 320, 1360 620, 1480 820" stroke="var(--accent, #06b6d4)" strokeWidth="1.2" fill="none" opacity="0.4" />
-        <path d="M 1500 130 C 1220 290, 1320 670, 1450 870" stroke="var(--accent, #06b6d4)" strokeWidth="0.8" fill="none" opacity="0.25" />
+        <path d="M -80 180 C 180 320, 80 620, -40 820" stroke="var(--accent, #FF1744)" strokeWidth="1.2" fill="none" opacity="0.4" />
+        <path d="M -60 130 C 220 290, 120 670, -10 870" stroke="var(--accent, #FF1744)" strokeWidth="0.8" fill="none" opacity="0.25" />
+        <path d="M 1520 180 C 1260 320, 1360 620, 1480 820" stroke="var(--accent, #FF1744)" strokeWidth="1.2" fill="none" opacity="0.4" />
+        <path d="M 1500 130 C 1220 290, 1320 670, 1450 870" stroke="var(--accent, #FF1744)" strokeWidth="0.8" fill="none" opacity="0.25" />
       </svg>
 
       {/* ── TOP NAVIGATION BAR (Reference Match) ───────────────────────── */}
@@ -327,12 +327,12 @@ export const LessonPlayer = ({
             <div className="flex items-center gap-1.5 sm:gap-2">
               <div
                 className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center shadow-xs"
-                style={{ background: 'var(--accent, #06b6d4)' }}
+                style={{ background: 'var(--accent, #FF1744)' }}
               >
                 <Keyboard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
               </div>
               <span className="font-mono text-sm font-extrabold tracking-wider hidden sm:inline text-[var(--text-primary)]">
-                KEY<span style={{ color: 'var(--accent, #06b6d4)' }}>FLOW</span>
+                KEY<span style={{ color: 'var(--accent, #FF1744)' }}>FLOW</span>
               </span>
             </div>
 
@@ -341,7 +341,7 @@ export const LessonPlayer = ({
               <span className="opacity-40 hidden sm:inline">/</span>
               <span className="hidden sm:inline">Academy</span>
               <span className="opacity-40">/</span>
-              <span className="font-semibold text-[var(--accent,#06b6d4)]">
+              <span className="font-semibold text-[var(--accent,#FF1744)]">
                 <span className="hidden sm:inline">Lesson </span>{lesson.lessonNum}
               </span>
             </div>
@@ -374,7 +374,7 @@ export const LessonPlayer = ({
               title={`Keyboard Guide: ${keyboardGuideOn ? 'ON' : 'OFF'}`}
               aria-label={`Keyboard Guide ${keyboardGuideOn ? 'on' : 'off'}`}
               className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer"
-              style={{ color: keyboardGuideOn ? 'var(--accent, #06b6d4)' : 'var(--text-muted)' }}
+              style={{ color: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
             >
               <Keyboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
@@ -386,7 +386,7 @@ export const LessonPlayer = ({
               title={`Hand Guide: ${handGuideOn ? 'ON' : 'OFF'}`}
               aria-label={`Hand Guide ${handGuideOn ? 'on' : 'off'}`}
               className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer"
-              style={{ color: handGuideOn ? 'var(--accent, #06b6d4)' : 'var(--text-muted)' }}
+              style={{ color: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
             >
               <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
@@ -407,7 +407,7 @@ export const LessonPlayer = ({
             >
               <div
                 className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold font-mono text-white shadow-xs"
-                style={{ background: 'var(--accent, #06b6d4)' }}
+                style={{ background: 'var(--accent, #FF1744)' }}
               >
                 S
               </div>
@@ -433,7 +433,7 @@ export const LessonPlayer = ({
               LESSON {lesson.lessonNum} · {lesson.unitLabel || 'WORD ACCURACY'}
             </span>
             <span
-              className="text-xs font-mono font-bold text-[var(--accent,#06b6d4)]"
+              className="text-xs font-mono font-bold text-[var(--accent,#FF1744)]"
             >
               {progressPercent}%
             </span>
@@ -448,8 +448,8 @@ export const LessonPlayer = ({
               className="h-full rounded-full transition-all duration-150"
               style={{
                 width: `${progressPercent}%`,
-                background: 'var(--accent, #06b6d4)',
-                boxShadow: progressPercent > 0 ? '0 0 10px var(--accent, #06b6d4)' : 'none',
+                background: 'var(--accent, #FF1744)',
+                boxShadow: progressPercent > 0 ? '0 0 10px var(--accent, #FF1744)' : 'none',
               }}
             />
           </div>
@@ -498,7 +498,7 @@ export const LessonPlayer = ({
                   key={word.key}
                   className={`inline-block relative rounded-md transition-all duration-100 ${
                     isCurrentWord
-                      ? 'px-1.5 py-0.5 -my-0.5 mx-0.5 border border-[#38bdf8]/40 bg-[#0284c7]/15 shadow-[0_0_12px_rgba(56,189,248,0.25)]'
+                      ? 'px-1.5 py-0.5 -my-0.5 mx-0.5 border border-[var(--accent,#FF1744)]/50 bg-[color-mix(in_srgb,var(--accent,#FF1744)_15%,transparent)] shadow-[0_0_16px_rgba(255,23,68,0.3)]'
                       : 'border border-transparent'
                   }`}
                 >
@@ -514,8 +514,8 @@ export const LessonPlayer = ({
                           <span
                             className="absolute -left-[1px] top-[10%] bottom-[10%] w-[2px] rounded-full animate-pulse z-10"
                             style={{
-                              background: '#38bdf8',
-                              boxShadow: '0 0 8px #38bdf8',
+                              background: 'var(--accent, #FF1744)',
+                              boxShadow: '0 0 8px var(--accent, #FF1744)',
                             }}
                           />
                         )}
@@ -535,8 +535,8 @@ export const LessonPlayer = ({
                     <span
                       className="inline-block w-[2px] h-[1.2em] align-middle ml-0.5 rounded-full animate-pulse"
                       style={{
-                        background: '#38bdf8',
-                        boxShadow: '0 0 8px #38bdf8',
+                        background: 'var(--accent, #FF1744)',
+                        boxShadow: '0 0 8px var(--accent, #FF1744)',
                       }}
                     />
                   )}
@@ -572,7 +572,7 @@ export const LessonPlayer = ({
               label: 'WPM',
               value: currentWpm,
               color: 'var(--text-primary)',
-              iconColor: 'var(--accent, #06b6d4)',
+              iconColor: 'var(--accent, #FF1744)',
             },
             {
               icon: Target,
@@ -651,7 +651,7 @@ export const LessonPlayer = ({
             </span>
             <span
               className="text-[11px] sm:text-xs font-bold font-mono"
-              style={{ color: keyboardGuideOn ? 'var(--accent, #06b6d4)' : 'var(--text-muted)' }}
+              style={{ color: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
             >
               {keyboardGuideOn ? 'ON' : 'OFF'}
             </span>
@@ -661,9 +661,9 @@ export const LessonPlayer = ({
               style={{
                 width: '32px',
                 height: '18px',
-                background: keyboardGuideOn ? 'var(--accent, #06b6d4)' : 'var(--bg-elevated, #1e293b)',
+                background: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--bg-elevated, #1e293b)',
                 border: '1px solid',
-                borderColor: keyboardGuideOn ? 'var(--accent, #06b6d4)' : 'var(--border, #334155)',
+                borderColor: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--border, #334155)',
               }}
             >
               <div
@@ -695,7 +695,7 @@ export const LessonPlayer = ({
             </span>
             <span
               className="text-[11px] sm:text-xs font-bold font-mono"
-              style={{ color: handGuideOn ? 'var(--accent, #06b6d4)' : 'var(--text-muted)' }}
+              style={{ color: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
             >
               {handGuideOn ? 'ON' : 'OFF'}
             </span>
@@ -705,9 +705,9 @@ export const LessonPlayer = ({
               style={{
                 width: '32px',
                 height: '18px',
-                background: handGuideOn ? 'var(--accent, #06b6d4)' : 'var(--bg-elevated, #1e293b)',
+                background: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--bg-elevated, #1e293b)',
                 border: '1px solid',
-                borderColor: handGuideOn ? 'var(--accent, #06b6d4)' : 'var(--border, #334155)',
+                borderColor: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--border, #334155)',
               }}
             >
               <div

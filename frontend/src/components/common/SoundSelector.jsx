@@ -94,7 +94,7 @@ export const SoundSelector = ({
           aria-haspopup="dialog"
           className={`p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer hidden sm:flex items-center justify-center relative ${className}`}
           style={{
-            color: isAudible ? 'var(--accent, #06b6d4)' : 'var(--text-muted)',
+            color: isAudible ? 'var(--accent, #FF1744)' : 'var(--text-muted)',
           }}
         >
           {isAudible ? (
@@ -105,7 +105,7 @@ export const SoundSelector = ({
           {isOpen && (
             <span
               className="absolute -bottom-1 w-1.5 h-1.5 rounded-full"
-              style={{ background: 'var(--accent, #06b6d4)' }}
+              style={{ background: 'var(--accent, #FF1744)' }}
             />
           )}
         </button>
