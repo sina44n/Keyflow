@@ -34,8 +34,8 @@ export const ThemeSwitcher = ({ compact = false }) => {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={compact 
-          ? "p-2 rounded-lg transition-colors cursor-pointer text-[#A6B0C0] hover:text-white hover:bg-[#101722] relative flex items-center justify-center border border-[#222B38]"
-          : "flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#222B38] bg-[#090C12] hover:border-[#FF1744]/50 text-[#A6B0C0] hover:text-white text-xs font-mono font-medium transition-all cursor-pointer min-h-[38px]"}
+          ? "p-2 rounded-lg transition-colors cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] relative flex items-center justify-center border border-[var(--border)]"
+          : "flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-mono font-medium transition-all cursor-pointer min-h-[38px]"}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label={`Current theme: ${currentThemeObj.name}. Click to change theme.`}
@@ -46,13 +46,13 @@ export const ThemeSwitcher = ({ compact = false }) => {
           style={{ backgroundColor: currentThemeObj.accent, color: currentThemeObj.accent }}
           aria-hidden="true"
         />
-        <Sun className="w-3.5 h-3.5 text-[#A6B0C0]" aria-hidden="true" />
+        <Sun className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
         {!compact && (
-          <span className="hidden sm:inline text-[11px] font-semibold tracking-wide text-[#F5F7FA]">
+          <span className="hidden sm:inline text-[11px] font-semibold tracking-wide text-[var(--text-primary)]">
             {currentThemeObj.name}
           </span>
         )}
-        <ChevronDown className="w-3 h-3 text-[#6F7B8D] ml-0.5" />
+        <ChevronDown className="w-3 h-3 text-[var(--text-muted)] ml-0.5" />
       </button>
 
       {/* Flyout Menu / Modal */}

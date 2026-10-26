@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ThemeSwitcher } from './ThemeSwitcher';
 import { Button } from './Button';
+import { useTheme } from '../../context/ThemeContext';
 import {
   Keyboard,
   BookOpen,
@@ -19,6 +20,7 @@ export const Navbar = () => {
   const [showAuthNotice, setShowAuthNotice] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  useTheme();
 
   // Close mobile menu on resize to desktop
   useEffect(() => {
@@ -63,23 +65,23 @@ export const Navbar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-[#050608]/90 border-b border-[#222B38] transition-colors duration-200">
+    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-[color-mix(in_srgb,var(--bg-main)_88%,transparent)] border-b border-[var(--border)] transition-colors duration-200">
       <div className="container-app h-16 flex items-center justify-between gap-4">
         {/* Brand Logo */}
         <Link
           to="/"
-          className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF1744] rounded-lg py-1"
+          className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] rounded-lg py-1"
           aria-label="KEYFLOW Home"
         >
-          <div className="w-8 h-8 rounded-lg bg-[#101722] border border-[#222B38] group-hover:border-[#FF1744] flex items-center justify-center transition-all duration-200 relative shrink-0 shadow-[0_0_10px_rgba(255,23,68,0.2)]">
-            <Keyboard className="w-4 h-4 text-[#FF1744] transition-transform group-hover:scale-105" aria-hidden="true" />
-            <div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[#FF1744] shadow-[0_0_4px_#FF1744]" />
+          <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] group-hover:border-[var(--accent)] flex items-center justify-center transition-all duration-200 relative shrink-0 shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
+            <Keyboard className="w-4 h-4 text-[var(--accent)] transition-transform group-hover:scale-105" aria-hidden="true" />
+            <div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_4px_var(--accent)]" />
           </div>
           <div className="flex flex-col">
-            <span className="font-mono text-sm sm:text-base font-extrabold tracking-wider text-[#F5F7FA] leading-none group-hover:text-[#FF1744] transition-colors">
-              KEY<span className="text-[#FF1744]">FLOW</span>
+            <span className="font-mono text-sm sm:text-base font-extrabold tracking-wider text-[var(--text-primary)] leading-none group-hover:text-[var(--accent)] transition-colors">
+              KEY<span className="text-[var(--accent)]">FLOW</span>
             </span>
-            <span className="text-[9px] text-[#6F7B8D] tracking-widest uppercase font-mono mt-0.5">
+            <span className="text-[9px] text-[var(--text-muted)] tracking-widest uppercase font-mono mt-0.5">
               Precision Typing
             </span>
           </div>
@@ -101,14 +103,14 @@ export const Navbar = () => {
                 onClick={() => handleNavClick(link)}
                 className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all duration-150 cursor-pointer ${
                   isActive
-                    ? 'text-white bg-[#101722] border border-[#FF1744]/40 shadow-[0_0_12px_rgba(255,23,68,0.2)]'
-                    : 'text-[#A6B0C0] hover:text-[#F5F7FA] hover:bg-[#101722]/60'
+                    ? 'text-[var(--text-primary)] bg-[var(--bg-elevated)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_20%,transparent)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--bg-elevated)_60%,transparent)]'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-[#FF1744]' : 'text-[#6F7B8D]'}`} aria-hidden="true" />
+                <Icon className={`w-3.5 h-3.5 transition-colors ${isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`} aria-hidden="true" />
                 <span>{link.label}</span>
                 {isActive && (
-                  <span className="absolute -bottom-[9px] left-3 right-3 h-[2px] bg-[#FF1744] shadow-[0_0_8px_#FF1744] rounded-full" />
+                  <span className="absolute -bottom-[9px] left-3 right-3 h-[2px] bg-[var(--accent)] shadow-[0_0_8px_var(--accent)] rounded-full" />
                 )}
               </button>
             );
@@ -122,14 +124,14 @@ export const Navbar = () => {
             variant="ghost"
             size="sm"
             onClick={() => setShowAuthNotice(true)}
-            className="text-xs text-[#A6B0C0] hover:text-white"
+            className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
           >
             Sign In
           </Button>
           <button
             type="button"
             onClick={handleContinuePractice}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#FF1744] hover:bg-[#FF304F] text-white text-xs font-semibold tracking-wide shadow-[0_0_16px_rgba(255,23,68,0.4)] transition-all cursor-pointer"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)] text-xs font-semibold tracking-wide shadow-[0_0_16px_color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all cursor-pointer"
           >
             <Play className="w-3.5 h-3.5 fill-current" />
             <span>Continue Practice</span>
@@ -157,14 +159,23 @@ export const Navbar = () => {
           <nav className="space-y-1" aria-label="Mobile navigation">
             {navLinks.map((link) => {
               const Icon = link.icon;
+              const isAcademy = link.label === 'Academy';
+              const isActive = isAcademy
+                ? location.pathname.startsWith('/academy')
+                : location.pathname === link.href;
+
               return (
                 <button
                   key={link.label}
                   type="button"
                   onClick={() => handleNavClick(link)}
-                  className="w-full text-left flex items-center gap-2.5 p-2.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+                  className={`w-full text-left flex items-center gap-2.5 p-2.5 rounded-lg text-sm font-medium transition-colors cursor-pointer ${
+                    isActive
+                      ? 'text-[var(--accent)] bg-[var(--bg-elevated)] font-semibold'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]'
+                  }`}
                 >
-                  <Icon className="w-4 h-4 text-[var(--accent)]" aria-hidden="true" />
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`} aria-hidden="true" />
                   <span>{link.label}</span>
                 </button>
               );
@@ -185,7 +196,7 @@ export const Navbar = () => {
             </Button>
             <button
               type="button"
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#FF1744] hover:bg-[#FF304F] text-white text-sm font-semibold tracking-wide shadow-[0_0_16px_rgba(255,23,68,0.4)] transition-all cursor-pointer"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)] text-sm font-semibold tracking-wide shadow-[0_0_16px_color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all cursor-pointer"
               onClick={handleContinuePractice}
             >
               <Play className="w-4 h-4 fill-current" />
