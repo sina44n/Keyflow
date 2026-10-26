@@ -1,4 +1,4 @@
-﻿/**
+/**
  * KEYFLOW — Lesson-Level Progress Manager
  * ========================================
  * Tracks progress at the individual lesson level (stage + lessonNum).
@@ -19,7 +19,7 @@ const DEFAULT_STATE = {
   // keyboard guide preference
   keyboardGuide: true,
   // hand guide preference
-  handGuide: false,
+  handGuide: true,
 };
 
 function loadState() {
@@ -32,7 +32,7 @@ function loadState() {
       stageProgress: parsed.stageProgress || { ...DEFAULT_STATE.stageProgress },
       unlockedStages: parsed.unlockedStages || [1],
       keyboardGuide: parsed.keyboardGuide !== undefined ? parsed.keyboardGuide : true,
-      handGuide: parsed.handGuide !== undefined ? parsed.handGuide : false,
+      handGuide: parsed.handGuide !== undefined ? parsed.handGuide : true,
     };
   } catch {
     return { ...DEFAULT_STATE, lessons: {}, stageProgress: { ...DEFAULT_STATE.stageProgress }, unlockedStages: [1] };

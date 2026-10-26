@@ -20,9 +20,13 @@ const VIEW = {
 };
 
 export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
-  const [view, setView] = useState(VIEW.OVERVIEW);
-  const [activeStageId, setActiveStageId] = useState(initialLevelId || 1);
-  const [activeLessonNum, setActiveLessonNum] = useState(1);
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const initialLessonParam = searchParams ? parseInt(searchParams.get('lesson'), 10) : null;
+  const initialStageParam = searchParams ? parseInt(searchParams.get('stage'), 10) : null;
+
+  const [view, setView] = useState(initialLessonParam ? VIEW.LESSON : VIEW.OVERVIEW);
+  const [activeStageId, setActiveStageId] = useState(initialStageParam || initialLevelId || 1);
+  const [activeLessonNum, setActiveLessonNum] = useState(initialLessonParam || 1);
   const [progress, setProgress] = useState(getLessonProgress);
 
   // Refresh progress on external updates

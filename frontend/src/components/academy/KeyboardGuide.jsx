@@ -5,7 +5,9 @@ import { HandGuide } from './HandGuide';
  * KeyboardGuide — Precision-Engineered ANSI 60% Virtual Keyboard.
  * 
  * Symmetrical 15.0 Unit calibration across all 5 rows (ViewBox: 0 0 900 350).
- * Every row matches 860px total width with zero gap disparity.
+ * Every row matches exactly 860.0px total width with zero gap disparity:
+ * - Key Area: x = 20 to 880 (centered at x = 450.0)
+ * - Symmetrical 12px chassis padding on both left and right (chassis: x = 8 to 892)
  * Features dual glyphs, tactile bumps on F & J, and active key glow.
  * Integrates realistic translucent human hands directly over the keys.
  */
@@ -17,13 +19,13 @@ export const SHIFT_MAP = {
 };
 
 // 15.0 Unit Keyboard Layout definitions
-// U = 51.267px, gap = 7px. Total width = 860px.
+// U = 50.8px, gap = 7px. Total width = 860px.
 // Row height = 46px, row gap = 7px. Total height = 258px.
 const ROW_START_Y = 16;
 const ROW_HEIGHT = 46;
 const ROW_GAP = 7;
 const KEY_GAP = 7;
-const UNIT = (860 - 13 * KEY_GAP) / 15; // 51.2667px
+const UNIT = (860 - 14 * KEY_GAP) / 15; // 50.8px
 
 function computeKeyWidth(uMult) {
   return uMult * UNIT + (uMult - 1) * KEY_GAP;
@@ -69,7 +71,7 @@ function generateLayout() {
         { id: 'p', label: 'p', u: 1.0 },
         { id: '[', top: '{', bot: '[', u: 1.0 },
         { id: ']', top: '}', bot: ']', u: 1.0 },
-        { id: '\\', top: '|', bot: '\\', u: 1.5 },
+        { id: '\\', top: '|', bot: '\\', u: 1.5, isSpecial: true },
       ],
     },
     // Row 2 (15U, 13 keys)
@@ -171,7 +173,7 @@ export function KeyboardGuide({
 
   return (
     <div
-      className="relative w-full max-w-[780px] mx-auto select-none transition-all duration-200"
+      className="relative w-full min-w-0 max-w-[820px] mx-auto select-none transition-all duration-200"
       role="img"
       aria-label={`Virtual keyboard, target key: ${targetChar || 'none'}`}
     >
@@ -211,7 +213,7 @@ export function KeyboardGuide({
           </linearGradient>
         </defs>
 
-        {/* ── KEYBOARD CHASSIS BACKGROUND ─────────────────────────── */}
+        {/* ── KEYBOARD CHASSIS BACKGROUND (Symmetrical 12px padding: x=8 to 892) ── */}
         {isVisible && (
           <rect
             x="8"
@@ -324,3 +326,5 @@ export function KeyboardGuide({
     </div>
   );
 }
+
+export default KeyboardGuide;

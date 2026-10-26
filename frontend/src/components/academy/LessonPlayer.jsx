@@ -302,7 +302,7 @@ export const LessonPlayer = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-[var(--bg-main,#0b1120)] text-[var(--text-primary)] overflow-y-auto overflow-x-hidden selection:bg-[var(--accent)] selection:text-black"
+      className="fixed inset-0 z-50 flex flex-col items-center bg-[var(--bg-main,#0b1120)] text-[var(--text-primary)] overflow-y-auto overflow-x-hidden selection:bg-[var(--accent)] selection:text-black"
       style={{
         fontFamily: 'Inter, system-ui, sans-serif',
       }}
@@ -327,9 +327,9 @@ export const LessonPlayer = ({
           background: 'color-mix(in srgb, var(--bg-surface, #0c1322) 80%, transparent)',
         }}
       >
-        <div className="w-full px-4 sm:px-8 h-16 flex items-center justify-between relative">
+        <div className="w-full px-2.5 sm:px-8 h-14 sm:h-16 flex items-center justify-between relative">
           {/* Left: Brand & Breadcrumb */}
-          <div className="flex items-center gap-3 sm:gap-4 z-10 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-4 z-10 shrink-0">
             {onBack && (
               <button
                 type="button"
@@ -342,12 +342,12 @@ export const LessonPlayer = ({
             )}
 
             {/* KEYFLOW Logo */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <div
-                className="w-7 h-7 rounded-lg flex items-center justify-center shadow-xs"
+                className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center shadow-xs"
                 style={{ background: 'var(--accent, #06b6d4)' }}
               >
-                <Keyboard className="w-4 h-4 text-white" />
+                <Keyboard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
               </div>
               <span className="font-mono text-sm font-extrabold tracking-wider hidden sm:inline text-[var(--text-primary)]">
                 KEY<span style={{ color: 'var(--accent, #06b6d4)' }}>FLOW</span>
@@ -355,34 +355,34 @@ export const LessonPlayer = ({
             </div>
 
             {/* Breadcrumb: Academy / Lesson 129 */}
-            <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-muted)]">
-              <span className="opacity-40">/</span>
-              <span>Academy</span>
+            <div className="flex items-center gap-1.5 text-xs font-mono text-[var(--text-muted)]">
+              <span className="opacity-40 hidden sm:inline">/</span>
+              <span className="hidden sm:inline">Academy</span>
               <span className="opacity-40">/</span>
               <span className="font-semibold text-[var(--accent,#06b6d4)]">
-                Lesson {lesson.lessonNum}
+                <span className="hidden sm:inline">Lesson </span>{lesson.lessonNum}
               </span>
             </div>
           </div>
 
           {/* Center: Lesson Title — Centered relative to viewport */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden md:block max-w-[360px] truncate text-center">
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden lg:block max-w-[360px] truncate text-center">
             <span className="text-[15px] font-medium text-[var(--text-primary)] tracking-wide pointer-events-auto">
               {lesson.title || `Lesson ${lesson.lessonNum}`}
             </span>
           </div>
 
           {/* Right: Controls & Profile */}
-          <div className="flex items-center gap-1 sm:gap-2 z-10 shrink-0">
+          <div className="flex items-center gap-0.5 sm:gap-2 z-10 shrink-0">
             {/* Restart */}
             <button
               type="button"
               onClick={handleReset}
               title="Restart lesson (Esc)"
               aria-label="Restart lesson"
-              className="p-2 rounded-lg transition-colors cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)]"
             >
-              <RotateCcw className="w-4 h-4" />
+              <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {/* Keyboard Guide Toggle Icon */}
@@ -391,10 +391,10 @@ export const LessonPlayer = ({
               onClick={toggleKeyboardGuide}
               title={`Keyboard Guide: ${keyboardGuideOn ? 'ON' : 'OFF'}`}
               aria-label={`Keyboard Guide ${keyboardGuideOn ? 'on' : 'off'}`}
-              className="p-2 rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer"
               style={{ color: keyboardGuideOn ? 'var(--accent, #06b6d4)' : 'var(--text-muted)' }}
             >
-              <Keyboard className="w-4 h-4" />
+              <Keyboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {/* Hand Guide Toggle Icon */}
@@ -403,10 +403,10 @@ export const LessonPlayer = ({
               onClick={toggleHandGuide}
               title={`Hand Guide: ${handGuideOn ? 'ON' : 'OFF'}`}
               aria-label={`Hand Guide ${handGuideOn ? 'on' : 'off'}`}
-              className="p-2 rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer"
               style={{ color: handGuideOn ? 'var(--accent, #06b6d4)' : 'var(--text-muted)' }}
             >
-              <Hand className="w-4 h-4" />
+              <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
 
             {/* Sound Toggle */}
@@ -415,21 +415,21 @@ export const LessonPlayer = ({
               onClick={() => setSoundEnabled(p => !p)}
               title={soundEnabled ? 'Mute Sound' : 'Enable Sound'}
               aria-label={`Sound ${soundEnabled ? 'on' : 'off'}`}
-              className="p-2 rounded-lg transition-colors cursor-pointer"
+              className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer hidden sm:flex"
               style={{ color: soundEnabled ? 'var(--accent, #06b6d4)' : 'var(--text-muted)' }}
             >
-              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+              {soundEnabled ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </button>
 
             {/* Divider */}
-            <div className="w-px h-5 mx-1 bg-[var(--border,#1e293b)]" />
+            <div className="hidden sm:block w-px h-5 mx-1 bg-[var(--border,#1e293b)]" />
 
             {/* Hidden-until-clicked Studio Theme Switcher */}
             <ThemeSwitcher compact={true} />
 
             {/* Profile Avatar Pill */}
             <div
-              className="flex items-center gap-1.5 pl-2 py-1 pr-1.5 rounded-full cursor-pointer transition-colors border border-[var(--border,#1e293b)] bg-[var(--bg-elevated,#131d31)]"
+              className="hidden sm:flex items-center gap-1.5 pl-2 py-1 pr-1.5 rounded-full cursor-pointer transition-colors border border-[var(--border,#1e293b)] bg-[var(--bg-elevated,#131d31)]"
               title="User Account"
             >
               <div
@@ -438,7 +438,7 @@ export const LessonPlayer = ({
               >
                 S
               </div>
-              <span className="hidden sm:inline text-[11px] font-mono font-semibold tracking-wider px-1 text-[var(--text-primary)]">
+              <span className="hidden md:inline text-[11px] font-mono font-semibold tracking-wider px-1 text-[var(--text-primary)]">
                 SINAN
               </span>
               <ChevronDown className="w-3 h-3 opacity-60 text-[var(--text-muted)]" />
@@ -449,7 +449,7 @@ export const LessonPlayer = ({
 
       {/* ── UNIFIED CENTERED CONTENT COLUMN (780px Design Target) ────── */}
       <main
-        className="flex-1 flex flex-col justify-center items-center relative z-10 w-full max-w-[780px] mx-auto px-4 sm:px-6 py-6"
+        className="flex-1 min-w-0 flex flex-col justify-center items-center relative z-10 w-full max-w-[820px] mx-auto px-2 sm:px-6 py-4 sm:py-6"
       >
         {/* ── LESSON SUBTITLE & GLOWING PROGRESS BAR ─────────────────── */}
         <div className="w-full mb-6 sm:mb-8">
@@ -637,7 +637,7 @@ export const LessonPlayer = ({
             return (
               <div
                 key={stat.label}
-                className="flex flex-col items-center justify-center py-2 px-1 relative"
+                className="flex flex-col items-center justify-center py-2 px-0.5 sm:px-1 relative min-w-0"
               >
                 {/* Vertical Divider */}
                 {i > 0 && (
@@ -645,16 +645,16 @@ export const LessonPlayer = ({
                     className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-8 bg-[var(--border,#1e293b)] opacity-60"
                   />
                 )}
-                <div className="flex items-center gap-1.5 mb-1.5">
-                  <Icon className="w-3.5 h-3.5" style={{ color: stat.iconColor }} aria-hidden="true" />
+                <div className="flex items-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+                  <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" style={{ color: stat.iconColor }} aria-hidden="true" />
                   <span
-                    className="text-[10px] sm:text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted,#64748b)]"
+                    className="text-[9px] sm:text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted,#64748b)]"
                   >
                     {stat.label}
                   </span>
                 </div>
                 <div
-                  className="text-2xl sm:text-3xl font-mono font-medium tracking-tight text-[var(--text-primary)]"
+                  className="text-lg sm:text-2xl md:text-3xl font-mono font-medium tracking-tight text-[var(--text-primary)]"
                 >
                   {stat.value}
                 </div>
@@ -664,7 +664,7 @@ export const LessonPlayer = ({
         </div>
 
         {/* ── PRECISION ANSI 60% KEYBOARD + INTEGRATED HUMAN HANDS ──── */}
-        <div className="w-full flex items-center justify-center">
+        <div className="w-full min-w-0 flex items-center justify-center">
           <KeyboardGuide
             targetChar={currentTargetChar}
             isVisible={keyboardGuideOn}
@@ -673,21 +673,21 @@ export const LessonPlayer = ({
         </div>
 
         {/* ── DUAL PILL GUIDE TOGGLES (Reference Match) ──────────────── */}
-        <div className="flex items-center justify-center gap-4 sm:gap-6 mt-6">
+        <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 mt-6 max-w-full px-2">
           {/* Keyboard Guide Toggle */}
           <button
             type="button"
             onClick={toggleKeyboardGuide}
             aria-pressed={keyboardGuideOn}
             aria-label={`Keyboard guide ${keyboardGuideOn ? 'on' : 'off'}`}
-            className="flex items-center gap-2.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border border-[var(--border,#1e293b)] bg-[color-mix(in_srgb,var(--bg-surface,#0c1322)_70%,transparent)] backdrop-blur-xs cursor-pointer transition-all duration-150 hover:border-[var(--text-muted)]"
+            className="flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-[var(--border,#1e293b)] bg-[color-mix(in_srgb,var(--bg-surface,#0c1322)_70%,transparent)] backdrop-blur-xs cursor-pointer transition-all duration-150 hover:border-[var(--text-muted)] shrink-0"
           >
             <Keyboard className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
-            <span className="text-xs font-mono text-[var(--text-secondary)]">
+            <span className="text-[11px] sm:text-xs font-mono text-[var(--text-secondary)]">
               Keyboard guide
             </span>
             <span
-              className="text-xs font-bold font-mono"
+              className="text-[11px] sm:text-xs font-bold font-mono"
               style={{ color: keyboardGuideOn ? 'var(--accent, #06b6d4)' : 'var(--text-muted)' }}
             >
               {keyboardGuideOn ? 'ON' : 'OFF'}
@@ -696,8 +696,8 @@ export const LessonPlayer = ({
             <div
               className="relative rounded-full transition-colors ml-1"
               style={{
-                width: '36px',
-                height: '20px',
+                width: '32px',
+                height: '18px',
                 background: keyboardGuideOn ? 'var(--accent, #06b6d4)' : 'var(--bg-elevated, #1e293b)',
                 border: '1px solid',
                 borderColor: keyboardGuideOn ? 'var(--accent, #06b6d4)' : 'var(--border, #334155)',
@@ -706,10 +706,10 @@ export const LessonPlayer = ({
               <div
                 className="absolute rounded-full transition-all"
                 style={{
-                  width: '14px',
-                  height: '14px',
+                  width: '12px',
+                  height: '12px',
                   top: '2px',
-                  left: keyboardGuideOn ? '18px' : '2px',
+                  left: keyboardGuideOn ? '16px' : '2px',
                   background: keyboardGuideOn ? '#ffffff' : 'var(--text-muted)',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
                   transition: 'left 150ms ease, background 150ms ease',
@@ -724,14 +724,14 @@ export const LessonPlayer = ({
             onClick={toggleHandGuide}
             aria-pressed={handGuideOn}
             aria-label={`Hand guide ${handGuideOn ? 'on' : 'off'}`}
-            className="flex items-center gap-2.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border border-[var(--border,#1e293b)] bg-[color-mix(in_srgb,var(--bg-surface,#0c1322)_70%,transparent)] backdrop-blur-xs cursor-pointer transition-all duration-150 hover:border-[var(--text-muted)]"
+            className="flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-[var(--border,#1e293b)] bg-[color-mix(in_srgb,var(--bg-surface,#0c1322)_70%,transparent)] backdrop-blur-xs cursor-pointer transition-all duration-150 hover:border-[var(--text-muted)] shrink-0"
           >
             <Hand className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
-            <span className="text-xs font-mono text-[var(--text-secondary)]">
+            <span className="text-[11px] sm:text-xs font-mono text-[var(--text-secondary)]">
               Hand guide
             </span>
             <span
-              className="text-xs font-bold font-mono"
+              className="text-[11px] sm:text-xs font-bold font-mono"
               style={{ color: handGuideOn ? 'var(--accent, #06b6d4)' : 'var(--text-muted)' }}
             >
               {handGuideOn ? 'ON' : 'OFF'}
@@ -740,8 +740,8 @@ export const LessonPlayer = ({
             <div
               className="relative rounded-full transition-colors ml-1"
               style={{
-                width: '36px',
-                height: '20px',
+                width: '32px',
+                height: '18px',
                 background: handGuideOn ? 'var(--accent, #06b6d4)' : 'var(--bg-elevated, #1e293b)',
                 border: '1px solid',
                 borderColor: handGuideOn ? 'var(--accent, #06b6d4)' : 'var(--border, #334155)',
@@ -750,10 +750,10 @@ export const LessonPlayer = ({
               <div
                 className="absolute rounded-full transition-all"
                 style={{
-                  width: '14px',
-                  height: '14px',
+                  width: '12px',
+                  height: '12px',
                   top: '2px',
-                  left: handGuideOn ? '18px' : '2px',
+                  left: handGuideOn ? '16px' : '2px',
                   background: handGuideOn ? '#ffffff' : 'var(--text-muted)',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
                   transition: 'left 150ms ease, background 150ms ease',
@@ -764,12 +764,12 @@ export const LessonPlayer = ({
         </div>
 
         {/* ── MOTIVATIONAL FOOTER HINT (Reference Match) ─────────────── */}
-        <div className="flex items-center justify-center gap-3 mt-6 sm:mt-8 text-xs font-mono text-[var(--text-muted,#64748b)]">
-          <div className="w-16 h-px bg-[var(--border,#1e293b)] opacity-60" />
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-6 sm:mt-8 text-[11px] sm:text-xs font-mono text-[var(--text-muted,#64748b)] text-center px-4">
+          <div className="hidden sm:block w-12 sm:w-16 h-px bg-[var(--border,#1e293b)] opacity-60" />
           <span>Keep your eyes on the text</span>
           <span className="opacity-40">•</span>
           <span>Relax your hands</span>
-          <div className="w-16 h-px bg-[var(--border,#1e293b)] opacity-60" />
+          <div className="hidden sm:block w-12 sm:w-16 h-px bg-[var(--border,#1e293b)] opacity-60" />
         </div>
 
         {/* ── COMPLETION RESULTS MODAL ───────────────────────────────── */}

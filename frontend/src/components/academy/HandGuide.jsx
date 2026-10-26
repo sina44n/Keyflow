@@ -1,127 +1,309 @@
 import React, { useMemo } from 'react';
 
 /**
- * HandGuide — Realistic Anatomical Human Hand Guide.
- * 
- * Accurately models human hands in a relaxed touch-typing posture.
- * Uses natural palm anatomy, realistic finger proportions, knuckles, and smooth curvature.
- * Synchronized with the 900x350 ANSI 60% Virtual Keyboard coordinate system.
- * When a key is targeted (e.g. 'i'), the corresponding finger dynamically reaches to that key
- * with an ethereal cyan glowing fingertip, matching the reference image.
+ * HandGuide — Realistic Anatomical Human Hand Guide for KEYFLOW.
+ *
+ * Modeled on natural human hand anatomy in an ergonomic touch-typing posture.
+ * Symmetrically synchronized with the 900x350 ANSI 60% Virtual Keyboard.
+ *
+ * Anatomy Features:
+ * - Natural palm silhouette with realistic thenar & hypothenar muscle contours
+ * - Five distinct, proportional fingers per hand with rounded dome tips
+ * - Believable wrists tapering naturally off the bottom edge
+ * - Correct anatomical orientation:
+ *     Left hand: Pinky (outer left), Ring, Middle, Index, Thumb (inner right towards space)
+ *     Right hand: Thumb (inner left towards space), Index, Middle, Ring, Pinky (outer right)
+ * - Seamless knuckle connection: fingers emerge organically from the palm without
+ *   artificial dividing lines cutting across the joint
+ * - Dynamic reach: when a key is targeted, the corresponding finger smoothly reaches
+ *   with an ethereal cyan luminescence and glowing fingertip aura.
  */
 
-// Finger key assignments mapping keys to finger and exact target coordinates
+// Symmetrical 15.0 Unit Keyboard Calibration:
+// ViewBox: 0 0 900 350. Key Area: x = 20 to 880 (width 860). Center = 450.0.
+const ROW_START_Y = 16;
+const ROW_HEIGHT = 46;
+const ROW_GAP = 7;
+const KEY_GAP = 7;
+const UNIT = (860 - 14 * KEY_GAP) / 15; // 50.8px
+
+function computeKeyWidth(u) {
+  return u * UNIT + (u - 1) * KEY_GAP;
+}
+
+const ROW_DEFS = [
+  {
+    y: ROW_START_Y, // cy = 39
+    keys: [
+      { id: '`', u: 1.0 },
+      { id: '1', u: 1.0 },
+      { id: '2', u: 1.0 },
+      { id: '3', u: 1.0 },
+      { id: '4', u: 1.0 },
+      { id: '5', u: 1.0 },
+      { id: '6', u: 1.0 },
+      { id: '7', u: 1.0 },
+      { id: '8', u: 1.0 },
+      { id: '9', u: 1.0 },
+      { id: '0', u: 1.0 },
+      { id: '-', u: 1.0 },
+      { id: '=', u: 1.0 },
+      { id: 'backspace', u: 2.0 },
+    ],
+  },
+  {
+    y: ROW_START_Y + (ROW_HEIGHT + ROW_GAP), // cy = 92
+    keys: [
+      { id: 'tab', u: 1.5 },
+      { id: 'q', u: 1.0 },
+      { id: 'w', u: 1.0 },
+      { id: 'e', u: 1.0 },
+      { id: 'r', u: 1.0 },
+      { id: 't', u: 1.0 },
+      { id: 'y', u: 1.0 },
+      { id: 'u', u: 1.0 },
+      { id: 'i', u: 1.0 },
+      { id: 'o', u: 1.0 },
+      { id: 'p', u: 1.0 },
+      { id: '[', u: 1.0 },
+      { id: ']', u: 1.0 },
+      { id: '\\', u: 1.5 },
+    ],
+  },
+  {
+    y: ROW_START_Y + 2 * (ROW_HEIGHT + ROW_GAP), // cy = 145
+    keys: [
+      { id: 'caps', u: 1.75 },
+      { id: 'a', u: 1.0 },
+      { id: 's', u: 1.0 },
+      { id: 'd', u: 1.0 },
+      { id: 'f', u: 1.0 },
+      { id: 'g', u: 1.0 },
+      { id: 'h', u: 1.0 },
+      { id: 'j', u: 1.0 },
+      { id: 'k', u: 1.0 },
+      { id: 'l', u: 1.0 },
+      { id: ';', u: 1.0 },
+      { id: "'", u: 1.0 },
+      { id: 'enter', u: 2.25 },
+    ],
+  },
+  {
+    y: ROW_START_Y + 3 * (ROW_HEIGHT + ROW_GAP), // cy = 198
+    keys: [
+      { id: 'shift-left', u: 2.25 },
+      { id: 'z', u: 1.0 },
+      { id: 'x', u: 1.0 },
+      { id: 'c', u: 1.0 },
+      { id: 'v', u: 1.0 },
+      { id: 'b', u: 1.0 },
+      { id: 'n', u: 1.0 },
+      { id: 'm', u: 1.0 },
+      { id: ',', u: 1.0 },
+      { id: '.', u: 1.0 },
+      { id: '/', u: 1.0 },
+      { id: 'shift-right', u: 2.75 },
+    ],
+  },
+  {
+    y: ROW_START_Y + 4 * (ROW_HEIGHT + ROW_GAP), // cy = 251
+    keys: [
+      { id: 'control-left', u: 1.75 },
+      { id: 'option-left', u: 1.5 },
+      { id: 'space', u: 8.5 },
+      { id: 'option-right', u: 1.5 },
+      { id: 'control-right', u: 1.75 },
+    ],
+  },
+];
+
+// Compute exact key centers
+export const KEY_COORDS = {};
+ROW_DEFS.forEach((r) => {
+  let curX = 20;
+  r.keys.forEach((k) => {
+    const width = computeKeyWidth(k.u);
+    KEY_COORDS[k.id] = {
+      x: curX,
+      y: r.y,
+      w: width,
+      h: ROW_HEIGHT,
+      cx: +(curX + width / 2).toFixed(1),
+      cy: +(r.y + ROW_HEIGHT / 2).toFixed(1),
+    };
+    curX += width + KEY_GAP;
+  });
+});
+
+// Touch-typing finger assignments
 const KEY_FINGER_MAP = {
   // Left Pinky
-  '`': { finger: 'left-pinky', x: 45.6, y: 39 },
-  '~': { finger: 'left-pinky', x: 45.6, y: 39 },
-  '1': { finger: 'left-pinky', x: 96.9, y: 39 },
-  '!': { finger: 'left-pinky', x: 96.9, y: 39 },
-  'q': { finger: 'left-pinky', x: 133.0, y: 95 },
-  'a': { finger: 'left-pinky', x: 147.6, y: 150 },
-  'z': { finger: 'left-pinky', x: 182.2, y: 205 },
-  'tab': { finger: 'left-pinky', x: 60.2, y: 95 },
-  'caps': { finger: 'left-pinky', x: 67.5, y: 150 },
-  'shift-left': { finger: 'left-pinky', x: 82.0, y: 205 },
+  '`': { finger: 'left-pinky', x: KEY_COORDS['`'].cx, y: KEY_COORDS['`'].cy },
+  '~': { finger: 'left-pinky', x: KEY_COORDS['`'].cx, y: KEY_COORDS['`'].cy },
+  '1': { finger: 'left-pinky', x: KEY_COORDS['1'].cx, y: KEY_COORDS['1'].cy },
+  '!': { finger: 'left-pinky', x: KEY_COORDS['1'].cx, y: KEY_COORDS['1'].cy },
+  'tab': { finger: 'left-pinky', x: KEY_COORDS['tab'].cx, y: KEY_COORDS['tab'].cy },
+  'q': { finger: 'left-pinky', x: KEY_COORDS['q'].cx, y: KEY_COORDS['q'].cy },
+  'caps': { finger: 'left-pinky', x: KEY_COORDS['caps'].cx, y: KEY_COORDS['caps'].cy },
+  'a': { finger: 'left-pinky', x: KEY_COORDS['a'].cx, y: KEY_COORDS['a'].cy },
+  'shift-left': { finger: 'left-pinky', x: KEY_COORDS['shift-left'].cx, y: KEY_COORDS['shift-left'].cy },
+  'z': { finger: 'left-pinky', x: KEY_COORDS['z'].cx, y: KEY_COORDS['z'].cy },
 
   // Left Ring
-  '2': { finger: 'left-ring', x: 155.1, y: 39 },
-  '@': { finger: 'left-ring', x: 155.1, y: 39 },
-  'w': { finger: 'left-ring', x: 191.3, y: 95 },
-  's': { finger: 'left-ring', x: 205.9, y: 150 },
-  'x': { finger: 'left-ring', x: 240.5, y: 205 },
+  '2': { finger: 'left-ring', x: KEY_COORDS['2'].cx, y: KEY_COORDS['2'].cy },
+  '@': { finger: 'left-ring', x: KEY_COORDS['2'].cx, y: KEY_COORDS['2'].cy },
+  'w': { finger: 'left-ring', x: KEY_COORDS['w'].cx, y: KEY_COORDS['w'].cy },
+  's': { finger: 'left-ring', x: KEY_COORDS['s'].cx, y: KEY_COORDS['s'].cy },
+  'x': { finger: 'left-ring', x: KEY_COORDS['x'].cx, y: KEY_COORDS['x'].cy },
 
   // Left Middle
-  '3': { finger: 'left-middle', x: 213.4, y: 39 },
-  '#': { finger: 'left-middle', x: 213.4, y: 39 },
-  'e': { finger: 'left-middle', x: 249.6, y: 95 },
-  'd': { finger: 'left-middle', x: 264.2, y: 150 },
-  'c': { finger: 'left-middle', x: 298.8, y: 205 },
+  '3': { finger: 'left-middle', x: KEY_COORDS['3'].cx, y: KEY_COORDS['3'].cy },
+  '#': { finger: 'left-middle', x: KEY_COORDS['3'].cx, y: KEY_COORDS['3'].cy },
+  'e': { finger: 'left-middle', x: KEY_COORDS['e'].cx, y: KEY_COORDS['e'].cy },
+  'd': { finger: 'left-middle', x: KEY_COORDS['d'].cx, y: KEY_COORDS['d'].cy },
+  'c': { finger: 'left-middle', x: KEY_COORDS['c'].cx, y: KEY_COORDS['c'].cy },
 
   // Left Index
-  '4': { finger: 'left-index', x: 271.7, y: 39 },
-  '$': { finger: 'left-index', x: 271.7, y: 39 },
-  '5': { finger: 'left-index', x: 329.9, y: 39 },
-  '%': { finger: 'left-index', x: 329.9, y: 39 },
-  'r': { finger: 'left-index', x: 307.8, y: 95 },
-  't': { finger: 'left-index', x: 366.1, y: 95 },
-  'f': { finger: 'left-index', x: 322.4, y: 150 },
-  'g': { finger: 'left-index', x: 380.7, y: 150 },
-  'v': { finger: 'left-index', x: 357.0, y: 205 },
-  'b': { finger: 'left-index', x: 415.3, y: 205 },
+  '4': { finger: 'left-index', x: KEY_COORDS['4'].cx, y: KEY_COORDS['4'].cy },
+  '$': { finger: 'left-index', x: KEY_COORDS['4'].cx, y: KEY_COORDS['4'].cy },
+  '5': { finger: 'left-index', x: KEY_COORDS['5'].cx, y: KEY_COORDS['5'].cy },
+  '%': { finger: 'left-index', x: KEY_COORDS['5'].cx, y: KEY_COORDS['5'].cy },
+  'r': { finger: 'left-index', x: KEY_COORDS['r'].cx, y: KEY_COORDS['r'].cy },
+  't': { finger: 'left-index', x: KEY_COORDS['t'].cx, y: KEY_COORDS['t'].cy },
+  'f': { finger: 'left-index', x: KEY_COORDS['f'].cx, y: KEY_COORDS['f'].cy },
+  'g': { finger: 'left-index', x: KEY_COORDS['g'].cx, y: KEY_COORDS['g'].cy },
+  'v': { finger: 'left-index', x: KEY_COORDS['v'].cx, y: KEY_COORDS['v'].cy },
+  'b': { finger: 'left-index', x: KEY_COORDS['b'].cx, y: KEY_COORDS['b'].cy },
 
   // Thumbs
-  ' ': { finger: 'thumb', x: 450.0, y: 260 },
+  ' ': { finger: 'thumb', x: KEY_COORDS['space'].cx, y: KEY_COORDS['space'].cy },
 
   // Right Index
-  '6': { finger: 'right-index', x: 388.2, y: 39 },
-  '^': { finger: 'right-index', x: 388.2, y: 39 },
-  '7': { finger: 'right-index', x: 446.5, y: 39 },
-  '&': { finger: 'right-index', x: 446.5, y: 39 },
-  'y': { finger: 'right-index', x: 424.4, y: 95 },
-  'u': { finger: 'right-index', x: 482.6, y: 95 },
-  'h': { finger: 'right-index', x: 439.0, y: 150 },
-  'j': { finger: 'right-index', x: 497.2, y: 150 },
-  'n': { finger: 'right-index', x: 473.6, y: 205 },
-  'm': { finger: 'right-index', x: 531.8, y: 205 },
+  '6': { finger: 'right-index', x: KEY_COORDS['6'].cx, y: KEY_COORDS['6'].cy },
+  '^': { finger: 'right-index', x: KEY_COORDS['6'].cx, y: KEY_COORDS['6'].cy },
+  '7': { finger: 'right-index', x: KEY_COORDS['7'].cx, y: KEY_COORDS['7'].cy },
+  '&': { finger: 'right-index', x: KEY_COORDS['7'].cx, y: KEY_COORDS['7'].cy },
+  'y': { finger: 'right-index', x: KEY_COORDS['y'].cx, y: KEY_COORDS['y'].cy },
+  'u': { finger: 'right-index', x: KEY_COORDS['u'].cx, y: KEY_COORDS['u'].cy },
+  'h': { finger: 'right-index', x: KEY_COORDS['h'].cx, y: KEY_COORDS['h'].cy },
+  'j': { finger: 'right-index', x: KEY_COORDS['j'].cx, y: KEY_COORDS['j'].cy },
+  'n': { finger: 'right-index', x: KEY_COORDS['n'].cx, y: KEY_COORDS['n'].cy },
+  'm': { finger: 'right-index', x: KEY_COORDS['m'].cx, y: KEY_COORDS['m'].cy },
 
   // Right Middle
-  '8': { finger: 'right-middle', x: 504.8, y: 39 },
-  '*': { finger: 'right-middle', x: 504.8, y: 39 },
-  'i': { finger: 'right-middle', x: 540.9, y: 95 },
-  'k': { finger: 'right-middle', x: 555.5, y: 150 },
-  ',': { finger: 'right-middle', x: 590.1, y: 205 },
-  '<': { finger: 'right-middle', x: 590.1, y: 205 },
+  '8': { finger: 'right-middle', x: KEY_COORDS['8'].cx, y: KEY_COORDS['8'].cy },
+  '*': { finger: 'right-middle', x: KEY_COORDS['8'].cx, y: KEY_COORDS['8'].cy },
+  'i': { finger: 'right-middle', x: KEY_COORDS['i'].cx, y: KEY_COORDS['i'].cy },
+  'k': { finger: 'right-middle', x: KEY_COORDS['k'].cx, y: KEY_COORDS['k'].cy },
+  ',': { finger: 'right-middle', x: KEY_COORDS[','].cx, y: KEY_COORDS[','].cy },
+  '<': { finger: 'right-middle', x: KEY_COORDS[','].cx, y: KEY_COORDS[','].cy },
 
   // Right Ring
-  '9': { finger: 'right-ring', x: 563.0, y: 39 },
-  '(': { finger: 'right-ring', x: 563.0, y: 39 },
-  'o': { finger: 'right-ring', x: 599.2, y: 95 },
-  'l': { finger: 'right-ring', x: 613.8, y: 150 },
-  '.': { finger: 'right-ring', x: 648.4, y: 205 },
-  '>': { finger: 'right-ring', x: 648.4, y: 205 },
+  '9': { finger: 'right-ring', x: KEY_COORDS['9'].cx, y: KEY_COORDS['9'].cy },
+  '(': { finger: 'right-ring', x: KEY_COORDS['9'].cx, y: KEY_COORDS['9'].cy },
+  'o': { finger: 'right-ring', x: KEY_COORDS['o'].cx, y: KEY_COORDS['o'].cy },
+  'l': { finger: 'right-ring', x: KEY_COORDS['l'].cx, y: KEY_COORDS['l'].cy },
+  '.': { finger: 'right-ring', x: KEY_COORDS['.'].cx, y: KEY_COORDS['.'].cy },
+  '>': { finger: 'right-ring', x: KEY_COORDS['.'].cx, y: KEY_COORDS['.'].cy },
 
   // Right Pinky
-  '0': { finger: 'right-pinky', x: 621.3, y: 39 },
-  ')': { finger: 'right-pinky', x: 621.3, y: 39 },
-  '-': { finger: 'right-pinky', x: 679.6, y: 39 },
-  '_': { finger: 'right-pinky', x: 679.6, y: 39 },
-  '=': { finger: 'right-pinky', x: 737.9, y: 39 },
-  '+': { finger: 'right-pinky', x: 737.9, y: 39 },
-  'p': { finger: 'right-pinky', x: 657.4, y: 95 },
-  '[': { finger: 'right-pinky', x: 715.7, y: 95 },
-  '{': { finger: 'right-pinky', x: 715.7, y: 95 },
-  ']': { finger: 'right-pinky', x: 774.0, y: 95 },
-  '}': { finger: 'right-pinky', x: 774.0, y: 95 },
-  '\\': { finger: 'right-pinky', x: 846.9, y: 95 },
-  '|': { finger: 'right-pinky', x: 846.9, y: 95 },
-  ';': { finger: 'right-pinky', x: 672.0, y: 150 },
-  ':': { finger: 'right-pinky', x: 672.0, y: 150 },
-  "'": { finger: 'right-pinky', x: 730.3, y: 150 },
-  '"': { finger: 'right-pinky', x: 730.3, y: 150 },
-  'enter': { finger: 'right-pinky', x: 825.0, y: 150 },
-  '/': { finger: 'right-pinky', x: 706.7, y: 205 },
-  '?': { finger: 'right-pinky', x: 706.7, y: 205 },
-  'shift-right': { finger: 'right-pinky', x: 801.3, y: 205 },
+  '0': { finger: 'right-pinky', x: KEY_COORDS['0'].cx, y: KEY_COORDS['0'].cy },
+  ')': { finger: 'right-pinky', x: KEY_COORDS['0'].cx, y: KEY_COORDS['0'].cy },
+  '-': { finger: 'right-pinky', x: KEY_COORDS['-'].cx, y: KEY_COORDS['-'].cy },
+  '_': { finger: 'right-pinky', x: KEY_COORDS['-'].cx, y: KEY_COORDS['-'].cy },
+  '=': { finger: 'right-pinky', x: KEY_COORDS['='].cx, y: KEY_COORDS['='].cy },
+  '+': { finger: 'right-pinky', x: KEY_COORDS['='].cx, y: KEY_COORDS['='].cy },
+  'backspace': { finger: 'right-pinky', x: KEY_COORDS['backspace'].cx, y: KEY_COORDS['backspace'].cy },
+  'p': { finger: 'right-pinky', x: KEY_COORDS['p'].cx, y: KEY_COORDS['p'].cy },
+  '[': { finger: 'right-pinky', x: KEY_COORDS['['].cx, y: KEY_COORDS['['].cy },
+  '{': { finger: 'right-pinky', x: KEY_COORDS['['].cx, y: KEY_COORDS['['].cy },
+  ']': { finger: 'right-pinky', x: KEY_COORDS[']'].cx, y: KEY_COORDS[']'].cy },
+  '}': { finger: 'right-pinky', x: KEY_COORDS[']'].cx, y: KEY_COORDS[']'].cy },
+  '\\': { finger: 'right-pinky', x: KEY_COORDS['\\'].cx, y: KEY_COORDS['\\'].cy },
+  '|': { finger: 'right-pinky', x: KEY_COORDS['\\'].cx, y: KEY_COORDS['\\'].cy },
+  ';': { finger: 'right-pinky', x: KEY_COORDS[';'].cx, y: KEY_COORDS[';'].cy },
+  ':': { finger: 'right-pinky', x: KEY_COORDS[';'].cx, y: KEY_COORDS[';'].cy },
+  "'": { finger: 'right-pinky', x: KEY_COORDS["'"].cx, y: KEY_COORDS["'"].cy },
+  '"': { finger: 'right-pinky', x: KEY_COORDS["'"].cx, y: KEY_COORDS["'"].cy },
+  'enter': { finger: 'right-pinky', x: KEY_COORDS['enter'].cx, y: KEY_COORDS['enter'].cy },
+  '/': { finger: 'right-pinky', x: KEY_COORDS['/'].cx, y: KEY_COORDS['/'].cy },
+  '?': { finger: 'right-pinky', x: KEY_COORDS['/'].cx, y: KEY_COORDS['/'].cy },
+  'shift-right': { finger: 'right-pinky', x: KEY_COORDS['shift-right'].cx, y: KEY_COORDS['shift-right'].cy },
 };
 
-// Resting home row coordinates for realistic posture
+// Resting home row finger coordinates
 const RESTING_COORDS = {
-  'left-pinky':  { x: 147.6, y: 150 },
-  'left-ring':   { x: 205.9, y: 150 },
-  'left-middle': { x: 264.2, y: 150 },
-  'left-index':  { x: 322.4, y: 150 },
-  'left-thumb':  { x: 330.0, y: 260 },
+  'left-pinky':  { x: KEY_COORDS['a'].cx, y: KEY_COORDS['a'].cy },
+  'left-ring':   { x: KEY_COORDS['s'].cx, y: KEY_COORDS['s'].cy },
+  'left-middle': { x: KEY_COORDS['d'].cx, y: KEY_COORDS['d'].cy },
+  'left-index':  { x: KEY_COORDS['f'].cx, y: KEY_COORDS['f'].cy },
+  'left-thumb':  { x: 350, y: 251 },
 
-  'right-thumb':  { x: 575.0, y: 260 },
-  'right-index':  { x: 497.2, y: 150 },
-  'right-middle': { x: 555.5, y: 150 },
-  'right-ring':   { x: 613.8, y: 150 },
-  'right-pinky':  { x: 672.0, y: 150 },
+  'right-thumb':  { x: 460, y: 251 },
+  'right-index':  { x: KEY_COORDS['j'].cx, y: KEY_COORDS['j'].cy },
+  'right-middle': { x: KEY_COORDS['k'].cx, y: KEY_COORDS['k'].cy },
+  'right-ring':   { x: KEY_COORDS['l'].cx, y: KEY_COORDS['l'].cy },
+  'right-pinky':  { x: KEY_COORDS[';'].cx, y: KEY_COORDS[';'].cy },
 };
+
+/**
+ * Creates an anatomical finger with natural curvature and seamless knuckle blending.
+ * The openPath only strokes the lateral edges and rounded fingertip apex, leaving
+ * the proximal knuckle base open so it flows naturally out of the palm.
+ */
+function createSeamlessFinger(kx, ky, tx, ty, width = 21, tipR = 10.5) {
+  const theta = Math.atan2(ty - ky, tx - kx);
+  const phi = theta + Math.PI / 2;
+
+  const cosT = Math.cos(theta);
+  const sinT = Math.sin(theta);
+  const cosP = Math.cos(phi);
+  const sinP = Math.sin(phi);
+
+  const halfBase = width * 0.5;
+  const halfPip = width * 0.47;
+
+  // Base at knuckle joint
+  const blX = +(kx + cosP * halfBase).toFixed(1);
+  const blY = +(ky + sinP * halfBase).toFixed(1);
+  const brX = +(kx - cosP * halfBase).toFixed(1);
+  const brY = +(ky - sinP * halfBase).toFixed(1);
+
+  // PIP joint midpoints
+  const len = Math.hypot(tx - kx, ty - ky);
+  const midLen = len * 0.52;
+  const mlX = +(kx + cosT * midLen + cosP * halfPip).toFixed(1);
+  const mlY = +(ky + sinT * midLen + sinP * halfPip).toFixed(1);
+  const mrX = +(kx + cosT * midLen - cosP * halfPip).toFixed(1);
+  const mrY = +(ky + sinT * midLen - sinP * halfPip).toFixed(1);
+
+  // Fingertip dome endpoints
+  const baseTipX = tx - cosT * (tipR * 0.75);
+  const baseTipY = ty - sinT * (tipR * 0.75);
+  const tlX = +(baseTipX + cosP * tipR).toFixed(1);
+  const tlY = +(baseTipY + sinP * tipR).toFixed(1);
+  const trX = +(baseTipX - cosP * tipR).toFixed(1);
+  const trY = +(baseTipY - sinP * tipR).toFixed(1);
+
+  // Apex of rounded fingertip
+  const apexX = +(tx + cosT * (tipR * 0.35)).toFixed(1);
+  const apexY = +(ty + sinT * (tipR * 0.35)).toFixed(1);
+
+  // Seamless open path (left edge -> dome tip -> right edge)
+  const openPath = `M ${blX} ${blY}
+    C ${(blX * 0.5 + mlX * 0.5).toFixed(1)} ${(blY * 0.5 + mlY * 0.5).toFixed(1)}, ${mlX} ${mlY}, ${tlX} ${tlY}
+    C ${(tlX + cosT * tipR * 0.55).toFixed(1)} ${(tlY + sinT * tipR * 0.55).toFixed(1)}, ${(apexX + cosP * tipR * 0.55).toFixed(1)} ${(apexY + sinP * tipR * 0.55).toFixed(1)}, ${apexX} ${apexY}
+    C ${(apexX - cosP * tipR * 0.55).toFixed(1)} ${(apexY - sinP * tipR * 0.55).toFixed(1)}, ${(trX + cosT * tipR * 0.55).toFixed(1)} ${(trY + sinT * tipR * 0.55).toFixed(1)}, ${trX} ${trY}
+    C ${mrX} ${mrY}, ${(brX * 0.5 + mrX * 0.5).toFixed(1)} ${(brY * 0.5 + mrY * 0.5).toFixed(1)}, ${brX} ${brY}`;
+
+  // Closed path for fill background
+  const closedPath = `${openPath} Z`;
+
+  return { openPath, closedPath, bl: { x: blX, y: blY }, br: { x: brX, y: brY } };
+}
 
 export function HandGuide({ targetChar, isVisible = true, standalone = false }) {
-  // Resolve active finger and target coordinate
+  // Resolve active finger and key target
   const { activeFinger, targetPos } = useMemo(() => {
     if (!targetChar) return { activeFinger: null, targetPos: null };
     const key = targetChar === ' ' ? ' ' : targetChar.toLowerCase();
@@ -135,35 +317,87 @@ export function HandGuide({ targetChar, isVisible = true, standalone = false }) 
 
   if (!isVisible) return null;
 
-  // Live positions: active finger reaches to targetPos, others rest naturally on home keys
+  // Active finger dynamically reaches, other fingers rest on home row
   const lp = activeFinger === 'left-pinky' ? targetPos : RESTING_COORDS['left-pinky'];
   const lr = activeFinger === 'left-ring' ? targetPos : RESTING_COORDS['left-ring'];
   const lm = activeFinger === 'left-middle' ? targetPos : RESTING_COORDS['left-middle'];
   const li = activeFinger === 'left-index' ? targetPos : RESTING_COORDS['left-index'];
-  const lt = activeFinger === 'thumb' ? { x: 345, y: 258 } : RESTING_COORDS['left-thumb'];
+  const lt = activeFinger === 'thumb' ? { x: 355, y: 251 } : RESTING_COORDS['left-thumb'];
 
-  const rt = activeFinger === 'thumb' ? { x: 555, y: 258 } : RESTING_COORDS['right-thumb'];
+  const rt = activeFinger === 'thumb' ? { x: 455, y: 251 } : RESTING_COORDS['right-thumb'];
   const ri = activeFinger === 'right-index' ? targetPos : RESTING_COORDS['right-index'];
   const rm = activeFinger === 'right-middle' ? targetPos : RESTING_COORDS['right-middle'];
   const rr = activeFinger === 'right-ring' ? targetPos : RESTING_COORDS['right-ring'];
   const rp = activeFinger === 'right-pinky' ? targetPos : RESTING_COORDS['right-pinky'];
+
+  // Left hand knuckles (arched natural MCP joint line)
+  const lk_pinky  = { x: 146.5, y: 198 };
+  const lk_ring   = { x: 204.3, y: 190 };
+  const lk_middle = { x: 262.1, y: 186 };
+  const lk_index  = { x: 319.9, y: 190 };
+
+  const f_lp = createSeamlessFinger(lk_pinky.x, lk_pinky.y, lp.x, lp.y, 19.5, 9.8);
+  const f_lr = createSeamlessFinger(lk_ring.x, lk_ring.y, lr.x, lr.y, 21.0, 10.5);
+  const f_lm = createSeamlessFinger(lk_middle.x, lk_middle.y, lm.x, lm.y, 22.0, 11.0);
+  const f_li = createSeamlessFinger(lk_index.x, lk_index.y, li.x, li.y, 21.0, 10.5);
+  const f_lt = createSeamlessFinger(295, 275, lt.x, lt.y, 22.5, 11.0);
+
+  // Left Palm Base
+  const leftPalm = `
+    M 175 350
+    C 172 308, 146 265, 136 230
+    C 132 214, 134 204, ${f_lp.bl.x} ${f_lp.bl.y}
+    Q 175 196, ${f_lr.bl.x} ${f_lr.bl.y}
+    Q 233 188, ${f_lm.bl.x} ${f_lm.bl.y}
+    Q 291 188, ${f_li.bl.x} ${f_li.bl.y}
+    C 336 204, 324 226, 308 242
+    C 292 254, 280 266, 284 282
+    C 288 300, 274 322, 268 350
+    Z
+  `;
+
+  // Right hand knuckles (arched natural MCP joint line)
+  const rk_index  = { x: 493.4, y: 190 };
+  const rk_middle = { x: 551.1, y: 186 };
+  const rk_ring   = { x: 608.9, y: 190 };
+  const rk_pinky  = { x: 666.7, y: 198 };
+
+  const f_ri = createSeamlessFinger(rk_index.x, rk_index.y, ri.x, ri.y, 21.0, 10.5);
+  const f_rm = createSeamlessFinger(rk_middle.x, rk_middle.y, rm.x, rm.y, 22.0, 11.0);
+  const f_rr = createSeamlessFinger(rk_ring.x, rk_ring.y, rr.x, rr.y, 21.0, 10.5);
+  const f_rp = createSeamlessFinger(rk_pinky.x, rk_pinky.y, rp.x, rp.y, 19.5, 9.8);
+  const f_rt = createSeamlessFinger(518, 275, rt.x, rt.y, 22.5, 11.0);
+
+  // Right Palm Base
+  const rightPalm = `
+    M 685 350
+    C 688 308, 714 265, 724 230
+    C 728 214, 726 204, ${f_rp.br.x} ${f_rp.br.y}
+    Q 637 196, ${f_rr.br.x} ${f_rr.br.y}
+    Q 579 188, ${f_rm.br.x} ${f_rm.br.y}
+    Q 521 188, ${f_ri.br.x} ${f_ri.br.y}
+    C 476 204, 488 226, 504 242
+    C 520 254, 532 266, 528 282
+    C 524 300, 538 322, 544 350
+    Z
+  `;
 
   const content = (
     <g id="realistic-human-hands" className="pointer-events-none select-none">
       <defs>
         {/* Soft Translucent Skin / Glass Fill */}
         <linearGradient id="humanHandGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#082f49" stopOpacity="0.22" />
-          <stop offset="45%" stopColor="#0369a1" stopOpacity="0.16" />
-          <stop offset="85%" stopColor="#0c1322" stopOpacity="0.45" />
+          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.25" />
+          <stop offset="35%" stopColor="#0284c7" stopOpacity="0.18" />
+          <stop offset="80%" stopColor="#082f49" stopOpacity="0.30" />
           <stop offset="100%" stopColor="#070b14" stopOpacity="0.0" />
         </linearGradient>
 
         {/* Active Finger Luminous Gradient */}
         <linearGradient id="activeReachGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.85" />
-          <stop offset="40%" stopColor="#0284c7" stopOpacity="0.45" />
-          <stop offset="100%" stopColor="#0369a1" stopOpacity="0.1" />
+          <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.9" />
+          <stop offset="45%" stopColor="#0284c7" stopOpacity="0.5" />
+          <stop offset="100%" stopColor="#0369a1" stopOpacity="0.15" />
         </linearGradient>
 
         {/* Realistic Fingertip Glow */}
@@ -177,232 +411,113 @@ export function HandGuide({ targetChar, isVisible = true, standalone = false }) 
       </defs>
 
       {/* ================================================================= */}
-      {/* ── LEFT HUMAN HAND (A S D F + Space) ──────────────────────────── */}
+      {/* ── LEFT HUMAN HAND (Pinky at A, Index at F, Thumb at Space) ───── */}
       {/* ================================================================= */}
-      <g id="left-human-hand" opacity="0.94">
-        {/* Palm & Wrist Anatomy */}
-        <path
-          d="M 130 350
-             C 140 310, 142 270, 148 240
-             C 152 218, 168 208, 192 208
-             C 220 208, 245 212, 275 224
-             C 305 238, 332 258, 348 278
-             C 362 296, 368 322, 362 350
-             Z"
-          fill="url(#humanHandGrad)"
-          stroke="#38bdf8"
-          strokeWidth="1.2"
-          strokeOpacity="0.32"
-        />
+      <g id="left-human-hand" opacity="0.95">
+        {/* Palm Base */}
+        <path d={leftPalm} fill="url(#humanHandGrad)" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
 
-        {/* Hypothenar & Thenar Muscle Contours */}
-        <path d="M 152 270 Q 185 285 220 275" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.22" fill="none" />
-        <path d="M 230 270 Q 275 285 320 265" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.22" fill="none" />
-        <path d="M 205 240 Q 255 250 295 245" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.18" fill="none" />
+        {/* Left Fingers (Base fill + unclosed stroke for seamless knuckle connection) */}
+        <path d={f_lt.closedPath} fill="url(#humanHandGrad)" stroke="none" />
+        <path d={f_lt.openPath} fill="none" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
 
-        {/* Left Pinky -> Key A (147.6, 150) */}
-        <path
-          d={`M 148 238
-              C 144 205, ${lp.x - 9} ${lp.y + 24}, ${lp.x - 7} ${lp.y}
-              C ${lp.x - 3} ${lp.y - 10}, ${lp.x + 3} ${lp.y - 10}, ${lp.x + 7} ${lp.y}
-              C ${lp.x + 8} ${lp.y + 24}, 168 205, 168 234 Z`}
-          fill={activeFinger === 'left-pinky' ? "url(#activeReachGrad)" : "url(#humanHandGrad)"}
-          stroke="#38bdf8"
-          strokeWidth={activeFinger === 'left-pinky' ? "2" : "1.2"}
-          strokeOpacity={activeFinger === 'left-pinky' ? "1" : "0.4"}
-          filter={activeFinger === 'left-pinky' ? "url(#fingertipAura)" : "none"}
-          style={{ transition: 'all 120ms ease-out' }}
-        />
-        {/* Pinky Knuckle Creases */}
-        <path d={`M ${lp.x - 5} ${lp.y + 12} Q ${lp.x} ${lp.y + 10} ${lp.x + 5} ${lp.y + 12}`} stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.28" fill="none" />
+        <path d={f_lp.closedPath} fill="url(#humanHandGrad)" stroke="none" />
+        <path d={f_lp.openPath} fill="none" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
+
+        <path d={f_lr.closedPath} fill="url(#humanHandGrad)" stroke="none" />
+        <path d={f_lr.openPath} fill="none" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
+
+        <path d={f_lm.closedPath} fill="url(#humanHandGrad)" stroke="none" />
+        <path d={f_lm.openPath} fill="none" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
+
+        <path d={f_li.closedPath} fill="url(#humanHandGrad)" stroke="none" />
+        <path d={f_li.openPath} fill="none" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
+
+        {/* Left Active Finger Highlight */}
         {activeFinger === 'left-pinky' && (
-          <circle cx={lp.x} cy={lp.y} r="9" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />
+          <path d={f_lp.closedPath} fill="url(#activeReachGrad)" stroke="#38bdf8" strokeWidth="2.0" strokeOpacity="0.95" filter="url(#fingertipAura)" />
         )}
-
-        {/* Left Ring Finger -> Key S (205.9, 150) */}
-        <path
-          d={`M 172 232
-              C 175 195, ${lr.x - 9} ${lr.y + 24}, ${lr.x - 8} ${lr.y}
-              C ${lr.x - 3} ${lr.y - 11}, ${lr.x + 3} ${lr.y - 11}, ${lr.x + 8} ${lr.y}
-              C ${lr.x + 8} ${lr.y + 24}, 202 195, 202 230 Z`}
-          fill={activeFinger === 'left-ring' ? "url(#activeReachGrad)" : "url(#humanHandGrad)"}
-          stroke="#38bdf8"
-          strokeWidth={activeFinger === 'left-ring' ? "2" : "1.2"}
-          strokeOpacity={activeFinger === 'left-ring' ? "1" : "0.4"}
-          filter={activeFinger === 'left-ring' ? "url(#fingertipAura)" : "none"}
-          style={{ transition: 'all 120ms ease-out' }}
-        />
-        <path d={`M ${lr.x - 6} ${lr.y + 12} Q ${lr.x} ${lr.y + 10} ${lr.x + 6} ${lr.y + 12}`} stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.28" fill="none" />
         {activeFinger === 'left-ring' && (
-          <circle cx={lr.x} cy={lr.y} r="9" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />
+          <path d={f_lr.closedPath} fill="url(#activeReachGrad)" stroke="#38bdf8" strokeWidth="2.0" strokeOpacity="0.95" filter="url(#fingertipAura)" />
         )}
-
-        {/* Left Middle Finger -> Key D (264.2, 150) */}
-        <path
-          d={`M 206 230
-              C 212 190, ${lm.x - 10} ${lm.y + 24}, ${lm.x - 8} ${lm.y}
-              C ${lm.x - 3} ${lm.y - 12}, ${lm.x + 3} ${lm.y - 12}, ${lm.x + 8} ${lm.y}
-              C ${lm.x + 9} ${lm.y + 24}, 238 190, 238 230 Z`}
-          fill={activeFinger === 'left-middle' ? "url(#activeReachGrad)" : "url(#humanHandGrad)"}
-          stroke="#38bdf8"
-          strokeWidth={activeFinger === 'left-middle' ? "2" : "1.2"}
-          strokeOpacity={activeFinger === 'left-middle' ? "1" : "0.4"}
-          filter={activeFinger === 'left-middle' ? "url(#fingertipAura)" : "none"}
-          style={{ transition: 'all 120ms ease-out' }}
-        />
-        <path d={`M ${lm.x - 6} ${lm.y + 13} Q ${lm.x} ${lm.y + 11} ${lm.x + 6} ${lm.y + 13}`} stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.28" fill="none" />
         {activeFinger === 'left-middle' && (
-          <circle cx={lm.x} cy={lm.y} r="9" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />
+          <path d={f_lm.closedPath} fill="url(#activeReachGrad)" stroke="#38bdf8" strokeWidth="2.0" strokeOpacity="0.95" filter="url(#fingertipAura)" />
         )}
-
-        {/* Left Index Finger -> Key F (322.4, 150) */}
-        <path
-          d={`M 242 232
-              C 252 195, ${li.x - 9} ${li.y + 24}, ${li.x - 8} ${li.y}
-              C ${li.x - 3} ${li.y - 11}, ${li.x + 3} ${li.y - 11}, ${li.x + 8} ${li.y}
-              C ${li.x + 8} ${li.y + 24}, 278 195, 276 235 Z`}
-          fill={activeFinger === 'left-index' ? "url(#activeReachGrad)" : "url(#humanHandGrad)"}
-          stroke="#38bdf8"
-          strokeWidth={activeFinger === 'left-index' ? "2" : "1.2"}
-          strokeOpacity={activeFinger === 'left-index' ? "1" : "0.4"}
-          filter={activeFinger === 'left-index' ? "url(#fingertipAura)" : "none"}
-          style={{ transition: 'all 120ms ease-out' }}
-        />
-        <path d={`M ${li.x - 6} ${li.y + 12} Q ${li.x} ${li.y + 10} ${li.x + 6} ${li.y + 12}`} stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.28" fill="none" />
         {activeFinger === 'left-index' && (
-          <circle cx={li.x} cy={li.y} r="9" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />
+          <path d={f_li.closedPath} fill="url(#activeReachGrad)" stroke="#38bdf8" strokeWidth="2.0" strokeOpacity="0.95" filter="url(#fingertipAura)" />
+        )}
+        {activeFinger === 'thumb' && (
+          <path d={f_lt.closedPath} fill="url(#activeReachGrad)" stroke="#38bdf8" strokeWidth="2.0" strokeOpacity="0.95" filter="url(#fingertipAura)" />
         )}
 
-        {/* Left Thumb -> Left Spacebar (330, 260) */}
-        <path
-          d={`M 298 255
-              C 315 250, ${lt.x - 14} ${lt.y - 6}, ${lt.x} ${lt.y}
-              C ${lt.x + 10} ${lt.y + 6}, ${lt.x + 4} ${lt.y + 18}, 338 285
-              C 318 290, 296 275, 290 265 Z`}
-          fill={activeFinger === 'thumb' ? "url(#activeReachGrad)" : "url(#humanHandGrad)"}
-          stroke="#38bdf8"
-          strokeWidth={activeFinger === 'thumb' ? "2" : "1.2"}
-          strokeOpacity={activeFinger === 'thumb' ? "1" : "0.4"}
-          filter={activeFinger === 'thumb' ? "url(#fingertipAura)" : "none"}
-          style={{ transition: 'all 120ms ease-out' }}
-        />
-        {activeFinger === 'thumb' && (
-          <circle cx={lt.x} cy={lt.y} r="8.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />
-        )}
+        {/* Tendons & Creases */}
+        <path d="M 210 330 C 200 285, 155 240, 146 198" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.22" fill="none" />
+        <path d="M 220 326 C 216 278, 206 230, 204 190" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.25" fill="none" />
+        <path d="M 230 324 C 234 274, 258 226, 262 186" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.25" fill="none" />
+        <path d="M 242 326 C 250 278, 310 230, 320 190" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.25" fill="none" />
+        <path d="M 300 242 C 275 264, 252 292, 248 325" stroke="#38bdf8" strokeWidth="0.9" strokeOpacity="0.22" fill="none" />
+
+        {/* Left Glowing Fingertip Aura */}
+        {activeFinger === 'left-pinky' && <circle cx={lp.x} cy={lp.y} r="8.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />}
+        {activeFinger === 'left-ring' && <circle cx={lr.x} cy={lr.y} r="8.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />}
+        {activeFinger === 'left-middle' && <circle cx={lm.x} cy={lm.y} r="9.0" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />}
+        {activeFinger === 'left-index' && <circle cx={li.x} cy={li.y} r="8.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />}
+        {activeFinger === 'thumb' && <circle cx={lt.x} cy={lt.y} r="8.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />}
       </g>
 
       {/* ================================================================= */}
-      {/* ── RIGHT HUMAN HAND (J K L ; + Space) ─────────────────────────── */}
+      {/* ── RIGHT HUMAN HAND (Thumb at Space, Index at J, Pinky at ;) ──── */}
       {/* ================================================================= */}
-      <g id="right-human-hand" opacity="0.94">
-        {/* Palm & Wrist Anatomy */}
-        <path
-          d="M 770 350
-             C 760 310, 758 270, 752 240
-             C 748 218, 732 208, 708 208
-             C 680 208, 655 212, 625 224
-             C 595 238, 568 258, 552 278
-             C 538 296, 532 322, 538 350
-             Z"
-          fill="url(#humanHandGrad)"
-          stroke="#38bdf8"
-          strokeWidth="1.2"
-          strokeOpacity="0.32"
-        />
+      <g id="right-human-hand" opacity="0.95">
+        {/* Palm Base */}
+        <path d={rightPalm} fill="url(#humanHandGrad)" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
 
-        {/* Hypothenar & Thenar Muscle Contours */}
-        <path d="M 748 270 Q 715 285 680 275" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.22" fill="none" />
-        <path d="M 670 270 Q 625 285 580 265" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.22" fill="none" />
-        <path d="M 695 240 Q 645 250 605 245" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.18" fill="none" />
+        {/* Right Fingers (Base fill + unclosed stroke for seamless knuckle connection) */}
+        <path d={f_rt.closedPath} fill="url(#humanHandGrad)" stroke="none" />
+        <path d={f_rt.openPath} fill="none" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
 
-        {/* Right Thumb -> Right Spacebar (575, 260) */}
-        <path
-          d={`M 602 255
-              C 585 250, ${rt.x + 14} ${rt.y - 6}, ${rt.x} ${rt.y}
-              C ${rt.x - 10} ${rt.y + 6}, ${rt.x - 4} ${rt.y + 18}, 562 285
-              C 582 290, 604 275, 610 265 Z`}
-          fill={activeFinger === 'thumb' ? "url(#activeReachGrad)" : "url(#humanHandGrad)"}
-          stroke="#38bdf8"
-          strokeWidth={activeFinger === 'thumb' ? "2" : "1.2"}
-          strokeOpacity={activeFinger === 'thumb' ? "1" : "0.4"}
-          filter={activeFinger === 'thumb' ? "url(#fingertipAura)" : "none"}
-          style={{ transition: 'all 120ms ease-out' }}
-        />
-        {activeFinger === 'thumb' && (
-          <circle cx={rt.x} cy={rt.y} r="8.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />
-        )}
+        <path d={f_ri.closedPath} fill="url(#humanHandGrad)" stroke="none" />
+        <path d={f_ri.openPath} fill="none" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
 
-        {/* Right Index Finger -> Key J (497.2, 150) */}
-        <path
-          d={`M 658 232
-              C 648 195, ${ri.x + 9} ${ri.y + 24}, ${ri.x + 8} ${ri.y}
-              C ${ri.x + 3} ${ri.y - 11}, ${ri.x - 3} ${ri.y - 11}, ${ri.x - 8} ${ri.y}
-              C ${ri.x - 8} ${ri.y + 24}, 622 195, 624 235 Z`}
-          fill={activeFinger === 'right-index' ? "url(#activeReachGrad)" : "url(#humanHandGrad)"}
-          stroke="#38bdf8"
-          strokeWidth={activeFinger === 'right-index' ? "2" : "1.2"}
-          strokeOpacity={activeFinger === 'right-index' ? "1" : "0.4"}
-          filter={activeFinger === 'right-index' ? "url(#fingertipAura)" : "none"}
-          style={{ transition: 'all 120ms ease-out' }}
-        />
-        <path d={`M ${ri.x + 6} ${ri.y + 12} Q ${ri.x} ${ri.y + 10} ${ri.x - 6} ${ri.y + 12}`} stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.28" fill="none" />
+        <path d={f_rm.closedPath} fill="url(#humanHandGrad)" stroke="none" />
+        <path d={f_rm.openPath} fill="none" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
+
+        <path d={f_rr.closedPath} fill="url(#humanHandGrad)" stroke="none" />
+        <path d={f_rr.openPath} fill="none" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
+
+        <path d={f_rp.closedPath} fill="url(#humanHandGrad)" stroke="none" />
+        <path d={f_rp.openPath} fill="none" stroke="#38bdf8" strokeWidth="1.3" strokeOpacity="0.45" />
+
+        {/* Right Active Finger Highlight */}
         {activeFinger === 'right-index' && (
-          <circle cx={ri.x} cy={ri.y} r="9" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />
+          <path d={f_ri.closedPath} fill="url(#activeReachGrad)" stroke="#38bdf8" strokeWidth="2.0" strokeOpacity="0.95" filter="url(#fingertipAura)" />
         )}
-
-        {/* Right Middle Finger -> Key K (555.5, 150) or REACHES TO Key I (540.9, 95) */}
-        <path
-          d={`M 694 230
-              C 688 190, ${rm.x + 10} ${rm.y + 24}, ${rm.x + 8} ${rm.y}
-              C ${rm.x + 3} ${rm.y - 12}, ${rm.x - 3} ${rm.y - 12}, ${rm.x - 8} ${rm.y}
-              C ${rm.x - 9} ${rm.y + 24}, 662 190, 662 230 Z`}
-          fill={activeFinger === 'right-middle' ? "url(#activeReachGrad)" : "url(#humanHandGrad)"}
-          stroke="#38bdf8"
-          strokeWidth={activeFinger === 'right-middle' ? "2.2" : "1.2"}
-          strokeOpacity={activeFinger === 'right-middle' ? "1" : "0.4"}
-          filter={activeFinger === 'right-middle' ? "url(#fingertipAura)" : "none"}
-          style={{ transition: 'all 120ms ease-out' }}
-        />
-        <path d={`M ${rm.x + 6} ${rm.y + 13} Q ${rm.x} ${rm.y + 11} ${rm.x - 6} ${rm.y + 13}`} stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.28" fill="none" />
         {activeFinger === 'right-middle' && (
-          <circle cx={rm.x} cy={rm.y} r="9.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />
+          <path d={f_rm.closedPath} fill="url(#activeReachGrad)" stroke="#38bdf8" strokeWidth="2.0" strokeOpacity="0.95" filter="url(#fingertipAura)" />
         )}
-
-        {/* Right Ring Finger -> Key L (613.8, 150) */}
-        <path
-          d={`M 728 232
-              C 725 195, ${rr.x + 9} ${rr.y + 24}, ${rr.x + 8} ${rr.y}
-              C ${rr.x + 3} ${rr.y - 11}, ${rr.x - 3} ${rr.y - 11}, ${rr.x - 8} ${rr.y}
-              C ${rr.x - 8} ${rr.y + 24}, 698 195, 698 230 Z`}
-          fill={activeFinger === 'right-ring' ? "url(#activeReachGrad)" : "url(#humanHandGrad)"}
-          stroke="#38bdf8"
-          strokeWidth={activeFinger === 'right-ring' ? "2" : "1.2"}
-          strokeOpacity={activeFinger === 'right-ring' ? "1" : "0.4"}
-          filter={activeFinger === 'right-ring' ? "url(#fingertipAura)" : "none"}
-          style={{ transition: 'all 120ms ease-out' }}
-        />
-        <path d={`M ${rr.x + 6} ${rr.y + 12} Q ${rr.x} ${rr.y + 10} ${rr.x - 6} ${rr.y + 12}`} stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.28" fill="none" />
         {activeFinger === 'right-ring' && (
-          <circle cx={rr.x} cy={rr.y} r="9" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />
+          <path d={f_rr.closedPath} fill="url(#activeReachGrad)" stroke="#38bdf8" strokeWidth="2.0" strokeOpacity="0.95" filter="url(#fingertipAura)" />
+        )}
+        {activeFinger === 'right-pinky' && (
+          <path d={f_rp.closedPath} fill="url(#activeReachGrad)" stroke="#38bdf8" strokeWidth="2.0" strokeOpacity="0.95" filter="url(#fingertipAura)" />
+        )}
+        {activeFinger === 'thumb' && (
+          <path d={f_rt.closedPath} fill="url(#activeReachGrad)" stroke="#38bdf8" strokeWidth="2.0" strokeOpacity="0.95" filter="url(#fingertipAura)" />
         )}
 
-        {/* Right Pinky -> Key ; (672.0, 150) */}
-        <path
-          d={`M 752 238
-              C 756 205, ${rp.x + 9} ${rp.y + 24}, ${rp.x + 7} ${rp.y}
-              C ${rp.x + 3} ${rp.y - 10}, ${rp.x - 3} ${rp.y - 10}, ${rp.x - 7} ${rp.y}
-              C ${rp.x - 8} ${rp.y + 24}, 732 205, 732 234 Z`}
-          fill={activeFinger === 'right-pinky' ? "url(#activeReachGrad)" : "url(#humanHandGrad)"}
-          stroke="#38bdf8"
-          strokeWidth={activeFinger === 'right-pinky' ? "2" : "1.2"}
-          strokeOpacity={activeFinger === 'right-pinky' ? "1" : "0.4"}
-          filter={activeFinger === 'right-pinky' ? "url(#fingertipAura)" : "none"}
-          style={{ transition: 'all 120ms ease-out' }}
-        />
-        <path d={`M ${rp.x + 5} ${rp.y + 12} Q ${rp.x} ${rp.y + 10} ${rp.x - 5} ${rp.y + 12}`} stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.28" fill="none" />
-        {activeFinger === 'right-pinky' && (
-          <circle cx={rp.x} cy={rp.y} r="9" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />
-        )}
+        {/* Tendons & Creases */}
+        <path d="M 645 330 C 655 285, 705 240, 714 198" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.22" fill="none" />
+        <path d="M 635 326 C 640 278, 654 230, 656 190" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.25" fill="none" />
+        <path d="M 625 324 C 620 274, 598 226, 594 186" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.25" fill="none" />
+        <path d="M 612 326 C 605 278, 545 230, 536 190" stroke="#38bdf8" strokeWidth="0.8" strokeOpacity="0.25" fill="none" />
+        <path d="M 554 242 C 580 264, 602 292, 605 325" stroke="#38bdf8" strokeWidth="0.9" strokeOpacity="0.22" fill="none" />
+
+        {/* Right Glowing Fingertip Aura */}
+        {activeFinger === 'thumb' && <circle cx={rt.x} cy={rt.y} r="8.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />}
+        {activeFinger === 'right-index' && <circle cx={ri.x} cy={ri.y} r="8.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />}
+        {activeFinger === 'right-middle' && <circle cx={rm.x} cy={rm.y} r="9.0" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />}
+        {activeFinger === 'right-ring' && <circle cx={rr.x} cy={rr.y} r="8.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />}
+        {activeFinger === 'right-pinky' && <circle cx={rp.x} cy={rp.y} r="8.5" fill="#38bdf8" opacity="0.95" filter="url(#fingertipAura)" />}
       </g>
     </g>
   );
@@ -411,7 +526,7 @@ export function HandGuide({ targetChar, isVisible = true, standalone = false }) 
     return (
       <svg
         viewBox="0 0 900 350"
-        className="w-full max-w-[780px] h-auto block overflow-visible select-none pointer-events-none mx-auto"
+        className="w-full max-w-[820px] h-auto block overflow-visible select-none pointer-events-none mx-auto"
         preserveAspectRatio="xMidYMid meet"
       >
         {content}
@@ -423,4 +538,3 @@ export function HandGuide({ targetChar, isVisible = true, standalone = false }) 
 }
 
 export default HandGuide;
-
