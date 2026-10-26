@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { KEY_FINGER_MAP, KEY_COORDS } from './touchTypingMap.js';
+import { resolveKeyToFinger } from './touchTypingMap.js';
 
 /**
  * Procedural Anatomical 3D Skinned Hand Rig Engine for KEYFLOW.
@@ -296,17 +296,13 @@ export function createHandAnimationController(boneMap) {
     }
   });
 
-  function triggerKeystroke(char, options = {}) {
-    if (!char) return;
-    const key = char === ' ' ? ' ' : char;
-    const mapping = KEY_FINGER_MAP[key] || KEY_FINGER_MAP[key.toLowerCase()];
-    if (!mapping) return;
+  function triggerKeystroke(charOrEvent, options = {}) {
+    if (!charOrEvent) return;
 
-    let finger = mapping.finger;
-    if (finger === 'thumb') {
-      finger = options.spaceThumb || 'right-thumb'; // Default touch-typing thumb, configurable
-    }
+    const resolved = resolveKeyToFinger(charOrEvent, options);
+    if (!resolved) return;
 
+    const { finger, reachX, reachY } = resolved;
     const boneNames = FINGER_BONE_MAP[finger];
     if (!boneNames) return;
 
@@ -315,21 +311,18 @@ export function createHandAnimationController(boneMap) {
       window.matchMedia &&
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    // Determine row offset for natural reaching (Row 0: +24, Row 1: +12, Row 2: 0, Row 3: -12)
-    const keyCoord = KEY_COORDS[key.toLowerCase()] || KEY_COORDS[key];
-    let rowOffset = 0;
-    if (keyCoord) {
-      // Row 2 is home row (cy = 145)
-      const diffY = 145 - keyCoord.cy;
-      rowOffset = diffY * 0.28; // Subtle natural reach in Y
-    }
+    // In Three.js: X is -450..450 (same direction as SVG dx)
+    // Three.js Y is -175..175 (opposite direction to SVG dy, because SVG Y increases downwards)
+    const reach3D_X = reachX;
+    const reach3D_Y = -reachY;
 
     // Register active animation
     activeAnimations.set(finger, {
       startTime: performance.now(),
-      duration: prefersReducedMotion ? 90 : 135, // ~135ms total stroke (peak downstroke at 40ms, smooth recovery)
+      duration: prefersReducedMotion ? 95 : 145, // ~145ms total stroke (crisp downstroke, smooth return)
       motionScale: prefersReducedMotion ? 0.35 : 1.0,
-      rowOffset,
+      reachX: reach3D_X,
+      reachY: reach3D_Y,
       bones: boneNames.map((name) => boneMap[name]).filter(Boolean),
     });
   }
@@ -359,44 +352,62 @@ export function createHandAnimationController(boneMap) {
       hasActive = true;
 
       // Kinematic finger stroke curve:
-      // 0.0 to 0.32: rapid downstroke (ease-in-quad)
-      // 0.32 to 1.0: smooth spring-damped return (cosine curve)
+      // 0.0 to 0.35: crisp strike & reach (ease-out-quad)
+      // 0.35 to 1.0: smooth spring-damped return (cosine curve)
       let strike;
-      if (progress < 0.32) {
-        const p = progress / 0.32;
-        strike = p * p;
+      if (progress < 0.35) {
+        const p = progress / 0.35;
+        strike = 1 - (1 - p) * (1 - p);
       } else {
-        const p = (progress - 0.32) / 0.68;
+        const p = (progress - 0.35) / 0.65;
         strike = Math.cos(p * Math.PI * 0.5);
       }
 
       const motionScale = anim.motionScale || 1.0;
       strike = strike * motionScale;
 
-      // Apply biological finger joint rotations:
-      // Proximal (MCP): ~0.20 rad (downward flex)
-      // Intermediate (PIP): ~0.16 rad (inward bend)
-      // Distal (DIP): ~0.10 rad (fingertip key strike)
       const isThumb = finger.includes('thumb');
-      const mcpMax = isThumb ? 0.16 : 0.22;
-      const pipMax = isThumb ? 0.12 : 0.18;
-      const dipMax = 0.12;
 
       anim.bones.forEach((bone, idx) => {
         const rest = restTransforms[bone.name];
         if (!rest) return;
 
-        if (idx === 0) {
-          // Proximal bone (MCP)
-          bone.rotation.x = rest.rot.x - strike * mcpMax;
-          bone.position.y = rest.pos.y + strike * anim.rowOffset;
-          bone.position.z = rest.pos.z - strike * 8.0; // Keycap depression depth
-        } else if (idx === 1) {
-          // Intermediate bone (PIP)
-          bone.rotation.x = rest.rot.x - strike * pipMax;
-        } else if (idx === 2) {
-          // Distal bone (DIP)
-          bone.rotation.x = rest.rot.x - strike * dipMax;
+        if (isThumb) {
+          // Thumbs (2 bones: proximal, distal)
+          if (idx === 0) {
+            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.40);
+            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.40);
+            bone.position.z = rest.pos.z - strike * 8.0;
+            bone.rotation.x = rest.rot.x - strike * 0.14;
+          } else {
+            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.60);
+            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.60);
+            bone.position.z = rest.pos.z - strike * 6.0;
+            bone.rotation.x = rest.rot.x - strike * 0.10;
+          }
+        } else {
+          // Fingers (3 bones: proximal MCP, intermediate PIP, distal DIP)
+          if (idx === 0) {
+            // Proximal bone (MCP)
+            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.28);
+            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.28);
+            bone.position.z = rest.pos.z - strike * 8.0; // Keycap depression depth
+            bone.rotation.x = rest.rot.x - strike * 0.20;
+            // Subtle lateral reach tilt
+            bone.rotation.z = rest.rot.z - strike * (anim.reachX / 280);
+          } else if (idx === 1) {
+            // Intermediate bone (PIP)
+            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.44);
+            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.44);
+            bone.position.z = rest.pos.z - strike * 4.0;
+            bone.rotation.x = rest.rot.x - strike * 0.16;
+          } else if (idx === 2) {
+            // Distal bone (DIP - fingertip)
+            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.28);
+            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.28);
+            bone.position.z = rest.pos.z - strike * 3.0;
+            bone.rotation.x = rest.rot.x - strike * 0.12;
+          }
         }
       });
     }

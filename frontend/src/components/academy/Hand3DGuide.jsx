@@ -19,7 +19,7 @@ import {
  * - Full memory cleanup on unmount or toggle off
  */
 export function Hand3DGuide({
-  targetChar,
+  _targetChar,
   lastKeystroke,
   isVisible = true,
   spaceThumb = 'right-thumb',
@@ -185,26 +185,26 @@ export function Hand3DGuide({
 
   // Trigger finger animation on keystroke event
   useEffect(() => {
-    if (!isVisible || !lastKeystroke?.key) return;
+    if (!isVisible || !lastKeystroke) return;
 
     const controller = controllerRef.current;
     if (controller) {
-      controller.triggerKeystroke(lastKeystroke.key, { spaceThumb });
+      controller.triggerKeystroke(lastKeystroke, { spaceThumb });
       if (rendererRef.current?._startLoop) {
         rendererRef.current._startLoop();
       }
     }
   }, [lastKeystroke, isVisible, spaceThumb]);
 
-  // Reset animations if target changes or user restarts
+  // Reset animations when keystroke is reset (lesson restart / retry)
   useEffect(() => {
-    if (controllerRef.current) {
+    if (lastKeystroke === null && controllerRef.current) {
       controllerRef.current.resetAll();
       if (rendererRef.current && sceneRef.current && cameraRef.current) {
         rendererRef.current.render(sceneRef.current, cameraRef.current);
       }
     }
-  }, [targetChar]);
+  }, [lastKeystroke]);
 
   if (!isVisible) return null;
 

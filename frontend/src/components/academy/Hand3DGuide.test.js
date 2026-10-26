@@ -192,6 +192,112 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     controller.resetAll();
   });
 
+  it('articulates every key on the entire QWERTY letter layout across both hands', () => {
+    const { boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    // Top Row
+    const topRow = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
+    topRow.forEach((k) => {
+      controller.resetAll();
+      controller.triggerKeystroke(k);
+      assert.equal(controller.getActiveCount(), 1, `Top row key ${k} triggered active animation`);
+    });
+
+    // Home Row
+    const homeRow = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';'];
+    homeRow.forEach((k) => {
+      controller.resetAll();
+      controller.triggerKeystroke(k);
+      assert.equal(controller.getActiveCount(), 1, `Home row key ${k} triggered active animation`);
+    });
+
+    // Bottom Row
+    const bottomRow = ['z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/'];
+    bottomRow.forEach((k) => {
+      controller.resetAll();
+      controller.triggerKeystroke(k);
+      assert.equal(controller.getActiveCount(), 1, `Bottom row key ${k} triggered active animation`);
+    });
+  });
+
+  it('articulates every key on the number row with reaching movement', () => {
+    const { boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    const numRow = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '='];
+    numRow.forEach((k) => {
+      controller.resetAll();
+      controller.triggerKeystroke(k);
+      assert.equal(controller.getActiveCount(), 1, `Number row key ${k} triggered active animation`);
+    });
+  });
+
+  it('articulates all modifier and control keys across both hands', () => {
+    const { boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    const controlKeys = [
+      'Tab', 'tab',
+      'CapsLock', 'caps',
+      'ShiftLeft', 'shift-left',
+      'ShiftRight', 'shift-right',
+      'Backspace', 'backspace',
+      'Enter', 'enter',
+      'Space', 'space', ' ',
+      'control-left', 'option-left', 'option-right', 'control-right'
+    ];
+
+    controlKeys.forEach((k) => {
+      controller.resetAll();
+      controller.triggerKeystroke(k);
+      assert.equal(controller.getActiveCount(), 1, `Control key ${k} triggered active animation`);
+    });
+  });
+
+  it('supports KeyboardEvent code objects for physical key mapping', () => {
+    const { boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    const eventObjects = [
+      { key: 'q', code: 'KeyQ' },
+      { key: 'T', code: 'KeyT' },
+      { key: '!', code: 'Digit1' },
+      { key: 'Tab', code: 'Tab' },
+      { key: 'CapsLock', code: 'CapsLock' },
+      { key: 'Shift', code: 'ShiftLeft' },
+      { key: 'Shift', code: 'ShiftRight' },
+      { key: 'Backspace', code: 'Backspace' },
+      { key: 'Enter', code: 'Enter' },
+      { key: ' ', code: 'Space' },
+    ];
+
+    eventObjects.forEach((evt) => {
+      controller.resetAll();
+      controller.triggerKeystroke(evt);
+      assert.equal(controller.getActiveCount(), 1, `Event code ${evt.code} triggered active animation`);
+    });
+  });
+
+  it('displaces fingertip toward physical key coordinates instead of rotating in place', () => {
+    const { boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    const indexProxL = boneMap['index_proximal_L'];
+    const indexDistL = boneMap['index_distal_L'];
+
+    const initialTipX = indexDistL.position.x;
+    const initialTipY = indexDistL.position.y;
+
+    // Type 't' (left index reaches right and up)
+    controller.triggerKeystroke('t');
+    controller.update(performance.now() + 45); // downstroke peak
+
+    assert.ok(indexDistL.position.x > initialTipX, 'Index fingertip reached right toward T');
+    assert.ok(indexDistL.position.y > initialTipY, 'Index fingertip reached upward toward T');
+    assert.ok(indexProxL.position.z < 0, 'Depressed downward into keycap');
+  });
+
   it('supports rapid repeated keystrokes on the same finger without getting stuck', () => {
     const { boneMap } = createHandRigMesh();
     const controller = createHandAnimationController(boneMap);
@@ -216,6 +322,17 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     controller.update(performance.now() + 200);
     assert.equal(controller.getActiveCount(), 0);
     assert.equal(ringProx.rotation.x, initialRot);
+  });
+
+  it('handles unknown or unmapped keys gracefully without errors', () => {
+    const { boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    assert.doesNotThrow(() => controller.triggerKeystroke('F12'));
+    assert.doesNotThrow(() => controller.triggerKeystroke('Meta'));
+    assert.doesNotThrow(() => controller.triggerKeystroke(null));
+    assert.doesNotThrow(() => controller.triggerKeystroke(undefined));
+    assert.equal(controller.getActiveCount(), 0);
   });
 
   it('verifies binary GLB model exists on disk and is non-empty', () => {

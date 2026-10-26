@@ -493,10 +493,11 @@ export const WorkstationPage = () => {
             onChange={handleInputChange}
             onKeyDown={(e) => {
               if (isCompleted) return;
-              if (e.key === 'Escape' || e.key === 'Tab') return;
-              if (e.key.length === 1 || e.key === 'Backspace' || e.key === 'Enter') {
-                setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+              if (e.key === 'Escape') return;
+              if (e.key === 'Tab') {
+                e.preventDefault();
               }
+              setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
             }}
             disabled={isCompleted}
             className="absolute inset-0 opacity-0 cursor-default"

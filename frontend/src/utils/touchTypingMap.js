@@ -266,10 +266,91 @@ export const KEY_FINGER_MAP = {
   "'": { finger: 'right-pinky', x: KEY_COORDS["'"].cx, y: KEY_COORDS["'"].cy },
   '"': { finger: 'right-pinky', x: KEY_COORDS["'"].cx, y: KEY_COORDS["'"].cy },
   'enter': { finger: 'right-pinky', x: KEY_COORDS['enter'].cx, y: KEY_COORDS['enter'].cy },
+  'Enter': { finger: 'right-pinky', x: KEY_COORDS['enter'].cx, y: KEY_COORDS['enter'].cy },
   '\n': { finger: 'right-pinky', x: KEY_COORDS['enter'].cx, y: KEY_COORDS['enter'].cy },
   '/': { finger: 'right-pinky', x: KEY_COORDS['/'].cx, y: KEY_COORDS['/'].cy },
   '?': { finger: 'right-pinky', x: KEY_COORDS['/'].cx, y: KEY_COORDS['/'].cy },
   'shift-right': { finger: 'right-pinky', x: KEY_COORDS['shift-right'].cx, y: KEY_COORDS['shift-right'].cy },
+  'ShiftRight': { finger: 'right-pinky', x: KEY_COORDS['shift-right'].cx, y: KEY_COORDS['shift-right'].cy },
+  'control-right': { finger: 'right-pinky', x: KEY_COORDS['control-right'].cx, y: KEY_COORDS['control-right'].cy },
+  'option-right': { finger: 'right-pinky', x: KEY_COORDS['option-right'].cx, y: KEY_COORDS['option-right'].cy },
+  'control-left': { finger: 'left-pinky', x: KEY_COORDS['control-left'].cx, y: KEY_COORDS['control-left'].cy },
+  'option-left': { finger: 'left-pinky', x: KEY_COORDS['option-left'].cx, y: KEY_COORDS['option-left'].cy },
+  'CapsLock': { finger: 'left-pinky', x: KEY_COORDS['caps'].cx, y: KEY_COORDS['caps'].cy },
+  'capslock': { finger: 'left-pinky', x: KEY_COORDS['caps'].cx, y: KEY_COORDS['caps'].cy },
+  'Tab': { finger: 'left-pinky', x: KEY_COORDS['tab'].cx, y: KEY_COORDS['tab'].cy },
+  'Shift': { finger: 'left-pinky', x: KEY_COORDS['shift-left'].cx, y: KEY_COORDS['shift-left'].cy },
+  'ShiftLeft': { finger: 'left-pinky', x: KEY_COORDS['shift-left'].cx, y: KEY_COORDS['shift-left'].cy },
+  'Backspace': { finger: 'right-pinky', x: KEY_COORDS['backspace'].cx, y: KEY_COORDS['backspace'].cy },
+  'Space': { finger: 'thumb', x: KEY_COORDS['space'].cx, y: KEY_COORDS['space'].cy },
+};
+
+/**
+ * Physical ANSI 60% keyboard codes mapping to internal key IDs.
+ */
+export const CODE_TO_KEY_ID = {
+  Backquote: '`',
+  Digit1: '1',
+  Digit2: '2',
+  Digit3: '3',
+  Digit4: '4',
+  Digit5: '5',
+  Digit6: '6',
+  Digit7: '7',
+  Digit8: '8',
+  Digit9: '9',
+  Digit0: '0',
+  Minus: '-',
+  Equal: '=',
+  Backspace: 'backspace',
+
+  Tab: 'tab',
+  KeyQ: 'q',
+  KeyW: 'w',
+  KeyE: 'e',
+  KeyR: 'r',
+  KeyT: 't',
+  KeyY: 'y',
+  KeyU: 'u',
+  KeyI: 'i',
+  KeyO: 'o',
+  KeyP: 'p',
+  BracketLeft: '[',
+  BracketRight: ']',
+  Backslash: '\\',
+
+  CapsLock: 'caps',
+  KeyA: 'a',
+  KeyS: 's',
+  KeyD: 'd',
+  KeyF: 'f',
+  KeyG: 'g',
+  KeyH: 'h',
+  KeyJ: 'j',
+  KeyK: 'k',
+  KeyL: 'l',
+  Semicolon: ';',
+  Quote: "'",
+  Enter: 'enter',
+
+  ShiftLeft: 'shift-left',
+  KeyZ: 'z',
+  KeyX: 'x',
+  KeyC: 'c',
+  KeyV: 'v',
+  KeyB: 'b',
+  KeyN: 'n',
+  KeyM: 'm',
+  Comma: ',',
+  Period: '.',
+  Slash: '/',
+  ShiftRight: 'shift-right',
+
+  ControlLeft: 'control-left',
+  AltLeft: 'option-left',
+  Space: 'space',
+  AltRight: 'option-right',
+  ControlRight: 'control-right',
 };
 
 /**
@@ -288,3 +369,62 @@ export const FINGERTIP_POSITIONS = {
   'right-ring':  { x: 606, y: 124, homeKey: 'l' },
   'right-pinky': { x: 680, y: 142, homeKey: ';' },
 };
+
+/**
+ * Resolves any key string, event code, or event object to touch-typing finger and calibrated target coordinate.
+ */
+export function resolveKeyToFinger(keyOrEvent, options = {}) {
+  if (!keyOrEvent) return null;
+
+  let rawKey = typeof keyOrEvent === 'string' ? keyOrEvent : keyOrEvent.key;
+  let rawCode = typeof keyOrEvent === 'object' ? keyOrEvent.code : null;
+
+  let keyId = null;
+  let mapping = null;
+
+  // 1. Try physical KeyboardEvent.code first
+  if (rawCode && CODE_TO_KEY_ID[rawCode]) {
+    keyId = CODE_TO_KEY_ID[rawCode];
+    mapping = KEY_FINGER_MAP[keyId];
+  }
+
+  // 2. Try raw key string (direct or case-insensitive)
+  if (!mapping && rawKey) {
+    if (rawKey === ' ') rawKey = 'space';
+    mapping = KEY_FINGER_MAP[rawKey] || KEY_FINGER_MAP[rawKey.toLowerCase()];
+    keyId = rawKey.toLowerCase();
+  }
+
+  // 3. Fallback for shifted symbols
+  if (!mapping && rawKey && SHIFT_MAP[rawKey]) {
+    const unshiftedKey = SHIFT_MAP[rawKey];
+    mapping = KEY_FINGER_MAP[unshiftedKey];
+    keyId = unshiftedKey;
+  }
+
+  if (!mapping) return null;
+
+  let finger = mapping.finger;
+  if (finger === 'thumb') {
+    finger = options.spaceThumb || 'right-thumb';
+  }
+
+  const restingTip = FINGERTIP_POSITIONS[finger];
+  const targetCoord = KEY_COORDS[keyId] || { cx: mapping.x, cy: mapping.y };
+
+  let reachX = 0;
+  let reachY = 0;
+  if (restingTip && targetCoord) {
+    reachX = targetCoord.cx - restingTip.x;
+    reachY = targetCoord.cy - restingTip.y;
+  }
+
+  return {
+    keyId,
+    finger,
+    targetCoord,
+    restingTip,
+    reachX,
+    reachY,
+  };
+}
