@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Volume2, VolumeX, Play, ChevronDown, Check, SlidersHorizontal, Sparkles } from 'lucide-react';
 import { useKeyboardSound } from '../../context/SoundContext';
+import { useI18n } from '../../i18n/I18nContext';
 
 /**
  * SoundSelector — Tactical Keyboard Sound Studio Popover
@@ -18,6 +19,7 @@ export const SoundSelector = ({
   align = 'right', // 'left' | 'right'
   className = '',
 }) => {
+  const { t } = useI18n();
   const {
     soundEnabled,
     soundProfile,
@@ -202,10 +204,10 @@ export const SoundSelector = ({
               <div>
                 <div className="flex items-center gap-1.5">
                   <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider font-mono">
-                    Sound Studio
+                    {t('sound.title', 'Sound Studio')}
                   </h3>
                   <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-semibold">
-                    {profiles.length} Profiles
+                    {t('sound.profilesCount', { count: profiles.length }, `${profiles.length} Profiles`)}
                   </span>
                 </div>
                 <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
@@ -216,7 +218,7 @@ export const SoundSelector = ({
                       <span>{currentProfileObj.tag}</span>
                     </span>
                   ) : (
-                    'Typing Audio Muted'
+                    t('sound.muted', 'Typing Audio Muted')
                   )}
                 </p>
               </div>
@@ -241,14 +243,14 @@ export const SoundSelector = ({
                   ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)] shadow-xs'
                   : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:border-[var(--text-secondary)]'
               }`}
-              aria-label={`Toggle keyboard sound: currently ${isAudible ? 'ON' : 'OFF'}`}
+              aria-label={t('sound.toggle', { status: isAudible ? 'ON' : 'OFF' }, `Toggle keyboard sound: currently ${isAudible ? 'ON' : 'OFF'}`)}
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full ${
                   isAudible ? 'bg-[var(--accent-fg)] animate-pulse' : 'bg-[var(--text-muted)]'
                 }`}
               />
-              <span>{isAudible ? 'ON' : 'OFF'}</span>
+              <span>{isAudible ? t('sound.on', 'ON') : t('sound.off', 'OFF')}</span>
             </button>
           </div>
 
@@ -267,7 +269,7 @@ export const SoundSelector = ({
                       : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'
                   }`}
                 >
-                  {cat.label}
+                  {t(`sound.cat.${cat.id}`, cat.label)}
                 </button>
               );
             })}

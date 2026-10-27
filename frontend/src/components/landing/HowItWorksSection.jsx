@@ -15,20 +15,20 @@ export const HowItWorksSection = () => {
     {
       num: '01',
       icon: Compass,
-      title: t('howItWorks.step1.title') || '1. Calibration',
-      desc: t('howItWorks.step1.desc') || 'Assess your baseline WPM, finger balance, and error patterns through our diagnostic workstation.',
+      title: t('howItWorks.step1.title'),
+      desc: t('howItWorks.step1.desc'),
     },
     {
       num: '02',
       icon: Cpu,
-      title: t('howItWorks.step2.title') || '2. Muscle Memory Conditioning',
-      desc: t('howItWorks.step2.desc') || 'Condition your finger reflexes through targeted n-gram drills designed to eliminate hesitation.',
+      title: t('howItWorks.step2.title'),
+      desc: t('howItWorks.step2.desc'),
     },
     {
       num: '03',
       icon: Flame,
-      title: t('howItWorks.step3.title') || '3. Flow State & Speed Burst',
-      desc: t('howItWorks.step3.desc') || 'Lock in 90+ WPM fluency with real-world literature, code syntax, and adrenaline-pumping arcade combat.',
+      title: t('howItWorks.step3.title'),
+      desc: t('howItWorks.step3.desc'),
     },
   ];
 
@@ -37,13 +37,13 @@ export const HowItWorksSection = () => {
       <div className="container-app">
         <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
           <span className="px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase bg-[var(--bg-elevated)] text-[var(--accent)] border border-[var(--border)]">
-            Progression Roadmap
+            {t('howItWorks.badge')}
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text-primary)]">
-            {t('howItWorks.title') || 'How KEYFLOW Transforms Your Speed'}
+            {t('howItWorks.title')}
           </h2>
           <p className="text-sm sm:text-base text-[var(--text-secondary)]">
-            A scientifically phased learning pathway moving from mechanical awareness to sub-conscious execution.
+            {t('howItWorks.subtitle')}
           </p>
         </div>
 

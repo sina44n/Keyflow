@@ -6,12 +6,14 @@ import { saveArcadeRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getKeyCascadeConfig } from '../../../utils/arcadeDifficulty';
 import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
+import { useI18n } from '../../../i18n/I18nContext';
 
 const ARENA_HEIGHT = 440;
 const DANGER_LINE_Y = 380;
 const INITIAL_LIVES = 3;
 
 export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
+  const { t } = useI18n();
   // Game states: 'ready', 'countdown', 'playing', 'paused', 'gameover'
   const [gameState, setGameState] = useState('ready');
   const [countdown, setCountdown] = useState(3);
@@ -344,12 +346,12 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
-            Arcade Hub
+            {t('arcade.title') === 'Game-Engineered Speed Drills' ? 'Arcade Hub' : t('nav.arcade')}
           </Button>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
               <Flame className="w-5 h-5 text-[var(--accent)]" />
-              Key Cascade
+              {t('arcade.cascade.title')}
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
               Wave {wave} • {difficultyInfo.tierName} Intensity (Tier {difficultyInfo.tier})
@@ -360,15 +362,15 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
         <div className="flex items-center gap-2">
           {gameState === 'playing' ? (
             <Button variant="outline" size="xs" icon={Pause} onClick={() => setGameState('paused')}>
-              Pause (Esc)
+              {t('common.pause')} (Esc)
             </Button>
           ) : gameState === 'paused' ? (
             <Button variant="primary" size="xs" icon={Play} onClick={() => setGameState('playing')}>
-              Resume
+              {t('common.resume')}
             </Button>
           ) : null}
           <Button variant="ghost" size="xs" icon={RotateCcw} onClick={startCountdown}>
-            Restart
+            {t('common.restart')}
           </Button>
         </div>
       </div>
@@ -387,11 +389,11 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
       {/* HUD Metrics Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Score</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.score')}</span>
           <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">{score}</span>
         </div>
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Shields</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.health')}</span>
           <div className="flex items-center gap-1 mt-0.5">
             {[...Array(INITIAL_LIVES)].map((_, i) => (
               <Shield
@@ -404,21 +406,21 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
           </div>
         </div>
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Combo</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.combo')}</span>
           <span className="text-sm sm:text-base font-bold text-[var(--accent)]">
             {combo}x <span className="text-[10px] text-[var(--text-muted)]">(max {bestCombo})</span>
           </span>
         </div>
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Eliminated</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('workstation.wordsTyped')}</span>
           <span className="text-sm sm:text-base font-bold text-emerald-400">{wordsEliminated}</span>
         </div>
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Accuracy</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.accuracy')}</span>
           <span className="text-sm sm:text-base font-bold text-[var(--ui-success)]">{accuracy}%</span>
         </div>
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Time</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.time')}</span>
           <span className="text-sm sm:text-base font-bold text-[var(--text-secondary)]">
             {elapsedSeconds}s
           </span>
@@ -504,13 +506,13 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
               <Flame className="w-8 h-8" />
             </div>
             <div className="space-y-1 max-w-sm">
-              <h3 className="text-xl font-bold text-[var(--text-primary)]">Key Cascade Defense</h3>
+              <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.cascade.title')}</h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Words stream down toward your defense shield. Type them before they breach the danger line. Chain consecutive words for combo multipliers.
+                {t('arcade.cascade.desc')}
               </p>
             </div>
             <Button variant="primary" size="lg" icon={Play} onClick={startCountdown}>
-              Start Game
+              {t('common.play')}
             </Button>
           </div>
         )}
@@ -525,13 +527,13 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
 
         {gameState === 'paused' && (
           <div className="absolute inset-0 bg-black/75 backdrop-blur-xs z-30 flex flex-col items-center justify-center space-y-4">
-            <h3 className="text-xl font-bold text-[var(--text-primary)]">Game Paused</h3>
+            <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.hud.pause')}</h3>
             <div className="flex gap-3">
               <Button variant="primary" size="sm" icon={Play} onClick={() => setGameState('playing')}>
-                Resume
+                {t('common.resume')}
               </Button>
               <Button variant="outline" size="sm" icon={RotateCcw} onClick={startCountdown}>
-                Restart
+                {t('common.restart')}
               </Button>
             </div>
           </div>
@@ -543,37 +545,37 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
               <AlertTriangle className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-2xl font-black text-[var(--text-primary)]">Defenses Breached</h3>
+              <h3 className="text-2xl font-black text-[var(--text-primary)]">{t('arcade.hud.gameOver')}</h3>
               <p className="text-xs text-[var(--text-secondary)]">All 3 shield barriers were overloaded.</p>
             </div>
 
             {personalBestNotice && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold">
-                <Trophy className="w-3.5 h-3.5" /> NEW PERSONAL BEST!
+                <Trophy className="w-3.5 h-3.5" /> {t('arcade.hud.newBest')}
               </div>
             )}
 
             <div className="grid grid-cols-3 gap-3 bg-[var(--bg-elevated)] p-4 rounded-xl border border-[var(--border)] text-xs font-mono w-full max-w-sm">
               <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">Final Score</span>
+                <span className="text-[10px] text-[var(--text-muted)] block">{t('arcade.hud.score')}</span>
                 <span className="text-lg font-bold text-[var(--accent)]">{score}</span>
               </div>
               <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">Words Defeated</span>
+                <span className="text-[10px] text-[var(--text-muted)] block">{t('common.words')}</span>
                 <span className="text-lg font-bold text-emerald-400">{wordsEliminated}</span>
               </div>
               <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">Max Combo</span>
+                <span className="text-[10px] text-[var(--text-muted)] block">{t('arcade.hud.combo')}</span>
                 <span className="text-lg font-bold text-amber-400">{bestCombo}x</span>
               </div>
             </div>
 
             <div className="flex items-center gap-3 pt-2">
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown}>
-                Play Again
+                {t('arcade.hud.playAgain')}
               </Button>
               <Button variant="outline" size="md" onClick={onExit}>
-                Back to Arcade
+                {t('arcade.hud.returnToHub')}
               </Button>
             </div>
           </div>
@@ -582,8 +584,8 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
 
       {/* Bottom Status / Instructions Tip */}
       <div className="flex flex-wrap items-center justify-between text-xs text-[var(--text-muted)] font-mono px-1">
-        <span>Click anywhere to refocus typing input</span>
-        <span>Wave {wave} • Missed: {missedWords} • Velocity {wpm} WPM</span>
+        <span>{t('workstation.clickToFocus')}</span>
+        <span>{t('arcade.hud.wave')} {wave} • {t('workstation.mistakes')}: {missedWords} • {t('common.speed')} {wpm} WPM</span>
       </div>
 
       {/* Exit Run Confirmation Dialog */}

@@ -17,7 +17,6 @@ import {
   Keyboard,
   BookOpen,
   Gamepad2,
-  BarChart3,
   Palette,
   Menu,
   X,

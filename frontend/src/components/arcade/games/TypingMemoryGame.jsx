@@ -6,8 +6,10 @@ import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getTypingMemoryConfig } from '../../../utils/arcadeDifficulty';
 import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
+import { useI18n } from '../../../i18n/I18nContext';
 
 export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
+  const { t } = useI18n();
   // Game states: 'ready', 'viewing', 'recalling', 'review', 'gameover'
   const [gameState, setGameState] = useState('ready');
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -261,12 +263,12 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
-            Arcade Hub
+            {t('nav.arcade')}
           </Button>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
               <Brain className="w-5 h-5 text-cyan-400" />
-              Typing Memory
+              {t('arcade.memory.title')}
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
               Matrix Sequence Recall • {difficultyInfo.tierName} (Tier {difficultyInfo.tier})
@@ -276,7 +278,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
 
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="xs" icon={RotateCcw} onClick={startGame}>
-            Restart
+            {t('common.restart')}
           </Button>
         </div>
       </div>
@@ -310,11 +312,10 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
             {[...Array(3)].map((_, i) => (
               <span
                 key={i}
-                className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] font-bold ${
-                  i < strikes
+                className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center text-[9px] font-bold ${i < strikes
                     ? 'border-rose-500 bg-rose-500 text-white'
                     : 'border-neutral-700 bg-neutral-900 text-transparent'
-                }`}
+                  }`}
               >
                 ✕
               </span>
@@ -324,7 +325,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Score</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.score')}</span>
           <span className="text-base font-bold text-[var(--text-primary)]">{score}</span>
         </div>
 
@@ -404,13 +405,12 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
                 return (
                   <div
                     key={idx}
-                    className={`w-24 h-16 rounded-xl border flex flex-col items-center justify-center font-mono font-bold transition-all ${
-                      isFilled
+                    className={`w-24 h-16 rounded-xl border flex flex-col items-center justify-center font-mono font-bold transition-all ${isFilled
                         ? 'border-emerald-500 bg-emerald-950/40 text-emerald-300'
                         : isCurrent
-                        ? 'border-cyan-400 bg-cyan-950/60 ring-2 ring-cyan-400/40 text-cyan-100 scale-105'
-                        : 'border-neutral-800 bg-neutral-900/60 text-neutral-600'
-                    }`}
+                          ? 'border-cyan-400 bg-cyan-950/60 ring-2 ring-cyan-400/40 text-cyan-100 scale-105'
+                          : 'border-neutral-800 bg-neutral-900/60 text-neutral-600'
+                      }`}
                   >
                     <span className="text-[10px] text-[var(--text-muted)]">Slot #{idx + 1}</span>
                     <span className="text-sm">
@@ -477,13 +477,13 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
               <Brain className="w-8 h-8" />
             </div>
             <div className="space-y-1 max-w-sm">
-              <h3 className="text-xl font-bold text-[var(--text-primary)]">Typing Memory Vault</h3>
+              <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.memory.title')}</h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Memorize the word sequence before the shutter closes. Then reproduce it purely from muscle memory without hints.
+                {t('arcade.memory.desc')}
               </p>
             </div>
             <Button variant="primary" size="lg" icon={Play} onClick={startGame}>
-              Start Round 1
+              {t('common.play')}
             </Button>
           </div>
         )}
@@ -495,13 +495,13 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
               <AlertTriangle className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-2xl font-black text-[var(--text-primary)]">Memory Overloaded!</h3>
-              <p className="text-xs text-[var(--text-secondary)]">3 memory strikes reached.</p>
+              <h3 className="text-2xl font-black text-[var(--text-primary)]">{t('arcade.hud.gameOver')}</h3>
+              <p className="text-xs text-[var(--text-secondary)]">{t('workstation.summary')}</p>
             </div>
 
             {personalBestNotice && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold">
-                <Trophy className="w-3.5 h-3.5" /> NEW MEMORY DEPTH RECORD!
+                <Trophy className="w-3.5 h-3.5" /> {t('arcade.hud.newBest')}
               </div>
             )}
 
@@ -518,10 +518,10 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
 
             <div className="flex items-center gap-3 pt-2">
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startGame}>
-                Try Again
+                {t('arcade.hud.playAgain')}
               </Button>
               <Button variant="outline" size="md" onClick={onExit}>
-                Back to Arcade
+                {t('arcade.hud.returnToHub')}
               </Button>
             </div>
           </div>

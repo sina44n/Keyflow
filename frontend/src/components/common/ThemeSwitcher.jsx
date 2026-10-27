@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
+import { useI18n } from '../../i18n/I18nContext';
 import { Check, Sparkles, X, ChevronDown, Sun } from 'lucide-react';
 
 export const ThemeSwitcher = ({ compact = false }) => {
   const { theme, setTheme, themes, currentThemeObj } = useTheme();
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -38,7 +40,7 @@ export const ThemeSwitcher = ({ compact = false }) => {
           : "flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-mono font-medium transition-all cursor-pointer min-h-[38px]"}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        aria-label={`Current theme: ${currentThemeObj.name}. Click to change theme.`}
+        aria-label={t('themeSwitcher.activeTheme', { name: currentThemeObj.name }, `Current theme: ${currentThemeObj.name}. Click to change theme.`)}
         id="theme-switcher-trigger"
       >
         <span
@@ -61,7 +63,7 @@ export const ThemeSwitcher = ({ compact = false }) => {
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:p-0 sm:bg-transparent sm:backdrop-blur-none"
           role="dialog"
           aria-modal="true"
-          aria-label="Studio Themes Selector"
+          aria-label={t('themeSwitcher.title', 'Studio Themes Selector')}
         >
           <div className="w-full max-w-md sm:w-96 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-4 animate-in fade-in zoom-in-95 duration-150">
             {/* Header */}
@@ -72,10 +74,10 @@ export const ThemeSwitcher = ({ compact = false }) => {
                 </div>
                 <div>
                   <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider font-mono">
-                    Studio Palettes
+                    {t('themeSwitcher.title', 'Studio Palettes')}
                   </h3>
                   <p className="text-[11px] text-[var(--text-muted)]">
-                    12 custom-crafted color systems
+                    {t('themeSwitcher.choose', '12 custom-crafted color systems')}
                   </p>
                 </div>
               </div>

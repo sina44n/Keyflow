@@ -2,11 +2,13 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Keyboard, Terminal } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
+import { useI18n } from '../../i18n/I18nContext';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
 export const Footer = () => {
   const { currentThemeObj } = useTheme();
+  const { t } = useI18n();
 
   return (
     <footer className="w-full bg-[var(--bg-surface)] border-t border-[var(--border)] transition-colors duration-200 mt-16 sm:mt-24">
@@ -15,7 +17,7 @@ export const Footer = () => {
         <div className="container-app flex flex-wrap items-center justify-between gap-3 text-xs text-[var(--text-muted)]">
           <div className="flex items-center gap-2">
             <Terminal className="w-3.5 h-3.5 text-[var(--accent)] shrink-0" aria-hidden="true" />
-            <span className="font-semibold text-[var(--text-secondary)] text-[11px]">Shortcuts:</span>
+            <span className="font-semibold text-[var(--text-secondary)] text-[11px]">{t('footer.shortcuts', 'Shortcuts:')}</span>
           </div>
 
           <div className="flex flex-wrap items-center gap-4 font-mono text-[11px]">
@@ -23,20 +25,20 @@ export const Footer = () => {
               <kbd className="px-1.5 py-0.5 rounded bg-[var(--key-bg)] border border-[var(--key-border)] text-[var(--key-text)] text-[10px] shadow-xs">
                 Tab + Enter
               </kbd>
-              <span>Restart Sprint</span>
+              <span>{t('footer.restartSprint', 'Restart Sprint')}</span>
             </span>
             <span className="flex items-center gap-1.5">
               <kbd className="px-1.5 py-0.5 rounded bg-[var(--key-bg)] border border-[var(--key-border)] text-[var(--key-text)] text-[10px] shadow-xs">
                 Esc
               </kbd>
-              <span>Reset</span>
+              <span>{t('footer.reset', 'Reset')}</span>
             </span>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[var(--ui-success)] animate-pulse" aria-hidden="true" />
             <span className="text-[11px] font-mono text-[var(--text-secondary)]">
-              API v1.0.0 Online
+              {t('footer.apiOnline', 'API v1.0.0 Online')}
             </span>
           </div>
         </div>
@@ -57,7 +59,7 @@ export const Footer = () => {
             </a>
 
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-sm">
-              The premier typing academy and telemetry platform engineered to rewire neuromuscular memory, eradicate glance habits, and build effortless typing velocity.
+              {t('footer.tagline', 'The premier typing academy and telemetry platform engineered to rewire neuromuscular memory, eradicate glance habits, and build effortless typing velocity.')}
             </p>
 
             <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-[11px] font-mono text-[var(--text-muted)]">
@@ -66,7 +68,7 @@ export const Footer = () => {
                 style={{ backgroundColor: currentThemeObj.accent }}
                 aria-hidden="true"
               />
-              <span>Theme:</span>
+              <span>{t('nav.theme', 'Theme')}:</span>
               <span className="text-[var(--text-primary)] font-semibold">{currentThemeObj.name}</span>
             </div>
           </div>
@@ -74,39 +76,39 @@ export const Footer = () => {
           {/* Column 1: Curriculum */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider font-mono text-[var(--text-primary)]">
-              Academy
+              {t('nav.academy', 'Academy')}
             </h4>
             <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
-              <li><Link to="/academy?stage=1" className="hover:text-[var(--accent)] transition-colors">Stage 1: Home Row Foundations</Link></li>
-              <li><Link to="/academy?stage=2" className="hover:text-[var(--accent)] transition-colors">Stage 2: Top Row Control</Link></li>
-              <li><Link to="/academy?stage=3" className="hover:text-[var(--accent)] transition-colors">Stage 3: Bottom Row Control</Link></li>
-              <li><Link to="/academy?stage=4" className="hover:text-[var(--accent)] transition-colors">Stage 4: Morphemes & Trigrams</Link></li>
-              <li><Link to="/academy?stage=5" className="hover:text-[var(--accent)] transition-colors">Stage 5: Word Flow & Cadence</Link></li>
-              <li><Link to="/academy?stage=6" className="hover:text-[var(--accent)] transition-colors">Stage 6: Sentence Rhythm & Shift</Link></li>
-              <li><Link to="/academy?stage=7" className="hover:text-[var(--accent)] transition-colors">Stage 7: Speed Endurance & Capstone</Link></li>
+              <li><Link to="/academy?stage=1" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage1', 'Stage 1: Home Row Foundations')}</Link></li>
+              <li><Link to="/academy?stage=2" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage2', 'Stage 2: Top Row Control')}</Link></li>
+              <li><Link to="/academy?stage=3" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage3', 'Stage 3: Bottom Row Control')}</Link></li>
+              <li><Link to="/academy?stage=4" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage4', 'Stage 4: Morphemes & Trigrams')}</Link></li>
+              <li><Link to="/academy?stage=5" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage5', 'Stage 5: Word Flow & Cadence')}</Link></li>
+              <li><Link to="/academy?stage=6" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage6', 'Stage 6: Sentence Rhythm & Shift')}</Link></li>
+              <li><Link to="/academy?stage=7" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage7', 'Stage 7: Speed Endurance & Capstone')}</Link></li>
             </ul>
           </div>
 
           {/* Column 2: Arcade & Modes */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider font-mono text-[var(--text-primary)]">
-              Arcade & Modes
+              {t('nav.arcade', 'Arcade')}
             </h4>
             <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
-              <li><Link to="/arcade?game=cascade" className="hover:text-[var(--accent)] transition-colors">Key Cascade (Defense)</Link></li>
-              <li><Link to="/arcade?game=sprint" className="hover:text-[var(--accent)] transition-colors">Speed Sprint (Velocity)</Link></li>
-              <li><Link to="/arcade?game=hunter" className="hover:text-[var(--accent)] transition-colors">Word Hunter (Precision)</Link></li>
-              <li><Link to="/arcade?game=ninja" className="hover:text-[var(--accent)] transition-colors">Key Ninja (Reaction)</Link></li>
-              <li><Link to="/arcade?game=runner" className="hover:text-[var(--accent)] transition-colors">Word Runner (Adventure)</Link></li>
-              <li><Link to="/arcade?game=memory" className="hover:text-[var(--accent)] transition-colors">Typing Memory (Recall)</Link></li>
-              <li><Link to="/arcade?game=boss" className="hover:text-[var(--accent)] transition-colors">Boss Battle (Combat)</Link></li>
+              <li><Link to="/arcade?game=cascade" className="hover:text-[var(--accent)] transition-colors">{t('arcade.cascade.title', 'Key Cascade')}</Link></li>
+              <li><Link to="/arcade?game=sprint" className="hover:text-[var(--accent)] transition-colors">{t('arcade.sprint.title', 'Speed Sprint')}</Link></li>
+              <li><Link to="/arcade?game=hunter" className="hover:text-[var(--accent)] transition-colors">{t('arcade.hunter.title', 'Word Hunter')}</Link></li>
+              <li><Link to="/arcade?game=ninja" className="hover:text-[var(--accent)] transition-colors">{t('arcade.ninja.title', 'Key Ninja')}</Link></li>
+              <li><Link to="/arcade?game=runner" className="hover:text-[var(--accent)] transition-colors">{t('arcade.runner.title', 'Word Runner')}</Link></li>
+              <li><Link to="/arcade?game=memory" className="hover:text-[var(--accent)] transition-colors">{t('arcade.memory.title', 'Typing Memory')}</Link></li>
+              <li><Link to="/arcade?game=boss" className="hover:text-[var(--accent)] transition-colors">{t('arcade.boss.title', 'Boss Battle')}</Link></li>
             </ul>
           </div>
 
           {/* Column 3: Architecture */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider font-mono text-[var(--text-primary)]">
-              Architecture
+              {t('features.title', 'Architecture')}
             </h4>
             <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
               <li><span>React 19 + Vite 8</span></li>
@@ -121,11 +123,11 @@ export const Footer = () => {
 
         {/* Bottom Bar */}
         <div className="mt-12 pt-6 border-t border-[var(--border)] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[var(--text-muted)]">
-          <p>© {CURRENT_YEAR} KEYFLOW. All rights reserved. Built for typists, engineers, and writers.</p>
+          <p>{t('footer.copyright', { year: CURRENT_YEAR }, `© ${CURRENT_YEAR} KEYFLOW. All rights reserved.`)}</p>
           <div className="flex items-center gap-5 text-[11px]">
-            <Link to="/academy" className="hover:text-[var(--text-primary)] transition-colors">Academy Syllabus</Link>
-            <a href="#themes" className="hover:text-[var(--text-primary)] transition-colors">Themes</a>
-            <a href="#telemetry" className="hover:text-[var(--text-primary)] transition-colors">Telemetry</a>
+            <Link to="/academy" className="hover:text-[var(--text-primary)] transition-colors">{t('nav.academy', 'Academy')}</Link>
+            <a href="#themes" className="hover:text-[var(--text-primary)] transition-colors">{t('nav.themes', 'Themes')}</a>
+            <a href="#telemetry" className="hover:text-[var(--text-primary)] transition-colors">{t('nav.telemetry', 'Telemetry')}</a>
           </div>
         </div>
       </div>

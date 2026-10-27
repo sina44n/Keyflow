@@ -6,11 +6,13 @@ import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getWordHunterConfig } from '../../../utils/arcadeDifficulty';
 import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
+import { useI18n } from '../../../i18n/I18nContext';
 
 const TOTAL_GAME_TIME = 60; // 60s tactical hunt
 const TARGET_LIFETIME = 4.5; // seconds to destroy current target
 
 export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
+  const { t } = useI18n();
   const [gameState, setGameState] = useState('ready');
   const [countdown, setCountdown] = useState(3);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -321,12 +323,12 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
-            Arcade Hub
+            {t('nav.arcade')}
           </Button>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
               <Target className="w-5 h-5 text-[var(--accent)]" />
-              Word Hunter
+              {t('arcade.hunter.title')}
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
               {difficultyInfo.tierName} Intensity (Tier {difficultyInfo.tier}) • Radar Lock & Neutralize
@@ -337,15 +339,15 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
         <div className="flex items-center gap-2">
           {gameState === 'playing' ? (
             <Button variant="outline" size="xs" icon={Pause} onClick={() => setGameState('paused')}>
-              Pause
+              {t('common.pause')}
             </Button>
           ) : gameState === 'paused' ? (
             <Button variant="primary" size="xs" icon={Play} onClick={() => setGameState('playing')}>
-              Resume
+              {t('common.resume')}
             </Button>
           ) : null}
           <Button variant="ghost" size="xs" icon={RotateCcw} onClick={startCountdown}>
-            Restart
+            {t('common.restart')}
           </Button>
         </div>
       </div>
@@ -365,7 +367,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">
         <div>
           <span className="text-[10px] uppercase text-[var(--text-muted)] flex items-center gap-1">
-            <Clock className="w-3 h-3 text-[var(--accent)]" /> Time Left
+            <Clock className="w-3 h-3 text-[var(--accent)]" /> {t('arcade.hud.timeLeft')}
           </span>
           <span
             className={`text-base font-bold ${
@@ -377,7 +379,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Score</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.score')}</span>
           <span className="text-base font-bold text-[var(--text-primary)]">{score}</span>
         </div>
 
@@ -395,19 +397,19 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Eliminated</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('workstation.wordsTyped')}</span>
           <span className="text-base font-bold text-emerald-400">{targetsEliminated}</span>
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Streak</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.streak')}</span>
           <span className="text-base font-bold text-amber-400">
             {streak} <span className="text-[10px] text-[var(--text-muted)]">(best {bestStreak})</span>
           </span>
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Accuracy</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.accuracy')}</span>
           <span className="text-base font-bold text-[var(--ui-success)]">{accuracy}%</span>
         </div>
       </div>
@@ -485,13 +487,13 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
               <Target className="w-8 h-8" />
             </div>
             <div className="space-y-1 max-w-sm">
-              <h3 className="text-xl font-bold text-[var(--text-primary)]">Word Hunter Precision</h3>
+              <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.hunter.title')}</h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Scan the sector, lock onto the highlighted radar target, and eliminate it with 100% typing accuracy before it decays.
+                {t('arcade.hunter.desc')}
               </p>
             </div>
             <Button variant="primary" size="lg" icon={Play} onClick={startCountdown}>
-              Start Radar Hunt
+              {t('common.play')}
             </Button>
           </div>
         )}
@@ -506,13 +508,13 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
 
         {gameState === 'paused' && (
           <div className="absolute inset-0 bg-black/80 backdrop-blur-xs z-30 flex flex-col items-center justify-center space-y-4">
-            <h3 className="text-xl font-bold text-[var(--text-primary)]">Radar Sweep Paused</h3>
+            <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.hud.pause')}</h3>
             <div className="flex gap-3">
               <Button variant="primary" size="sm" icon={Play} onClick={() => setGameState('playing')}>
-                Resume
+                {t('common.resume')}
               </Button>
               <Button variant="outline" size="sm" icon={RotateCcw} onClick={startCountdown}>
-                Restart
+                {t('common.restart')}
               </Button>
             </div>
           </div>
@@ -524,13 +526,13 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
               <Trophy className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-2xl font-black text-[var(--text-primary)]">Radar Mission Complete</h3>
-              <p className="text-xs text-[var(--text-secondary)]">Tactical targeting session results</p>
+              <h3 className="text-2xl font-black text-[var(--text-primary)]">{t('arcade.hud.missionComplete')}</h3>
+              <p className="text-xs text-[var(--text-secondary)]">{t('workstation.summary')}</p>
             </div>
 
             {personalBestNotice && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold">
-                <Trophy className="w-3.5 h-3.5" /> NEW PRECISION RECORD!
+                <Trophy className="w-3.5 h-3.5" /> {t('arcade.hud.newBest')}
               </div>
             )}
 
@@ -551,10 +553,10 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
 
             <div className="flex items-center gap-3 pt-2">
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown}>
-                Hunt Again
+                {t('arcade.hud.playAgain')}
               </Button>
               <Button variant="outline" size="md" onClick={onExit}>
-                Back to Arcade
+                {t('arcade.hud.returnToHub')}
               </Button>
             </div>
           </div>

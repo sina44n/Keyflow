@@ -1,10 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useI18n } from '../../i18n/I18nContext';
 import { Button } from '../common/Button';
 import { ArrowRight, Keyboard } from 'lucide-react';
 
 export const CTASection = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   return (
     <section className="section-spacing border-t border-[var(--border)] relative overflow-hidden bg-[var(--bg-main)]">
@@ -23,11 +25,11 @@ export const CTASection = () => {
 
           <div className="space-y-3 max-w-xl mx-auto">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight leading-tight">
-              Stop looking down.<br />Start flowing in rhythm.
+              {t('cta.title')}<br />{t('cta.titleLine2')}
             </h2>
 
             <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-              Unlock your natural typing velocity through deliberate tactile practice. 7 academy levels, real-time telemetry, and 12 bespoke themes.
+              {t('cta.subtitle')}
             </p>
           </div>
 
@@ -41,23 +43,23 @@ export const CTASection = () => {
                 if (el) el.scrollIntoView({ behavior: 'smooth' });
               }}
             >
-              Start Free Practice
+              {t('cta.startPractice')}
             </Button>
             <Button
               variant="secondary"
               size="md"
               onClick={() => navigate('/academy')}
             >
-              Explore 7-Stage Academy
+              {t('cta.exploreAcademy')}
             </Button>
           </div>
 
           <div className="pt-2 flex flex-wrap items-center justify-center gap-4 text-[11px] font-mono text-[var(--text-muted)]">
-            <span>Free for all typists</span>
+            <span>{t('cta.free')}</span>
             <span>•</span>
-            <span>Zero login required to practice</span>
+            <span>{t('cta.noLogin')}</span>
             <span>•</span>
-            <span>REST API Ready</span>
+            <span>{t('cta.apiReady')}</span>
           </div>
         </div>
       </div>

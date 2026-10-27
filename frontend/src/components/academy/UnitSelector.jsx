@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { ChevronLeft, ChevronRight, Lock, Check } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 
 /**
  * UnitSelector
@@ -14,6 +15,7 @@ export const UnitSelector = ({
   unlockedUnitCount = 7,
   totalUnits = 7,
 }) => {
+  const { t } = useI18n();
   const scrollRef = useRef(null);
 
   const scrollLeft = () => {
@@ -73,7 +75,7 @@ export const UnitSelector = ({
                     : 'bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border-subtle)] opacity-50 cursor-not-allowed'
                 }`}
               >
-                <span>Unit {formatted}</span>
+                <span>{t('academy.unitNum', { num: formatted })}</span>
                 {progress.completed && !isSelected && (
                   <Check className="w-3 h-3 text-[var(--ui-success)]" />
                 )}

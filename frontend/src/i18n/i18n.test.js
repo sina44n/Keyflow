@@ -15,27 +15,78 @@ describe('KEYFLOW Multilingual System', () => {
     }
   });
 
-  it('marks Arabic as RTL direction', () => {
+  it('marks Arabic as RTL direction and other languages as LTR', () => {
     const arabic = SUPPORTED_LANGUAGES.find((l) => l.code === 'ar');
     assert.ok(arabic);
     assert.equal(arabic.dir, 'rtl');
+
+    const ltrLanguages = SUPPORTED_LANGUAGES.filter((l) => l.code !== 'ar');
+    for (const l of ltrLanguages) {
+      assert.equal(l.dir, 'ltr', `Language ${l.code} should be LTR`);
+    }
   });
 
-  it('provides complete core navigation and auth translations in English', () => {
-    const en = TRANSLATIONS.en;
-    assert.ok(en['nav.academy']);
-    assert.ok(en['nav.workstation']);
-    assert.ok(en['nav.arcade']);
-    assert.ok(en['nav.signIn']);
-    assert.ok(en['nav.getStarted']);
-    assert.ok(en['auth.login.title']);
-    assert.ok(en['auth.register.title']);
-    assert.ok(en['auth.password']);
+  it('guarantees complete dictionary parity across all 17 languages with zero missing keys', () => {
+    const enKeys = Object.keys(TRANSLATIONS.en).sort();
+    assert.ok(enKeys.length >= 320, `Expected at least 320 translation keys, got ${enKeys.length}`);
+
+    for (const lang of SUPPORTED_LANGUAGES) {
+      const dict = TRANSLATIONS[lang.code];
+      assert.ok(dict, `Dictionary for ${lang.code} does not exist`);
+      
+      const missingKeys = enKeys.filter((key) => !dict[key]);
+      assert.deepEqual(
+        missingKeys,
+        [],
+        `Language ${lang.code} is missing ${missingKeys.length} keys: ${missingKeys.slice(0, 5).join(', ')}...`
+      );
+    }
   });
 
-  it('translates Malayalam and Hindi auth titles correctly', () => {
+  it('translates core navigation, auth, workstation, and arcade across non-English locales', () => {
+    // Malayalam verification
     assert.equal(TRANSLATIONS.ml['auth.login.title'], 'പ്രവേശിക്കുക');
+    assert.equal(TRANSLATIONS.ml['nav.workstation'], 'വർക്ക്‌സ്റ്റേഷൻ');
+    assert.equal(TRANSLATIONS.ml['arcade.title'], 'ഗെയിം രൂപകൽപ്പന ചെയ്ത സ്പീഡ് ഡ്രില്ലുകൾ');
+
+    // Hindi verification
     assert.equal(TRANSLATIONS.hi['auth.login.title'], 'लॉग इन करें');
+    assert.equal(TRANSLATIONS.hi['nav.academy'], 'अकादमी');
+    assert.equal(TRANSLATIONS.hi['common.accuracy'], 'सटीकता');
+
+    // Arabic verification
+    assert.equal(TRANSLATIONS.ar['nav.signIn'], 'تسجيل الدخول');
+    assert.equal(TRANSLATIONS.ar['common.pause'], 'إيقاف مؤقت');
+
+    // Japanese verification
+    assert.equal(TRANSLATIONS.ja['common.play'], 'プレイ');
+    assert.equal(TRANSLATIONS.ja['nav.themes'], 'テーマ');
+
+    // Spanish verification
+    assert.equal(TRANSLATIONS.es['auth.register.title'], 'Crear cuenta');
+    assert.equal(TRANSLATIONS.es['common.restart'], 'Reiniciar');
+  });
+
+  it('contains dedicated translations for all 7 arcade games across all languages', () => {
+    const gameIds = ['cascade', 'sprint', 'hunter', 'ninja', 'runner', 'memory', 'boss'];
+    for (const lang of SUPPORTED_LANGUAGES) {
+      const dict = TRANSLATIONS[lang.code];
+      for (const id of gameIds) {
+        assert.ok(dict[`arcade.${id}.title`], `Missing arcade.${id}.title in ${lang.code}`);
+        assert.ok(dict[`arcade.${id}.desc`], `Missing arcade.${id}.desc in ${lang.code}`);
+        assert.ok(dict[`arcade.${id}.badge`], `Missing arcade.${id}.badge in ${lang.code}`);
+      }
+    }
+  });
+
+  it('contains quote category translations across all languages', () => {
+    const categories = ['typing', 'focus', 'discipline', 'patience', 'consistency', 'mastery', 'flow'];
+    for (const lang of SUPPORTED_LANGUAGES) {
+      const dict = TRANSLATIONS[lang.code];
+      for (const cat of categories) {
+        assert.ok(dict[`quotes.category.${cat}`], `Missing quotes.category.${cat} in ${lang.code}`);
+      }
+    }
   });
 
   it('falls back to English when a translation key is missing in another language', () => {
@@ -44,3 +95,4 @@ describe('KEYFLOW Multilingual System', () => {
     assert.ok(fallback);
   });
 });
+

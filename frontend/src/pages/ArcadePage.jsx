@@ -1,12 +1,14 @@
 import React from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Gamepad2 } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 import { ArcadeHub } from '../components/arcade/ArcadeHub';
 
 export const ArcadePage = () => {
   const { gameId } = useParams();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   // Support both /arcade/:gameId and /arcade?game=:gameId
   const activeGameId = gameId || searchParams.get('game') || null;
@@ -26,15 +28,15 @@ export const ArcadePage = () => {
         <div className="text-center max-w-3xl mx-auto space-y-3.5">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--accent)] font-mono">
             <Gamepad2 className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Interactive Typing Arcade • 7 Playable Games</span>
+            <span>{t('arcade.badge')}</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-[var(--text-primary)] tracking-tight">
-            Game-Engineered Speed Drills
+            {t('arcade.title')}
           </h1>
 
           <p className="text-xs sm:text-sm md:text-base text-[var(--text-secondary)] leading-relaxed max-w-2xl mx-auto">
-            Neuromuscular drills disguised as arcade classics. Train reaction speed, peripheral vision, and burst cadence under time pressure with genuine game physics and live telemetry.
+            {t('arcade.subtitle')}
           </p>
         </div>
 

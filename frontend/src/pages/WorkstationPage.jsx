@@ -19,6 +19,7 @@ import { getGuidePreferences, saveGuidePreferences } from '../utils/lessonProgre
 import { getCharacterFeedback, countCorrectChars } from '../utils/typingFeedback';
 import { SoundSelector } from '../components/common/SoundSelector';
 import { useKeyboardSound } from '../context/SoundContext';
+import { useI18n } from '../i18n/I18nContext';
 
 const PRACTICE_PASSAGES = [
   {
@@ -70,6 +71,7 @@ const WORD_OPTIONS = [10, 25, 50, 100];
 
 export const WorkstationPage = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   // Mode settings
   const [mode, setMode] = useState('timed'); // 'timed' | 'words' | 'passage'
@@ -290,10 +292,10 @@ export const WorkstationPage = () => {
         <div>
           <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[11px] font-mono text-[var(--accent)]">
             <Sparkles className="w-3 h-3" />
-            <span>Tactile Professional Workstation</span>
+            <span>{t('hero.latency')}</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] mt-1 tracking-tight">
-            Typing Test Workstation
+            {t('nav.workstation')}
           </h1>
         </div>
 
@@ -305,7 +307,7 @@ export const WorkstationPage = () => {
             icon={BookOpen}
             onClick={() => navigate('/academy')}
           >
-            Explore 4,200 Academy Lessons
+            {t('hero.exploreAcademy')}
           </Button>
         </div>
       </div>
@@ -317,6 +319,12 @@ export const WorkstationPage = () => {
           {MODES.map((m) => {
             const Icon = m.icon;
             const isSelected = mode === m.id;
+            const localizedLabel =
+              m.id === 'timed'
+                ? t('workstation.mode.timed')
+                : m.id === 'words'
+                ? t('workstation.mode.words')
+                : t('workstation.mode.passage');
             return (
               <button
                 key={m.id}
@@ -329,7 +337,7 @@ export const WorkstationPage = () => {
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
-                <span>{m.label}</span>
+                <span>{localizedLabel}</span>
               </button>
             );
           })}
@@ -339,18 +347,18 @@ export const WorkstationPage = () => {
         <div className="flex items-center gap-2">
           {mode === 'timed' && (
             <div className="flex items-center gap-1 bg-[var(--bg-elevated)] p-1 rounded-lg border border-[var(--border)]">
-              {TIME_OPTIONS.map((t) => (
+              {TIME_OPTIONS.map((timeVal) => (
                 <button
-                  key={t}
+                  key={timeVal}
                   type="button"
-                  onClick={() => setTimeLimit(t)}
+                  onClick={() => setTimeLimit(timeVal)}
                   className={`px-2.5 py-1 rounded text-xs font-mono cursor-pointer transition-colors ${
-                    timeLimit === t
+                    timeLimit === timeVal
                       ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold'
                       : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                   }`}
                 >
-                  {t}s
+                  {t('workstation.seconds', { count: timeVal })}
                 </button>
               ))}
             </div>
@@ -369,7 +377,7 @@ export const WorkstationPage = () => {
                       : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
                   }`}
                 >
-                  {w}w
+                  {t('workstation.wordCount', { count: w })}
                 </button>
               ))}
             </div>
@@ -405,7 +413,7 @@ export const WorkstationPage = () => {
             aria-pressed={keyboardGuideOn}
           >
             <Keyboard className="w-3.5 h-3.5" />
-            <span>KB Guide {keyboardGuideOn ? 'ON' : 'OFF'}</span>
+            <span>{keyboardGuideOn ? t('workstation.kbGuideOn') : t('workstation.kbGuideOff')}</span>
           </button>
 
           {/* Hand Guide Toggle */}
@@ -421,7 +429,7 @@ export const WorkstationPage = () => {
             aria-pressed={handGuideOn}
           >
             <HandMetal className="w-3.5 h-3.5" />
-            <span>Hand Guide {handGuideOn ? 'ON' : 'OFF'}</span>
+            <span>{handGuideOn ? t('workstation.handGuideOn') : t('workstation.handGuideOff')}</span>
           </button>
 
           {/* Sound Selector Popover */}
@@ -429,7 +437,7 @@ export const WorkstationPage = () => {
 
           {/* Reset */}
           <Button variant="outline" size="sm" icon={RotateCcw} onClick={handleReset}>
-            Restart
+            {t('workstation.restart')}
           </Button>
         </div>
       </div>
@@ -441,12 +449,12 @@ export const WorkstationPage = () => {
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-1.5">
               <Gauge className="w-4 h-4 text-[var(--accent)]" />
-              <span className="text-[11px] uppercase">Live WPM:</span>
+              <span className="text-[11px] uppercase">{t('workstation.liveWpm')}</span>
               <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveWpm}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Target className="w-4 h-4 text-[var(--ui-success)]" />
-              <span className="text-[11px] uppercase">Accuracy:</span>
+              <span className="text-[11px] uppercase">{t('workstation.accuracy')}</span>
               <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveAccuracy}%</span>
             </div>
           </div>
@@ -521,21 +529,21 @@ export const WorkstationPage = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-xl font-bold text-[var(--text-primary)]">
-                      {sessionResults.tier} Performance
+                      {sessionResults.tier} {t('workstation.summary')}
                     </h2>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--accent)]">
-                      {sessionResults.netWpm} WPM
+                      {sessionResults.netWpm} {t('common.wpm')}
                     </span>
                   </div>
                   <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                    Completed {mode} test in {sessionResults.duration} seconds with {sessionResults.accuracy}% accuracy.
+                    Completed {mode} test in {sessionResults.duration} {t('common.seconds')} with {sessionResults.accuracy}% {t('common.accuracy').toLowerCase()}.
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
                 <Button variant="secondary" size="md" icon={RotateCcw} onClick={handleReset}>
-                  Retry Test
+                  {t('workstation.tryAgain')}
                 </Button>
                 <Button
                   variant="primary"
@@ -543,7 +551,7 @@ export const WorkstationPage = () => {
                   icon={ArrowRight}
                   onClick={() => navigate('/academy')}
                 >
-                  Academy Training
+                  {t('nav.academy')}
                 </Button>
               </div>
             </div>
@@ -551,25 +559,25 @@ export const WorkstationPage = () => {
             {/* Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Net Velocity</div>
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">{t('workstation.netWpm')}</div>
                 <div className="text-2xl font-extrabold font-mono text-[var(--accent)]">
-                  {sessionResults.netWpm} <span className="text-xs text-[var(--text-muted)]">WPM</span>
+                  {sessionResults.netWpm} <span className="text-xs text-[var(--text-muted)]">{t('common.wpm')}</span>
                 </div>
               </div>
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Accuracy Rate</div>
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">{t('common.accuracy')}</div>
                 <div className="text-2xl font-extrabold font-mono text-[var(--ui-success)]">
                   {sessionResults.accuracy}%
                 </div>
               </div>
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Gross Velocity</div>
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">{t('workstation.rawWpm')}</div>
                 <div className="text-2xl font-extrabold font-mono text-[var(--text-primary)]">
-                  {sessionResults.grossWpm} <span className="text-xs text-[var(--text-muted)]">WPM</span>
+                  {sessionResults.grossWpm} <span className="text-xs text-[var(--text-muted)]">{t('common.wpm')}</span>
                 </div>
               </div>
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">Uncorrected Typos</div>
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">{t('workstation.mistakes')}</div>
                 <div className="text-2xl font-extrabold font-mono text-[var(--ui-error)]">
                   {sessionResults.mistakes}
                 </div>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Volume2, VolumeX } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 import { ARCADE_GAMES, ARCADE_CATEGORIES } from '../../data/arcadeGamesData';
 import { getArcadeRecords } from '../../utils/arcadeStorage';
 import { ArcadeGameCard } from './ArcadeGameCard';
@@ -14,6 +15,7 @@ import { TypingMemoryGame } from './games/TypingMemoryGame';
 import { BossBattleGame } from './games/BossBattleGame';
 
 export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedded = false }) => {
+  const { t } = useI18n();
   const [selectedGameId, setSelectedGameId] = useState(initialGameId);
   const [activeCategory, setActiveCategory] = useState('all');
   const [records, setRecords] = useState(getArcadeRecords);
@@ -138,22 +140,32 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
             {/* Category Filter Pills */}
             <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Arcade categories">
-              {ARCADE_CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={activeCategory === cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`px-3.5 py-1.5 rounded-full text-xs font-mono font-bold transition-all cursor-pointer ${
-                    activeCategory === cat.id
-                      ? 'bg-[var(--accent)] text-[var(--accent-fg)] shadow-xs'
-                      : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)]'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
+              {ARCADE_CATEGORIES.map((cat) => {
+                const localizedCat =
+                  cat.id === 'all'
+                    ? t('arcade.cat.all')
+                    : cat.id === 'reaction'
+                    ? t('arcade.cat.reaction')
+                    : cat.id === 'precision'
+                    ? t('arcade.cat.precision')
+                    : t('arcade.cat.action');
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeCategory === cat.id}
+                    onClick={() => setActiveCategory(cat.id)}
+                    className={`px-3.5 py-1.5 rounded-full text-xs font-mono font-bold transition-all cursor-pointer ${
+                      activeCategory === cat.id
+                        ? 'bg-[var(--accent)] text-[var(--accent-fg)] shadow-xs'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border)]'
+                    }`}
+                  >
+                    {localizedCat}
+                  </button>
+                );
+              })}
             </div>
 
             {/* Sound Toggle */}
@@ -168,12 +180,12 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
                 {soundOn ? (
                   <>
                     <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>SFX: On</span>
+                    <span>{t('arcade.sfxOn')}</span>
                   </>
                 ) : (
                   <>
                     <VolumeX className="w-3.5 h-3.5 text-[var(--text-muted)]" />
-                    <span>SFX: Muted</span>
+                    <span>{t('arcade.sfxMuted')}</span>
                   </>
                 )}
               </button>
@@ -195,8 +207,8 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
           {/* Bottom Overview Stat Band */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-5 rounded-2xl bg-[var(--bg-elevated)]/60 border border-[var(--border)] text-center text-xs font-mono">
             <div className="space-y-1">
-              <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Total Games</span>
-              <span className="text-base font-bold text-[var(--text-primary)]">7 Playable Modes</span>
+              <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">{t('arcade.totalGames')}</span>
+              <span className="text-base font-bold text-[var(--text-primary)]">{t('arcade.modesCount')}</span>
             </div>
             <div className="space-y-1">
               <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Difficulty Engine</span>

@@ -1,8 +1,10 @@
 import React from 'react';
 import { AlertTriangle, Play, ArrowLeft } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 import { Button } from '../common/Button';
 
 export const ArcadeExitDialog = ({ isOpen, onCancel, onConfirm }) => {
+  const { t } = useI18n();
   if (!isOpen) return null;
 
   return (
@@ -19,10 +21,10 @@ export const ArcadeExitDialog = ({ isOpen, onCancel, onConfirm }) => {
 
         <div className="space-y-1.5">
           <h3 id="abandon-run-title" className="text-lg font-bold text-[var(--text-primary)]">
-            Abandon Active Run?
+            {t('arcade.exit.title')}
           </h3>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-            You currently have an active typing session in progress. Leaving now will discard your current run and score.
+            {t('arcade.exit.warning')}
           </p>
         </div>
 
@@ -33,7 +35,7 @@ export const ArcadeExitDialog = ({ isOpen, onCancel, onConfirm }) => {
             icon={Play}
             onClick={onCancel}
           >
-            Keep Playing
+            {t('arcade.exit.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -42,7 +44,7 @@ export const ArcadeExitDialog = ({ isOpen, onCancel, onConfirm }) => {
             onClick={onConfirm}
             className="bg-rose-600 hover:bg-rose-700 text-white"
           >
-            Exit to Hub
+            {t('arcade.exit.confirm')}
           </Button>
         </div>
       </div>

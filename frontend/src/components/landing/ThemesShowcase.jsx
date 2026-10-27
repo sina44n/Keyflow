@@ -1,9 +1,11 @@
 import React from 'react';
 import { useTheme, THEMES } from '../../context/ThemeContext';
+import { useI18n } from '../../i18n/I18nContext';
 import { Palette, Check, Sparkles } from 'lucide-react';
 
 export const ThemesShowcase = () => {
   const { theme, setTheme, currentThemeObj } = useTheme();
+  const { t } = useI18n();
 
   return (
     <section id="themes" className="section-spacing border-t border-[var(--border)] relative bg-[var(--bg-main)]">
@@ -12,13 +14,13 @@ export const ThemesShowcase = () => {
         <div className="text-center max-w-2xl mx-auto space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--accent)] font-mono">
             <Palette className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>12 Studio Color Architectures</span>
+            <span>{t('themes.badge', '12 Studio Color Architectures')}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">
-            Tailored for Every Typist's Eye
+            {t('themes.title', "Tailored for Every Typist's Eye")}
           </h2>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-            Select any palette below to instantly re-theme KEYFLOW's interface. Every token, virtual keycap, and metric graph transitions with zero flash.
+            {t('themes.subtitle', "Select any palette below to instantly re-theme KEYFLOW's interface. Every token, virtual keycap, and metric graph transitions with zero flash.")}
           </p>
         </div>
 
@@ -51,7 +53,7 @@ export const ThemesShowcase = () => {
                     style={{ backgroundColor: t.accent, color: t.bg }}
                   >
                     <Check className="w-3 h-3" />
-                    <span>Active</span>
+                    <span>{t('themes.active', 'Active')}</span>
                   </div>
                 )}
 

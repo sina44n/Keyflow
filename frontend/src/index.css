@@ -1282,3 +1282,25 @@ a:hover {
   border: 1px solid var(--border);
   color: var(--text-secondary);
 }
+
+/* ========================================================== */
+/* RTL DIRECTION & ARABIC SUPPORT                             */
+/* ========================================================== */
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="rtl"] .rtl-mirror {
+  transform: scaleX(-1);
+}
+
+/* Monospace metrics, code, shortcuts, and typing inputs remain LTR */
+[dir="rtl"] .font-mono,
+[dir="rtl"] code,
+[dir="rtl"] kbd,
+[dir="rtl"] input[type="password"],
+[dir="rtl"] .ltr-preserve {
+  direction: ltr;
+  text-align: left;
+}
+

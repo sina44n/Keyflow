@@ -1,5 +1,6 @@
 import React from 'react';
 import { Flame, Target } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 
 /**
  * ProgressStats
@@ -17,6 +18,7 @@ export const ProgressStats = ({
   accuracy = 96,
   accuracyChange = '+2%',
 }) => {
+  const { t } = useI18n();
   // Circular ring calculations
   const radius = 24;
   const circumference = 2 * Math.PI * radius;
@@ -62,9 +64,9 @@ export const ProgressStats = ({
 
         {/* Text */}
         <div className="flex flex-col">
-          <span className="text-[11px] font-medium text-[var(--text-secondary)]">Overall Progress</span>
+          <span className="text-[11px] font-medium text-[var(--text-secondary)]">{t('academy.progress')}</span>
           <span className="font-mono text-sm font-bold text-[var(--text-primary)] mt-0.5">
-            {completedUnits} <span className="text-xs text-[var(--text-muted)] font-normal">/ {totalUnits} Units</span>
+            {completedUnits} <span className="text-xs text-[var(--text-muted)] font-normal">/ {totalUnits} {t('common.unit')}s</span>
           </span>
         </div>
       </div>
@@ -76,9 +78,9 @@ export const ProgressStats = ({
           <Flame className="w-6 h-6 text-[var(--accent)] fill-[var(--accent)]/20 animate-pulse" />
         </div>
         <div className="flex flex-col">
-          <span className="text-[11px] font-medium text-[var(--text-secondary)]">Current Streak</span>
+          <span className="text-[11px] font-medium text-[var(--text-secondary)]">{t('academy.streak')}</span>
           <span className="font-mono text-base font-bold text-[var(--text-primary)] mt-0.5">
-            {streak} <span className="text-xs text-[var(--text-muted)] font-normal">Days</span>
+            {streak}
           </span>
         </div>
       </div>
@@ -90,7 +92,7 @@ export const ProgressStats = ({
           <Target className="w-6 h-6 text-[var(--accent)]" />
         </div>
         <div className="flex flex-col">
-          <span className="text-[11px] font-medium text-[var(--text-secondary)]">Accuracy</span>
+          <span className="text-[11px] font-medium text-[var(--text-secondary)]">{t('common.accuracy')}</span>
           <div className="flex items-center gap-2 mt-0.5">
             <span className="font-mono text-base font-bold text-[var(--text-primary)]">
               {accuracy}%

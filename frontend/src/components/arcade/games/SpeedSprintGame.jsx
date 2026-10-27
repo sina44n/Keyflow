@@ -6,10 +6,12 @@ import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getSpeedSprintConfig } from '../../../utils/arcadeDifficulty';
 import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
+import { useI18n } from '../../../i18n/I18nContext';
 
 const TIME_PRESETS = [30, 60, 120];
 
 export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
+  const { t } = useI18n();
   const [selectedDuration, setSelectedDuration] = useState(60);
   const [gameState, setGameState] = useState('ready'); // ready, countdown, playing, paused, gameover
   const [countdown, setCountdown] = useState(3);
@@ -292,12 +294,12 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
-            Arcade Hub
+            {t('nav.arcade')}
           </Button>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
               <Zap className="w-5 h-5 text-[var(--accent)]" />
-              Speed Sprint
+              {t('arcade.sprint.title')}
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
               {sprintConfig.tierLabel} Intensity (Tier {difficultyInfo.tier}) • +0.5s per accurate word
@@ -330,15 +332,15 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
 
           {gameState === 'playing' ? (
             <Button variant="outline" size="xs" icon={Pause} onClick={() => setGameState('paused')}>
-              Pause
+              {t('common.pause')}
             </Button>
           ) : gameState === 'paused' ? (
             <Button variant="primary" size="xs" icon={Play} onClick={() => setGameState('playing')}>
-              Resume
+              {t('common.resume')}
             </Button>
           ) : null}
           <Button variant="ghost" size="xs" icon={RotateCcw} onClick={startCountdown}>
-            Restart
+            {t('common.restart')}
           </Button>
         </div>
       </div>
@@ -358,7 +360,7 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">
         <div>
           <span className="text-[10px] uppercase text-[var(--text-muted)] flex items-center gap-1">
-            <Clock className="w-3 h-3 text-[var(--accent)]" /> Remaining
+            <Clock className="w-3 h-3 text-[var(--accent)]" /> {t('workstation.remaining')}
           </span>
           <div className="flex items-center gap-1.5">
             <span
@@ -375,29 +377,29 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Live WPM</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('workstation.liveWpm')}</span>
           <span className="text-base font-bold text-[var(--accent)]">{liveWpm}</span>
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Accuracy</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.accuracy')}</span>
           <span className="text-base font-bold text-[var(--ui-success)]">{liveAccuracy}%</span>
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Words</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.words')}</span>
           <span className="text-base font-bold text-emerald-400">{wordsCompleted}</span>
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Streak</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.streak')}</span>
           <span className="text-base font-bold text-amber-400">
             {currentStreak} <span className="text-[10px] text-[var(--text-muted)]">(max {bestStreak})</span>
           </span>
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Score</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.score')}</span>
           <span className="text-base font-bold text-[var(--text-primary)]">{score}</span>
         </div>
       </div>
@@ -479,13 +481,13 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
               <Zap className="w-8 h-8" />
             </div>
             <div className="space-y-1 max-w-sm">
-              <h3 className="text-xl font-bold text-[var(--text-primary)]">Speed Sprint Challenge</h3>
+              <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.sprint.title')}</h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Type non-stop before the clock runs out. Every accurately finished word extends your timer by +0.5s to test your raw burst velocity.
+                {t('arcade.sprint.desc')}
               </p>
             </div>
             <Button variant="primary" size="lg" icon={Play} onClick={startCountdown}>
-              Start {selectedDuration}s Sprint
+              {t('common.play')}
             </Button>
           </div>
         )}
@@ -500,13 +502,13 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
 
         {gameState === 'paused' && (
           <div className="absolute inset-0 bg-black/80 backdrop-blur-xs z-30 flex flex-col items-center justify-center space-y-4 rounded-xl">
-            <h3 className="text-xl font-bold text-[var(--text-primary)]">Sprint Paused</h3>
+            <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.hud.pause')}</h3>
             <div className="flex gap-3">
               <Button variant="primary" size="sm" icon={Play} onClick={() => setGameState('playing')}>
-                Resume
+                {t('common.resume')}
               </Button>
               <Button variant="outline" size="sm" icon={RotateCcw} onClick={startCountdown}>
-                Restart
+                {t('common.restart')}
               </Button>
             </div>
           </div>
@@ -518,13 +520,13 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
               <Trophy className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-2xl font-black text-[var(--text-primary)]">Time Expired!</h3>
-              <p className="text-xs text-[var(--text-secondary)]">Complete velocity session summary</p>
+              <h3 className="text-2xl font-black text-[var(--text-primary)]">{t('arcade.hud.gameOver')}</h3>
+              <p className="text-xs text-[var(--text-secondary)]">{t('workstation.summary')}</p>
             </div>
 
             {personalBestNotice && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold">
-                <Trophy className="w-3.5 h-3.5" /> NEW PEAK VELOCITY RECORD!
+                <Trophy className="w-3.5 h-3.5" /> {t('arcade.hud.newBest')}
               </div>
             )}
 
@@ -549,10 +551,10 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
 
             <div className="flex items-center gap-3 pt-2">
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown}>
-                Sprint Again
+                {t('arcade.hud.playAgain')}
               </Button>
               <Button variant="outline" size="md" onClick={onExit}>
-                Back to Arcade
+                {t('arcade.hud.returnToHub')}
               </Button>
             </div>
           </div>

@@ -11,7 +11,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { authAPI, setStoredToken, clearStoredToken, getStoredToken } from '../utils/api';
 
-const AuthContext = createContext(null);
+export const AuthContext = createContext(null);
 
 export const useAuth = () => {
   const ctx = useContext(AuthContext);

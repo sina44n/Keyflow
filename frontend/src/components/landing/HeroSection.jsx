@@ -14,6 +14,7 @@ import {
 import { KeyboardGuide } from '../academy/KeyboardGuide';
 import { SoundSelector } from '../common/SoundSelector';
 import { useKeyboardSound } from '../../context/SoundContext';
+import { useI18n } from '../../i18n/I18nContext';
 import { getGuidePreferences, saveGuidePreferences } from '../../utils/lessonProgress';
 import { getCharacterFeedback, countCorrectChars } from '../../utils/typingFeedback';
 
@@ -21,6 +22,7 @@ const SAMPLE_TEXT = 'the quick brown fox jumps over the lazy dog and flows with 
 
 export const HeroSection = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [inputVal, setInputVal] = useState('');
   const [startTime, setStartTime] = useState(null);
   const [wpm, setWpm] = useState(0);
@@ -115,18 +117,18 @@ export const HeroSection = () => {
             {/* Status Chip */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--text-secondary)] font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
-              <span>Studio Engine v1.0 • 7 Levels</span>
+              <span>{t('hero.badge', '0ms Input Latency • ANSI 60% Virtual Guide')}</span>
             </div>
 
             {/* Headline */}
             <h1 className="text-3xl sm:text-4xl xl:text-5xl font-extrabold tracking-tight leading-[1.12] text-[var(--text-primary)]">
-              Type with intuition.<br />
-              <span className="text-[var(--accent)]">Flow without friction.</span>
+              {t('hero.title', 'Type with intuition.')}<br />
+              <span className="text-[var(--accent)]">{t('hero.titleAccent', 'Flow without friction.')}</span>
             </h1>
 
             {/* Subtitle */}
             <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed max-w-lg">
-              A masterclass typing education platform engineered to rewire neuromuscular memory, eliminate keyboard glancing, and achieve effortless 100+ WPM velocity.
+              {t('hero.subtitle', 'A masterclass typing education platform engineered to rewire neuromuscular memory, eliminate keyboard glancing, and achieve effortless 100+ WPM velocity.')}
             </p>
 
             {/* CTAs */}
@@ -137,14 +139,14 @@ export const HeroSection = () => {
                 icon={ArrowRight}
                 onClick={() => navigate('/workstation')}
               >
-                Launch Workstation
+                {t('hero.launchWorkstation', 'Launch Workstation')}
               </Button>
               <Button
                 variant="secondary"
                 size="md"
                 onClick={() => navigate('/academy')}
               >
-                Explore 7-Stage Academy
+                {t('hero.exploreAcademy', 'Explore 7-Stage Academy')}
               </Button>
             </div>
 
@@ -152,15 +154,15 @@ export const HeroSection = () => {
             <div className="pt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-mono text-[var(--text-muted)]">
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--ui-success)]" />
-                <span>0ms Input Latency</span>
+                <span>{t('hero.latency', '0ms Input Latency')}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
-                <span>Zero-Glance Anchoring</span>
+                <span>{t('hero.anchoring', 'Zero-Glance Anchoring')}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)]" />
-                <span>12 Studio Themes</span>
+                <span>{t('hero.themes', '12 Studio Themes')}</span>
               </span>
             </div>
           </div>
@@ -218,7 +220,7 @@ export const HeroSection = () => {
                     aria-pressed={keyboardGuideOn}
                   >
                     <Keyboard className="w-3 h-3" />
-                    <span>KB {keyboardGuideOn ? 'ON' : 'OFF'}</span>
+                    <span>{t('hero.kbGuide', 'KB')} {keyboardGuideOn ? t('common.on', 'ON') : t('common.off', 'OFF')}</span>
                   </button>
 
                   <button
@@ -233,14 +235,14 @@ export const HeroSection = () => {
                     aria-pressed={handGuideOn}
                   >
                     <HandMetal className="w-3 h-3" />
-                    <span>Hand {handGuideOn ? 'ON' : 'OFF'}</span>
+                    <span>{t('hero.handGuide', 'Hand')} {handGuideOn ? t('common.on', 'ON') : t('common.off', 'OFF')}</span>
                   </button>
 
                   {/* Sound Selector Popover */}
                   <SoundSelector variant="compact" />
 
                   <Button variant="outline" size="sm" icon={RotateCcw} onClick={handleReset}>
-                    Reset
+                    {t('common.restart', 'Reset')}
                   </Button>
                 </div>
               </div>
@@ -330,8 +332,8 @@ export const HeroSection = () => {
 
               {/* Workstation Footer Hint */}
               <div className="mt-3 flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)]">
-                <span>Click inside terminal to type directly</span>
-                <span className="hidden sm:inline">Shortcuts: Tab + Enter to reset</span>
+                <span>{t('workstation.clickToFocus', 'Click inside terminal to type directly')}</span>
+                <span className="hidden sm:inline">{t('footer.shortcuts', 'Shortcuts:')} Tab + Enter</span>
               </div>
             </div>
           </div>
@@ -343,9 +345,9 @@ export const HeroSection = () => {
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] text-[var(--accent)] flex items-center justify-center">
               <Zap className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">0ms Input Latency</h3>
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">{t('hero.latency', '0ms Input Latency')}</h3>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Native keydown event processing with sub-millisecond precision and instant caret repositioning.
+              {t('features.card2.desc', 'Native keydown event processing with sub-millisecond precision and instant caret repositioning.')}
             </p>
           </div>
 
@@ -353,9 +355,9 @@ export const HeroSection = () => {
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] text-[var(--ui-success)] flex items-center justify-center">
               <Keyboard className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">7-Stage Academy</h3>
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">{t('features.card1.title', '7-Stage Academy')}</h3>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Progressive stages from tactile Home Row anchors to programmer bracket syntax and high-speed endurance.
+              {t('features.card1.desc', 'Progressive multi-tiered curriculum with 4,200 total drills targeting finger isolation, spatial mapping, and blind motor confidence.')}
             </p>
           </div>
 
@@ -363,9 +365,9 @@ export const HeroSection = () => {
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] text-[var(--accent)] flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">12 Studio Themes</h3>
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">{t('hero.themes', '12 Studio Themes')}</h3>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              Engineered with CSS custom properties for instant zero-flash switching and persistent profile sync.
+              {t('features.card4.desc', 'Tailored palettes tested for high-contrast legibility and zero visual fatigue during prolonged 3-hour focus sprints.')}
             </p>
           </div>
         </div>

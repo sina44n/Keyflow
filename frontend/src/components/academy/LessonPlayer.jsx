@@ -15,6 +15,7 @@ import {
 import { SoundSelector } from '../common/SoundSelector';
 import { useKeyboardSound } from '../../context/SoundContext';
 import { getCharacterFeedback, countCorrectChars } from '../../utils/typingFeedback';
+import { useI18n } from '../../i18n/I18nContext';
 
 /**
  * LessonPlayer — Masterpiece Typing Workstation matching the reference design.
@@ -36,6 +37,7 @@ export const LessonPlayer = ({
   hasNextStage = false,
   stage: legacyStage,
 }) => {
+  const { t } = useI18n();
   // ── Resolve lesson data ──────────────────────────────────────────────────
   const lesson = useMemo(() => {
     if (stageId && lessonNum) {
@@ -287,8 +289,8 @@ export const LessonPlayer = ({
   if (!lesson) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <p className="text-sm font-mono text-[var(--text-muted)]">Lesson not found.</p>
-        {onBack && <Button variant="secondary" onClick={onBack}>Back to Academy</Button>}
+        <p className="text-sm font-mono text-[var(--text-muted)]">{t('common.loading')}</p>
+        {onBack && <Button variant="secondary" onClick={onBack}>{t('lesson.backToAcademy')}</Button>}
       </div>
     );
   }
@@ -583,28 +585,28 @@ export const LessonPlayer = ({
           {[
             {
               icon: Zap,
-              label: 'WPM',
+              label: t('common.wpm'),
               value: currentWpm,
               color: 'var(--text-primary)',
               iconColor: 'var(--accent, #FF1744)',
             },
             {
               icon: Target,
-              label: 'ACCURACY',
+              label: t('common.accuracy'),
               value: `${currentAccuracy}%`,
               color: 'var(--text-primary)',
               iconColor: '#F59E0B',
             },
             {
               icon: Flame,
-              label: 'STREAK',
+              label: t('common.streak'),
               value: streak,
               color: 'var(--text-primary)',
               iconColor: '#F97316',
             },
             {
               icon: Clock,
-              label: 'TIME',
+              label: t('common.time'),
               value: timeDisplay,
               color: 'var(--text-primary)',
               iconColor: '#38BDF8',
@@ -785,7 +787,7 @@ export const LessonPlayer = ({
                   </div>
                   <div>
                     <h3 className="text-base font-bold text-[var(--text-primary)]">
-                      {completedResult.passed ? 'Lesson Complete!' : 'Keep Practicing'}
+                      {completedResult.passed ? t('lesson.passed') : t('lesson.failed')}
                     </h3>
                     <p className="text-xs text-[var(--text-secondary)]">
                       {completedResult.passed
@@ -847,22 +849,22 @@ export const LessonPlayer = ({
               {/* Actions */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                 <Button variant="secondary" size="sm" icon={RotateCcw} onClick={handleReset}>
-                  Retry
+                  {t('lesson.retry')}
                 </Button>
                 <div className="flex items-center gap-2">
                   {onBack && (
                     <Button variant="outline" size="sm" onClick={onBack}>
-                      Overview
+                      {t('lesson.backToAcademy')}
                     </Button>
                   )}
                   {completedResult.passed && hasNextLesson && onNextLesson && (
                     <Button variant="primary" size="sm" icon={ArrowRight} onClick={onNextLesson}>
-                      Next Lesson
+                      {t('lesson.nextLesson')}
                     </Button>
                   )}
                   {completedResult.passed && hasNextStage && onNextStage && !hasNextLesson && (
                     <Button variant="primary" size="sm" icon={ArrowRight} onClick={onNextStage}>
-                      Next Stage
+                      {t('lesson.nextStage')}
                     </Button>
                   )}
                 </div>

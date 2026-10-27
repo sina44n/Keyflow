@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, Lock, Play, Clock, Star } from 'lucide-react';
 import { LessonIllustration } from './LessonIllustration';
+import { useI18n } from '../../i18n/I18nContext';
 
 /**
  * LessonCard
@@ -15,6 +16,7 @@ export const LessonCard = React.forwardRef(({
   onSelect,
   onLockedClick,
 }, ref) => {
+  const { t } = useI18n();
   const [isHovered, setIsHovered] = useState(false);
 
   const isCompleted = !!lesson.record?.completed;
@@ -97,7 +99,7 @@ export const LessonCard = React.forwardRef(({
         <div>
           {isCurrent && (
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] text-[10px] font-mono font-bold tracking-wider uppercase shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_50%,transparent)]">
-              <span>NEXT UP</span>
+              <span>{t('academy.continueLesson')}</span>
               <Play className="w-2.5 h-2.5 fill-current" />
             </span>
           )}
@@ -151,7 +153,7 @@ export const LessonCard = React.forwardRef(({
             <Clock className="w-3 h-3 text-[var(--text-muted)]" />
             <span>{lesson.estimatedMinutes || '2'} min</span>
             {isCompleted && lesson.record?.bestWpm && (
-              <span className="text-[var(--ui-success)] font-bold ml-1">{lesson.record.bestWpm} WPM</span>
+              <span className="text-[var(--ui-success)] font-bold ml-1">{lesson.record.bestWpm} {t('common.wpm')}</span>
             )}
           </div>
 

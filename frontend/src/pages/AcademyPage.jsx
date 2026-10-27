@@ -20,6 +20,7 @@ import { UnitSelector } from '../components/academy/UnitSelector';
 import { LessonMap } from '../components/academy/LessonMap';
 import { ShortcutBar } from '../components/academy/ShortcutBar';
 import { Button } from '../components/common/Button';
+import { useI18n } from '../i18n/I18nContext';
 import {
   Lock,
   ChevronDown,
@@ -34,6 +35,7 @@ const VIEW = {
 };
 
 export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
+  const { t } = useI18n();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const rawLessonParam = searchParams ? searchParams.get('lesson') : null;
   const initialStageParam = searchParams ? parseInt(searchParams.get('stage'), 10) : null;
@@ -251,7 +253,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
           <div className="flex items-center gap-3">
             {onExit && (
               <Button variant="outline" size="sm" onClick={onExit} className="border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                ← Home
+                ← {t('nav.home')}
               </Button>
             )}
 
@@ -265,7 +267,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 aria-label="Switch Curriculum Stage"
               >
                 <div className="w-2 h-2 rounded-full bg-[var(--accent)] shadow-[0_0_6px_var(--accent)]" />
-                <span className="text-[var(--text-secondary)]">Stage {activeStageId}:</span>
+                <span className="text-[var(--text-secondary)]">{t('academy.stage_label', { id: activeStageId })}:</span>
                 <span className="font-bold text-[var(--text-primary)]">{activeStageMeta.title}</span>
                 <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)] ml-1" />
               </button>
@@ -274,8 +276,8 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
               {stageMenuOpen && (
                 <div className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
                   <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
-                    <span>7 Neuromuscular Stages</span>
-                    <span className="text-[10px] text-[var(--accent)] font-bold">600 Masterpiece Levels</span>
+                    <span>{t('academy.stages_count', { count: 7 })}</span>
+                    <span className="text-[10px] text-[var(--accent)] font-bold">{t('academy.levels_count', { count: 600 })}</span>
                   </div>
                   <div className="space-y-1 mt-1 max-h-64 overflow-y-auto pr-1">
                     {STAGE_META.map((st) => {
@@ -328,7 +330,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 }`}
               >
                 <Layers className="w-3 h-3" />
-                <span>By Unit</span>
+                <span>{t('academy.by_unit')}</span>
               </button>
               <button
                 type="button"
@@ -340,7 +342,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 }`}
               >
                 <Grid className="w-3 h-3" />
-                <span>All 600 Levels</span>
+                <span>{t('academy.all_levels', { count: 600 })}</span>
               </button>
             </div>
           </div>
@@ -348,7 +350,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
           {/* Quick Resume Link */}
           <div className="flex items-center gap-3">
             <span className="text-[var(--text-muted)] hidden sm:inline">
-              Recommended: <span className="text-[var(--accent)] font-bold">Stage {recommended.stageId} L{recommended.lessonNum}</span>
+              {t('academy.recommended')}: <span className="text-[var(--accent)] font-bold">{t('academy.stage_label', { id: recommended.stageId })} L{recommended.lessonNum}</span>
             </span>
             <button
               type="button"
@@ -356,7 +358,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 hover:border-[var(--accent)] text-[var(--accent)] hover:text-[var(--accent-fg)] hover:bg-[var(--accent)] text-xs font-mono font-bold shadow-xs transition-all cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5 fill-current" />
-              <span>Resume</span>
+              <span>{t('academy.resume')}</span>
             </button>
           </div>
         </div>

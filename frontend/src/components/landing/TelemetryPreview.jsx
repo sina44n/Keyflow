@@ -1,7 +1,9 @@
 import React from 'react';
+import { useI18n } from '../../i18n/I18nContext';
 import { BarChart3, TrendingUp, Activity, Award, Fingerprint } from 'lucide-react';
 
 export const TelemetryPreview = () => {
+  const { t } = useI18n();
   const fingerStats = [
     { name: 'L. Pinky', keys: 'Q, A, Z', errorRate: '3.2%', speed: '58 WPM', color: 'var(--ui-error)' },
     { name: 'L. Ring', keys: 'W, S, X', errorRate: '1.4%', speed: '72 WPM', color: 'var(--ui-success)' },
@@ -21,13 +23,13 @@ export const TelemetryPreview = () => {
         <div className="text-center max-w-2xl mx-auto space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--accent)] font-mono">
             <BarChart3 className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>Biomechanical Telemetry & Analytics</span>
+            <span>{t('telemetry.badge')}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">
-            Scientific Keystroke Intelligence
+            {t('telemetry.title')}
           </h2>
           <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-            Eliminate guesswork. KEYFLOW aggregates individual finger latencies, misstrike clusters, and cadence variance to pinpoint exactly where you lose velocity.
+            {t('telemetry.subtitle')}
           </p>
         </div>
 
@@ -39,11 +41,11 @@ export const TelemetryPreview = () => {
               <div className="flex items-center gap-2">
                 <Fingerprint className="w-5 h-5 text-[var(--accent)]" aria-hidden="true" />
                 <h3 className="text-sm sm:text-base font-bold text-[var(--text-primary)]">
-                  Ten-Finger Biomechanical Matrix
+                  {t('telemetry.matrixTitle')}
                 </h3>
               </div>
               <span className="text-[10px] font-mono text-[var(--text-muted)] bg-[var(--bg-elevated)] px-2 py-0.5 rounded border border-[var(--border)]">
-                Demonstration Data
+                {t('telemetry.demoData')}
               </span>
             </div>
 
@@ -56,7 +58,7 @@ export const TelemetryPreview = () => {
                       <span className="text-[10px] text-[var(--text-muted)]">({item.keys})</span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-[11px] text-[var(--text-muted)]">Err: {item.errorRate}</span>
+                      <span className="text-[11px] text-[var(--text-muted)]">{t('telemetry.err')}: {item.errorRate}</span>
                       <span className="font-bold text-[var(--text-primary)] w-16 text-right">{item.speed}</span>
                     </div>
                   </div>

@@ -15,39 +15,39 @@ export const FeaturesSection = () => {
   const features = [
     {
       icon: Target,
-      title: t('features.accuracy.title') || 'Sub-millisecond Feedback',
-      desc: t('features.accuracy.desc') || 'Real-time telemetry measuring stroke timing, key rollover, and character accuracy with zero latency.',
-      badge: 'Precision',
+      title: t('features.card2.title'),
+      desc: t('features.card2.desc'),
+      badge: t('nav.telemetry'),
     },
     {
       icon: Layers,
-      title: t('features.curriculum.title') || '4,200 Progressive Levels',
-      desc: t('features.curriculum.desc') || 'A scientifically structured 7-stage curriculum advancing from home-row stability to real-world code fluency.',
-      badge: 'Curriculum',
+      title: t('features.card1.title'),
+      desc: t('features.card1.desc'),
+      badge: t('nav.academy'),
     },
     {
       icon: Gamepad2,
-      title: t('features.arcade.title') || '7 Combat Arcade Games',
-      desc: t('features.arcade.desc') || 'Dynamic difficulty scaling and an anti-repetition engine across 2,000+ words to turn drills into addiction.',
-      badge: 'Arcade',
+      title: t('features.card3.title'),
+      desc: t('features.card3.desc'),
+      badge: t('nav.arcade'),
     },
     {
       icon: Volume2,
-      title: t('features.audio.title') || 'Tactile Sound Studio',
-      desc: t('features.audio.desc') || 'Authentic acoustic profiles of enthusiast mechanical switches, Topre electro-capacitives, and quiet desk setups.',
-      badge: 'Acoustics',
+      title: t('features.card5.title'),
+      desc: t('features.card5.desc'),
+      badge: t('sound.title'),
     },
     {
       icon: ShieldCheck,
-      title: 'Real Account Isolation',
-      desc: 'Strict object-level authorization on PostgreSQL ensuring your stats, scores, and quote history remain strictly private.',
-      badge: 'Security',
+      title: t('features.card4.title'),
+      desc: t('features.card4.desc'),
+      badge: t('nav.themes'),
     },
     {
       icon: Zap,
-      title: '12h Rotating Quotes',
-      desc: 'Independent per-user server-side randomized daily quotes with intelligent recent repetition suppression.',
-      badge: 'Motivation',
+      title: t('features.card6.title'),
+      desc: t('features.card6.desc'),
+      badge: t('nav.telemetry'),
     },
   ];
 
@@ -56,13 +56,13 @@ export const FeaturesSection = () => {
       <div className="container-app">
         <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
           <span className="px-3 py-1 rounded-full text-xs font-mono font-bold tracking-wider uppercase bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
-            Architected for Excellence
+            {t('features.badge')}
           </span>
           <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text-primary)]">
-            {t('features.title') || 'Engineered for Neuromuscular Fluency'}
+            {t('features.title')}
           </h2>
           <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
-            {t('features.subtitle') || 'Traditional typing trainers teach letters. KEYFLOW conditions your nervous system for effortless velocity.'}
+            {t('features.subtitle')}
           </p>
         </div>
 

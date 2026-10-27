@@ -10,7 +10,7 @@ import { useI18n } from '../../i18n/I18nContext';
 import { Globe, Check, ChevronDown } from 'lucide-react';
 
 export const LanguageSelector = ({ compact = false }) => {
-  const { language, setLanguage, supportedLanguages, currentLanguageConfig } = useI18n();
+  const { language, setLanguage, supportedLanguages, currentLanguageConfig, isRTL, t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
@@ -45,9 +45,9 @@ export const LanguageSelector = ({ compact = false }) => {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-56 max-h-80 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1.5 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in zoom-in-95 duration-100">
+        <div className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 max-h-80 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1.5 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in zoom-in-95 duration-100`}>
           <div className="px-2.5 py-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)] mb-1">
-            Languages ({supportedLanguages.length})
+            {t('nav.selectLanguage', 'Select Language')} ({supportedLanguages.length})
           </div>
           <div className="space-y-0.5">
             {supportedLanguages.map((lang) => {

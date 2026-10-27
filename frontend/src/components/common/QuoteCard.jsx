@@ -2,16 +2,19 @@
  * KEYFLOW Quote Card Component
  * =============================
  * Displays the user's personalized 12-hour rotating quote or public quote.
- * Fetches from /api/quotes/current/ with automatic rotation tracking.
+ * Fetches from /api/quotes/current/?lang= with automatic rotation tracking
+ * and full localization support across all 17 languages.
  */
 
 import React, { useState, useEffect } from 'react';
 import { quotesAPI } from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../i18n/I18nContext';
 import { Quote as QuoteIcon, Sparkles, RefreshCw, Clock } from 'lucide-react';
 
 export const QuoteCard = ({ className = '' }) => {
   const { isAuthenticated } = useAuth();
+  const { language, t } = useI18n();
   const [quote, setQuote] = useState(null);
   const [loading, setLoading] = useState(true);
   const [rotating, setRotating] = useState(false);
@@ -20,7 +23,7 @@ export const QuoteCard = ({ className = '' }) => {
     let mounted = true;
     const fetchQuote = async () => {
       try {
-        const res = await quotesAPI.getCurrent();
+        const res = await quotesAPI.getCurrent(language);
         if (mounted) {
           setQuote(res.data);
         }
@@ -41,13 +44,13 @@ export const QuoteCard = ({ className = '' }) => {
     };
     fetchQuote();
     return () => { mounted = false; };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, language]);
 
   const handleRotate = async () => {
     if (!isAuthenticated || rotating) return;
     setRotating(true);
     try {
-      const res = await quotesAPI.rotate();
+      const res = await quotesAPI.rotate(language);
       setQuote(res.data);
     } catch {
       // Ignore error
@@ -78,10 +81,12 @@ export const QuoteCard = ({ className = '' }) => {
             <Sparkles className="w-3.5 h-3.5 text-[var(--accent)]" />
           </div>
           <span className="text-[11px] font-mono font-bold tracking-widest uppercase text-[var(--accent)]">
-            {quote.is_personalized ? 'Personalized Daily Focus' : 'Daily Focus'}
+            {quote.is_personalized
+              ? t('quotes.personalizedDailyFocus', 'Personalized Daily Focus')
+              : t('quotes.dailyFocus', 'Daily Focus')}
           </span>
           <span className="px-2 py-0.5 rounded-full text-[9px] font-mono uppercase bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-muted)]">
-            {quote.category}
+            {t(`quotes.category.${quote.category}`, quote.category)}
           </span>
         </div>
 
@@ -91,10 +96,10 @@ export const QuoteCard = ({ className = '' }) => {
             onClick={handleRotate}
             disabled={rotating}
             className="flex items-center gap-1 text-[10px] font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors p-1 rounded hover:bg-[var(--bg-elevated)] cursor-pointer"
-            title="Rotate to new quote"
+            title={t('quotes.rotate', 'Rotate to new quote')}
           >
             <RefreshCw className={`w-3 h-3 ${rotating ? 'animate-spin' : ''}`} />
-            <span>Rotate</span>
+            <span>{t('quotes.rotate', 'Rotate')}</span>
           </button>
         )}
       </div>
@@ -111,7 +116,7 @@ export const QuoteCard = ({ className = '' }) => {
         {quote.hours_remaining !== undefined && (
           <div className="flex items-center gap-1 font-mono text-[10px] text-[var(--text-muted)]">
             <Clock className="w-3 h-3" />
-            <span>Rotates in ~{quote.hours_remaining}h</span>
+            <span>{t('quotes.rotatesIn', { hours: quote.hours_remaining }, `Rotates in ~${quote.hours_remaining}h`)}</span>
           </div>
         )}
       </div>

@@ -10,6 +10,7 @@ import { ARCADE_WORDS, SOLDIER_CLASSES } from '../../../data/arcadeGamesData';
 import { calculateDifficultyTier, getBossBattleConfig } from '../../../utils/arcadeDifficulty';
 import { ArcadeWordDeck } from '../../../utils/arcadeVocabulary';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
+import { useI18n } from '../../../i18n/I18nContext';
 
 const ARENA_WIDTH = 760;
 const ARENA_HEIGHT = 460;
@@ -17,6 +18,7 @@ const DANGER_LINE_Y = 360;
 const PLAYER_MAX_HP = 100;
 
 export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
+  const { t } = useI18n();
   // Game states: 'ready', 'countdown', 'playing', 'wave_cleared', 'boss_alert', 'paused', 'gameover', 'victory'
   const [gameState, setGameState] = useState('ready');
   const [countdown, setCountdown] = useState(3);
@@ -694,12 +696,12 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
-            Arcade Hub
+            {t('nav.arcade')}
           </Button>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
               <ShieldAlert className="w-5 h-5 text-orange-500" />
-              Boss Battle: Frontline Soldier Combat
+              {t('arcade.boss.title')}
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
               Wave {wave} • {difficultyInfo.tierName} Intensity (Tier {difficultyInfo.tier})
@@ -710,15 +712,15 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
         <div className="flex items-center gap-2">
           {gameState === 'playing' ? (
             <Button variant="outline" size="xs" icon={Pause} onClick={() => setGameState('paused')}>
-              Pause
+              {t('common.pause')}
             </Button>
           ) : gameState === 'paused' ? (
             <Button variant="primary" size="xs" icon={Play} onClick={() => setGameState('playing')}>
-              Resume
+              {t('common.resume')}
             </Button>
           ) : null}
           <Button variant="ghost" size="xs" icon={RotateCcw} onClick={startCountdown}>
-            Restart
+            {t('common.restart')}
           </Button>
         </div>
       </div>
@@ -726,7 +728,7 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
       {/* HUD Metrics Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] font-mono text-xs">
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Player Shield</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.health')}</span>
           <div className="flex items-center gap-1.5 mt-0.5">
             <Shield className={`w-3.5 h-3.5 ${playerHp <= 30 ? 'text-rose-500 animate-pulse' : 'text-cyan-400'}`} />
             <span className={`font-bold ${playerHp <= 30 ? 'text-rose-400' : 'text-cyan-300'}`}>
@@ -736,12 +738,12 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Combat Wave</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.wave')}</span>
           <span className="text-sm sm:text-base font-bold text-orange-400">Wave {wave}</span>
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Combo</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.combo')}</span>
           <span className="text-sm sm:text-base font-bold text-[var(--accent)]">
             {combo}x <span className="text-[10px] text-[var(--text-muted)]">(max {maxCombo})</span>
           </span>
@@ -758,7 +760,7 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Score</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.score')}</span>
           <span className="text-sm sm:text-base font-bold text-[var(--accent)]">{score}</span>
         </div>
       </div>
@@ -1015,10 +1017,9 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
               <ShieldAlert className="w-8 h-8" />
             </div>
             <div className="space-y-1 max-w-md">
-              <h3 className="text-2xl font-black text-[var(--text-primary)]">Frontline Soldier Combat</h3>
+              <h3 className="text-2xl font-black text-[var(--text-primary)]">{t('arcade.boss.title')}</h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Enemy soldiers advance toward your defense barricade. Type assigned combat codes to eliminate infantry,
-                assault, armored, and spec-ops units. Defeat titanic commanders on boss waves!
+                {t('arcade.boss.desc')}
               </p>
             </div>
 
@@ -1077,13 +1078,13 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
 
         {gameState === 'paused' && (
           <div className="absolute inset-0 bg-black/75 backdrop-blur-xs z-40 flex flex-col items-center justify-center space-y-4">
-            <h3 className="text-xl font-bold text-[var(--text-primary)]">Combat Suspended</h3>
+            <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.hud.pause')}</h3>
             <div className="flex gap-3">
               <Button variant="primary" size="sm" icon={Play} onClick={() => setGameState('playing')}>
-                Resume Combat
+                {t('common.resume')}
               </Button>
               <Button variant="outline" size="sm" icon={RotateCcw} onClick={startCountdown}>
-                Restart
+                {t('common.restart')}
               </Button>
             </div>
           </div>
@@ -1095,13 +1096,13 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
               <Skull className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-2xl font-black text-[var(--text-primary)]">Defense Perimeter Breached</h3>
-              <p className="text-xs text-[var(--text-secondary)]">Frontline defenses collapsed under enemy assault.</p>
+              <h3 className="text-2xl font-black text-[var(--text-primary)]">{t('arcade.hud.gameOver')}</h3>
+              <p className="text-xs text-[var(--text-secondary)]">{t('workstation.summary')}</p>
             </div>
 
             {personalBestNotice && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold">
-                <Trophy className="w-3.5 h-3.5" /> NEW PERSONAL BEST RECORD!
+                <Trophy className="w-3.5 h-3.5" /> {t('arcade.hud.newBest')}
               </div>
             )}
 
@@ -1143,10 +1144,10 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
 
             <div className="flex items-center gap-3 pt-2">
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown}>
-                Redeploy
+                {t('arcade.hud.playAgain')}
               </Button>
               <Button variant="outline" size="md" onClick={onExit}>
-                Back to Arcade
+                {t('arcade.hud.returnToHub')}
               </Button>
             </div>
           </div>

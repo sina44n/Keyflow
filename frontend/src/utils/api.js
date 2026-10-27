@@ -87,8 +87,8 @@ export const profileAPI = {
 // Quotes API Methods
 // ---------------------------------------------------------------------------
 export const quotesAPI = {
-  getCurrent: () => api.get('/quotes/current/'),
-  rotate: () => api.post('/quotes/rotate/'),
+  getCurrent: (lang) => api.get('/quotes/current/', { params: lang ? { lang } : {} }),
+  rotate: (lang) => api.post('/quotes/rotate/', {}, { params: lang ? { lang } : {} }),
 };
 
 export default api;

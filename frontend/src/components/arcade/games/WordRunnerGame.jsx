@@ -6,10 +6,12 @@ import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getWordRunnerConfig } from '../../../utils/arcadeDifficulty';
 import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
+import { useI18n } from '../../../i18n/I18nContext';
 
 const TRACK_LENGTH = 1000; // 1,000 meters to finish line
 
 export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
+  const { t } = useI18n();
   const [gameState, setGameState] = useState('ready'); // ready, countdown, playing, paused, gameover, victory
   const [countdown, setCountdown] = useState(3);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -299,12 +301,12 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
-            Arcade Hub
+            {t('nav.arcade')}
           </Button>
           <div>
             <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
               <Footprints className="w-5 h-5 text-purple-400" />
-              Word Runner
+              {t('arcade.runner.title')}
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
               Side-Scrolling Cyber Parkour • {difficultyInfo.tierName} (Tier {difficultyInfo.tier})
@@ -315,15 +317,15 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
         <div className="flex items-center gap-2">
           {gameState === 'playing' ? (
             <Button variant="outline" size="xs" icon={Pause} onClick={() => setGameState('paused')}>
-              Pause
+              {t('common.pause')}
             </Button>
           ) : gameState === 'paused' ? (
             <Button variant="primary" size="xs" icon={Play} onClick={() => setGameState('playing')}>
-              Resume
+              {t('common.resume')}
             </Button>
           ) : null}
           <Button variant="ghost" size="xs" icon={RotateCcw} onClick={startCountdown}>
-            Restart
+            {t('common.restart')}
           </Button>
         </div>
       </div>
@@ -349,7 +351,7 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Shields</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.health')}</span>
           <div className="flex items-center gap-1 mt-0.5">
             {[...Array(3)].map((_, i) => (
               <Shield
@@ -363,7 +365,7 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Score</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.score')}</span>
           <span className="text-base font-bold text-[var(--text-primary)]">{score}</span>
         </div>
 
@@ -373,12 +375,12 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Accuracy</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.accuracy')}</span>
           <span className="text-base font-bold text-[var(--ui-success)]">{accuracy}%</span>
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Time</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.time')}</span>
           <span className="text-base font-bold text-[var(--text-secondary)]">{elapsedSeconds}s</span>
         </div>
       </div>
@@ -477,13 +479,13 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
               <Footprints className="w-8 h-8" />
             </div>
             <div className="space-y-1 max-w-sm">
-              <h3 className="text-xl font-bold text-[var(--text-primary)]">Word Runner Parkour</h3>
+              <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.runner.title')}</h3>
               <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                Sprint across the 1,000m cyber freeway. Type each upcoming obstacle's word to execute a high-speed leap over barriers.
+                {t('arcade.runner.desc')}
               </p>
             </div>
             <Button variant="primary" size="lg" icon={Play} onClick={startCountdown}>
-              Start 1,000m Run
+              {t('common.play')}
             </Button>
           </div>
         )}
@@ -498,13 +500,13 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
 
         {gameState === 'paused' && (
           <div className="absolute inset-0 bg-black/80 backdrop-blur-xs z-30 flex flex-col items-center justify-center space-y-4">
-            <h3 className="text-xl font-bold text-[var(--text-primary)]">Parkour Paused</h3>
+            <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.hud.pause')}</h3>
             <div className="flex gap-3">
               <Button variant="primary" size="sm" icon={Play} onClick={() => setGameState('playing')}>
-                Resume
+                {t('common.resume')}
               </Button>
               <Button variant="outline" size="sm" icon={RotateCcw} onClick={startCountdown}>
-                Restart
+                {t('common.restart')}
               </Button>
             </div>
           </div>
@@ -516,13 +518,13 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
               <AlertTriangle className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-2xl font-black text-[var(--text-primary)]">Runner Stumbled!</h3>
-              <p className="text-xs text-[var(--text-secondary)]">Shields exhausted after 3 hurdle collisions.</p>
+              <h3 className="text-2xl font-black text-[var(--text-primary)]">{t('arcade.hud.gameOver')}</h3>
+              <p className="text-xs text-[var(--text-secondary)]">{t('workstation.summary')}</p>
             </div>
 
             {personalBestNotice && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold">
-                <Trophy className="w-3.5 h-3.5" /> NEW DISTANCE RECORD!
+                <Trophy className="w-3.5 h-3.5" /> {t('arcade.hud.newBest')}
               </div>
             )}
 
@@ -543,10 +545,10 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
 
             <div className="flex items-center gap-3 pt-2">
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown}>
-                Run Again
+                {t('arcade.hud.playAgain')}
               </Button>
               <Button variant="outline" size="md" onClick={onExit}>
-                Back to Arcade
+                {t('arcade.hud.returnToHub')}
               </Button>
             </div>
           </div>
@@ -558,8 +560,8 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
               <Trophy className="w-6 h-6" />
             </div>
             <div className="space-y-1">
-              <h3 className="text-2xl font-black text-emerald-400">1,000m FINISH LINE CROSSED!</h3>
-              <p className="text-xs text-[var(--text-secondary)]">You conquered the complete cyber parkour track!</p>
+              <h3 className="text-2xl font-black text-emerald-400">{t('arcade.hud.victory')}</h3>
+              <p className="text-xs text-[var(--text-secondary)]">{t('arcade.hud.missionComplete')}</p>
             </div>
 
             <div className="grid grid-cols-3 gap-3 bg-[var(--bg-elevated)] p-4 rounded-xl border border-[var(--border)] text-xs font-mono w-full max-w-sm">
@@ -579,10 +581,10 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
 
             <div className="flex items-center gap-3 pt-2">
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown}>
-                Run Again
+                {t('arcade.hud.playAgain')}
               </Button>
               <Button variant="outline" size="md" onClick={onExit}>
-                Back to Arcade
+                {t('arcade.hud.returnToHub')}
               </Button>
             </div>
           </div>

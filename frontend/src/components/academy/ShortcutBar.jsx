@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Keyboard } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 
 /**
  * ShortcutBar
@@ -14,6 +15,7 @@ export const ShortcutBar = ({
   systemStatus = 'System Online',
   isOnline = true,
 }) => {
+  const { t } = useI18n();
   useEffect(() => {
     let tabPressed = false;
     let tabTimeout = null;
@@ -64,7 +66,7 @@ export const ShortcutBar = ({
         <div className="flex items-center gap-3 sm:gap-6 flex-wrap">
           <div className="flex items-center gap-1.5 text-[var(--text-muted)]">
             <Keyboard className="w-3.5 h-3.5 text-[var(--text-secondary)]" />
-            <span className="hidden sm:inline font-semibold">Shortcuts:</span>
+            <span className="hidden sm:inline font-semibold">{t('footer.shortcuts')}</span>
           </div>
 
           {/* Next Lesson */}
@@ -77,7 +79,7 @@ export const ShortcutBar = ({
               Tab
             </span>
             <span className="text-[var(--text-muted)]">→</span>
-            <span className="group-hover:text-[var(--accent)]">Next Lesson</span>
+            <span className="group-hover:text-[var(--accent)]">{t('lesson.nextLesson')}</span>
           </button>
 
           {/* Restart */}
@@ -89,7 +91,7 @@ export const ShortcutBar = ({
             <span className="px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border)] text-[10px] text-[var(--text-primary)] group-hover:border-[var(--accent)]">
               R
             </span>
-            <span className="group-hover:text-[var(--accent)]">Restart</span>
+            <span className="group-hover:text-[var(--accent)]">{t('common.restart')}</span>
           </button>
 
           {/* Back */}
@@ -101,7 +103,7 @@ export const ShortcutBar = ({
             <span className="px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border)] text-[10px] text-[var(--text-primary)] group-hover:border-[var(--accent)]">
               Esc
             </span>
-            <span className="group-hover:text-[var(--accent)]">Back</span>
+            <span className="group-hover:text-[var(--accent)]">{t('common.back')}</span>
           </button>
         </div>
 

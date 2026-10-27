@@ -1,38 +1,40 @@
 import React, { useState } from 'react';
 import { Play, Sparkles, Trophy, Flame } from 'lucide-react';
+import { useI18n } from '../../i18n/I18nContext';
 import { Button } from '../common/Button';
 
 export const ArcadeGameCard = ({ game, record, onPlay }) => {
+  const { t } = useI18n();
   const [imgError, setImgError] = useState(false);
   const Icon = game.icon;
 
   // Format personal best string
   const formatPersonalBest = () => {
-    if (!record || !record.gamesPlayed) return 'Not played yet';
+    if (!record || !record.gamesPlayed) return t('arcade.notPlayed');
 
     switch (game.id) {
       case 'cascade':
-        return record.bestScore ? `${record.bestScore.toLocaleString()} pts` : 'Not played yet';
+        return record.bestScore ? `${record.bestScore.toLocaleString()} ${t('common.pts')}` : t('arcade.notPlayed');
       case 'sprint':
-        return record.bestWpm ? `${record.bestWpm} WPM` : 'Not played yet';
+        return record.bestWpm ? `${record.bestWpm} ${t('common.wpm')}` : t('arcade.notPlayed');
       case 'hunter':
-        return record.bestStreak ? `${record.bestStreak} streak` : 'Not played yet';
+        return record.bestStreak ? `${record.bestStreak} ${t('common.streak')}` : t('arcade.notPlayed');
       case 'ninja':
-        return record.bestSlices ? `${record.bestSlices} slashes` : 'Not played yet';
+        return record.bestSlices ? `${record.bestSlices} slashes` : t('arcade.notPlayed');
       case 'runner':
-        return record.maxDistance ? `${record.maxDistance}m` : 'Not played yet';
+        return record.maxDistance ? `${record.maxDistance}m` : t('arcade.notPlayed');
       case 'memory':
-        return record.deepestRound ? `Round ${record.deepestRound}` : 'Not played yet';
+        return record.deepestRound ? `Round ${record.deepestRound}` : t('arcade.notPlayed');
       case 'boss':
         return record.highestWave
-          ? `Wave ${record.highestWave} (${(record.bestScore || 0).toLocaleString()} pts)`
+          ? `Wave ${record.highestWave} (${(record.bestScore || 0).toLocaleString()} ${t('common.pts')})`
           : record.bossDefeated
-          ? 'Victory!'
+          ? t('arcade.hud.victory')
           : record.bestScore
-          ? `${record.bestScore.toLocaleString()} pts`
-          : 'Not played yet';
+          ? `${record.bestScore.toLocaleString()} ${t('common.pts')}`
+          : t('arcade.notPlayed');
       default:
-        return 'Not played yet';
+        return t('arcade.notPlayed');
     }
   };
 
@@ -66,9 +68,9 @@ export const ArcadeGameCard = ({ game, record, onPlay }) => {
         {/* Overlay Badges */}
         <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none">
           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black/75 backdrop-blur-xs border border-white/10 text-white shadow-sm">
-            {game.badge}
+            {t(`arcade.${game.id}.badge`) || game.badge}
           </span>
-          <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-black/70 backdrop-blur-xs text-[var(--text-muted)] border border-white/10">
+          <span className="px-2.5 py-0.5 rounded-md text-[10px] font-mono bg-black/70 backdrop-blur-xs text-[var(--text-muted)] border border-white/10">
             {game.categoryLabel}
           </span>
         </div>
@@ -81,7 +83,7 @@ export const ArcadeGameCard = ({ game, record, onPlay }) => {
           <div className="flex items-start justify-between gap-2">
             <div>
               <h3 className="text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors leading-tight">
-                {game.title}
+                {t(`arcade.${game.id}.title`) || game.title}
               </h3>
               <p className="text-[11px] font-mono text-[var(--text-muted)] mt-0.5">
                 {game.subtitle}
@@ -97,7 +99,7 @@ export const ArcadeGameCard = ({ game, record, onPlay }) => {
 
           {/* Description */}
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-3">
-            {game.description}
+            {t(`arcade.${game.id}.desc`) || game.description}
           </p>
 
           {/* Mechanics Features List */}
@@ -160,7 +162,7 @@ export const ArcadeGameCard = ({ game, record, onPlay }) => {
             onClick={() => onPlay(game.id)}
             className="w-full justify-center shadow-xs"
           >
-            Play {game.title}
+            {t('arcade.playGame')}
           </Button>
         </div>
       </div>
