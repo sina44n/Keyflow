@@ -99,13 +99,19 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            '--all-4200',
+            action='store_true',
+            help='Seed all 4,200 individual curriculum lessons (7 stages x 600) into database.'
+        )
+        parser.add_argument(
             '--all-600',
             action='store_true',
-            help='Seed all 600 individual curriculum lessons into database.'
+            help='Seed all 600 Stage 1 lessons into database.'
         )
 
     def handle(self, *args, **options):
-        seed_full_600 = options.get('all_600', False)
+        seed_4200 = options.get('all_4200', False)
+        seed_600 = options.get('all_600', False)
         self.stdout.write('Seeding 7-Stage Neuromuscular Academy curriculum...')
         for data in STAGES_DATA:
             lvl_num = data['level_number']
@@ -136,40 +142,53 @@ class Command(BaseCommand):
             )
             self.stdout.write(f'  [OK] Level {lvl_num}: {data["title"]}')
 
-        if seed_full_600:
+        if seed_4200 or seed_600:
             import json, os, re
-            frontend_data = os.path.join(
+            curriculum_dir = os.path.join(
                 os.path.dirname(__file__),
-                '..', '..', '..', '..', 'frontend', 'src', 'data', 'curriculum600Data.js'
+                '..', '..', '..', '..', 'frontend', 'src', 'data', 'curriculum'
             )
-            if os.path.exists(frontend_data):
-                with open(frontend_data, 'r', encoding='utf-8') as f:
+            stages_to_seed = range(1, 8) if seed_4200 else [1]
+            total_seeded = 0
+
+            for stage_num in stages_to_seed:
+                stage_file = os.path.join(curriculum_dir, f'stage{stage_num}Data.js')
+                if not os.path.exists(stage_file):
+                    self.stdout.write(self.style.WARNING(f'File not found: {stage_file}'))
+                    continue
+
+                with open(stage_file, 'r', encoding='utf-8') as f:
                     content = f.read()
-                match = re.search(r'CURRICULUM_600_LESSONS\s*=\s*(\[.*\]);', content, re.DOTALL)
-                if match:
-                    lessons_json = json.loads(match.group(1))
-                    self.stdout.write(f'Seeding {len(lessons_json)} individual lessons across 7 stages...')
-                    count = 0
-                    for l in lessons_json:
-                        stage_obj = Level.objects.get(level_number=l['stageId'])
-                        Lesson.objects.update_or_create(
-                            slug=l['id'],
-                            defaults={
-                                'level': stage_obj,
-                                'title': l['title'],
-                                'objective': l['objective'],
-                                'exercise_content': l['exerciseText'],
-                                'target_keys': ','.join(l['targetKeys']) if isinstance(l['targetKeys'], list) else str(l['targetKeys']),
-                                'target_wpm': l['targetWpm'],
-                                'target_accuracy': l['targetAccuracy'],
-                                'estimated_seconds': l['estimatedSeconds'],
-                                'difficulty': l['difficulty'],
-                                'order': l['lessonInUnit'],
-                                'is_published': True,
-                            }
-                        )
-                        count += 1
-                    self.stdout.write(self.style.SUCCESS(f'Successfully seeded {count} lessons.'))
+
+                match = re.search(rf'STAGE_{stage_num}_LESSONS\s*=\s*(\[.*\]);', content, re.DOTALL)
+                if not match:
+                    self.stdout.write(self.style.WARNING(f'Could not parse STAGE_{stage_num}_LESSONS from {stage_file}'))
+                    continue
+
+                lessons_json = json.loads(match.group(1))
+                stage_obj = Level.objects.get(level_number=stage_num)
+                self.stdout.write(f'Seeding {len(lessons_json)} lessons for Stage {stage_num}: {stage_obj.title}...')
+
+                for l in lessons_json:
+                    Lesson.objects.update_or_create(
+                        slug=l['id'],
+                        defaults={
+                            'level': stage_obj,
+                            'title': l['title'],
+                            'objective': l['objective'],
+                            'exercise_content': l['exerciseText'],
+                            'target_keys': ','.join(l['targetKeys']) if isinstance(l['targetKeys'], list) else str(l['targetKeys']),
+                            'target_wpm': l['targetWpm'],
+                            'target_accuracy': l['targetAccuracy'],
+                            'estimated_seconds': l['estimatedSeconds'],
+                            'difficulty': l['difficulty'],
+                            'order': l['lessonInUnit'],
+                            'is_published': True,
+                        }
+                    )
+                    total_seeded += 1
+
+            self.stdout.write(self.style.SUCCESS(f'Successfully seeded {total_seeded} individual lessons.'))
 
         self.stdout.write(self.style.SUCCESS('Successfully seeded all 7 Academy levels and lessons.'))
 

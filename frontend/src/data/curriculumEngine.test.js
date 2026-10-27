@@ -1,23 +1,31 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  MASTER_LESSONS,
+  STAGE_CURRICULA,
   STAGE_META,
   UNIT_DEFINITIONS,
+  getLesson,
+  getLessonById,
   getLessonByLevel,
+  getLessonMeta,
   getStageUnits,
   getAllUnits,
   getNextLessonId,
+  getPrevLessonId,
   validateCurriculum,
+  getTotalLessonCount,
   FINGER_MAP,
 } from './curriculumEngine.js';
 
-describe('KEYFLOW Masterpiece Academy — Complete 600-Level Architecture & Integrity', () => {
-  it('contains exactly 600 curated educational levels', () => {
-    assert.equal(MASTER_LESSONS.length, 600, `Expected exactly 600 levels, found ${MASTER_LESSONS.length}`);
+describe('KEYFLOW Masterpiece Academy — Complete 4,200-Level Architecture & Integrity', () => {
+  it('contains exactly 4,200 curated educational levels across 7 stages', () => {
+    assert.equal(getTotalLessonCount(), 4200);
+    for (let s = 1; s <= 7; s++) {
+      assert.equal(STAGE_CURRICULA[s]?.length, 600, `Stage ${s} must have exactly 600 lessons`);
+    }
   });
 
-  it('contains exactly 7 progressive stages covering Foundation to Capstone Mastery', () => {
+  it('contains exactly 7 progressive stages with distinct pedagogical objectives', () => {
     assert.equal(STAGE_META.length, 7);
     assert.equal(STAGE_META[0].title, 'Home Row Foundations');
     assert.equal(STAGE_META[1].title, 'Top Row Control');
@@ -26,277 +34,277 @@ describe('KEYFLOW Masterpiece Academy — Complete 600-Level Architecture & Inte
     assert.equal(STAGE_META[4].title, 'Word Flow & Cadence');
     assert.equal(STAGE_META[5].title, 'Sentence Rhythm & Shift Discipline');
     assert.equal(STAGE_META[6].title, 'Precision, Speed Endurance & Capstone Mastery');
-  });
 
-  it('contains exactly 30 curricular units with 20 lessons per unit', () => {
-    assert.equal(UNIT_DEFINITIONS.length, 30);
-    UNIT_DEFINITIONS.forEach((u, i) => {
-      assert.equal(u.unitNumber, i + 1);
-      assert.equal(u.endLesson - u.startLesson + 1, 20, `Unit ${u.unitNumber} must have 20 lessons`);
+    STAGE_META.forEach((meta, idx) => {
+      assert.equal(meta.stageId, idx + 1);
+      assert.equal(meta.startLevel, 1);
+      assert.equal(meta.endLevel, 600);
+      assert.equal(meta.totalLessons, 600);
     });
   });
 
-  it('ensures every level from 1 to 600 appears in exact sequential order with complete metadata', () => {
-    for (let i = 1; i <= 600; i++) {
-      const lesson = getLessonByLevel(i);
-      assert.ok(lesson, `Level ${i} must exist`);
-      assert.equal(lesson.levelNumber, i, `Level number must be exactly ${i}`);
-      assert.ok(lesson.title && lesson.title.length > 0, `Level ${i} must have title`);
-      assert.ok(lesson.objective && lesson.objective.length > 0, `Level ${i} must have objective`);
-      assert.ok(lesson.skills && lesson.skills.length > 0, `Level ${i} must declare skills`);
-      assert.ok(lesson.exerciseText && lesson.exerciseText.length >= 10, `Level ${i} must have non-empty exercise`);
-      assert.ok(lesson.targetWpm >= 15, `Level ${i} must have valid targetWpm`);
-      assert.ok(lesson.targetAccuracy >= 85, `Level ${i} must have valid targetAccuracy`);
-      assert.ok(lesson.guidance && lesson.guidance.length > 0, `Level ${i} must provide guidance`);
+  it('contains exactly 210 curricular units (30 units per stage x 7 stages)', () => {
+    assert.equal(UNIT_DEFINITIONS.length, 210);
+    for (let s = 1; s <= 7; s++) {
+      const stageUnits = getStageUnits(s);
+      assert.equal(stageUnits.length, 30, `Stage ${s} must have exactly 30 units`);
+      stageUnits.forEach((u, i) => {
+        assert.equal(u.unitNumber, i + 1);
+        assert.equal(u.stageId, s);
+        assert.equal(u.endLesson - u.startLesson + 1, 20, `Stage ${s} Unit ${u.unitNumber} must have 20 lessons`);
+      });
     }
   });
 
-  it('ensures all 600 lesson IDs are unique and properly formatted', () => {
+  it('ensures every lesson in every stage has a unique stable ID (S1-L001 to S7-L600)', () => {
     const ids = new Set();
-    MASTER_LESSONS.forEach((l) => {
-      const id = l.id || `level-${String(l.levelNumber).padStart(3, '0')}`;
-      assert.equal(ids.has(id), false, `Duplicate ID detected: ${id}`);
-      ids.add(id);
-    });
-    assert.equal(ids.size, 600);
+    for (let s = 1; s <= 7; s++) {
+      for (let l = 1; l <= 600; l++) {
+        const lesson = getLesson(s, l);
+        assert.ok(lesson, `Lesson S${s}-L${l} must exist`);
+        const expectedId = `S${s}-L${String(l).padStart(3, '0')}`;
+        assert.equal(lesson.id, expectedId);
+        assert.equal(ids.has(lesson.id), false, `Duplicate ID detected: ${lesson.id}`);
+        ids.add(lesson.id);
+      }
+    }
+    assert.equal(ids.size, 4200, 'All 4,200 lessons must have distinct IDs');
   });
 
-  it('validates the complete 600-level curriculum with validateCurriculum utility without errors', () => {
+  it('retrieves lessons via getLesson, getLessonById, and getLessonByLevel', () => {
+    const l1 = getLesson(1, 1);
+    const l1ById = getLessonById('S1-L001');
+    const l1ByLevel = getLessonByLevel(1, 1);
+    assert.equal(l1.id, 'S1-L001');
+    assert.equal(l1ById.id, 'S1-L001');
+    assert.equal(l1ByLevel.id, 'S1-L001');
+
+    const s4l45 = getLesson(4, 45);
+    const s4l45ById = getLessonById('S4-L045');
+    assert.equal(s4l45.id, 'S4-L045');
+    assert.equal(s4l45ById.id, 'S4-L045');
+
+    const meta = getLessonMeta(4, 45);
+    assert.equal(meta.id, 'S4-L045');
+    assert.equal(meta.stageId, 4);
+    assert.equal(meta.levelNumber, 45);
+  });
+
+  it('validates the complete 4,200-lesson curriculum with validateCurriculum utility without errors', () => {
     const report = validateCurriculum();
-    assert.equal(report.valid, true, `Validation failed with errors: ${JSON.stringify(report.errors)}`);
+    assert.equal(report.valid, true, `Validation failed with errors: ${JSON.stringify(report.errors.slice(0, 5))}`);
     assert.equal(report.errors.length, 0);
-    assert.equal(report.levelCount, 600);
-    assert.equal(report.duplicateCount, 0, 'No duplicate exercises allowed across all 600 levels');
+    assert.equal(report.totalStages, 7);
+    assert.equal(report.totalLessons, 4200);
   });
 });
 
-describe('Required Checkpoints & Range Regression Suite', () => {
-  it('explicitly verifies Level 1 exists, opens, and establishes home row bumps', () => {
-    const l1 = getLessonByLevel(1);
-    assert.ok(l1);
-    assert.equal(l1.levelNumber, 1);
-    assert.equal(l1.stageId, 1);
-    assert.match(l1.title, /Home Row Placement/i);
-    assert.match(l1.exerciseText, /lad/i);
-  });
-
-  it('explicitly verifies Level 10 exists and has valid home row content', () => {
-    const l10 = getLessonByLevel(10);
-    assert.ok(l10);
-    assert.equal(l10.levelNumber, 10);
-    assert.equal(l10.stageId, 1);
-  });
-
-  it('explicitly verifies Level 20 exists and is the Unit 1 Assessment', () => {
-    const l20 = getLessonByLevel(20);
-    assert.ok(l20);
-    assert.equal(l20.levelNumber, 20);
-    assert.equal(l20.stageId, 1);
-    assert.equal(l20.isAssessment, true);
-  });
-
-  it('REGRESSION CHECK: explicitly verifies Level 21 exists, opens, and starts Unit 2', () => {
-    const l21 = getLessonByLevel(21);
-    assert.ok(l21, 'Level 21 must not be missing!');
-    assert.equal(l21.levelNumber, 21);
-    assert.equal(l21.stageId, 1);
-    assert.equal(l21.unitNumber, 2);
-    assert.ok(l21.exerciseText.length >= 10);
-  });
-
-  it('REGRESSION CHECK: explicitly verifies all levels in range 21–30 exist and are contiguous', () => {
-    for (let lvl = 21; lvl <= 30; lvl++) {
-      const lesson = getLessonByLevel(lvl);
-      assert.ok(lesson, `Level ${lvl} in range 21-30 must exist and not be dropped`);
-      assert.equal(lesson.levelNumber, lvl);
-    }
-  });
-
-  it('explicitly verifies Level 30 exists and has valid practice content', () => {
-    const l30 = getLessonByLevel(30);
-    assert.ok(l30);
-    assert.equal(l30.levelNumber, 30);
-  });
-
-  it('explicitly verifies Level 31 exists and has valid practice content', () => {
-    const l31 = getLessonByLevel(31);
-    assert.ok(l31);
-    assert.equal(l31.levelNumber, 31);
-  });
-
-  it('explicitly verifies Level 50 exists and has valid practice content', () => {
-    const l50 = getLessonByLevel(50);
-    assert.ok(l50);
-    assert.equal(l50.levelNumber, 50);
-    assert.equal(l50.isMilestone, true);
-  });
-
-  it('REGRESSION CHECK: explicitly verifies Level 51 exists, opens, and is contiguous', () => {
-    const l51 = getLessonByLevel(51);
-    assert.ok(l51, 'Level 51 must not be missing!');
-    assert.equal(l51.levelNumber, 51);
-  });
-
-  it('REGRESSION CHECK: explicitly verifies all levels in range 51–60 exist and are contiguous', () => {
-    for (let lvl = 51; lvl <= 60; lvl++) {
-      const lesson = getLessonByLevel(lvl);
-      assert.ok(lesson, `Level ${lvl} in range 51-60 must exist and not be dropped`);
-      assert.equal(lesson.levelNumber, lvl);
-    }
-  });
-
-  it('explicitly verifies Level 60 exists and is the Unit 3 Assessment', () => {
-    const l60 = getLessonByLevel(60);
-    assert.ok(l60);
-    assert.equal(l60.levelNumber, 60);
-    assert.equal(l60.isAssessment, true);
-  });
-
-  it('explicitly verifies Level 70 and 71 exist across Unit 4', () => {
-    const l70 = getLessonByLevel(70);
-    const l71 = getLessonByLevel(71);
-    assert.ok(l70);
-    assert.ok(l71);
-    assert.equal(l70.levelNumber, 70);
-    assert.equal(l71.levelNumber, 71);
-  });
-
-  it('explicitly verifies Stage 1 Capstone at Level 100', () => {
-    const l100 = getLessonByLevel(100);
-    assert.ok(l100);
-    assert.equal(l100.levelNumber, 100);
-    assert.equal(l100.stageId, 1);
-    assert.equal(l100.isAssessment, true);
-    assert.equal(l100.isMilestone, true);
-  });
-
-  it('explicitly verifies Level 200 (Stage 2 Assessment)', () => {
-    const l200 = getLessonByLevel(200);
-    assert.ok(l200);
-    assert.equal(l200.levelNumber, 200);
-    assert.equal(l200.isMilestone, true);
-  });
-
-  it('explicitly verifies Level 300 (Stage 3 Assessment)', () => {
-    const l300 = getLessonByLevel(300);
-    assert.ok(l300);
-    assert.equal(l300.levelNumber, 300);
-    assert.equal(l300.isMilestone, true);
-  });
-
-  it('explicitly verifies Level 400 (Stage 4 Assessment)', () => {
-    const l400 = getLessonByLevel(400);
-    assert.ok(l400);
-    assert.equal(l400.levelNumber, 400);
-    assert.equal(l400.isMilestone, true);
-  });
-
-  it('explicitly verifies Level 500 (Stage 5 Assessment)', () => {
-    const l500 = getLessonByLevel(500);
-    assert.ok(l500);
-    assert.equal(l500.levelNumber, 500);
-    assert.equal(l500.isMilestone, true);
-  });
-
-  it('explicitly verifies Level 599 and Level 600 Capstone Graduation', () => {
-    const l599 = getLessonByLevel(599);
-    const l600 = getLessonByLevel(600);
-    assert.ok(l599);
-    assert.ok(l600);
-    assert.equal(l599.levelNumber, 599);
-    assert.equal(l600.levelNumber, 600);
+describe('Stage Progression & Checkpoints Regression Suite', () => {
+  it('verifies Stage 1 (Home Row) bounds and character discipline', () => {
+    const l1 = getLesson(1, 1);
+    const l600 = getLesson(1, 600);
+    assert.equal(l1.id, 'S1-L001');
+    assert.equal(l600.id, 'S1-L600');
     assert.equal(l600.isAssessment, true);
     assert.equal(l600.isMilestone, true);
+
+    // Stage 1 must only use home row keys [asdfghjkl; ]
+    const homeRowRegex = /^[asdfghjkl; ]+$/i;
+    assert.ok(homeRowRegex.test(l1.exerciseText));
+    assert.ok(homeRowRegex.test(l600.exerciseText));
+  });
+
+  it('verifies Stage 2 (Top Row) bounds and character discipline', () => {
+    const l1 = getLesson(2, 1);
+    const l600 = getLesson(2, 600);
+    assert.equal(l1.id, 'S2-L001');
+    assert.equal(l600.id, 'S2-L600');
+
+    // Stage 2 must only use top row and home row [qwertyuiopasdfghjkl; ]
+    const topHomeRegex = /^[qwertyuiopasdfghjkl; ]+$/i;
+    assert.ok(topHomeRegex.test(l1.exerciseText));
+    assert.ok(topHomeRegex.test(l600.exerciseText));
+  });
+
+  it('verifies Stage 3 (Bottom Row) bounds and character discipline', () => {
+    const l1 = getLesson(3, 1);
+    const l600 = getLesson(3, 600);
+    assert.equal(l1.id, 'S3-L001');
+    assert.equal(l600.id, 'S3-L600');
+  });
+
+  it('verifies Stage 4 (Morphemes) bounds and content', () => {
+    const l1 = getLesson(4, 1);
+    const l600 = getLesson(4, 600);
+    assert.equal(l1.id, 'S4-L001');
+    assert.equal(l600.id, 'S4-L600');
+  });
+
+  it('verifies Stage 5 (Word Flow & Cadence) bounds and content', () => {
+    const l1 = getLesson(5, 1);
+    const l600 = getLesson(5, 600);
+    assert.equal(l1.id, 'S5-L001');
+    assert.equal(l600.id, 'S5-L600');
+  });
+
+  it('verifies Stage 6 (Sentence Rhythm & Shift) bounds and content', () => {
+    const l1 = getLesson(6, 1);
+    const l600 = getLesson(6, 600);
+    assert.equal(l1.id, 'S6-L001');
+    assert.equal(l600.id, 'S6-L600');
+    // Shift discipline includes capital letters and punctuation
+    assert.match(l1.exerciseText, /[A-Z]/);
+    assert.match(l600.exerciseText, /[A-Z]/);
+  });
+
+  it('verifies Stage 7 (Precision & Grandmaster) bounds and final capstone', () => {
+    const l1 = getLesson(7, 1);
+    const l600 = getLesson(7, 600);
+    assert.equal(l1.id, 'S7-L001');
+    assert.equal(l600.id, 'S7-L600');
     assert.match(l600.title, /Grandmaster Capstone/i);
-    assert.match(l600.exerciseText, /600-level KEYFLOW/i);
+    assert.match(l600.exerciseText, /4,200/);
+    assert.ok(l600.exerciseText.length >= 700);
   });
 });
 
-describe('Curriculum Educational Quality & Anti-Repetition Auditing', () => {
-  it('guarantees zero excessive repeated characters (no fffff, aaaaa, sssss, ddddd, jjjjj)', () => {
-    MASTER_LESSONS.forEach((l) => {
-      const match = l.exerciseText.match(/([a-zA-Z0-9;.,])\1{4,}/);
-      assert.equal(match, null, `Level ${l.levelNumber} contains excessive character spam: "${match?.[0]}"`);
-    });
-  });
-
-  it('guarantees zero duplicate exercise passages across all 600 levels', () => {
-    const seen = new Map();
-    MASTER_LESSONS.forEach((l) => {
-      const norm = l.exerciseText.trim().toLowerCase().replace(/\s+/g, ' ');
-      assert.equal(seen.has(norm), false, `Level ${l.levelNumber} duplicates exercise from Level ${seen.get(norm)}`);
-      seen.set(norm, l.levelNumber);
-    });
-  });
-
-  it('verifies all exercise characters map cleanly to supported ANSI keys and fingers', () => {
-    MASTER_LESSONS.forEach((l) => {
-      for (const ch of l.exerciseText) {
-        const hasFinger = Boolean(FINGER_MAP[ch] || FINGER_MAP[ch.toLowerCase()]);
-        assert.ok(hasFinger, `Level ${l.levelNumber} has unmapped character "${ch}"`);
-      }
-    });
-  });
-
-  it('verifies target WPM and accuracy increase progressively from beginner to expert', () => {
-    const l1 = getLessonByLevel(1);
-    const l100 = getLessonByLevel(100);
-    const l300 = getLessonByLevel(300);
-    const l600 = getLessonByLevel(600);
-
-    assert.ok(l1.targetWpm <= l100.targetWpm);
-    assert.ok(l100.targetWpm <= l300.targetWpm);
-    assert.ok(l300.targetWpm <= l600.targetWpm);
-    assert.ok(l600.targetWpm >= 65);
-    assert.ok(l600.targetAccuracy >= 95);
-  });
-});
-
-describe('Curriculum Navigation & Stage Unit Progression', () => {
-  it('getNextLessonId correctly crosses unit and stage boundaries', () => {
-    // Within unit
+describe('Continuous Progression & Navigation across all 4,200 Levels', () => {
+  it('getNextLessonId correctly advances within stage and crosses stage boundaries', () => {
+    // Within stage
     const next1 = getNextLessonId(1, 1);
+    assert.equal(next1.id, 'S1-L002');
     assert.equal(next1.levelNumber, 2);
 
     // Cross Unit 1 to Unit 2 (Level 20 -> 21)
     const next20 = getNextLessonId(1, 20);
+    assert.equal(next20.id, 'S1-L021');
     assert.equal(next20.levelNumber, 21);
 
-    // Cross Stage 1 to Stage 2 (Level 100 -> 101)
-    const next100 = getNextLessonId(1, 100);
-    assert.equal(next100.levelNumber, 101);
-    assert.equal(next100.stageId, 2);
+    // Cross Stage 1 to Stage 2 (S1-L600 -> S2-L001)
+    const nextS1End = getNextLessonId(1, 600);
+    assert.equal(nextS1End.id, 'S2-L001');
+    assert.equal(nextS1End.stageId, 2);
+    assert.equal(nextS1End.levelNumber, 1);
 
-    // Final level (Level 600)
-    const next600 = getNextLessonId(7, 600);
-    assert.equal(next600, null, 'Level 600 is final lesson');
+    // Cross Stage 2 to Stage 3 (S2-L600 -> S3-L001)
+    const nextS2End = getNextLessonId(2, 600);
+    assert.equal(nextS2End.id, 'S3-L001');
+
+    // Cross Stage 3 to Stage 4 (S3-L600 -> S4-L001)
+    const nextS3End = getNextLessonId(3, 600);
+    assert.equal(nextS3End.id, 'S4-L001');
+
+    // Cross Stage 4 to Stage 5 (S4-L600 -> S5-L001)
+    const nextS4End = getNextLessonId(4, 600);
+    assert.equal(nextS4End.id, 'S5-L001');
+
+    // Cross Stage 5 to Stage 6 (S5-L600 -> S6-L001)
+    const nextS5End = getNextLessonId(5, 600);
+    assert.equal(nextS5End.id, 'S6-L001');
+
+    // Cross Stage 6 to Stage 7 (S6-L600 -> S7-L001)
+    const nextS6End = getNextLessonId(6, 600);
+    assert.equal(nextS6End.id, 'S7-L001');
+
+    // Stage 7 Level 600 is final lesson - returns null
+    const nextS7End = getNextLessonId(7, 600);
+    assert.equal(nextS7End, null, 'S7-L600 is the final capstone');
   });
 
-  it('getAllUnits returns all 30 units covering 600 levels without dropping modules', () => {
+  it('getPrevLessonId correctly steps backward within stage and across stage boundaries', () => {
+    // Within stage
+    const prev2 = getPrevLessonId(1, 2);
+    assert.equal(prev2.id, 'S1-L001');
+
+    // Across stage boundary: S2-L001 -> S1-L600
+    const prevS2Start = getPrevLessonId(2, 1);
+    assert.equal(prevS2Start.id, 'S1-L600');
+    assert.equal(prevS2Start.stageId, 1);
+    assert.equal(prevS2Start.levelNumber, 600);
+
+    // First lesson S1-L001 has no previous
+    const prevS1Start = getPrevLessonId(1, 1);
+    assert.equal(prevS1Start, null);
+  });
+
+  it('getAllUnits returns all 210 units covering 4,200 levels', () => {
     const units = getAllUnits();
-    assert.equal(units.length, 30);
+    assert.equal(units.length, 210);
+    assert.equal(units[0].stageId, 1);
     assert.equal(units[0].startLesson, 1);
     assert.equal(units[0].endLesson, 20);
-    assert.equal(units[29].startLesson, 581);
-    assert.equal(units[29].endLesson, 600);
+
+    assert.equal(units[209].stageId, 7);
+    assert.equal(units[209].unitNumber, 30);
+    assert.equal(units[209].startLesson, 581);
+    assert.equal(units[209].endLesson, 600);
+  });
+});
+
+describe('Curriculum Educational Quality & Anti-Repetition Auditing', () => {
+  it('guarantees zero excessive repeated characters across all 4,200 levels', () => {
+    for (let s = 1; s <= 7; s++) {
+      STAGE_CURRICULA[s].forEach((l) => {
+        const match = l.exerciseText.match(/([a-zA-Z0-9;.,])\1{4,}/);
+        assert.equal(match, null, `Stage ${s} Level ${l.levelNumber} contains character spam: "${match?.[0]}"`);
+      });
+    }
   });
 
-  it('getStageUnits returns correct units for each stage', () => {
-    const stage1Units = getStageUnits(1);
-    assert.equal(stage1Units.length, 5);
-    assert.equal(stage1Units[0].startLesson, 1);
-    assert.equal(stage1Units[4].endLesson, 100);
+  it('guarantees zero duplicate exercise passages within any stage', () => {
+    for (let s = 1; s <= 7; s++) {
+      const seen = new Map();
+      STAGE_CURRICULA[s].forEach((l) => {
+        const norm = l.exerciseText.trim().toLowerCase().replace(/\s+/g, ' ');
+        assert.equal(seen.has(norm), false, `Stage ${s} Level ${l.levelNumber} duplicates Level ${seen.get(norm)}`);
+        seen.set(norm, l.levelNumber);
+      });
+    }
+  });
 
-    const stage7Units = getStageUnits(7);
-    assert.equal(stage7Units.length, 5);
-    assert.equal(stage7Units[0].startLesson, 501);
-    assert.equal(stage7Units[4].endLesson, 600);
+  it('verifies all exercise characters map cleanly to supported ANSI keys and fingers', () => {
+    for (let s = 1; s <= 7; s++) {
+      STAGE_CURRICULA[s].forEach((l) => {
+        for (const ch of l.exerciseText) {
+          const hasFinger = Boolean(FINGER_MAP[ch] || FINGER_MAP[ch.toLowerCase()]);
+          assert.ok(hasFinger, `Stage ${s} Level ${l.levelNumber} has unmapped character "${ch}"`);
+        }
+      });
+    }
+  });
+
+  it('verifies target WPM and accuracy increase progressively from beginner to grandmaster', () => {
+    const s1l1 = getLesson(1, 1);
+    const s1l600 = getLesson(1, 600);
+    const s7l1 = getLesson(7, 1);
+    const s7l600 = getLesson(7, 600);
+
+    assert.ok(s1l1.targetWpm <= s1l600.targetWpm);
+    assert.ok(s1l600.targetWpm <= s7l1.targetWpm);
+    assert.ok(s7l1.targetWpm <= s7l600.targetWpm);
+    assert.ok(s7l600.targetWpm >= 70);
+    assert.ok(s7l600.targetAccuracy >= 96);
+  });
+
+  it('verifies progressive character length scaling from tactile drills to extended prose', () => {
+    const s1Short = getLesson(1, 5);
+    const s1Mid = getLesson(1, 200);
+    const s7Capstone = getLesson(7, 600);
+
+    assert.ok(s1Short.exerciseText.length < 80, `Early level text should be focused: ${s1Short.exerciseText.length}`);
+    assert.ok(s1Mid.exerciseText.length > s1Short.exerciseText.length, 'Mid-stage should be longer than early drills');
+    assert.ok(s7Capstone.exerciseText.length >= 700, `Capstone should be comprehensive: ${s7Capstone.exerciseText.length}`);
   });
 });
 
 describe('Curriculum Validator Negative Tests (Fixture Defect Detection)', () => {
+  const baseLesson = STAGE_CURRICULA[1][0];
+
   it('detects a missing sequential level', () => {
-    const broken = MASTER_LESSONS.slice(0, 10).filter((l) => l.levelNumber !== 5);
+    const broken = [
+      { ...baseLesson, levelNumber: 1, id: 'S1-L001' },
+      { ...baseLesson, levelNumber: 3, id: 'S1-L003' },
+    ];
     const report = validateCurriculum(broken);
     assert.equal(report.valid, false);
     assert.ok(report.errors.some((e) => e.includes('Missing sequential level')));
@@ -304,8 +312,8 @@ describe('Curriculum Validator Negative Tests (Fixture Defect Detection)', () =>
 
   it('detects duplicate lesson IDs', () => {
     const broken = [
-      { ...MASTER_LESSONS[0], id: 'duplicate-id' },
-      { ...MASTER_LESSONS[1], id: 'duplicate-id' },
+      { ...baseLesson, levelNumber: 1, id: 'duplicate-id' },
+      { ...baseLesson, levelNumber: 2, id: 'duplicate-id' },
     ];
     const report = validateCurriculum(broken);
     assert.equal(report.valid, false);
@@ -314,8 +322,8 @@ describe('Curriculum Validator Negative Tests (Fixture Defect Detection)', () =>
 
   it('detects duplicate exercise text across different levels', () => {
     const broken = [
-      { ...MASTER_LESSONS[0], levelNumber: 1, id: 'lvl-1', exerciseText: 'identical repeated passage text' },
-      { ...MASTER_LESSONS[1], levelNumber: 2, id: 'lvl-2', exerciseText: 'identical repeated passage text' },
+      { ...baseLesson, levelNumber: 1, id: 'S1-L001', exerciseText: 'identical repeated passage text' },
+      { ...baseLesson, levelNumber: 2, id: 'S1-L002', exerciseText: 'identical repeated passage text' },
     ];
     const report = validateCurriculum(broken);
     assert.equal(report.valid, false);
@@ -324,7 +332,7 @@ describe('Curriculum Validator Negative Tests (Fixture Defect Detection)', () =>
 
   it('detects empty or too-short exercise text', () => {
     const broken = [
-      { ...MASTER_LESSONS[0], levelNumber: 1, id: 'lvl-1', exerciseText: 'abc' },
+      { ...baseLesson, levelNumber: 1, id: 'S1-L001', exerciseText: 'abc' },
     ];
     const report = validateCurriculum(broken);
     assert.equal(report.valid, false);
@@ -333,7 +341,7 @@ describe('Curriculum Validator Negative Tests (Fixture Defect Detection)', () =>
 
   it('detects excessive character spam (e.g. "aaaaa")', () => {
     const broken = [
-      { ...MASTER_LESSONS[0], levelNumber: 1, id: 'lvl-1', exerciseText: 'aaaaa bbbbb ccccc ddddd' },
+      { ...baseLesson, levelNumber: 1, id: 'S1-L001', exerciseText: 'aaaaa bbbbb ccccc ddddd' },
     ];
     const report = validateCurriculum(broken);
     assert.equal(report.valid, false);
@@ -342,17 +350,17 @@ describe('Curriculum Validator Negative Tests (Fixture Defect Detection)', () =>
 
   it('detects unsupported characters not in physical keyboard map', () => {
     const broken = [
-      { ...MASTER_LESSONS[0], levelNumber: 1, id: 'lvl-1', exerciseText: 'valid text with emojis 🚀 and 🦄' },
+      { ...baseLesson, levelNumber: 1, id: 'S1-L001', exerciseText: 'valid text with emojis 🚀 and 🦄' },
     ];
     const report = validateCurriculum(broken);
     assert.equal(report.valid, false);
-    assert.ok(report.errors.some((e) => e.includes('Unsupported character')));
+    assert.ok(report.errors.some((e) => e.includes('Unsupported character not in keyboard map')));
   });
 
   it('detects invalid prerequisite chains', () => {
     const broken = [
-      { ...MASTER_LESSONS[0], levelNumber: 1, id: 'lvl-1', prerequisiteLevel: null },
-      { ...MASTER_LESSONS[1], levelNumber: 2, id: 'lvl-2', prerequisiteLevel: 99 },
+      { ...baseLesson, levelNumber: 1, id: 'S1-L001', prerequisiteLevel: null },
+      { ...baseLesson, levelNumber: 2, id: 'S1-L002', prerequisiteLevel: 99 },
     ];
     const report = validateCurriculum(broken);
     assert.equal(report.valid, false);

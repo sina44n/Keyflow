@@ -21,7 +21,8 @@ export const LessonCard = React.forwardRef(({
   const isUnlocked = !!lesson.unlocked;
   const isLocked = !isUnlocked;
   const starsEarned = typeof lesson.record?.stars === 'number' ? Math.max(0, Math.min(5, lesson.record.stars)) : 0;
-  const formattedNumber = String(lesson.lessonNum).padStart(2, '0');
+  const levelNum = lesson.lessonNum || lesson.levelNumber || 1;
+  const formattedNumber = String(levelNum).padStart(3, '0');
 
   const handleClick = (e) => {
     e.preventDefault();
@@ -81,9 +82,16 @@ export const LessonCard = React.forwardRef(({
     >
       {/* Top Header: Lesson Number + State Badge */}
       <div className="flex items-center justify-between gap-2 mb-2">
-        <span className={`font-mono text-base font-extrabold tracking-wider ${isCurrent ? 'text-[var(--accent)]' : isCompleted ? 'text-[var(--ui-success)]' : isLocked ? 'text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}>
-          {formattedNumber}
-        </span>
+        <div className="flex items-baseline gap-1.5">
+          <span className={`font-mono text-base font-extrabold tracking-wider ${isCurrent ? 'text-[var(--accent)]' : isCompleted ? 'text-[var(--ui-success)]' : isLocked ? 'text-[var(--text-muted)]' : 'text-[var(--text-primary)]'}`}>
+            {formattedNumber}
+          </span>
+          {lesson.id && (
+            <span className="text-[10px] font-mono text-[var(--text-muted)] opacity-60">
+              {lesson.id}
+            </span>
+          )}
+        </div>
 
         {/* State Badges */}
         <div>

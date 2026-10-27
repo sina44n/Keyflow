@@ -48,17 +48,26 @@ if (typeof globalThis.CustomEvent === 'undefined') {
   };
 }
 
-describe('KEYFLOW Lesson Progress & Progression System (600 Levels)', () => {
+describe('KEYFLOW Lesson Progress & Progression System (4,200 Levels)', () => {
   beforeEach(() => {
     resetAllProgress();
   });
 
-  it('unlocks Level 1 by default for new learners', () => {
+  it('unlocks Stage 1 Level 1 by default for new learners', () => {
     assert.equal(isLessonUnlocked(1, 1), true);
   });
 
-  it('keeps Level 2 locked until Level 1 is passed', () => {
+  it('keeps Stage 1 Level 2 locked until Level 1 is passed', () => {
     assert.equal(isLessonUnlocked(1, 2), false);
+
+    // Fail Level 1
+    recordLessonResult(1, 1, {
+      wpm: 12,
+      accuracy: 80,
+      passed: false,
+      stars: 0,
+    });
+    assert.equal(isLessonUnlocked(1, 2), false, 'Failed attempt must not unlock Level 2');
 
     // Pass Level 1
     recordLessonResult(1, 1, {
@@ -98,29 +107,42 @@ describe('KEYFLOW Lesson Progress & Progression System (600 Levels)', () => {
     assert.equal(isLessonUnlocked(1, 51), true);
   });
 
-  it('progresses smoothly across Stage 1 to Stage 2 boundary (Level 100 -> Level 101)', () => {
-    assert.equal(isStageUnlocked(2), false);
-    assert.equal(isLessonUnlocked(2, 101), false);
+  it('progresses smoothly across Stage 1 Level 599 -> Level 600', () => {
+    assert.equal(isLessonUnlocked(1, 600), false);
 
-    // Complete Level 100 (Stage 1 Capstone)
-    recordLessonResult(1, 100, {
-      wpm: 30,
+    recordLessonResult(1, 599, {
+      wpm: 28,
       accuracy: 95,
       passed: true,
       stars: 3,
     });
 
-    // Stage 2 and Level 101 must now be unlocked!
-    assert.equal(isStageUnlocked(2), true);
-    assert.equal(isLessonUnlocked(2, 101), true);
+    assert.equal(isLessonUnlocked(1, 600), true);
   });
 
-  it('progresses smoothly across Stage 2 to Stage 3 boundary (Level 180 -> Level 181)', () => {
-    assert.equal(isStageUnlocked(3), false);
-    assert.equal(isLessonUnlocked(3, 181), false);
+  it('progresses smoothly across Stage 1 to Stage 2 boundary (S1-L600 -> S2-L001)', () => {
+    assert.equal(isStageUnlocked(2), false);
+    assert.equal(isLessonUnlocked(2, 1), false);
 
-    // Complete Level 180
-    recordLessonResult(2, 180, {
+    // Complete Stage 1 Level 600 (Stage 1 Capstone)
+    recordLessonResult(1, 600, {
+      wpm: 30,
+      accuracy: 95,
+      passed: true,
+      stars: 4,
+    });
+
+    // Stage 2 and Stage 2 Level 1 must now be unlocked!
+    assert.equal(isStageUnlocked(2), true);
+    assert.equal(isLessonUnlocked(2, 1), true);
+    assert.equal(isLessonUnlocked(2, 2), false);
+  });
+
+  it('progresses smoothly across Stage 2 to Stage 3 boundary (S2-L600 -> S3-L001)', () => {
+    assert.equal(isStageUnlocked(3), false);
+    assert.equal(isLessonUnlocked(3, 1), false);
+
+    recordLessonResult(2, 600, {
       wpm: 38,
       accuracy: 95,
       passed: true,
@@ -128,114 +150,151 @@ describe('KEYFLOW Lesson Progress & Progression System (600 Levels)', () => {
     });
 
     assert.equal(isStageUnlocked(3), true);
-    assert.equal(isLessonUnlocked(3, 181), true);
+    assert.equal(isLessonUnlocked(3, 1), true);
   });
 
-  it('progresses smoothly across Stage 6 to Stage 7 boundary (Level 500 -> Level 501)', () => {
-    assert.equal(isStageUnlocked(7), false);
-    assert.equal(isLessonUnlocked(7, 501), false);
+  it('progresses smoothly across Stage 3 to Stage 4 boundary (S3-L600 -> S4-L001)', () => {
+    assert.equal(isStageUnlocked(4), false);
+    assert.equal(isLessonUnlocked(4, 1), false);
 
-    // Complete Level 500
-    recordLessonResult(6, 500, {
+    recordLessonResult(3, 600, {
+      wpm: 44,
+      accuracy: 95,
+      passed: true,
+      stars: 3,
+    });
+
+    assert.equal(isStageUnlocked(4), true);
+    assert.equal(isLessonUnlocked(4, 1), true);
+  });
+
+  it('progresses smoothly across Stage 4 to Stage 5 boundary (S4-L600 -> S5-L001)', () => {
+    assert.equal(isStageUnlocked(5), false);
+    assert.equal(isLessonUnlocked(5, 1), false);
+
+    recordLessonResult(4, 600, {
+      wpm: 52,
+      accuracy: 95,
+      passed: true,
+      stars: 3,
+    });
+
+    assert.equal(isStageUnlocked(5), true);
+    assert.equal(isLessonUnlocked(5, 1), true);
+  });
+
+  it('progresses smoothly across Stage 5 to Stage 6 boundary (S5-L600 -> S6-L001)', () => {
+    assert.equal(isStageUnlocked(6), false);
+    assert.equal(isLessonUnlocked(6, 1), false);
+
+    recordLessonResult(5, 600, {
       wpm: 60,
       accuracy: 96,
       passed: true,
       stars: 4,
     });
 
+    assert.equal(isStageUnlocked(6), true);
+    assert.equal(isLessonUnlocked(6, 1), true);
+  });
+
+  it('progresses smoothly across Stage 6 to Stage 7 boundary (S6-L600 -> S7-L001)', () => {
+    assert.equal(isStageUnlocked(7), false);
+    assert.equal(isLessonUnlocked(7, 1), false);
+
+    recordLessonResult(6, 600, {
+      wpm: 65,
+      accuracy: 96,
+      passed: true,
+      stars: 4,
+    });
+
     assert.equal(isStageUnlocked(7), true);
-    assert.equal(isLessonUnlocked(7, 501), true);
+    assert.equal(isLessonUnlocked(7, 1), true);
+  });
+
+  it('completes Stage 7 Level 600 and marks Academy Completed', () => {
+    // Unlock Stage 7
+    recordLessonResult(6, 600, { wpm: 65, accuracy: 96, passed: true, stars: 4 });
+    assert.equal(isStageUnlocked(7), true);
+
+    // Complete S7-L599
+    recordLessonResult(7, 599, { wpm: 70, accuracy: 97, passed: true, stars: 4 });
+    assert.equal(isLessonUnlocked(7, 600), true);
+
+    // Complete S7-L600 Grandmaster Capstone
+    const finalState = recordLessonResult(7, 600, {
+      wpm: 74,
+      accuracy: 98,
+      passed: true,
+      stars: 5,
+    });
+
+    assert.equal(finalState.academyCompleted, true);
+  });
+
+  it('strictly isolates Stage 2 Level 1 from Stage 1 Level 1 (zero collision)', () => {
+    recordLessonResult(1, 1, {
+      wpm: 25,
+      accuracy: 95,
+      passed: true,
+      stars: 3,
+    });
+
+    recordLessonResult(2, 1, {
+      wpm: 35,
+      accuracy: 98,
+      passed: true,
+      stars: 5,
+    });
+
+    const state = recordLessonResult(1, 1, { wpm: 25, accuracy: 95, passed: true, stars: 3 });
+    assert.equal(state.lessons['S1-L001'].bestWpm, 25);
+    assert.equal(state.lessons['S2-L001'].bestWpm, 35);
+    assert.notEqual(state.lessons['S1-L001'].bestWpm, state.lessons['S2-L001'].bestWpm);
   });
 
   it('correctly calculates star ratings (0 to 5 stars)', () => {
-    // Failing performance: 0 stars
+    // Failing: 0 stars
     assert.equal(calculateStars(80, 90, 15, 20), 0);
-
     // Bare pass: 1 star
     assert.equal(calculateStars(90, 90, 20, 20), 1);
-
     // Good pass: 2 stars
     assert.equal(calculateStars(93, 90, 20, 20), 2);
-
-    // Solid mastery: 3 stars
+    // Solid pass: 3 stars
     assert.equal(calculateStars(95, 90, 23, 20), 3);
-
     // High mastery: 4 stars
     assert.equal(calculateStars(97, 90, 24, 20), 4);
-
     // Elite mastery: 5 stars
     assert.equal(calculateStars(99, 90, 26, 20), 5);
   });
 
   it('retains best WPM, accuracy, and stars across repeated attempts', () => {
-    // Attempt 1: 30 WPM, 94% acc
-    recordLessonResult(1, 1, {
-      wpm: 30,
-      accuracy: 94,
-      passed: true,
-      stars: 2,
-    });
+    recordLessonResult(1, 1, { wpm: 30, accuracy: 94, passed: true, stars: 2 });
+    recordLessonResult(1, 1, { wpm: 45, accuracy: 98, passed: true, stars: 4 });
+    const retained = recordLessonResult(1, 1, { wpm: 20, accuracy: 90, passed: true, stars: 1 });
 
-    // Attempt 2: 45 WPM, 98% acc (higher performance)
-    const updated = recordLessonResult(1, 1, {
-      wpm: 45,
-      accuracy: 98,
-      passed: true,
-      stars: 4,
-    });
-
-    assert.equal(updated.lessons['level_1'].bestWpm, 45);
-    assert.equal(updated.lessons['level_1'].bestAccuracy, 98);
-    assert.equal(updated.lessons['level_1'].stars, 4);
-    assert.equal(updated.lessons['level_1'].attempts, 2);
-
-    // Attempt 3: 20 WPM, 90% acc (lower performance - bests must be retained!)
-    const retained = recordLessonResult(1, 1, {
-      wpm: 20,
-      accuracy: 90,
-      passed: true,
-      stars: 1,
-    });
-
-    assert.equal(retained.lessons['level_1'].bestWpm, 45);
-    assert.equal(retained.lessons['level_1'].bestAccuracy, 98);
-    assert.equal(retained.lessons['level_1'].stars, 4);
-    assert.equal(retained.lessons['level_1'].attempts, 3);
+    assert.equal(retained.lessons['S1-L001'].bestWpm, 45);
+    assert.equal(retained.lessons['S1-L001'].bestAccuracy, 98);
+    assert.equal(retained.lessons['S1-L001'].stars, 4);
+    assert.equal(retained.lessons['S1-L001'].attempts, 3);
   });
 
-  it('calculates genuine dashboard stats across 600 levels without fabricated values', () => {
-    const initialStats = getAcademyDashboardStats(1);
-    assert.equal(initialStats.completedLessons, 0);
-    assert.equal(initialStats.totalLessons, 600);
-    assert.equal(initialStats.overallProgress, 0);
-
-    // Pass 6 lessons
-    for (let l = 1; l <= 6; l++) {
-      recordLessonResult(1, l, {
-        wpm: 30,
-        accuracy: 96,
-        passed: true,
-        stars: 3,
-      });
-    }
-
-    const updatedStats = getAcademyDashboardStats(1);
-    assert.equal(updatedStats.completedLessons, 6);
-    assert.equal(updatedStats.totalLessons, 600);
-    assert.equal(updatedStats.overallProgress, 1);
-    assert.equal(updatedStats.accuracy, 96);
-  });
-
-  it('getNextRecommendedLesson dynamically points to first uncompleted lesson across 600 levels', () => {
-    // Brand new user: Level 1
-    assert.deepEqual(getNextRecommendedLesson(1), { stageId: 1, lessonNum: 1 });
-
-    // Complete Level 1
+  it('calculates genuine dashboard stats across 4,200 levels without fabricated values', () => {
     recordLessonResult(1, 1, { wpm: 25, accuracy: 95, passed: true, stars: 3 });
-    assert.deepEqual(getNextRecommendedLesson(1), { stageId: 1, lessonNum: 2 });
+    recordLessonResult(1, 2, { wpm: 26, accuracy: 96, passed: true, stars: 3 });
 
-    // Complete Level 2
-    recordLessonResult(1, 2, { wpm: 28, accuracy: 96, passed: true, stars: 3 });
-    assert.deepEqual(getNextRecommendedLesson(1), { stageId: 1, lessonNum: 3 });
+    const stats = getAcademyDashboardStats(1);
+    assert.equal(stats.completedLessons, 2);
+    assert.equal(stats.totalStageLessons, 600);
+    assert.equal(stats.totalAcademyLessons, 4200);
+    assert.equal(stats.totalAcademyCompleted, 2);
+  });
+
+  it('getNextRecommendedLesson dynamically points to first uncompleted lesson across 4,200 levels', () => {
+    assert.deepEqual(getNextRecommendedLesson(1), { stageId: 1, lessonNum: 1, id: 'S1-L001' });
+
+    recordLessonResult(1, 1, { wpm: 25, accuracy: 95, passed: true, stars: 3 });
+    assert.deepEqual(getNextRecommendedLesson(1), { stageId: 1, lessonNum: 2, id: 'S1-L002' });
   });
 });

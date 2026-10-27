@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   STAGE_META,
-  getAllUnits,
-  getLessonMetaByLevel,
+  getLessonMeta,
+  getStageUnits,
   getNextLessonId,
   getLesson,
-  MASTER_LESSONS,
 } from '../data/curriculumEngine';
 import {
   isStageUnlocked,
@@ -36,21 +35,35 @@ const VIEW = {
 
 export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const initialLessonParam = searchParams ? parseInt(searchParams.get('lesson'), 10) : null;
+  const rawLessonParam = searchParams ? searchParams.get('lesson') : null;
   const initialStageParam = searchParams ? parseInt(searchParams.get('stage'), 10) : null;
   const initialUnitParam = searchParams ? parseInt(searchParams.get('unit'), 10) : null;
 
-  const initialLessonMeta = initialLessonParam ? getLessonMetaByLevel(initialLessonParam) : null;
-  const resolvedInitialStage = initialLessonMeta ? initialLessonMeta.stageId : (initialStageParam || initialLevelId || 1);
-  const resolvedInitialUnit = initialLessonMeta ? initialLessonMeta.unit : (initialUnitParam || initialStageParam || initialLevelId || 1);
+  let resolvedInitialStage = initialStageParam || 1;
+  let resolvedInitialLesson = null;
 
-  const [view, setView] = useState(initialLessonParam ? VIEW.LESSON : VIEW.DASHBOARD);
-  const [activeStageId, setActiveStageId] = useState(resolvedInitialStage);
+  if (rawLessonParam) {
+    const sMatch = String(rawLessonParam).match(/^S(\d+)-L(\d+)$/i);
+    if (sMatch) {
+      resolvedInitialStage = parseInt(sMatch[1], 10);
+      resolvedInitialLesson = parseInt(sMatch[2], 10);
+    } else {
+      const num = parseInt(rawLessonParam, 10);
+      if (!isNaN(num)) {
+        resolvedInitialLesson = num;
+      }
+    }
+  }
+
+  const resolvedInitialUnit = initialUnitParam || (resolvedInitialLesson ? Math.min(30, Math.ceil(resolvedInitialLesson / 20)) : 1);
+
+  const [view, setView] = useState(resolvedInitialLesson ? VIEW.LESSON : VIEW.DASHBOARD);
+  const [activeStageId, setActiveStageId] = useState(resolvedInitialStage || initialLevelId || 1);
   const [activeUnit, setActiveUnit] = useState(resolvedInitialUnit);
-  const [activeLessonNum, setActiveLessonNum] = useState(initialLessonParam || 1);
+  const [activeLessonNum, setActiveLessonNum] = useState(resolvedInitialLesson || 1);
   const [viewAllLevels, setViewAllLevels] = useState(false);
   const [progress, setProgress] = useState(getLessonProgress);
-  const [dashboardStats, setDashboardStats] = useState(() => getAcademyDashboardStats(1));
+  const [dashboardStats, setDashboardStats] = useState(() => getAcademyDashboardStats(activeStageId || 1));
   const [stageMenuOpen, setStageMenuOpen] = useState(false);
 
   // Sync progress on external updates (e.g. lesson completion)
@@ -64,14 +77,14 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     return () => window.removeEventListener('keyflow-lesson-progress-updated', refreshProgress);
   }, [refreshProgress]);
 
-  // Stage metadata & Units
+  // Stage metadata & Units for active stage (30 units per stage x 20 lessons = 600 lessons)
   const activeStageMeta = STAGE_META[activeStageId - 1] || STAGE_META[0];
-  const unitsData = useMemo(() => getAllUnits(), []);
-  const currentUnit = unitsData[activeUnit - 1] || unitsData[0];
+  const stageUnits = useMemo(() => getStageUnits(activeStageId), [activeStageId]);
+  const currentUnit = stageUnits[activeUnit - 1] || stageUnits[0];
 
   // Global recommended next lesson across unlocked stages
   const recommended = useMemo(() => {
-    if (!progress) return null;
+    if (!progress) return { stageId: activeStageId, lessonNum: 1 };
     return getNextRecommendedLesson(activeStageId);
   }, [activeStageId, progress]);
 
@@ -82,6 +95,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
       const targetLesson = recommended?.lessonNum || 1;
       setActiveStageId(targetStage);
       setActiveLessonNum(targetLesson);
+      setActiveUnit(Math.min(30, Math.ceil(targetLesson / 20)));
       setView(VIEW.LESSON);
     };
 
@@ -89,13 +103,14 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     return () => window.removeEventListener('keyflow-continue-practice', handleContinuePractice);
   }, [recommended, activeStageId]);
 
-  // Calculate unit completion and progress for all 7 stages
+  // Calculate unit completion and progress for all 30 units of the active stage
   const unitProgress = useMemo(() => {
     const map = {};
-    unitsData.forEach((u) => {
+    stageUnits.forEach((u) => {
       let done = 0;
       for (let l = u.startLesson; l <= u.endLesson; l++) {
-        if (progress.lessons?.[`level_${l}`]?.completed || progress.lessons?.[`s${u.unitNumber}_l${l}`]?.completed) {
+        const record = getLessonRecord(activeStageId, l);
+        if (record?.completed) {
           done++;
         }
       }
@@ -106,39 +121,33 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
       };
     });
     return map;
-  }, [unitsData, progress]);
+  }, [stageUnits, activeStageId, progress]);
 
   const unlockedUnitCount = useMemo(() => {
     let highest = 1;
-    const _unlockedStages = progress?.unlockedStages || [1];
-    for (const u of unitsData) {
-      if (u.unitNumber === 1 || isLessonUnlocked(u.stageId, u.startLesson)) {
+    for (const u of stageUnits) {
+      if (u.unitNumber === 1 || isLessonUnlocked(activeStageId, u.startLesson)) {
         highest = Math.max(highest, u.unitNumber);
       }
     }
     return highest;
-  }, [unitsData, progress]);
+  }, [stageUnits, activeStageId, progress]);
 
   const handleSelectUnit = useCallback((unitNum) => {
-    const targetUnit = unitsData[unitNum - 1];
-    if (targetUnit) {
-      setActiveUnit(unitNum);
-      setActiveStageId(targetUnit.stageId);
-    }
+    setActiveUnit(unitNum);
     setViewAllLevels(false);
-  }, [unitsData]);
+  }, []);
 
-  // Generate all lessons for the active view without arbitrary truncation
+  // Generate lessons for the active view (20 lessons for unit, or 600 lessons if viewing all)
   const displayLessons = useMemo(() => {
     if (!progress) return [];
     if (viewAllLevels) {
       const all = [];
-      const total = MASTER_LESSONS?.length || 600;
-      for (let l = 1; l <= total; l++) {
-        const meta = getLessonMetaByLevel(l);
-        const record = getLessonRecord(meta.stageId, l);
-        const unlocked = isLessonUnlocked(meta.stageId, l);
-        const isNextUp = (recommended?.lessonNum === l);
+      for (let l = 1; l <= 600; l++) {
+        const meta = getLessonMeta(activeStageId, l);
+        const record = getLessonRecord(activeStageId, l);
+        const unlocked = isLessonUnlocked(activeStageId, l);
+        const isNextUp = (recommended?.stageId === activeStageId && recommended?.lessonNum === l);
 
         all.push({
           ...meta,
@@ -156,10 +165,10 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     const end = currentUnit.endLesson;
 
     for (let l = start; l <= end; l++) {
-      const meta = getLessonMetaByLevel(l);
-      const record = getLessonRecord(meta.stageId, l);
-      const unlocked = isLessonUnlocked(meta.stageId, l);
-      const isNextUp = (recommended?.lessonNum === l);
+      const meta = getLessonMeta(activeStageId, l);
+      const record = getLessonRecord(activeStageId, l);
+      const unlocked = isLessonUnlocked(activeStageId, l);
+      const isNextUp = (recommended?.stageId === activeStageId && recommended?.lessonNum === l);
 
       lessons.push({
         ...meta,
@@ -175,8 +184,11 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   const handleSelectLesson = useCallback((stageId, lessonNum) => {
     if (!isLessonUnlocked(stageId, lessonNum)) return;
     const lesson = getLesson(stageId, lessonNum);
-    setActiveStageId(lesson ? lesson.stageId : stageId);
-    setActiveLessonNum(lesson ? lesson.levelNumber : lessonNum);
+    const resolvedStage = lesson ? lesson.stageId : stageId;
+    const resolvedNum = lesson ? lesson.levelNumber : lessonNum;
+    setActiveStageId(resolvedStage);
+    setActiveLessonNum(resolvedNum);
+    setActiveUnit(Math.min(30, Math.ceil(resolvedNum / 20)));
     setView(VIEW.LESSON);
   }, []);
 
@@ -277,10 +289,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                           disabled={!isStUnlocked}
                           onClick={() => {
                             setActiveStageId(st.stageId);
-                            const firstUnit = unitsData.find((u) => u.stageId === st.stageId);
-                            if (firstUnit) {
-                              setActiveUnit(firstUnit.unitNumber);
-                            }
+                            setActiveUnit(1);
                             setViewAllLevels(false);
                             setStageMenuOpen(false);
                           }}
@@ -307,7 +316,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
               )}
             </div>
 
-            {/* View Mode Toggle (Stage vs All 60 Levels) */}
+            {/* View Mode Toggle (Stage vs All 600 Levels) */}
             <div className="hidden sm:flex items-center rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] p-0.5">
               <button
                 type="button"
@@ -319,7 +328,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 }`}
               >
                 <Layers className="w-3 h-3" />
-                <span>By Stage</span>
+                <span>By Unit</span>
               </button>
               <button
                 type="button"
@@ -339,7 +348,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
           {/* Quick Resume Link */}
           <div className="flex items-center gap-3">
             <span className="text-[var(--text-muted)] hidden sm:inline">
-              Recommended: <span className="text-[var(--accent)] font-bold">Lesson {recommended.lessonNum}</span>
+              Recommended: <span className="text-[var(--accent)] font-bold">Stage {recommended.stageId} L{recommended.lessonNum}</span>
             </span>
             <button
               type="button"
@@ -366,11 +375,11 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
         <section aria-label="Units Navigation" className="space-y-2">
           <div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
             <span className="font-semibold tracking-wider uppercase text-[11px] text-[var(--text-muted)]">
-              Select Curriculum Unit (1–{unitsData.length}):
+              Select Curriculum Unit (1–{stageUnits.length}):
             </span>
             <span className="text-[11px] text-[var(--text-secondary)]">
               {viewAllLevels ? (
-                <span className="text-[var(--accent)] font-bold">Viewing All 600 Levels</span>
+                <span className="text-[var(--accent)] font-bold">Viewing All 600 Levels of Stage {activeStageId}</span>
               ) : (
                 <>
                   Active: <span className="text-[var(--accent)] font-bold">Unit {String(activeUnit).padStart(2, '0')}</span> ({currentUnit?.unitLabel})
@@ -384,7 +393,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
             onSelectUnit={handleSelectUnit}
             unitProgress={unitProgress}
             unlockedUnitCount={unlockedUnitCount}
-            totalUnits={unitsData.length}
+            totalUnits={stageUnits.length}
           />
         </section>
 
@@ -393,12 +402,12 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
           <LessonMap
             stageId={activeStageId}
             activeUnit={viewAllLevels ? 1 : activeUnit}
-            unitLabel={viewAllLevels ? 'Complete Curriculum (All 600 Levels)' : (currentUnit?.unitLabel || activeStageMeta.title)}
+            unitLabel={viewAllLevels ? `Stage ${activeStageId}: ${activeStageMeta.title} (All 600 Levels)` : (currentUnit?.unitLabel || activeStageMeta.title)}
             lessons={displayLessons}
             activeLessonNum={recommended.lessonNum}
             onSelectLesson={handleSelectLesson}
             onSelectUnit={handleSelectUnit}
-            unitsData={unitsData}
+            unitsData={stageUnits}
             unitProgress={unitProgress}
             unlockedUnitCount={unlockedUnitCount}
           />

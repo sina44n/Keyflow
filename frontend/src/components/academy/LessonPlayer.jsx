@@ -349,13 +349,13 @@ export const LessonPlayer = ({
               </span>
             </div>
 
-            {/* Breadcrumb: Academy / Lesson 129 */}
+            {/* Breadcrumb: Academy / Stage 1 / Level 1 (S1-L001) */}
             <div className="flex items-center gap-1.5 text-xs font-mono text-[var(--text-muted)]">
               <span className="opacity-40 hidden sm:inline">/</span>
-              <span className="hidden sm:inline">Academy</span>
+              <span className="hidden sm:inline">Stage {lesson.stageId || 1}</span>
               <span className="opacity-40">/</span>
               <span className="font-semibold text-[var(--accent,#FF1744)]">
-                <span className="hidden sm:inline">Lesson </span>{lesson.lessonNum || lesson.levelNumber}
+                Level {lesson.lessonNum || lesson.levelNumber} <span className="opacity-60 hidden md:inline">({lesson.id || `S${lesson.stageId || 1}-L${String(lesson.lessonNum || 1).padStart(3, '0')}`})</span>
               </span>
             </div>
           </div>
@@ -443,7 +443,7 @@ export const LessonPlayer = ({
             <span
               className="text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--text-muted,#64748b)]"
             >
-              LESSON {lesson.lessonNum} · {lesson.unitLabel || 'WORD ACCURACY'}
+              STAGE {lesson.stageId || 1} · LEVEL {lesson.lessonNum || lesson.levelNumber} ({lesson.id}) · {lesson.unitLabel || 'WORD ACCURACY'}
             </span>
             <span
               className="text-xs font-mono font-bold text-[var(--accent,#FF1744)]"
@@ -829,6 +829,20 @@ export const LessonPlayer = ({
                   </div>
                 ))}
               </div>
+
+              {/* Grandmaster Capstone Final Graduation Banner on Stage 7 Level 600 */}
+              {completedResult.passed && !hasNextLesson && !hasNextStage && (lesson.stageId === 7 || lesson.id === 'S7-L600') && (
+                <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-[var(--accent)]/15 to-emerald-500/15 border border-amber-500/50 text-center space-y-1">
+                  <div className="text-xs font-bold font-mono text-amber-400 uppercase tracking-widest flex items-center justify-center gap-1.5">
+                    <span>🏆</span>
+                    <span>ACADEMY GRANDMASTER GRADUATION</span>
+                    <span>🏆</span>
+                  </div>
+                  <div className="text-[11px] text-[var(--text-secondary)]">
+                    You have mastered all 4,200 lessons across all 7 stages of the KEYFLOW Academy. True neuromuscular flow achieved!
+                  </div>
+                </div>
+              )}
 
               {/* Actions */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
