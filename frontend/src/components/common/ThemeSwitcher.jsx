@@ -93,14 +93,14 @@ export const ThemeSwitcher = ({ compact = false }) => {
 
             {/* Themes Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
-              {themes.map((t) => {
-                const isActive = t.id === theme;
+              {themes.map((themeItem) => {
+                const isActive = themeItem.id === theme;
                 return (
                   <button
-                    key={t.id}
+                    key={themeItem.id}
                     type="button"
                     onClick={() => {
-                      setTheme(t.id);
+                      setTheme(themeItem.id);
                       setIsOpen(false);
                     }}
                     className={`flex items-start gap-2.5 p-2 rounded-xl border text-left transition-all duration-150 cursor-pointer ${
@@ -112,11 +112,11 @@ export const ThemeSwitcher = ({ compact = false }) => {
                     {/* Visual 2-color swatch */}
                     <div
                       className="w-6 h-6 rounded-md shrink-0 flex items-center justify-center border border-white/10 shadow-xs relative overflow-hidden"
-                      style={{ backgroundColor: t.bg }}
+                      style={{ backgroundColor: themeItem.bg }}
                     >
                       <div
                         className="w-3 h-3 rounded-full absolute -bottom-0.5 -right-0.5"
-                        style={{ backgroundColor: t.accent }}
+                        style={{ backgroundColor: themeItem.accent }}
                       />
                       {isActive && <Check className="w-3 h-3 text-white drop-shadow-sm z-10" />}
                     </div>
@@ -124,14 +124,14 @@ export const ThemeSwitcher = ({ compact = false }) => {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-1">
                         <span className="text-xs font-semibold text-[var(--text-primary)] truncate">
-                          {t.name}
+                          {themeItem.name}
                         </span>
                         <span className="text-[9px] px-1 py-0.2 rounded font-mono text-[var(--text-muted)] border border-[var(--border)]">
-                          {t.tag}
+                          {themeItem.tag}
                         </span>
                       </div>
                       <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
-                        {t.subtitle}
+                        {themeItem.subtitle}
                       </p>
                     </div>
                   </button>

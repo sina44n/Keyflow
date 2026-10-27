@@ -89,6 +89,21 @@ describe('KEYFLOW Multilingual System', () => {
     }
   });
 
+  it('contains dedicated theme showcase translations across all 17 languages', () => {
+    const themeKeys = ['themes.badge', 'themes.title', 'themes.subtitle', 'themes.active'];
+    for (const lang of SUPPORTED_LANGUAGES) {
+      const dict = TRANSLATIONS[lang.code];
+      for (const key of themeKeys) {
+        assert.ok(dict[key], `Missing ${key} in ${lang.code}`);
+        assert.ok(dict[key].trim().length > 0, `Empty ${key} in ${lang.code}`);
+      }
+    }
+    assert.equal(TRANSLATIONS.en['themes.active'], 'Active');
+    assert.equal(TRANSLATIONS.ml['themes.active'], 'സജീവം');
+    assert.equal(TRANSLATIONS.hi['themes.active'], 'सक्रिय');
+    assert.equal(TRANSLATIONS.ar['themes.active'], 'نشط');
+  });
+
   it('falls back to English when a translation key is missing in another language', () => {
     const testKey = 'auth.login.button';
     const fallback = TRANSLATIONS.kn[testKey] || TRANSLATIONS.en[testKey];
