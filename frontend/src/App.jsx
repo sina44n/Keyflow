@@ -1,11 +1,12 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { SoundProvider } from './context/SoundContext';
 import { Navbar } from './components/common/Navbar';
 import { LandingPage } from './pages/LandingPage';
 import { AcademyPage } from './pages/AcademyPage';
 import { WorkstationPage } from './pages/WorkstationPage';
+import { ArcadePage } from './pages/ArcadePage';
 import { Footer } from './components/common/Footer';
 
 const AcademyStageRoute = () => {
@@ -43,6 +44,8 @@ function App() {
                 <Route path="/practice" element={<WorkstationPage />} />
                 <Route path="/academy" element={<AcademyHomeRoute />} />
                 <Route path="/academy/stage/:stageId" element={<AcademyStageRoute />} />
+                <Route path="/arcade" element={<ArcadePage />} />
+                <Route path="/curriculum" element={<Navigate to="/academy" replace />} />
                 <Route path="*" element={<LandingPage />} />
               </Routes>
             </div>

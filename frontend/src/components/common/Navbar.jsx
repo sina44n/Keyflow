@@ -36,7 +36,7 @@ export const Navbar = () => {
   const navLinks = [
     { label: 'Workstation', href: '/workstation', isInternal: true, icon: Keyboard },
     { label: 'Academy', href: '/academy', isInternal: true, icon: BookOpen },
-    { label: 'Arcade', href: '/#arcade', isInternal: false, icon: Gamepad2 },
+    { label: 'Arcade', href: '/arcade', isInternal: true, icon: Gamepad2 },
     { label: 'Themes', href: '/#themes', isInternal: false, icon: Palette },
     { label: 'Telemetry', href: '/#telemetry', isInternal: false, icon: BarChart3 },
   ];
@@ -92,8 +92,11 @@ export const Navbar = () => {
           {navLinks.map((link) => {
             const Icon = link.icon;
             const isAcademy = link.label === 'Academy';
+            const isArcade = link.label === 'Arcade';
             const isActive = isAcademy
               ? location.pathname.startsWith('/academy')
+              : isArcade
+              ? location.pathname.startsWith('/arcade')
               : location.pathname === link.href;
 
             return (
@@ -160,8 +163,11 @@ export const Navbar = () => {
             {navLinks.map((link) => {
               const Icon = link.icon;
               const isAcademy = link.label === 'Academy';
+              const isArcade = link.label === 'Arcade';
               const isActive = isAcademy
                 ? location.pathname.startsWith('/academy')
+                : isArcade
+                ? location.pathname.startsWith('/arcade')
                 : location.pathname === link.href;
 
               return (

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Keyboard, Terminal } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -76,13 +77,13 @@ export const Footer = () => {
               Academy
             </h4>
             <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
-              <li><a href="#curriculum" className="hover:text-[var(--accent)] transition-colors">Level 1: Home Row</a></li>
-              <li><a href="#curriculum" className="hover:text-[var(--accent)] transition-colors">Level 2: Top Row</a></li>
-              <li><a href="#curriculum" className="hover:text-[var(--accent)] transition-colors">Level 3: Bottom Row</a></li>
-              <li><a href="#curriculum" className="hover:text-[var(--accent)] transition-colors">Level 4: Shift & Punctuation</a></li>
-              <li><a href="#curriculum" className="hover:text-[var(--accent)] transition-colors">Level 5: Numbers & Symbols</a></li>
-              <li><a href="#curriculum" className="hover:text-[var(--accent)] transition-colors">Level 6: Programmer Syntax</a></li>
-              <li><a href="#curriculum" className="hover:text-[var(--accent)] transition-colors">Level 7: Speed Endurance</a></li>
+              <li><Link to="/academy?stage=1" className="hover:text-[var(--accent)] transition-colors">Stage 1: Home Row Foundations</Link></li>
+              <li><Link to="/academy?stage=2" className="hover:text-[var(--accent)] transition-colors">Stage 2: Top Row Control</Link></li>
+              <li><Link to="/academy?stage=3" className="hover:text-[var(--accent)] transition-colors">Stage 3: Bottom Row Control</Link></li>
+              <li><Link to="/academy?stage=4" className="hover:text-[var(--accent)] transition-colors">Stage 4: Morphemes & Trigrams</Link></li>
+              <li><Link to="/academy?stage=5" className="hover:text-[var(--accent)] transition-colors">Stage 5: Word Flow & Cadence</Link></li>
+              <li><Link to="/academy?stage=6" className="hover:text-[var(--accent)] transition-colors">Stage 6: Sentence Rhythm & Shift</Link></li>
+              <li><Link to="/academy?stage=7" className="hover:text-[var(--accent)] transition-colors">Stage 7: Speed Endurance & Capstone</Link></li>
             </ul>
           </div>
 
@@ -92,12 +93,13 @@ export const Footer = () => {
               Arcade & Modes
             </h4>
             <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
-              <li><a href="#arcade" className="hover:text-[var(--accent)] transition-colors">Key Cascade</a></li>
-              <li><a href="#arcade" className="hover:text-[var(--accent)] transition-colors">Speed Sprint</a></li>
-              <li><a href="#arcade" className="hover:text-[var(--accent)] transition-colors">Word Hunter</a></li>
-              <li><a href="#sandbox" className="hover:text-[var(--accent)] transition-colors">Live Typing Sandbox</a></li>
-              <li><a href="#telemetry" className="hover:text-[var(--accent)] transition-colors">Biomechanical Telemetry</a></li>
-              <li><a href="#themes" className="hover:text-[var(--accent)] transition-colors">12 Studio Themes</a></li>
+              <li><Link to="/arcade?game=cascade" className="hover:text-[var(--accent)] transition-colors">Key Cascade (Defense)</Link></li>
+              <li><Link to="/arcade?game=sprint" className="hover:text-[var(--accent)] transition-colors">Speed Sprint (Velocity)</Link></li>
+              <li><Link to="/arcade?game=hunter" className="hover:text-[var(--accent)] transition-colors">Word Hunter (Precision)</Link></li>
+              <li><Link to="/arcade?game=ninja" className="hover:text-[var(--accent)] transition-colors">Key Ninja (Reaction)</Link></li>
+              <li><Link to="/arcade?game=runner" className="hover:text-[var(--accent)] transition-colors">Word Runner (Adventure)</Link></li>
+              <li><Link to="/arcade?game=memory" className="hover:text-[var(--accent)] transition-colors">Typing Memory (Recall)</Link></li>
+              <li><Link to="/arcade?game=boss" className="hover:text-[var(--accent)] transition-colors">Boss Battle (Combat)</Link></li>
             </ul>
           </div>
 
@@ -121,7 +123,7 @@ export const Footer = () => {
         <div className="mt-12 pt-6 border-t border-[var(--border)] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[var(--text-muted)]">
           <p>© {CURRENT_YEAR} KEYFLOW. All rights reserved. Built for typists, engineers, and writers.</p>
           <div className="flex items-center gap-5 text-[11px]">
-            <a href="#curriculum" className="hover:text-[var(--text-primary)] transition-colors">Academy Syllabus</a>
+            <Link to="/academy" className="hover:text-[var(--text-primary)] transition-colors">Academy Syllabus</Link>
             <a href="#themes" className="hover:text-[var(--text-primary)] transition-colors">Themes</a>
             <a href="#telemetry" className="hover:text-[var(--text-primary)] transition-colors">Telemetry</a>
           </div>
