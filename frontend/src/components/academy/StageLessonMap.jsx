@@ -4,24 +4,20 @@ import { getStageUnits, getLessonMeta, STAGE_META } from '../../data/curriculumE
 import { isLessonUnlocked, getLessonRecord, getStageCompletedCount, getNextRecommendedLesson } from '../../utils/lessonProgress';
 
 /**
- * StageLessonMap — Displays 600 lessons in 20 units of 30 each.
- * Uses pagination (one unit at a time) for performance.
- * Does NOT render 600 DOM nodes simultaneously.
+ * StageLessonMap — Displays lessons for a stage cleanly.
  */
 export const StageLessonMap = ({ stageId, onSelectLesson }) => {
   const [activeUnit, setActiveUnit] = useState(1);
-  const stageMeta = STAGE_META[stageId - 1];
+  const stageMeta = STAGE_META[stageId - 1] || STAGE_META[0];
   const units = useMemo(() => getStageUnits(stageId), [stageId]);
   const recommended = useMemo(() => getNextRecommendedLesson(stageId), [stageId]);
 
-  // When unit changes, scroll top
   const handleUnitChange = useCallback((unitNum) => {
     setActiveUnit(unitNum);
   }, []);
 
   const currentUnit = units[activeUnit - 1] || units[0];
 
-  // Generate lesson metas for this unit (30 lessons)
   const unitLessons = useMemo(() => {
     if (!currentUnit) return [];
     const lessons = [];
@@ -36,7 +32,8 @@ export const StageLessonMap = ({ stageId, onSelectLesson }) => {
   }, [stageId, currentUnit, recommended]);
 
   const completedCount = useMemo(() => getStageCompletedCount(stageId), [stageId]);
-  const completedPct = Math.round((completedCount / 600) * 100);
+  const totalStageLessons = stageMeta.totalLessons || 10;
+  const completedPct = Math.min(100, Math.round((completedCount / totalStageLessons) * 100));
 
   if (!currentUnit) return null;
 
@@ -51,7 +48,9 @@ export const StageLessonMap = ({ stageId, onSelectLesson }) => {
           </div>
           <div className="text-right">
             <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">Progress</div>
-            <div className="text-xl font-bold font-mono text-[var(--accent)]">{completedCount}<span className="text-sm text-[var(--text-muted)]"> / 600</span></div>
+            <div className="text-xl font-bold font-mono text-[var(--accent)]">
+              {completedCount}<span className="text-sm text-[var(--text-muted)]"> / {totalStageLessons}</span>
+            </div>
           </div>
         </div>
         {/* Progress bar */}
@@ -69,107 +68,73 @@ export const StageLessonMap = ({ stageId, onSelectLesson }) => {
         </div>
       </div>
 
-      {/* Unit navigator */}
-      <div className="space-y-2">
-        <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-muted)]">20 Units — Select a unit:</div>
-        <div className="flex flex-wrap gap-2">
-          {units.map((u) => {
-            // Count completed in this unit
-            let unitDone = 0;
-            for (let l = u.startLesson; l <= u.endLesson; l++) {
-              if (getLessonRecord(stageId, l)?.completed) unitDone++;
-            }
-            const unitComplete = unitDone >= 30;
-            const isCurrent = u.unitNumber === activeUnit;
-            return (
-              <button
-                key={u.unitNumber}
-                type="button"
-                onClick={() => handleUnitChange(u.unitNumber)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-all cursor-pointer ${
-                  isCurrent
-                    ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)]'
-                    : unitComplete
-                    ? 'border-[var(--ui-success)]/50 bg-[var(--bg-surface)] text-[var(--ui-success)]'
-                    : 'border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
-                }`}
-                title={u.unitLabel}
-                aria-label={`Unit ${u.unitNumber}: ${u.unitLabel}`}
-                aria-pressed={isCurrent}
-              >
-                {unitComplete ? '✓' : `U${u.unitNumber}`}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Current unit header */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-sm font-bold text-[var(--text-primary)]">
-            Unit {activeUnit}: {currentUnit.unitLabel}
-          </div>
-          <div className="text-xs text-[var(--text-muted)] font-mono">
-            Lessons {currentUnit.startLesson}–{currentUnit.endLesson}
-            {currentUnit.isAssessment && <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] border border-[var(--ui-warning)] text-[var(--ui-warning)]">Assessment</span>}
+      {/* Unit navigator if multiple units exist */}
+      {units.length > 1 && (
+        <div className="space-y-2">
+          <div className="text-[11px] font-mono uppercase tracking-wider text-[var(--text-muted)]">Units:</div>
+          <div className="flex flex-wrap gap-2">
+            {units.map((u) => {
+              let unitDone = 0;
+              for (let l = u.startLesson; l <= u.endLesson; l++) {
+                if (getLessonRecord(stageId, l)?.completed) unitDone++;
+              }
+              const unitComplete = unitDone >= u.lessonsCount;
+              const isCurrent = u.unitNumber === activeUnit;
+              return (
+                <button
+                  key={u.unitNumber}
+                  type="button"
+                  onClick={() => handleUnitChange(u.unitNumber)}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold border transition-all cursor-pointer ${
+                    isCurrent
+                      ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)]'
+                      : unitComplete
+                      ? 'border-[var(--ui-success)]/50 bg-[var(--bg-surface)] text-[var(--ui-success)]'
+                      : 'border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)] hover:border-[var(--text-muted)]'
+                  }`}
+                  title={u.unitLabel}
+                  aria-label={`Unit ${u.unitNumber}: ${u.unitLabel}`}
+                  aria-pressed={isCurrent}
+                >
+                  {unitComplete ? '✓' : `U${u.unitNumber}`}
+                </button>
+              );
+            })}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* 30 lessons grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2">
-        {unitLessons.map((lesson) => (
+      {/* Lesson Cards Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5">
+        {unitLessons.map((l) => (
           <button
-            key={lesson.id}
+            key={l.id}
             type="button"
-            disabled={!lesson.unlocked}
-            onClick={() => lesson.unlocked && onSelectLesson(lesson.stageId, lesson.lessonNum)}
-            className={`relative p-3 rounded-xl border text-left transition-all cursor-pointer text-xs ${
-              lesson.record?.completed
-                ? 'border-[var(--ui-success)]/40 bg-[var(--bg-elevated)]'
-                : lesson.isRecommended
-                ? 'border-[var(--accent)] bg-[var(--bg-elevated)] ring-1 ring-[var(--accent)]/30'
-                : lesson.unlocked
-                ? 'border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--text-muted)]'
-                : 'border-[var(--border-subtle)] bg-[var(--bg-surface)]/50 opacity-50 cursor-not-allowed'
+            disabled={!l.unlocked}
+            onClick={() => l.unlocked && onSelectLesson(stageId, l.lessonNum)}
+            className={`p-4 rounded-xl border text-left transition-all cursor-pointer ${
+              l.record?.completed
+                ? 'border-[var(--ui-success)]/40 bg-[var(--bg-card)]'
+                : l.isRecommended
+                ? 'border-[var(--accent)] bg-[var(--bg-elevated)] shadow-md'
+                : l.unlocked
+                ? 'border-[var(--border)] bg-[var(--bg-card)] hover:border-[var(--accent)]/50'
+                : 'border-[var(--border-subtle)] bg-[var(--bg-surface)] opacity-50 cursor-not-allowed'
             }`}
-            title={lesson.title}
-            aria-label={`Lesson ${lesson.lessonNum}: ${lesson.title}`}
-            aria-disabled={!lesson.unlocked}
           >
-            {/* Lesson number */}
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-mono font-bold text-[var(--text-muted)]">#{lesson.lessonNum}</span>
-              <span>
-                {lesson.record?.completed
-                  ? <CheckCircle2 className="w-3.5 h-3.5 text-[var(--ui-success)]" />
-                  : !lesson.unlocked
-                  ? <Lock className="w-3 h-3 text-[var(--text-muted)]" />
-                  : lesson.isRecommended
-                  ? <Zap className="w-3.5 h-3.5 text-[var(--accent)]" />
-                  : null}
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-mono text-sm font-bold text-[var(--text-primary)]">
+                Level {l.lessonNum}
               </span>
+              {l.record?.completed ? (
+                <CheckCircle2 className="w-4 h-4 text-[var(--ui-success)]" />
+              ) : !l.unlocked ? (
+                <Lock className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+              ) : null}
             </div>
-
-            {/* Stars if completed */}
-            {lesson.record?.completed && lesson.record.stars > 0 && (
-              <div className="flex gap-0.5 mb-1">
-                {[1, 2, 3, 4, 5].map(s => (
-                  <span key={s} className={`text-[9px] ${s <= lesson.record.stars ? 'text-amber-400' : 'text-[var(--border)]'}`}>★</span>
-                ))}
-              </div>
-            )}
-
-            {/* Best WPM if completed */}
-            {lesson.record?.completed && (
-              <div className="font-mono text-[9px] text-[var(--ui-success)]">{lesson.record.bestWpm} wpm</div>
-            )}
-
-            {/* Recommended badge */}
-            {lesson.isRecommended && !lesson.record?.completed && (
-              <div className="text-[9px] font-mono text-[var(--accent)] font-bold">Next up</div>
-            )}
+            <div className="text-xs font-medium text-[var(--text-secondary)] truncate">
+              {l.title}
+            </div>
           </button>
         ))}
       </div>

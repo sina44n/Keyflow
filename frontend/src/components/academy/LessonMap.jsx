@@ -5,37 +5,12 @@ import { UnitElevator } from './UnitElevator';
 import { AlertCircle, X } from 'lucide-react';
 
 /**
- * Curated 20 progressive lesson definitions for Unit 1 matching the prompt.
- * Other units adapt with progressive skill titles.
+ * LessonMap
+ * =========================================================================
+ * Displays interactive lesson destination cards arranged in a responsive grid
+ * with dynamic SVG circuit connectors, status badges, and synchronized unit elevator.
+ * Never truncates lessons; displays all modules in the active view.
  */
-const UNIT_1_TITLES = [
-  'Introduction to Home Row',
-  'A S D F Keys',
-  'J K L ; Keys',
-  'Space Bar',
-  'Home Row Practice',
-  'Finger Position',
-  'Typing the Basics',
-  'Speed Drills',
-  'Accuracy Drills',
-  'Mixed Characters',
-  'Word Practice',
-  'Sentence Practice',
-  'Paragraph Practice',
-  'Speed Challenge',
-  'Real Words',
-  'Common Mistakes',
-  'Punctuation Practice',
-  'Advanced Sentences',
-  'Timed Test',
-  'Unit 01 Mastery',
-];
-
-const UNIT_ESTIMATED_MINUTES = [
-  '2', '3', '3', '2', '4', '3', '3', '4', '4', '5',
-  '4', '5', '6', '6', '5', '4', '5', '6', '5', '8',
-];
-
 export const LessonMap = ({
   _stageId = 1,
   activeUnit = 1,
@@ -46,28 +21,23 @@ export const LessonMap = ({
   onSelectUnit,
   unitsData = [],
   unitProgress = {},
-  unlockedUnitCount = 20,
+  unlockedUnitCount = 7,
 }) => {
   const containerRef = useRef(null);
   const cardRefs = useRef([]);
   const [lockedToast, setLockedToast] = useState(null);
 
-  // Prepare 20 enriched lessons for this unit
+  // Prepare enriched lessons without arbitrary truncation
   const displayLessons = useMemo(() => {
-    return lessons.slice(0, 20).map((l, index) => {
-      const customTitle = activeUnit === 1
-        ? (UNIT_1_TITLES[index] || l.title)
-        : l.title;
-
-      const estimatedMinutes = UNIT_ESTIMATED_MINUTES[index] || '3';
-
+    return lessons.map((l) => {
+      const estimatedMinutes = l.estimatedMinutes || String(Math.ceil((l.estimatedSeconds || 60) / 60)) || '3';
       return {
         ...l,
-        customTitle,
+        customTitle: l.title,
         estimatedMinutes,
       };
     });
-  }, [lessons, activeUnit]);
+  }, [lessons]);
 
   const handleLockedClick = (lessonNum) => {
     const requiredLessonNum = lessonNum > 1 ? lessonNum - 1 : 1;
@@ -77,16 +47,19 @@ export const LessonMap = ({
     }, 3500);
   };
 
+  const firstLessonNum = displayLessons[0]?.levelNumber || displayLessons[0]?.lessonNum || 1;
+  const lastLessonNum = displayLessons[displayLessons.length - 1]?.levelNumber || displayLessons[displayLessons.length - 1]?.lessonNum || displayLessons.length;
+
   return (
     <div className="space-y-6">
       {/* Unit Header Bar with Red Accent Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
         <div className="border-l-4 border-[var(--accent)] pl-3.5 space-y-0.5">
           <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-            Unit {String(activeUnit).padStart(2, '0')} — <span className="text-[var(--text-primary)]">{unitLabel}</span>
+            Stage {activeUnit} — <span className="text-[var(--text-primary)]">{unitLabel}</span>
           </h2>
           <div className="text-xs font-mono text-[var(--text-muted)]">
-            Lessons 1 – 20
+            Lessons {firstLessonNum} – {lastLessonNum} ({displayLessons.length} Modules)
           </div>
         </div>
 
@@ -117,7 +90,8 @@ export const LessonMap = ({
           <button
             type="button"
             onClick={() => setLockedToast(null)}
-            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1"
+            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 cursor-pointer"
+            aria-label="Dismiss notification"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -139,7 +113,7 @@ export const LessonMap = ({
           {/* 5-Column Grid on Desktop */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5 relative z-10">
             {displayLessons.map((lesson, idx) => {
-              const isCurrent = lesson.lessonNum === activeLessonNum && !lesson.record?.completed;
+              const isCurrent = (lesson.levelNumber || lesson.lessonNum) === activeLessonNum && !lesson.record?.completed;
 
               return (
                 <LessonCard
@@ -155,7 +129,7 @@ export const LessonMap = ({
           </div>
         </div>
 
-        {/* Right-Side Unit Elevator Panel (Reference A redesigned in Reference B) */}
+        {/* Right-Side Unit Elevator Panel */}
         <div className="w-full lg:w-auto shrink-0">
           <UnitElevator
             activeUnit={activeUnit}

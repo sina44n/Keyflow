@@ -4,14 +4,15 @@ import { ChevronLeft, ChevronRight, Lock, Check } from 'lucide-react';
 /**
  * UnitSelector
  * =========================================================================
- * 20 horizontal unit pills (01 to 20) with cybernetic glowing red active state,
- * smooth scrolling, and full responsive behavior.
+ * Responsive stage/unit pills with glowing active state, smooth scrolling,
+ * and lock/completed visual cues.
  */
 export const UnitSelector = ({
   activeUnit = 1,
   onSelectUnit,
   unitProgress = {},
-  unlockedUnitCount = 20,
+  unlockedUnitCount = 7,
+  totalUnits = 7,
 }) => {
   const scrollRef = useRef(null);
 
@@ -27,7 +28,7 @@ export const UnitSelector = ({
     }
   };
 
-  const units = Array.from({ length: 20 }, (_, i) => i + 1);
+  const units = Array.from({ length: totalUnits }, (_, i) => i + 1);
 
   return (
     <div className="relative w-full">
@@ -62,7 +63,7 @@ export const UnitSelector = ({
                 type="button"
                 role="tab"
                 aria-selected={isSelected}
-                aria-label={`Unit ${formatted}${!isUnlocked ? ' (Locked)' : ''}`}
+                aria-label={`Stage ${formatted}${!isUnlocked ? ' (Locked)' : ''}`}
                 onClick={() => isUnlocked && onSelectUnit(unitNum)}
                 className={`relative px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all duration-200 shrink-0 cursor-pointer select-none flex items-center gap-1.5 ${
                   isSelected
@@ -72,7 +73,7 @@ export const UnitSelector = ({
                     : 'bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border-subtle)] opacity-50 cursor-not-allowed'
                 }`}
               >
-                <span>{formatted}</span>
+                <span>Stage {formatted}</span>
                 {progress.completed && !isSelected && (
                   <Check className="w-3 h-3 text-[var(--ui-success)]" />
                 )}
