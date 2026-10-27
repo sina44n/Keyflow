@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Brain, RotateCcw, Play, ArrowLeft, Trophy, Eye, EyeOff, CheckCircle2, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Brain, RotateCcw, Play, ArrowLeft, Trophy, Eye, EyeOff, CheckCircle2, AlertTriangle, Flame } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { getRandomWord, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
+import { calculateDifficultyTier, getTypingMemoryConfig } from '../../../utils/arcadeDifficulty';
 
 export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
   // Game states: 'ready', 'viewing', 'recalling', 'review', 'gameover'
@@ -11,7 +12,11 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
   const [round, setRound] = useState(1);
   const [strikes, setStrikes] = useState(0); // Max 3 strikes
   const [score, setScore] = useState(0);
+  const [consecutiveSuccesses, setConsecutiveSuccesses] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [viewTimeLeft, setViewTimeLeft] = useState(3.5);
+  const [totalViewTime, setTotalViewTime] = useState(3.5);
+  const [tierUpToast, setTierUpToast] = useState(null);
 
   // The secret sequence stored in memory state ONLY, hidden from DOM during recall
   const [sequence, setSequence] = useState([]);
@@ -23,14 +28,55 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
 
   const inputRef = useRef(null);
   const timerRef = useRef(null);
+  const elapsedTimerRef = useRef(null);
   const personalBest = getGameRecord('memory');
 
-  // Generate sequence for current round (e.g. round 1 = 3 words, round 2 = 4 words, etc.)
-  const generateSequenceForRound = useCallback((r) => {
-    const length = Math.min(8, 2 + r); // 3 items at round 1, up to 8
+  // Progressive difficulty calculation
+  const difficultyInfo = useMemo(() => {
+    return calculateDifficultyTier({
+      activeSeconds: elapsedSeconds,
+      completedCount: Math.max(0, round - 1),
+      score,
+      currentStreak: consecutiveSuccesses,
+      errorCount: strikes,
+      mode: 'memory',
+    });
+  }, [elapsedSeconds, round, score, consecutiveSuccesses, strikes]);
+
+  const memoryConfig = useMemo(() => {
+    return getTypingMemoryConfig(difficultyInfo.tier, round);
+  }, [difficultyInfo.tier, round]);
+
+  const prevTierRef = useRef(1);
+  useEffect(() => {
+    if (difficultyInfo.tier > prevTierRef.current) {
+      setTierUpToast(`NEURAL CAPACITY EXPANDED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
+      playArcadeSound('combo', soundEnabled);
+      const t = setTimeout(() => setTierUpToast(null), 3000);
+      prevTierRef.current = difficultyInfo.tier;
+      return () => clearTimeout(t);
+    }
+    prevTierRef.current = difficultyInfo.tier;
+  }, [difficultyInfo.tier, difficultyInfo.tierName, soundEnabled]);
+
+  // Elapsed active timer
+  useEffect(() => {
+    if (gameState === 'viewing' || gameState === 'recalling') {
+      elapsedTimerRef.current = setInterval(() => {
+        setElapsedSeconds((s) => s + 1);
+      }, 1000);
+      return () => clearInterval(elapsedTimerRef.current);
+    } else {
+      clearInterval(elapsedTimerRef.current);
+    }
+  }, [gameState]);
+
+  // Generate sequence for current round scaled by difficulty config
+  const generateSequenceForRound = useCallback((config) => {
+    const length = config.sequenceLength;
     const words = [];
     for (let i = 0; i < length; i++) {
-      words.push(getRandomWord('short', words));
+      words.push(getRandomWord(config.pool, words));
     }
     return words;
   }, []);
@@ -40,26 +86,30 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
     setRound(1);
     setStrikes(0);
     setScore(0);
+    setConsecutiveSuccesses(0);
+    setElapsedSeconds(0);
     setUserInputs([]);
     setCurrentTyping('');
     setRoundResult(null);
     setPersonalBestNotice(false);
+    setTierUpToast(null);
   }, []);
 
   // Start next round in viewing phase
-  const startRound = useCallback((r) => {
-    const seq = generateSequenceForRound(r);
+  const startRound = useCallback((r, config) => {
+    const seq = generateSequenceForRound(config);
     setSequence(seq);
     setUserInputs([]);
     setCurrentTyping('');
     setRoundResult(null);
-    setViewTimeLeft(Math.max(2.5, 3.5 + (r - 1) * 0.4));
+    setViewTimeLeft(config.viewTime);
+    setTotalViewTime(config.viewTime);
     setGameState('viewing');
   }, [generateSequenceForRound]);
 
   const startGame = () => {
     resetGame();
-    startRound(1);
+    startRound(1, memoryConfig);
   };
 
   // Viewing phase countdown
@@ -94,6 +144,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
         deepestRound: round,
         score,
         perfect: strikes === 0,
+        highestTier: difficultyInfo.tier,
       });
       if (result.isNewBest) {
         const t = setTimeout(() => setPersonalBestNotice(true), 0);
@@ -101,7 +152,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
         return () => clearTimeout(t);
       }
     }
-  }, [gameState, round, score, strikes, soundEnabled]);
+  }, [gameState, round, score, strikes, difficultyInfo.tier, soundEnabled]);
 
   // Handle typing during recall
   const handleInputChange = (e) => {
@@ -158,11 +209,13 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
   const advanceToNextRound = () => {
     const nextR = round + 1;
     setRound(nextR);
-    startRound(nextR);
+    setConsecutiveSuccesses((s) => s + 1);
+    startRound(nextR, memoryConfig);
   };
 
   const retryCurrentRound = () => {
-    startRound(round);
+    setConsecutiveSuccesses(0);
+    startRound(round, memoryConfig);
   };
 
   return (
@@ -182,7 +235,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
               Typing Memory
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
-              Matrix Sequence Recall • Zero Hints Shutter
+              Matrix Sequence Recall • {difficultyInfo.tierName} (Tier {difficultyInfo.tier})
             </span>
           </div>
         </div>
@@ -193,6 +246,17 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
           </Button>
         </div>
       </div>
+
+      {/* Dynamic Tier Escalation Toast Banner */}
+      {tierUpToast && (
+        <div className="px-3 py-2 rounded-lg bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 font-mono text-xs flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <span className="flex items-center gap-2 font-bold">
+            <Flame className="w-4 h-4 text-cyan-400 animate-pulse" />
+            {tierUpToast}
+          </span>
+          <span className="text-[10px] text-cyan-400 uppercase">Sequence Depth & Shutter Scaled</span>
+        </div>
+      )}
 
       {/* HUD Metrics Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">
@@ -283,7 +347,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
             <div className="w-full max-w-xs mx-auto h-2 bg-neutral-800 rounded-full overflow-hidden border border-neutral-700">
               <div
                 className="h-full bg-amber-400 transition-all duration-100"
-                style={{ width: `${(viewTimeLeft / 3.5) * 100}%` }}
+                style={{ width: `${(viewTimeLeft / (totalViewTime || 3.5)) * 100}%` }}
               />
             </div>
           </div>

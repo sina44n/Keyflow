@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Swords, RotateCcw, Play, Pause, ArrowLeft, Trophy, Heart, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Swords, RotateCcw, Play, Pause, ArrowLeft, Trophy, Heart, AlertTriangle, Flame } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { calculateAccuracy, getRandomWord, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
+import { calculateDifficultyTier, getKeyNinjaConfig } from '../../../utils/arcadeDifficulty';
 
 const ARENA_WIDTH = 700;
 const ARENA_HEIGHT = 440;
@@ -22,6 +23,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
   const [totalStrokes, setTotalStrokes] = useState(0);
   const [correctStrokes, setCorrectStrokes] = useState(0);
   const [personalBestNotice, setPersonalBestNotice] = useState(false);
+  const [tierUpToast, setTierUpToast] = useState(null);
 
   // Targets: [{ id, text, x, y, vx, vy, isSliced, sliceTimer }]
   const [projectiles, setProjectiles] = useState([]);
@@ -35,6 +37,34 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
   const inputRef = useRef(null);
 
   const personalBest = getGameRecord('ninja');
+
+  // Dynamic difficulty calculation based on performance & progression
+  const difficultyInfo = useMemo(() => {
+    return calculateDifficultyTier({
+      activeSeconds: elapsedSeconds,
+      completedCount: slices,
+      score,
+      currentStreak: combo,
+      errorCount: misses,
+      mode: 'ninja',
+    });
+  }, [elapsedSeconds, slices, score, combo, misses]);
+
+  const ninjaConfig = useMemo(() => {
+    return getKeyNinjaConfig(difficultyInfo.tier, difficultyInfo.performanceQuotient);
+  }, [difficultyInfo.tier, difficultyInfo.performanceQuotient]);
+
+  const prevTierRef = useRef(1);
+  useEffect(() => {
+    if (difficultyInfo.tier > prevTierRef.current) {
+      setTierUpToast(`BLADE TEMPO INCREASED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
+      playArcadeSound('combo', soundEnabled);
+      const t = setTimeout(() => setTierUpToast(null), 3000);
+      prevTierRef.current = difficultyInfo.tier;
+      return () => clearTimeout(t);
+    }
+    prevTierRef.current = difficultyInfo.tier;
+  }, [difficultyInfo.tier, difficultyInfo.tierName, soundEnabled]);
 
   const resetGame = useCallback(() => {
     setGameState('ready');
@@ -94,17 +124,16 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
       const dt = Math.min((time - lastTime) / 1000, 0.05);
       lastTime = time;
 
-      // Launch new airborne targets
-      const launchInterval = Math.max(1.2, 2.5 - Math.min(1.2, elapsedSeconds * 0.03));
-      if (time - lastLaunchRef.current > launchInterval * 1000) {
+      // Launch new airborne targets based on dynamic difficulty tier
+      if (time - lastLaunchRef.current > ninjaConfig.spawnInterval * 1000) {
         lastLaunchRef.current = time;
-        const text = getRandomWord(elapsedSeconds > 30 ? 'medium' : 'short');
+        const text = getRandomWord(ninjaConfig.pool);
         const startX = 80 + Math.random() * (ARENA_WIDTH - 200);
-        const vx = (Math.random() - 0.5) * 120;
-        const vy = -(380 + Math.random() * 110);
+        const vx = (Math.random() - 0.5) * ninjaConfig.launchVelocityX;
+        const vy = ninjaConfig.launchVelocityY - Math.random() * 40;
 
         setProjectiles((prev) => {
-          if (prev.length >= 5) return prev;
+          if (prev.length >= ninjaConfig.maxAirborne) return prev;
           return [
             ...prev,
             {
@@ -177,7 +206,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [gameState, elapsedSeconds, soundEnabled]);
+  }, [gameState, ninjaConfig, soundEnabled]);
 
   // Focus input
   useEffect(() => {
@@ -193,6 +222,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
         score,
         slices,
         maxCombo,
+        highestTier: difficultyInfo.tier,
       });
       if (result.isNewBest) {
         const t = setTimeout(() => setPersonalBestNotice(true), 0);
@@ -200,7 +230,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
         return () => clearTimeout(t);
       }
     }
-  }, [gameState, score, slices, maxCombo, soundEnabled]);
+  }, [gameState, score, slices, maxCombo, difficultyInfo.tier, soundEnabled]);
 
   // Handle typing input
   const handleKeyDown = (e) => {
@@ -330,7 +360,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
               Key Ninja
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
-              Airborne Katana Slashing • Reflex Precision
+              Airborne Katana Slashing • {difficultyInfo.tierName} (Tier {difficultyInfo.tier})
             </span>
           </div>
         </div>
@@ -350,6 +380,17 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
           </Button>
         </div>
       </div>
+
+      {/* Dynamic Tier Escalation Toast Banner */}
+      {tierUpToast && (
+        <div className="px-3 py-2 rounded-lg bg-rose-950/80 border border-rose-500/50 text-rose-300 font-mono text-xs flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <span className="flex items-center gap-2 font-bold">
+            <Flame className="w-4 h-4 text-rose-400 animate-pulse" />
+            {tierUpToast}
+          </span>
+          <span className="text-[10px] text-rose-400 uppercase">Spawn Rate & Velocity Scaled</span>
+        </div>
+      )}
 
       {/* HUD Metrics Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">

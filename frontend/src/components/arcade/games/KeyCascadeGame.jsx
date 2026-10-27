@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Shield, Flame, RotateCcw, Play, Pause, ArrowLeft, Trophy, AlertTriangle } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { calculateAccuracy, calculateWpm, getRandomWord, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord } from '../../../utils/arcadeStorage';
+import { calculateDifficultyTier, getKeyCascadeConfig } from '../../../utils/arcadeDifficulty';
 
 const ARENA_HEIGHT = 440;
 const DANGER_LINE_Y = 380;
@@ -24,9 +25,39 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
   const [totalStrokes, setTotalStrokes] = useState(0);
   const [correctStrokes, setCorrectStrokes] = useState(0);
   const [personalBestNotice, setPersonalBestNotice] = useState(false);
+  const [tierUpToast, setTierUpToast] = useState(null);
 
   // Dynamic wave derived from score
-  const wave = Math.min(5, Math.floor(score / 500) + 1);
+  const wave = Math.min(6, Math.floor(score / 450) + 1);
+
+  // Dynamic difficulty calculation based on performance & progression
+  const difficultyInfo = useMemo(() => {
+    return calculateDifficultyTier({
+      activeSeconds: elapsedSeconds,
+      completedCount: wordsEliminated,
+      score,
+      wave,
+      currentStreak: combo,
+      errorCount: missedWords,
+      mode: 'cascade',
+    });
+  }, [elapsedSeconds, wordsEliminated, score, wave, combo, missedWords]);
+
+  const cascadeConfig = useMemo(() => {
+    return getKeyCascadeConfig(difficultyInfo.tier, difficultyInfo.performanceQuotient);
+  }, [difficultyInfo.tier, difficultyInfo.performanceQuotient]);
+
+  const prevTierRef = useRef(1);
+  useEffect(() => {
+    if (difficultyInfo.tier > prevTierRef.current) {
+      setTierUpToast(`DIFFICULTY INCREASED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
+      playArcadeSound('combo', soundEnabled);
+      const t = setTimeout(() => setTierUpToast(null), 3000);
+      prevTierRef.current = difficultyInfo.tier;
+      return () => clearTimeout(t);
+    }
+    prevTierRef.current = difficultyInfo.tier;
+  }, [difficultyInfo.tier, difficultyInfo.tierName, soundEnabled]);
 
   // Active falling words: [{ id, text, x, y, speed, targetIndex }]
   const [fallingWords, setFallingWords] = useState([]);
@@ -106,18 +137,16 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
       const delta = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
       lastTimestamp = timestamp;
 
-      // Spawn words dynamically based on wave
-      const spawnInterval = Math.max(1.4, 3.2 - wave * 0.35);
-      if (timestamp - lastSpawnTimeRef.current > spawnInterval * 1000) {
+      // Spawn words dynamically based on dynamic difficulty tier
+      if (timestamp - lastSpawnTimeRef.current > cascadeConfig.spawnInterval * 1000) {
         lastSpawnTimeRef.current = timestamp;
-        const pool = wave >= 4 ? 'medium' : 'short';
-        const newWordText = getRandomWord(pool);
+        const newWordText = getRandomWord(cascadeConfig.pool);
         const col = Math.floor(Math.random() * 4);
         const x = 40 + col * 120 + Math.random() * 30;
-        const speed = 28 + wave * 9 + Math.random() * 10;
+        const speed = cascadeConfig.fallSpeed + Math.random() * 8;
 
         setFallingWords((prev) => {
-          if (prev.length >= 6) return prev;
+          if (prev.length >= cascadeConfig.maxWords) return prev;
           return [
             ...prev,
             {
@@ -168,7 +197,7 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [gameState, wave, soundEnabled]);
+  }, [gameState, cascadeConfig, soundEnabled]);
 
   // On Game Over, save personal best
   useEffect(() => {
@@ -177,6 +206,7 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
         score,
         bestCombo,
         wordsDefeated: wordsEliminated,
+        highestTier: difficultyInfo.tier,
       });
       if (result.isNewBest) {
         const t = setTimeout(() => setPersonalBestNotice(true), 0);
@@ -184,7 +214,7 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
         return () => clearTimeout(t);
       }
     }
-  }, [gameState, score, bestCombo, wordsEliminated, soundEnabled]);
+  }, [gameState, score, bestCombo, wordsEliminated, difficultyInfo.tier, soundEnabled]);
 
   // Handle typing inputs
   const handleKeyDown = (e) => {
@@ -293,7 +323,7 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
               Key Cascade
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
-              Wave {wave} • Danger Line Defense
+              Wave {wave} • {difficultyInfo.tierName} Intensity (Tier {difficultyInfo.tier})
             </span>
           </div>
         </div>
@@ -313,6 +343,17 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
           </Button>
         </div>
       </div>
+
+      {/* Dynamic Tier Escalation Toast Banner */}
+      {tierUpToast && (
+        <div className="px-3 py-2 rounded-lg bg-orange-950/80 border border-orange-500/50 text-orange-300 font-mono text-xs flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <span className="flex items-center gap-2 font-bold">
+            <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
+            {tierUpToast}
+          </span>
+          <span className="text-[10px] text-orange-400 uppercase">Spawn Rate & Velocity Scaled</span>
+        </div>
+      )}
 
       {/* HUD Metrics Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">

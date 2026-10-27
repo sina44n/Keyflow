@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Target, RotateCcw, Play, Pause, ArrowLeft, Trophy, Crosshair, Clock } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Target, RotateCcw, Play, Pause, ArrowLeft, Trophy, Crosshair, Clock, Flame } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { calculateAccuracy, getRandomWord, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
+import { calculateDifficultyTier, getWordHunterConfig } from '../../../utils/arcadeDifficulty';
 
 const TOTAL_GAME_TIME = 60; // 60s tactical hunt
 const TARGET_LIFETIME = 4.5; // seconds to destroy current target
@@ -27,6 +28,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
   const [totalStrokes, setTotalStrokes] = useState(0);
   const [correctStrokes, setCorrectStrokes] = useState(0);
   const [personalBestNotice, setPersonalBestNotice] = useState(false);
+  const [tierUpToast, setTierUpToast] = useState(null);
 
   const gameTimerRef = useRef(null);
   const targetTimerRef = useRef(null);
@@ -34,6 +36,34 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
   const nextTargetIdRef = useRef(1);
 
   const personalBest = getGameRecord('hunter');
+
+  // Dynamic difficulty calculation based on performance & progression
+  const difficultyInfo = useMemo(() => {
+    return calculateDifficultyTier({
+      activeSeconds: TOTAL_GAME_TIME - timeLeft,
+      completedCount: targetsEliminated,
+      score,
+      currentStreak: streak,
+      errorCount: mistakes,
+      mode: 'hunter',
+    });
+  }, [timeLeft, targetsEliminated, score, streak, mistakes]);
+
+  const hunterConfig = useMemo(() => {
+    return getWordHunterConfig(difficultyInfo.tier, difficultyInfo.performanceQuotient);
+  }, [difficultyInfo.tier, difficultyInfo.performanceQuotient]);
+
+  const prevTierRef = useRef(1);
+  useEffect(() => {
+    if (difficultyInfo.tier > prevTierRef.current) {
+      setTierUpToast(`TARGET SECTOR ESCALATION — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
+      playArcadeSound('combo', soundEnabled);
+      const t = setTimeout(() => setTierUpToast(null), 3000);
+      prevTierRef.current = difficultyInfo.tier;
+      return () => clearTimeout(t);
+    }
+    prevTierRef.current = difficultyInfo.tier;
+  }, [difficultyInfo.tier, difficultyInfo.tierName, soundEnabled]);
 
   // Spawn initial cluster of radar targets
   const spawnInitialCluster = useCallback(() => {
@@ -129,20 +159,20 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
             setLockedTargetId(remaining[0]?.id || null);
             return remaining;
           });
-          return TARGET_LIFETIME;
+          return hunterConfig.targetLifetime;
         }
         return Math.max(0, parseFloat((ttl - 0.1).toFixed(2)));
       });
     }, 100);
 
     return () => clearInterval(targetTimerRef.current);
-  }, [gameState, lockedTargetId, soundEnabled]);
+  }, [gameState, lockedTargetId, hunterConfig.targetLifetime, soundEnabled]);
 
-  // Maintain minimum 6 targets on radar
+  // Maintain dynamic targets on radar based on difficulty tier
   useEffect(() => {
     if (gameState !== 'playing') return;
-    if (targets.length < 5) {
-      const newWord = getRandomWord(Math.random() > 0.5 ? 'medium' : 'short');
+    if (targets.length < hunterConfig.targetCount) {
+      const newWord = getRandomWord(hunterConfig.pool);
       const x = 15 + Math.random() * 70;
       const y = 15 + Math.random() * 70;
       setTargets((prev) => [
@@ -150,7 +180,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
         { id: nextTargetIdRef.current++, word: newWord, x, y },
       ]);
     }
-  }, [targets.length, gameState]);
+  }, [targets.length, gameState, hunterConfig.targetCount, hunterConfig.pool]);
 
   // On Game Over, save record
   useEffect(() => {
@@ -159,6 +189,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
         score,
         bestStreak,
         targetsEliminated,
+        highestTier: difficultyInfo.tier,
       });
       if (result.isNewBest) {
         const t = setTimeout(() => setPersonalBestNotice(true), 0);
@@ -166,7 +197,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
         return () => clearTimeout(t);
       }
     }
-  }, [gameState, score, bestStreak, targetsEliminated, soundEnabled]);
+  }, [gameState, score, bestStreak, targetsEliminated, difficultyInfo.tier, soundEnabled]);
 
   // Keyboard focus
   useEffect(() => {
@@ -262,7 +293,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
               Word Hunter
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
-              Tactical Radar Precision • Lock On & Neutralize
+              {difficultyInfo.tierName} Intensity (Tier {difficultyInfo.tier}) • Radar Lock & Neutralize
             </span>
           </div>
         </div>
@@ -282,6 +313,17 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
           </Button>
         </div>
       </div>
+
+      {/* Dynamic Tier Escalation Toast Banner */}
+      {tierUpToast && (
+        <div className="px-3 py-2 rounded-lg bg-cyan-950/80 border border-cyan-500/50 text-cyan-300 font-mono text-xs flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <span className="flex items-center gap-2 font-bold">
+            <Flame className="w-4 h-4 text-cyan-400 animate-pulse" />
+            {tierUpToast}
+          </span>
+          <span className="text-[10px] text-cyan-400 uppercase">Target Density & Urgency Scaled</span>
+        </div>
+      )}
 
       {/* HUD Metrics Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">

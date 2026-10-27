@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Footprints, RotateCcw, Play, Pause, ArrowLeft, Trophy, Shield, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Footprints, RotateCcw, Play, Pause, ArrowLeft, Trophy, Shield, AlertTriangle, Flame } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { calculateAccuracy, getRandomWord, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
+import { calculateDifficultyTier, getWordRunnerConfig } from '../../../utils/arcadeDifficulty';
 
 const TRACK_LENGTH = 1000; // 1,000 meters to finish line
-const OBSTACLE_SPACING_METERS = 40; // Every 40m an obstacle
 
 export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
   const [gameState, setGameState] = useState('ready'); // ready, countdown, playing, paused, gameover, victory
@@ -16,6 +16,8 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
   const [score, setScore] = useState(0);
   const [obstaclesCleared, setObstaclesCleared] = useState(0);
   const [stumbles, setStumbles] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [tierUpToast, setTierUpToast] = useState(null);
 
   // Active obstacle approaching
   const [activeObstacle, setActiveObstacle] = useState(null); // { id, word, type: 'barrier' | 'spike' | 'laser', distance }
@@ -28,20 +30,48 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
   const [personalBestNotice, setPersonalBestNotice] = useState(false);
 
   const inputRef = useRef(null);
+  const timerIntervalRef = useRef(null);
   const personalBest = getGameRecord('runner');
 
-  // Generate next obstacle
+  // Dynamic progressive difficulty
+  const difficultyInfo = useMemo(() => {
+    return calculateDifficultyTier({
+      activeSeconds: elapsedSeconds,
+      completedCount: obstaclesCleared,
+      score,
+      currentStreak: Math.max(0, obstaclesCleared - stumbles),
+      errorCount: stumbles,
+      mode: 'runner',
+    });
+  }, [elapsedSeconds, obstaclesCleared, score, stumbles]);
+
+  const runnerConfig = useMemo(() => {
+    return getWordRunnerConfig(difficultyInfo.tier, distance);
+  }, [difficultyInfo.tier, distance]);
+
+  const prevTierRef = useRef(1);
+  useEffect(() => {
+    if (difficultyInfo.tier > prevTierRef.current) {
+      setTierUpToast(`CYBER SPRINT ACCELERATED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
+      playArcadeSound('combo', soundEnabled);
+      const t = setTimeout(() => setTierUpToast(null), 3000);
+      prevTierRef.current = difficultyInfo.tier;
+      return () => clearTimeout(t);
+    }
+    prevTierRef.current = difficultyInfo.tier;
+  }, [difficultyInfo.tier, difficultyInfo.tierName, soundEnabled]);
+
+  // Generate next obstacle using dynamic spacing & pool
   const spawnNextObstacle = useCallback((currentDist) => {
-    const distToSpawn = Math.min(TRACK_LENGTH, currentDist + OBSTACLE_SPACING_METERS);
-    const pool = currentDist > 500 ? 'medium' : 'short';
+    const distToSpawn = Math.min(TRACK_LENGTH, currentDist + runnerConfig.obstacleSpacing);
     const types = ['barrier', 'laser', 'spikes'];
     return {
       id: Math.random(),
-      word: getRandomWord(pool),
+      word: getRandomWord(runnerConfig.pool),
       type: types[Math.floor(Math.random() * types.length)],
       targetDistance: distToSpawn,
     };
-  }, []);
+  }, [runnerConfig.obstacleSpacing, runnerConfig.pool]);
 
   const resetGame = useCallback(() => {
     setGameState('ready');
@@ -50,12 +80,14 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
     setScore(0);
     setObstaclesCleared(0);
     setStumbles(0);
+    setElapsedSeconds(0);
     setTotalStrokes(0);
     setCorrectStrokes(0);
     setTypedBuffer('');
     setIsJumping(false);
     setJumpProgress(0);
     setPersonalBestNotice(false);
+    setTierUpToast(null);
     setActiveObstacle(spawnNextObstacle(0));
   }, [spawnNextObstacle]);
 
@@ -76,6 +108,18 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
     return () => clearTimeout(t);
   }, [gameState, countdown]);
 
+  // Elapsed timer during active play
+  useEffect(() => {
+    if (gameState !== 'playing') {
+      clearInterval(timerIntervalRef.current);
+      return;
+    }
+    timerIntervalRef.current = setInterval(() => {
+      setElapsedSeconds((s) => s + 1);
+    }, 1000);
+    return () => clearInterval(timerIntervalRef.current);
+  }, [gameState]);
+
   // Runner Movement & Collision Loop
   useEffect(() => {
     if (gameState !== 'playing') return;
@@ -87,8 +131,8 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
       const dt = Math.min((time - lastTime) / 1000, 0.05);
       lastTime = time;
 
-      // Base speed: 12 m/s, scales up to 24 m/s near end
-      const speed = 12 + (distance / TRACK_LENGTH) * 12;
+      // Speed scaled dynamically by progressive difficulty tier & course distance
+      const speed = runnerConfig.runnerSpeed;
       const nextDist = distance + speed * dt;
 
       // Check for finish line
@@ -133,7 +177,7 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [gameState, distance, activeObstacle, isJumping, spawnNextObstacle, soundEnabled]);
+  }, [gameState, distance, activeObstacle, isJumping, spawnNextObstacle, runnerConfig.runnerSpeed, soundEnabled]);
 
   // Focus input
   useEffect(() => {
@@ -150,13 +194,14 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
         distance: finalDist,
         score,
         obstaclesCleared,
+        highestTier: difficultyInfo.tier,
       });
       if (result.isNewBest) {
         const t = setTimeout(() => setPersonalBestNotice(true), 0);
         return () => clearTimeout(t);
       }
     }
-  }, [gameState, distance, score, obstaclesCleared]);
+  }, [gameState, distance, score, obstaclesCleared, difficultyInfo.tier]);
 
   // Handle typing to clear upcoming obstacle
   const handleKeyDown = (e) => {
@@ -235,7 +280,7 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
               Word Runner
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
-              Side-Scrolling Cyber Parkour • Type to Leap Hurdles
+              Side-Scrolling Cyber Parkour • {difficultyInfo.tierName} (Tier {difficultyInfo.tier})
             </span>
           </div>
         </div>
@@ -255,6 +300,17 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
           </Button>
         </div>
       </div>
+
+      {/* Dynamic Tier Escalation Toast Banner */}
+      {tierUpToast && (
+        <div className="px-3 py-2 rounded-lg bg-purple-950/80 border border-purple-500/50 text-purple-300 font-mono text-xs flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <span className="flex items-center gap-2 font-bold">
+            <Flame className="w-4 h-4 text-purple-400 animate-pulse" />
+            {tierUpToast}
+          </span>
+          <span className="text-[10px] text-purple-400 uppercase">Hurdle Velocity & Spacing Scaled</span>
+        </div>
+      )}
 
       {/* HUD Metrics Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">
@@ -285,7 +341,7 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Obstacles Cleared</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Hurdles Cleared</span>
           <span className="text-base font-bold text-emerald-400">{obstaclesCleared}</span>
         </div>
 
@@ -295,8 +351,8 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Approaching In</span>
-          <span className="text-base font-bold text-amber-400">{distanceToObstacle}m</span>
+          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Time</span>
+          <span className="text-base font-bold text-[var(--text-secondary)]">{elapsedSeconds}s</span>
         </div>
       </div>
 

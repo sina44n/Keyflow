@@ -157,10 +157,14 @@ export const ArcadeHub = ({ initialGameId = null, _isEmbedded = false }) => {
           </div>
 
           {/* Bottom Overview Stat Band */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 rounded-2xl bg-[var(--bg-elevated)]/60 border border-[var(--border)] text-center text-xs font-mono">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-5 rounded-2xl bg-[var(--bg-elevated)]/60 border border-[var(--border)] text-center text-xs font-mono">
             <div className="space-y-1">
               <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Total Games</span>
               <span className="text-base font-bold text-[var(--text-primary)]">7 Playable Modes</span>
+            </div>
+            <div className="space-y-1">
+              <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Difficulty Engine</span>
+              <span className="text-base font-bold text-orange-400">6 Progressive Tiers</span>
             </div>
             <div className="space-y-1">
               <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Audio Engine</span>

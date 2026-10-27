@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Play, Sparkles, Trophy } from 'lucide-react';
+import { Play, Sparkles, Trophy, Flame } from 'lucide-react';
 import { Button } from '../common/Button';
 
 export const ArcadeGameCard = ({ game, record, onPlay }) => {
@@ -24,7 +24,13 @@ export const ArcadeGameCard = ({ game, record, onPlay }) => {
       case 'memory':
         return record.deepestRound ? `Round ${record.deepestRound}` : 'Not played yet';
       case 'boss':
-        return record.bossDefeated ? 'Victory!' : record.bestScore ? `${record.bestScore} pts` : 'Not played yet';
+        return record.highestWave
+          ? `Wave ${record.highestWave} (${(record.bestScore || 0).toLocaleString()} pts)`
+          : record.bossDefeated
+          ? 'Victory!'
+          : record.bestScore
+          ? `${record.bestScore.toLocaleString()} pts`
+          : 'Not played yet';
       default:
         return 'Not played yet';
     }
@@ -123,6 +129,29 @@ export const ArcadeGameCard = ({ game, record, onPlay }) => {
               {bestValue}
             </span>
           </div>
+
+          {record?.highestTier && record.highestTier > 1 && (
+            <div className="flex items-center justify-between text-[11px] font-mono -mt-1.5">
+              <span className="flex items-center gap-1 text-orange-400">
+                <Flame className="w-3 h-3" />
+                Peak Intensity:
+              </span>
+              <span className="font-semibold text-orange-400">
+                Tier {record.highestTier}
+              </span>
+            </div>
+          )}
+
+          {game.id === 'boss' && record?.soldiersDefeated ? (
+            <div className="flex items-center justify-between text-[11px] font-mono -mt-1.5">
+              <span className="text-rose-400">
+                Soldiers Slain:
+              </span>
+              <span className="font-semibold text-rose-400">
+                {record.soldiersDefeated}
+              </span>
+            </div>
+          ) : null}
 
           <Button
             variant="primary"

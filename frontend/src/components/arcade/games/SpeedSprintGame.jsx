@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Zap, RotateCcw, Play, Pause, ArrowLeft, Trophy, Clock } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Zap, RotateCcw, Play, Pause, ArrowLeft, Trophy, Clock, Flame } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { calculateAccuracy, calculateWpm, generateWordStream, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
+import { calculateDifficultyTier, getSpeedSprintConfig } from '../../../utils/arcadeDifficulty';
 
 const TIME_PRESETS = [30, 60, 120];
 
@@ -26,12 +27,41 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
 
   const [personalBestNotice, setPersonalBestNotice] = useState(false);
   const [timeBonusNotice, setTimeBonusNotice] = useState(false);
+  const [tierUpToast, setTierUpToast] = useState(null);
 
   const timerRef = useRef(null);
   const inputRef = useRef(null);
   const startTimeRef = useRef(null);
 
   const personalBest = getGameRecord('sprint');
+
+  // Dynamic difficulty calculation based on performance & progression
+  const difficultyInfo = useMemo(() => {
+    return calculateDifficultyTier({
+      activeSeconds: selectedDuration - timeLeft,
+      completedCount: wordsCompleted,
+      score,
+      currentStreak,
+      errorCount,
+      mode: 'sprint',
+    });
+  }, [selectedDuration, timeLeft, wordsCompleted, score, currentStreak, errorCount]);
+
+  const sprintConfig = useMemo(() => {
+    return getSpeedSprintConfig(difficultyInfo.tier);
+  }, [difficultyInfo.tier]);
+
+  const prevTierRef = useRef(1);
+  useEffect(() => {
+    if (difficultyInfo.tier > prevTierRef.current) {
+      setTierUpToast(`VELOCITY INTENSITY INCREASED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
+      playArcadeSound('combo', soundEnabled);
+      const t = setTimeout(() => setTierUpToast(null), 3000);
+      prevTierRef.current = difficultyInfo.tier;
+      return () => clearTimeout(t);
+    }
+    prevTierRef.current = difficultyInfo.tier;
+  }, [difficultyInfo.tier, difficultyInfo.tierName, soundEnabled]);
 
   // Reset session
   const resetGame = useCallback(() => {
@@ -113,6 +143,7 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
         accuracy: finalAcc,
         wordsTyped: wordsCompleted,
         score,
+        highestTier: difficultyInfo.tier,
       });
 
       if (result.isNewBest) {
@@ -121,7 +152,7 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
         return () => clearTimeout(t);
       }
     }
-  }, [gameState, correctChars, totalStrokes, wordsCompleted, score, selectedDuration, soundEnabled]);
+  }, [gameState, correctChars, totalStrokes, wordsCompleted, score, selectedDuration, difficultyInfo.tier, soundEnabled]);
 
   // Handle typing
   const handleInputChange = (e) => {
@@ -200,7 +231,7 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
               Speed Sprint
             </h2>
             <span className="text-[11px] font-mono text-[var(--text-muted)]">
-              High-Octane Velocity Rush • +0.5s per accurate word
+              {sprintConfig.tierLabel} Intensity (Tier {difficultyInfo.tier}) • +0.5s per accurate word
             </span>
           </div>
         </div>
@@ -242,6 +273,17 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
           </Button>
         </div>
       </div>
+
+      {/* Dynamic Tier Escalation Toast Banner */}
+      {tierUpToast && (
+        <div className="px-3 py-2 rounded-lg bg-orange-950/80 border border-orange-500/50 text-orange-300 font-mono text-xs flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+          <span className="flex items-center gap-2 font-bold">
+            <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
+            {tierUpToast}
+          </span>
+          <span className="text-[10px] text-orange-400 uppercase">Vocabulary & Multiplier Scaled</span>
+        </div>
+      )}
 
       {/* HUD Metrics Strip */}
       <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">
