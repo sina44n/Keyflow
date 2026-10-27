@@ -8,7 +8,7 @@
  * full preservation of existing localStorage records.
  */
 
-import { getLessonByLevel, STAGE_META } from '../data/curriculumEngine.js';
+import { getLessonByLevel, STAGE_META, MASTER_LESSONS } from '../data/curriculumEngine.js';
 
 const STORAGE_KEY = 'keyflow_lesson_progress_v2';
 const STAGE_STORAGE_KEY = 'keyflow_academy_progress';
@@ -77,15 +77,18 @@ function resolveLevelNumber(stageId, lessonNum) {
   const sId = parseInt(stageId, 10) || 1;
   const lNum = parseInt(lessonNum, 10) || 1;
 
-  // If lessonNum is already a global level number (e.g. 21, 55)
-  if (lNum > 10) return lNum;
-
-  // Otherwise calculate from stage start
   const stage = STAGE_META.find((s) => s.stageId === sId);
-  if (stage && stage.startLevel) {
-    return stage.startLevel + (lNum - 1);
+  if (stage) {
+    if (lNum >= stage.startLevel && lNum <= stage.endLevel) {
+      return lNum;
+    }
+    const calculated = stage.startLevel + (lNum - 1);
+    if (calculated <= stage.endLevel) {
+      return calculated;
+    }
   }
-  return (sId - 1) * 10 + lNum;
+
+  return lNum;
 }
 
 /**
@@ -189,11 +192,12 @@ export function getStageCompletedCount(stageId) {
 
 export function getNextRecommendedLesson(_stageId) {
   const state = loadState();
+  const totalLevels = MASTER_LESSONS?.length || 600;
 
-  // Find the first uncompleted lesson across all 60 core levels
-  for (let lvl = 1; lvl <= 60; lvl++) {
+  // Find the first uncompleted lesson across all levels
+  for (let lvl = 1; lvl <= totalLevels; lvl++) {
     const lesson = getLessonByLevel(lvl);
-    const targetStageId = lesson ? lesson.stageId : Math.ceil(lvl / 10);
+    const targetStageId = lesson ? lesson.stageId : 1;
     const isDone = Boolean(
       state.lessons[`level_${lvl}`]?.completed ||
       state.lessons[`s${targetStageId}_l${lvl}`]?.completed ||
@@ -204,8 +208,8 @@ export function getNextRecommendedLesson(_stageId) {
     }
   }
 
-  // If all 60 completed, suggest Stage 7 or Level 60
-  return { stageId: 7, lessonNum: 61 };
+  // If all completed, suggest final capstone level
+  return { stageId: 7, lessonNum: totalLevels };
 }
 
 export function calculateStars(accuracy, targetAccuracy, wpm, targetWpm) {
@@ -342,15 +346,13 @@ export function getAcademyDashboardStats(_activeStageId = 1) {
   let totalAccuracy = 0;
   let accuracyCount = 0;
   let completedCount = 0;
+  const totalLevels = MASTER_LESSONS?.length || 600;
 
-  for (let l = 1; l <= 60; l++) {
-    const isDone = Boolean(
-      state.lessons[`level_${l}`]?.completed ||
-      state.lessons[`s${Math.ceil(l / 10)}_l${l}`]?.completed
-    );
+  for (let l = 1; l <= totalLevels; l++) {
+    const isDone = Boolean(state.lessons[`level_${l}`]?.completed);
     if (isDone) {
       completedCount++;
-      const rec = state.lessons[`level_${l}`] || state.lessons[`s${Math.ceil(l / 10)}_l${l}`];
+      const rec = state.lessons[`level_${l}`];
       if (rec && typeof rec.bestAccuracy === 'number' && rec.bestAccuracy > 0) {
         totalAccuracy += rec.bestAccuracy;
         accuracyCount++;
@@ -359,7 +361,7 @@ export function getAcademyDashboardStats(_activeStageId = 1) {
   }
 
   const avgAccuracy = accuracyCount > 0 ? Math.round(totalAccuracy / accuracyCount) : 96;
-  const progressPercent = Math.min(100, Math.round((completedCount / 60) * 100));
+  const progressPercent = Math.min(100, Math.round((completedCount / totalLevels) * 100));
 
   let streak = 1;
   try {
@@ -382,9 +384,9 @@ export function getAcademyDashboardStats(_activeStageId = 1) {
   return {
     overallProgress: progressPercent,
     completedUnits: completedStages,
-    totalUnits: 7,
+    totalUnits: STAGE_META.length,
     completedLessons: completedCount,
-    totalLessons: 60,
+    totalLessons: totalLevels,
     streak: streak,
     accuracy: avgAccuracy,
     accuracyChange: '+2%',

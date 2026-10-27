@@ -5,6 +5,7 @@ import {
   getLessonMetaByLevel,
   getNextLessonId,
   getLesson,
+  MASTER_LESSONS,
 } from '../data/curriculumEngine';
 import {
   isStageUnlocked,
@@ -39,9 +40,13 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   const initialStageParam = searchParams ? parseInt(searchParams.get('stage'), 10) : null;
   const initialUnitParam = searchParams ? parseInt(searchParams.get('unit'), 10) : null;
 
+  const initialLessonMeta = initialLessonParam ? getLessonMetaByLevel(initialLessonParam) : null;
+  const resolvedInitialStage = initialLessonMeta ? initialLessonMeta.stageId : (initialStageParam || initialLevelId || 1);
+  const resolvedInitialUnit = initialLessonMeta ? initialLessonMeta.unit : (initialUnitParam || initialStageParam || initialLevelId || 1);
+
   const [view, setView] = useState(initialLessonParam ? VIEW.LESSON : VIEW.DASHBOARD);
-  const [activeStageId, setActiveStageId] = useState(initialStageParam || initialLevelId || 1);
-  const [activeUnit, setActiveUnit] = useState(initialUnitParam || initialStageParam || initialLevelId || 1);
+  const [activeStageId, setActiveStageId] = useState(resolvedInitialStage);
+  const [activeUnit, setActiveUnit] = useState(resolvedInitialUnit);
   const [activeLessonNum, setActiveLessonNum] = useState(initialLessonParam || 1);
   const [viewAllLevels, setViewAllLevels] = useState(false);
   const [progress, setProgress] = useState(getLessonProgress);
@@ -104,19 +109,36 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   }, [unitsData, progress]);
 
   const unlockedUnitCount = useMemo(() => {
-    return Math.max(1, ...(progress.unlockedStages || [1]));
-  }, [progress]);
+    let highest = 1;
+    const _unlockedStages = progress?.unlockedStages || [1];
+    for (const u of unitsData) {
+      if (u.unitNumber === 1 || isLessonUnlocked(u.stageId, u.startLesson)) {
+        highest = Math.max(highest, u.unitNumber);
+      }
+    }
+    return highest;
+  }, [unitsData, progress]);
+
+  const handleSelectUnit = useCallback((unitNum) => {
+    const targetUnit = unitsData[unitNum - 1];
+    if (targetUnit) {
+      setActiveUnit(unitNum);
+      setActiveStageId(targetUnit.stageId);
+    }
+    setViewAllLevels(false);
+  }, [unitsData]);
 
   // Generate all lessons for the active view without arbitrary truncation
   const displayLessons = useMemo(() => {
     if (!progress) return [];
     if (viewAllLevels) {
       const all = [];
-      for (let l = 1; l <= 60; l++) {
+      const total = MASTER_LESSONS?.length || 600;
+      for (let l = 1; l <= total; l++) {
         const meta = getLessonMetaByLevel(l);
         const record = getLessonRecord(meta.stageId, l);
         const unlocked = isLessonUnlocked(meta.stageId, l);
-        const isNextUp = (recommended.lessonNum === l);
+        const isNextUp = (recommended?.lessonNum === l);
 
         all.push({
           ...meta,
@@ -135,9 +157,9 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
 
     for (let l = start; l <= end; l++) {
       const meta = getLessonMetaByLevel(l);
-      const record = getLessonRecord(activeStageId, l);
-      const unlocked = isLessonUnlocked(activeStageId, l);
-      const isNextUp = (recommended.lessonNum === l);
+      const record = getLessonRecord(meta.stageId, l);
+      const unlocked = isLessonUnlocked(meta.stageId, l);
+      const isNextUp = (recommended?.lessonNum === l);
 
       lessons.push({
         ...meta,
@@ -241,7 +263,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 <div className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
                   <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
                     <span>7 Neuromuscular Stages</span>
-                    <span className="text-[10px] text-[var(--accent)]">60 Core Levels</span>
+                    <span className="text-[10px] text-[var(--accent)] font-bold">600 Masterpiece Levels</span>
                   </div>
                   <div className="space-y-1 mt-1 max-h-64 overflow-y-auto pr-1">
                     {STAGE_META.map((st) => {
@@ -255,7 +277,10 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                           disabled={!isStUnlocked}
                           onClick={() => {
                             setActiveStageId(st.stageId);
-                            setActiveUnit(st.stageId);
+                            const firstUnit = unitsData.find((u) => u.stageId === st.stageId);
+                            if (firstUnit) {
+                              setActiveUnit(firstUnit.unitNumber);
+                            }
                             setViewAllLevels(false);
                             setStageMenuOpen(false);
                           }}
@@ -306,7 +331,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 }`}
               >
                 <Grid className="w-3 h-3" />
-                <span>All 60 Levels</span>
+                <span>All 600 Levels</span>
               </button>
             </div>
           </div>
@@ -341,14 +366,14 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
         <section aria-label="Units Navigation" className="space-y-2">
           <div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
             <span className="font-semibold tracking-wider uppercase text-[11px] text-[var(--text-muted)]">
-              Select Curriculum Stage (1–7):
+              Select Curriculum Unit (1–{unitsData.length}):
             </span>
             <span className="text-[11px] text-[var(--text-secondary)]">
               {viewAllLevels ? (
-                <span className="text-[var(--accent)] font-bold">Viewing All 60 Levels</span>
+                <span className="text-[var(--accent)] font-bold">Viewing All 600 Levels</span>
               ) : (
                 <>
-                  Active: <span className="text-[var(--accent)] font-bold">Stage {String(activeUnit).padStart(2, '0')}</span>
+                  Active: <span className="text-[var(--accent)] font-bold">Unit {String(activeUnit).padStart(2, '0')}</span> ({currentUnit?.unitLabel})
                 </>
               )}
             </span>
@@ -356,11 +381,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
 
           <UnitSelector
             activeUnit={activeUnit}
-            onSelectUnit={(unitNum) => {
-              setActiveUnit(unitNum);
-              setActiveStageId(unitNum);
-              setViewAllLevels(false);
-            }}
+            onSelectUnit={handleSelectUnit}
             unitProgress={unitProgress}
             unlockedUnitCount={unlockedUnitCount}
             totalUnits={unitsData.length}
@@ -372,15 +393,11 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
           <LessonMap
             stageId={activeStageId}
             activeUnit={viewAllLevels ? 1 : activeUnit}
-            unitLabel={viewAllLevels ? 'Complete Curriculum (All 60 Levels)' : (currentUnit?.unitLabel || activeStageMeta.title)}
+            unitLabel={viewAllLevels ? 'Complete Curriculum (All 600 Levels)' : (currentUnit?.unitLabel || activeStageMeta.title)}
             lessons={displayLessons}
             activeLessonNum={recommended.lessonNum}
             onSelectLesson={handleSelectLesson}
-            onSelectUnit={(unitNum) => {
-              setActiveUnit(unitNum);
-              setActiveStageId(unitNum);
-              setViewAllLevels(false);
-            }}
+            onSelectUnit={handleSelectUnit}
             unitsData={unitsData}
             unitProgress={unitProgress}
             unlockedUnitCount={unlockedUnitCount}

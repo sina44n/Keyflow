@@ -63,7 +63,7 @@ export const UnitSelector = ({
                 type="button"
                 role="tab"
                 aria-selected={isSelected}
-                aria-label={`Stage ${formatted}${!isUnlocked ? ' (Locked)' : ''}`}
+                aria-label={`Unit ${formatted}${!isUnlocked ? ' (Locked)' : ''}`}
                 onClick={() => isUnlocked && onSelectUnit(unitNum)}
                 className={`relative px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all duration-200 shrink-0 cursor-pointer select-none flex items-center gap-1.5 ${
                   isSelected
@@ -73,7 +73,7 @@ export const UnitSelector = ({
                     : 'bg-[var(--bg-elevated)] text-[var(--text-muted)] border border-[var(--border-subtle)] opacity-50 cursor-not-allowed'
                 }`}
               >
-                <span>Stage {formatted}</span>
+                <span>Unit {formatted}</span>
                 {progress.completed && !isSelected && (
                   <Check className="w-3 h-3 text-[var(--ui-success)]" />
                 )}

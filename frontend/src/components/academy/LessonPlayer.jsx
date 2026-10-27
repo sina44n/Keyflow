@@ -218,7 +218,7 @@ export const LessonPlayer = ({
       if (lesson) {
         try {
           const sId = lesson.stageId || 1;
-          const lNum = lesson.lessonNum || 1;
+          const lNum = lesson.lessonNum || lesson.levelNumber || 1;
           recordLessonResult(sId, lNum, {
             wpm: finalWpm,
             accuracy: finalAccuracy,
@@ -355,7 +355,7 @@ export const LessonPlayer = ({
               <span className="hidden sm:inline">Academy</span>
               <span className="opacity-40">/</span>
               <span className="font-semibold text-[var(--accent,#FF1744)]">
-                <span className="hidden sm:inline">Lesson </span>{lesson.lessonNum}
+                <span className="hidden sm:inline">Lesson </span>{lesson.lessonNum || lesson.levelNumber}
               </span>
             </div>
           </div>
@@ -363,7 +363,7 @@ export const LessonPlayer = ({
           {/* Center: Lesson Title — Centered relative to viewport */}
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden lg:block max-w-[360px] truncate text-center">
             <span className="text-[15px] font-medium text-[var(--text-primary)] tracking-wide pointer-events-auto">
-              {lesson.title || `Lesson ${lesson.lessonNum}`}
+              {lesson.title || `Lesson ${lesson.lessonNum || lesson.levelNumber}`}
             </span>
           </div>
 

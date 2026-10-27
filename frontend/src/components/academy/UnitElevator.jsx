@@ -31,7 +31,7 @@ export const UnitElevator = ({
           </h2>
         </div>
         <span className="text-[10px] font-mono text-[var(--text-muted)]">
-          Stage {activeUnit} / {totalCount}
+          Unit {activeUnit} / {totalCount}
         </span>
       </div>
 
@@ -60,7 +60,7 @@ export const UnitElevator = ({
             >
               <div className="flex items-center justify-between">
                 <span className={`text-xs font-mono font-bold ${isSelected ? 'text-[var(--accent)]' : isUnlocked ? 'text-[var(--text-primary)]' : 'text-[var(--text-muted)]'}`}>
-                  Stage {u.unitNumber}
+                  Unit {u.unitNumber}
                 </span>
 
                 {/* Progress Dots Indicator */}

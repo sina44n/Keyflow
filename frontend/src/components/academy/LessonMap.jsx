@@ -56,7 +56,7 @@ export const LessonMap = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
         <div className="border-l-4 border-[var(--accent)] pl-3.5 space-y-0.5">
           <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-            Stage {activeUnit} — <span className="text-[var(--text-primary)]">{unitLabel}</span>
+            Unit {activeUnit} — <span className="text-[var(--text-primary)]">{unitLabel}</span>
           </h2>
           <div className="text-xs font-mono text-[var(--text-muted)]">
             Lessons {firstLessonNum} – {lastLessonNum} ({displayLessons.length} Modules)
