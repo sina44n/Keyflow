@@ -45,6 +45,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     username = models.CharField(max_length=30, unique=True, db_index=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    is_email_verified = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
 
     objects = UserManager()
@@ -131,6 +132,7 @@ class UserPreferences(models.Model):
     sound_enabled = models.BooleanField(default=True)
     keyboard_visual_enabled = models.BooleanField(default=True)
     reduced_motion = models.BooleanField(default=False)
+    language = models.CharField(max_length=10, default='en')
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -149,3 +151,19 @@ class UserPreferences(models.Model):
     @theme.setter
     def theme(self, value):
         self.theme_preset = value
+
+
+class EmailVerificationToken(models.Model):
+    """Single-use verification token with 24-hour expiration."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='verification_tokens')
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = 'email_verification_tokens'
+        ordering = ['-created_at']
+
+    def is_valid(self):
+        return not self.is_used and timezone.now() < self.expires_at

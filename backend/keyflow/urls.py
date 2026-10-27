@@ -43,6 +43,9 @@ urlpatterns = [
 
     # Typing Arcade Games
     path('api/games/', include('games.urls')),
+
+    # Random Personalized Quotes
+    path('api/quotes/', include('quotes.urls')),
 ]
 
 # Customize admin site

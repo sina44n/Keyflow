@@ -1,12 +1,24 @@
+/**
+ * KEYFLOW Main Application Router
+ * ===============================
+ * Integrates ThemeProvider, SoundProvider, I18nProvider, and AuthProvider.
+ * Enforces ProtectedRoute guards on personal learning & arcade progress routes.
+ * Exposes public landing and masterpiece authentication pages.
+ */
+
 import React from 'react';
 import { BrowserRouter, Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { SoundProvider } from './context/SoundContext';
+import { AuthProvider } from './context/AuthContext';
+import { I18nProvider } from './i18n/I18nContext';
 import { Navbar } from './components/common/Navbar';
 import { LandingPage } from './pages/LandingPage';
+import { AuthPage } from './pages/AuthPage';
 import { AcademyPage } from './pages/AcademyPage';
 import { WorkstationPage } from './pages/WorkstationPage';
 import { ArcadePage } from './pages/ArcadePage';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { Footer } from './components/common/Footer';
 
 const AcademyStageRoute = () => {
@@ -34,25 +46,79 @@ function App() {
   return (
     <ThemeProvider>
       <SoundProvider>
-        <BrowserRouter>
-          <div className="min-h-screen flex flex-col bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-200">
-            <Navbar />
-            <div className="flex-1">
-              <Routes>
-                <Route path="/" element={<LandingPage />} />
-                <Route path="/workstation" element={<WorkstationPage />} />
-                <Route path="/practice" element={<WorkstationPage />} />
-                <Route path="/academy" element={<AcademyHomeRoute />} />
-                <Route path="/academy/stage/:stageId" element={<AcademyStageRoute />} />
-                <Route path="/arcade" element={<ArcadePage />} />
-                <Route path="/arcade/:gameId" element={<ArcadePage />} />
-                <Route path="/curriculum" element={<Navigate to="/academy" replace />} />
-                <Route path="*" element={<LandingPage />} />
-              </Routes>
-            </div>
-            <Footer />
-          </div>
-        </BrowserRouter>
+        <AuthProvider>
+          <I18nProvider>
+            <BrowserRouter>
+              <div className="min-h-screen flex flex-col bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-200">
+                <Navbar />
+                <div className="flex-1">
+                  <Routes>
+                    {/* Public Pages */}
+                    <Route path="/" element={<LandingPage />} />
+                    <Route path="/login" element={<AuthPage mode="login" />} />
+                    <Route path="/register" element={<AuthPage mode="register" />} />
+                    <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
+
+                    {/* Protected Learning Routes */}
+                    <Route
+                      path="/workstation"
+                      element={
+                        <ProtectedRoute>
+                          <WorkstationPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/practice"
+                      element={
+                        <ProtectedRoute>
+                          <WorkstationPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/academy"
+                      element={
+                        <ProtectedRoute>
+                          <AcademyHomeRoute />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/academy/stage/:stageId"
+                      element={
+                        <ProtectedRoute>
+                          <AcademyStageRoute />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/arcade"
+                      element={
+                        <ProtectedRoute>
+                          <ArcadePage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/arcade/:gameId"
+                      element={
+                        <ProtectedRoute>
+                          <ArcadePage />
+                        </ProtectedRoute>
+                      }
+                    />
+
+                    {/* Aliases & Fallbacks */}
+                    <Route path="/curriculum" element={<Navigate to="/academy" replace />} />
+                    <Route path="*" element={<LandingPage />} />
+                  </Routes>
+                </div>
+                <Footer />
+              </div>
+            </BrowserRouter>
+          </I18nProvider>
+        </AuthProvider>
       </SoundProvider>
     </ThemeProvider>
   );

@@ -10,8 +10,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'username', 'date_joined']
-        read_only_fields = ['id', 'date_joined']
+        fields = ['id', 'email', 'username', 'is_email_verified', 'date_joined']
+        read_only_fields = ['id', 'is_email_verified', 'date_joined']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -68,7 +68,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class UserPreferencesSerializer(serializers.ModelSerializer):
-    """User preferences serializer — controls theme, goals, sound, etc."""
+    """User preferences serializer — controls theme, goals, sound, language, etc."""
 
     class Meta:
         model = UserPreferences
@@ -79,6 +79,7 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
             'sound_enabled',
             'keyboard_visual_enabled',
             'reduced_motion',
+            'language',
             'updated_at',
         ]
         read_only_fields = ['updated_at']
@@ -91,5 +92,23 @@ class FullUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'username', 'date_joined', 'profile', 'preferences']
+        fields = ['id', 'email', 'username', 'is_email_verified', 'date_joined', 'profile', 'preferences']
         read_only_fields = fields
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    """Authenticated password change."""
+    old_password = serializers.CharField(write_only=True)
+    new_password = serializers.CharField(write_only=True, min_length=8)
+    new_password2 = serializers.CharField(write_only=True)
+
+    def validate(self, data):
+        if data['new_password'] != data['new_password2']:
+            raise serializers.ValidationError({'new_password2': 'New passwords do not match.'})
+        return data
+
+
+class EmailVerificationSerializer(serializers.Serializer):
+    """Email verification token validation."""
+    token = serializers.CharField(max_length=64)
+
