@@ -388,8 +388,8 @@ class UserProgressionIsolationTests(TestCase):
             username='user_a',
             password='Password123!',
         )
-        _, token_a = AuthToken.objects.create(self.user_a)
-        self.client_a.credentials(HTTP_AUTHORIZATION=f'Token {token_a}')
+        _, self.token_a = AuthToken.objects.create(self.user_a)
+        self.client_a.credentials(HTTP_AUTHORIZATION=f'Token {self.token_a}')
 
         self.client_b = APIClient()
         self.user_b = User.objects.create_user(
@@ -397,40 +397,173 @@ class UserProgressionIsolationTests(TestCase):
             username='user_b',
             password='Password123!',
         )
-        _, token_b = AuthToken.objects.create(self.user_b)
-        self.client_b.credentials(HTTP_AUTHORIZATION=f'Token {token_b}')
+        _, self.token_b = AuthToken.objects.create(self.user_b)
+        self.client_b.credentials(HTTP_AUTHORIZATION=f'Token {self.token_b}')
 
-    def test_two_user_progression_isolation(self):
-        # 1. User B starts at Level 1 with 0 completed lessons
-        summary_b_initial = self.client_b.get('/api/lessons/progress/summary/')
-        self.assertEqual(summary_b_initial.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(summary_b_initial.data['lessons']), 0)
-        self.assertEqual(summary_b_initial.data['stageProgress']['1'], 1)
+    def test_a_new_users_start_independently(self):
+        """Test A: Verify both User A and User B start with 0 completed levels and Level 1 unlocked."""
+        res_a = self.client_a.get('/api/lessons/progress/summary/')
+        self.assertEqual(res_a.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res_a.data['lessons']), 0)
+        self.assertEqual(res_a.data['stageProgress']['1'], 1)
+        self.assertEqual(res_a.data['unlockedStages'], [1])
 
-        # 2. User A completes Stage 1 Lesson 1
-        rec_res = self.client_a.post('/api/lessons/record/', {
+        res_b = self.client_b.get('/api/lessons/progress/summary/')
+        self.assertEqual(res_b.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(res_b.data['lessons']), 0)
+        self.assertEqual(res_b.data['stageProgress']['1'], 1)
+        self.assertEqual(res_b.data['unlockedStages'], [1])
+
+    def test_b_progress_is_isolated(self):
+        """Test B: User A completes Level 1 and 2; User B still has 0 completed levels."""
+        # User A completes Level 1
+        rec1 = self.client_a.post('/api/lessons/record/', {
             'stage': 1,
             'lesson': 1,
-            'wpm': 65,
-            'accuracy': 98,
+            'wpm': 45,
+            'accuracy': 96,
             'completed': True,
             'stars': 3,
         })
-        self.assertEqual(rec_res.status_code, status.HTTP_200_OK)
-        self.assertTrue(rec_res.data['is_completed'])
+        self.assertEqual(rec1.status_code, status.HTTP_200_OK)
 
-        # 3. User A summary shows S1-L001 completed
+        # User A completes Level 2
+        rec2 = self.client_a.post('/api/lessons/record/', {
+            'stage': 1,
+            'lesson': 2,
+            'wpm': 50,
+            'accuracy': 98,
+            'completed': True,
+            'stars': 4,
+        })
+        self.assertEqual(rec2.status_code, status.HTTP_200_OK)
+
+        # Verify User A has 2 completed levels
         summary_a = self.client_a.get('/api/lessons/progress/summary/')
         self.assertEqual(summary_a.status_code, status.HTTP_200_OK)
         self.assertTrue(summary_a.data['lessons']['S1-L001']['completed'])
+        self.assertTrue(summary_a.data['lessons']['S1-L002']['completed'])
+        self.assertGreaterEqual(summary_a.data['stageProgress']['1'], 3)
 
-        # 4. User B summary STILL has ZERO completed lessons
-        summary_b_after = self.client_b.get('/api/lessons/progress/summary/')
-        self.assertEqual(summary_b_after.status_code, status.HTTP_200_OK)
-        self.assertNotIn('S1-L001', summary_b_after.data['lessons'])
-        self.assertEqual(len(summary_b_after.data['lessons']), 0)
+        # Verify User B STILL has zero completed levels
+        summary_b = self.client_b.get('/api/lessons/progress/summary/')
+        self.assertEqual(summary_b.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(summary_b.data['lessons']), 0)
+        self.assertEqual(summary_b.data['stageProgress']['1'], 1)
+        self.assertEqual(summary_b.data['unlockedStages'], [1])
 
-        # 5. Database verify: User A has 1 record, User B has 0 records
-        self.assertEqual(LessonProgress.objects.filter(user=self.user_a).count(), 1)
-        self.assertEqual(LessonProgress.objects.filter(user=self.user_b).count(), 0)
+        # Database confirmation
+        self.assertEqual(LessonProgress.objects.filter(user=self.user_a, is_completed=True).count(), 2)
+        self.assertEqual(LessonProgress.objects.filter(user=self.user_b, is_completed=True).count(), 0)
+
+    def test_c_progress_persists_across_logout_and_login(self):
+        """Test C: User logs out and in again; personal progress is restored and accounts remain separate."""
+        # User A completes Level 1 and 2
+        self.client_a.post('/api/lessons/record/', {
+            'stage': 1, 'lesson': 1, 'wpm': 40, 'accuracy': 95, 'completed': True, 'stars': 3
+        })
+        self.client_a.post('/api/lessons/record/', {
+            'stage': 1, 'lesson': 2, 'wpm': 48, 'accuracy': 97, 'completed': True, 'stars': 4
+        })
+
+        # User A logs out
+        logout_res = self.client_a.post('/api/auth/logout/')
+        self.assertEqual(logout_res.status_code, status.HTTP_204_NO_CONTENT)
+        self.client_a.credentials()
+
+        # User A signs in again
+        login_a = self.client_a.post('/api/auth/login/', {
+            'email': 'usera@example.com',
+            'password': 'Password123!',
+        })
+        self.assertEqual(login_a.status_code, status.HTTP_200_OK)
+        new_token_a = login_a.data['token']
+        self.client_a.credentials(HTTP_AUTHORIZATION=f'Token {new_token_a}')
+
+        # Verify User A's progress is restored
+        summary_a = self.client_a.get('/api/lessons/progress/summary/')
+        self.assertEqual(summary_a.status_code, status.HTTP_200_OK)
+        self.assertTrue(summary_a.data['lessons']['S1-L001']['completed'])
+        self.assertTrue(summary_a.data['lessons']['S1-L002']['completed'])
+
+        # User B logs out and in fresh
+        self.client_b.post('/api/auth/logout/')
+        self.client_b.credentials()
+
+        login_b = self.client_b.post('/api/auth/login/', {
+            'email': 'userb@example.com',
+            'password': 'Password123!',
+        })
+        self.assertEqual(login_b.status_code, status.HTTP_200_OK)
+        new_token_b = login_b.data['token']
+        self.client_b.credentials(HTTP_AUTHORIZATION=f'Token {new_token_b}')
+
+        # Verify User B STILL has 0 completed levels
+        summary_b = self.client_b.get('/api/lessons/progress/summary/')
+        self.assertEqual(summary_b.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(summary_b.data['lessons']), 0)
+        self.assertEqual(summary_b.data['stageProgress']['1'], 1)
+
+    def test_d_cross_user_access_and_spoofing_blocked(self):
+        """Test D: User B cannot retrieve, modify, or spoof User A's progress."""
+        # User A completes Level 1
+        self.client_a.post('/api/lessons/record/', {
+            'stage': 1, 'lesson': 1, 'wpm': 55, 'accuracy': 99, 'completed': True, 'stars': 4
+        })
+
+        # User B attempts to query User A's progress using spoofed query params
+        res_spoof_query = self.client_b.get(f'/api/lessons/progress/?user_id={self.user_a.id}&user={self.user_a.username}')
+        self.assertEqual(res_spoof_query.status_code, status.HTTP_200_OK)
+        # Result must only show User B's records (0), not User A's records
+        self.assertEqual(len(res_spoof_query.data), 0)
+
+        # User B attempts to modify or create progress attributing to User A via body spoofing
+        res_spoof_post = self.client_b.post('/api/lessons/record/', {
+            'user_id': self.user_a.id,
+            'user': self.user_a.username,
+            'email': self.user_a.email,
+            'stage': 1,
+            'lesson': 5,
+            'wpm': 100,
+            'accuracy': 100,
+            'completed': True,
+        })
+        self.assertEqual(res_spoof_post.status_code, status.HTTP_200_OK)
+
+        # Verify record was created for User B, NOT User A
+        self.assertFalse(LessonProgress.objects.filter(user=self.user_a, lesson__order=5).exists())
+        self.assertTrue(LessonProgress.objects.filter(user=self.user_b, lesson__order=5).exists())
+
+        # Anonymous access blocked
+        anon_client = APIClient()
+        self.assertEqual(anon_client.get('/api/lessons/progress/summary/').status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(anon_client.post('/api/lessons/record/', {'stage': 1, 'lesson': 1}).status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_f_concurrency_and_repeated_completion_idempotent(self):
+        """Test F: Repeated completion calls update metrics without duplicate records or corruption."""
+        # First attempt: Pass Level 1 with 30 WPM
+        res1 = self.client_a.post('/api/lessons/record/', {
+            'stage': 1, 'lesson': 1, 'wpm': 30, 'accuracy': 90, 'completed': True, 'stars': 2
+        })
+        self.assertEqual(res1.status_code, status.HTTP_200_OK)
+
+        # Second attempt: Better WPM 50
+        res2 = self.client_a.post('/api/lessons/record/', {
+            'stage': 1, 'lesson': 1, 'wpm': 50, 'accuracy': 95, 'completed': True, 'stars': 3
+        })
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+
+        # Third attempt: Slower run 25 WPM (should not downgrade bestWpm)
+        res3 = self.client_a.post('/api/lessons/record/', {
+            'stage': 1, 'lesson': 1, 'wpm': 25, 'accuracy': 92, 'completed': True, 'stars': 1
+        })
+        self.assertEqual(res3.status_code, status.HTTP_200_OK)
+
+        # Exactly 1 record in database (no duplicates!)
+        self.assertEqual(LessonProgress.objects.filter(user=self.user_a, lesson__order=1).count(), 1)
+        record = LessonProgress.objects.get(user=self.user_a, lesson__order=1)
+        self.assertEqual(record.attempts, 3)
+        self.assertEqual(float(record.best_wpm), 50.0)
+        self.assertEqual(float(record.best_accuracy), 95.0)
+        self.assertTrue(record.is_completed)
 

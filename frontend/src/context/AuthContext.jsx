@@ -10,8 +10,8 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { authAPI, lessonsAPI, setStoredToken, clearStoredToken, getStoredToken } from '../utils/api';
-import { setLessonProgressUser, syncLessonProgressFromBackend, registerBackendSyncHandler } from '../utils/lessonProgress';
-import { setArcadeStorageUser } from '../utils/arcadeStorage';
+import { setLessonProgressUser, syncLessonProgressFromBackend, registerBackendSyncHandler, resetGuestProgress } from '../utils/lessonProgress';
+import { setArcadeStorageUser, resetGuestArcadeRecords } from '../utils/arcadeStorage';
 
 // Wire up asynchronous backend lesson progress synchronization
 registerBackendSyncHandler((data) => {
@@ -37,6 +37,9 @@ export const AuthProvider = ({ children }) => {
   const applyUserSession = useCallback(async (userData) => {
     setUser(userData);
     if (userData?.id) {
+      try {
+        localStorage.setItem('keyflow_current_user_id', String(userData.id));
+      } catch {}
       setLessonProgressUser(userData.id);
       setArcadeStorageUser(userData.id);
       try {
@@ -48,8 +51,13 @@ export const AuthProvider = ({ children }) => {
         // Safe fallback if offline
       }
     } else {
+      try {
+        localStorage.removeItem('keyflow_current_user_id');
+      } catch {}
       setLessonProgressUser(null);
       setArcadeStorageUser(null);
+      resetGuestProgress();
+      resetGuestArcadeRecords();
     }
   }, []);
 
@@ -60,8 +68,13 @@ export const AuthProvider = ({ children }) => {
     const restoreSession = async () => {
       const token = getStoredToken();
       if (!token) {
+        try {
+          localStorage.removeItem('keyflow_current_user_id');
+        } catch {}
         setLessonProgressUser(null);
         setArcadeStorageUser(null);
+        resetGuestProgress();
+        resetGuestArcadeRecords();
         setIsLoading(false);
         return;
       }
@@ -73,8 +86,13 @@ export const AuthProvider = ({ children }) => {
       } catch {
         // Token expired or invalid
         clearStoredToken();
+        try {
+          localStorage.removeItem('keyflow_current_user_id');
+        } catch {}
         setLessonProgressUser(null);
         setArcadeStorageUser(null);
+        resetGuestProgress();
+        resetGuestArcadeRecords();
       } finally {
         if (mountedRef.current) {
           setIsLoading(false);
@@ -90,8 +108,13 @@ export const AuthProvider = ({ children }) => {
   // -----------------------------------------------------------------------
   useEffect(() => {
     const handleExpired = () => {
+      try {
+        localStorage.removeItem('keyflow_current_user_id');
+      } catch {}
       setLessonProgressUser(null);
       setArcadeStorageUser(null);
+      resetGuestProgress();
+      resetGuestArcadeRecords();
       setUser(null);
     };
     window.addEventListener('keyflow-auth-expired', handleExpired);
@@ -105,6 +128,9 @@ export const AuthProvider = ({ children }) => {
     const res = await authAPI.register({ email, username, password, password2 });
     const { token, user: userData } = res.data;
     setStoredToken(token);
+    try {
+      localStorage.setItem('keyflow_current_user_id', String(userData.id));
+    } catch {}
     await applyUserSession(userData);
     return userData;
   }, [applyUserSession]);
@@ -116,6 +142,9 @@ export const AuthProvider = ({ children }) => {
     const res = await authAPI.login({ email, password });
     const { token, user: userData } = res.data;
     setStoredToken(token);
+    try {
+      localStorage.setItem('keyflow_current_user_id', String(userData.id));
+    } catch {}
     await applyUserSession(userData);
     return userData;
   }, [applyUserSession]);
@@ -127,6 +156,9 @@ export const AuthProvider = ({ children }) => {
     const res = await authAPI.googleLogin(payload);
     const { token, user: userData } = res.data;
     setStoredToken(token);
+    try {
+      localStorage.setItem('keyflow_current_user_id', String(userData.id));
+    } catch {}
     await applyUserSession(userData);
     return userData;
   }, [applyUserSession]);
@@ -141,8 +173,13 @@ export const AuthProvider = ({ children }) => {
       // Even if server logout fails, clear local state
     }
     clearStoredToken();
+    try {
+      localStorage.removeItem('keyflow_current_user_id');
+    } catch {}
     setLessonProgressUser(null);
     setArcadeStorageUser(null);
+    resetGuestProgress();
+    resetGuestArcadeRecords();
     setUser(null);
   }, []);
 
@@ -156,8 +193,13 @@ export const AuthProvider = ({ children }) => {
       return res.data;
     } catch {
       clearStoredToken();
+      try {
+        localStorage.removeItem('keyflow_current_user_id');
+      } catch {}
       setLessonProgressUser(null);
       setArcadeStorageUser(null);
+      resetGuestProgress();
+      resetGuestArcadeRecords();
       setUser(null);
       return null;
     }

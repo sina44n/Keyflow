@@ -11,7 +11,18 @@
  * 4. Zero artificial statistics and full preservation of existing records.
  */
 
-let currentUserId = null;
+function getInitialUserId() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem('keyflow_current_user_id') || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+let currentUserId = getInitialUserId();
 let backendSyncHandler = null;
 
 export function registerBackendSyncHandler(handler) {
@@ -20,9 +31,27 @@ export function registerBackendSyncHandler(handler) {
 
 export function setLessonProgressUser(userId) {
   currentUserId = userId ? String(userId) : null;
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (currentUserId) {
+        localStorage.setItem('keyflow_current_user_id', currentUserId);
+      } else {
+        localStorage.removeItem('keyflow_current_user_id');
+      }
+    }
+  } catch {}
   if (typeof window !== 'undefined' && window.dispatchEvent) {
     window.dispatchEvent(new CustomEvent('keyflow-lesson-progress-updated', { detail: loadState() }));
   }
+}
+
+export function resetGuestProgress() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('keyflow_lesson_progress_guest');
+      localStorage.removeItem('keyflow_lesson_progress_v2');
+    }
+  } catch {}
 }
 
 export function getCurrentUserId() {
@@ -96,37 +125,40 @@ function saveState(state) {
 export function syncLessonProgressFromBackend(backendSummary) {
   if (!backendSummary) return;
   const state = loadState();
-  const mergedLessons = { ...state.lessons };
 
-  if (backendSummary.lessons) {
-    for (const [key, val] of Object.entries(backendSummary.lessons)) {
-      const existing = mergedLessons[key] || {};
-      mergedLessons[key] = {
-        ...existing,
-        completed: Boolean(val.completed || existing.completed),
-        bestWpm: Math.max(existing.bestWpm || 0, val.bestWpm || 0),
-        bestAccuracy: Math.max(existing.bestAccuracy || 0, val.bestAccuracy || 0),
-        attempts: Math.max(existing.attempts || 0, val.attempts || 0),
-        completedAt: val.completedAt || existing.completedAt,
-      };
-    }
+  const backendLessons = backendSummary.lessons || {};
+  const newLessons = {};
+
+  // For authenticated users, backend is the authoritative source for completed lessons
+  for (const [key, val] of Object.entries(backendLessons)) {
+    const existing = state.lessons[key] || {};
+    newLessons[key] = {
+      ...existing,
+      completed: Boolean(val.completed),
+      bestWpm: Math.max(existing.bestWpm || 0, val.bestWpm || 0),
+      bestAccuracy: Math.max(existing.bestAccuracy || 0, val.bestAccuracy || 0),
+      attempts: Math.max(existing.attempts || 0, val.attempts || 0),
+      completedAt: val.completedAt || existing.completedAt,
+    };
   }
 
-  const mergedStageProgress = { ...state.stageProgress };
+  // Replace lessons state strictly with authenticated user's records
+  state.lessons = newLessons;
+
   if (backendSummary.stageProgress) {
-    for (const [stg, lvl] of Object.entries(backendSummary.stageProgress)) {
-      mergedStageProgress[stg] = Math.max(mergedStageProgress[stg] || 0, lvl || 0);
-    }
+    state.stageProgress = {
+      1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0,
+      ...backendSummary.stageProgress,
+    };
+  } else {
+    state.stageProgress = { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
   }
 
-  const mergedUnlocked = Array.from(new Set([
-    ...(state.unlockedStages || [1]),
-    ...(backendSummary.unlockedStages || [1]),
-  ])).sort((a, b) => a - b);
-
-  state.lessons = mergedLessons;
-  state.stageProgress = mergedStageProgress;
-  state.unlockedStages = mergedUnlocked.length > 0 ? mergedUnlocked : [1];
+  if (Array.isArray(backendSummary.unlockedStages) && backendSummary.unlockedStages.length > 0) {
+    state.unlockedStages = [...backendSummary.unlockedStages].sort((a, b) => a - b);
+  } else {
+    state.unlockedStages = [1];
+  }
 
   saveState(state);
   return state;

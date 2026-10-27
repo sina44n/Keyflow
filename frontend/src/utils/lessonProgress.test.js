@@ -8,6 +8,11 @@ import {
   getAcademyDashboardStats,
   getNextRecommendedLesson,
   resetAllProgress,
+  setLessonProgressUser,
+  syncLessonProgressFromBackend,
+  resetGuestProgress,
+  getLessonRecord,
+  getLessonProgress,
 } from './lessonProgress.js';
 
 // Minimal localStorage mock for Node test environment
@@ -296,5 +301,87 @@ describe('KEYFLOW Lesson Progress & Progression System (4,200 Levels)', () => {
 
     recordLessonResult(1, 1, { wpm: 25, accuracy: 95, passed: true, stars: 3 });
     assert.deepEqual(getNextRecommendedLesson(1), { stageId: 1, lessonNum: 2, id: 'S1-L002' });
+  });
+
+  describe('Multi-User Account Switching & Strict Isolation (Frontend)', () => {
+    it('isolates User A and User B progress completely across login, play, and account switching', () => {
+      // 1. User A logs in
+      setLessonProgressUser('user_A_id_101');
+      assert.equal(globalThis.localStorage.getItem('keyflow_current_user_id'), 'user_A_id_101');
+
+      // User A completes Level 1 and Level 2
+      recordLessonResult(1, 1, { wpm: 35, accuracy: 97, passed: true, stars: 3 });
+      recordLessonResult(1, 2, { wpm: 38, accuracy: 98, passed: true, stars: 4 });
+
+      assert.equal(isLessonUnlocked(1, 1), true);
+      assert.equal(isLessonUnlocked(1, 2), true);
+      assert.equal(isLessonUnlocked(1, 3), true);
+      assert.equal(getLessonRecord(1, 1)?.completed, true);
+      assert.equal(getLessonRecord(1, 2)?.completed, true);
+      assert.equal(getLessonRecord(1, 3)?.completed || false, false);
+
+      // 2. User A logs out
+      setLessonProgressUser(null);
+      resetGuestProgress();
+      assert.equal(globalThis.localStorage.getItem('keyflow_current_user_id'), null);
+      assert.equal(globalThis.localStorage.getItem('keyflow_lesson_progress_guest'), null);
+
+      // 3. User B signs in
+      setLessonProgressUser('user_B_id_202');
+      assert.equal(globalThis.localStorage.getItem('keyflow_current_user_id'), 'user_B_id_202');
+
+      // User B MUST have zero completed levels and start at Level 1
+      const progressB = getLessonProgress();
+      assert.deepEqual(progressB.lessons, {});
+      assert.equal(isLessonUnlocked(1, 1), true, 'Level 1 must be unlocked by default');
+      assert.equal(isLessonUnlocked(1, 2), false, 'Level 2 must be locked for User B');
+      assert.equal(getLessonRecord(1, 1)?.completed || false, false);
+      assert.equal(getLessonRecord(1, 2)?.completed || false, false);
+
+      // 4. Backend synchronization with empty backend data keeps User B clean
+      syncLessonProgressFromBackend({
+        lessons: {},
+        stageProgress: { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 },
+        unlockedStages: [1],
+      });
+      assert.equal(isLessonUnlocked(1, 2), false);
+      assert.equal(getLessonRecord(1, 1)?.completed || false, false);
+
+      // 5. User B completes Level 1
+      recordLessonResult(1, 1, { wpm: 22, accuracy: 92, passed: true, stars: 1 });
+      assert.equal(isLessonUnlocked(1, 2), true);
+      assert.equal(isLessonUnlocked(1, 3), false);
+
+      // 6. User A logs back in
+      setLessonProgressUser('user_A_id_101');
+      assert.equal(isLessonUnlocked(1, 1), true);
+      assert.equal(isLessonUnlocked(1, 2), true);
+      assert.equal(isLessonUnlocked(1, 3), true);
+      assert.equal(getLessonRecord(1, 1)?.bestWpm, 35);
+      assert.equal(getLessonRecord(1, 2)?.bestWpm, 38);
+
+      // Clean up
+      setLessonProgressUser(null);
+      resetGuestProgress();
+    });
+
+    it('ensures syncLessonProgressFromBackend is authoritative and eliminates any stale local flags', () => {
+      setLessonProgressUser('user_clean_999');
+      // Simulate backend returning specific verified lessons
+      syncLessonProgressFromBackend({
+        lessons: {
+          'S1-L001': { completed: true, bestWpm: 40, bestAccuracy: 95, attempts: 1 },
+        },
+        stageProgress: { 1: 2 },
+        unlockedStages: [1],
+      });
+
+      assert.equal(isLessonUnlocked(1, 1), true);
+      assert.equal(isLessonUnlocked(1, 2), true);
+      assert.equal(isLessonUnlocked(1, 3), false);
+
+      setLessonProgressUser(null);
+      resetGuestProgress();
+    });
   });
 });

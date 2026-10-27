@@ -5,7 +5,18 @@
  * and game statistics across all 7 arcade games.
  */
 
-let currentArcadeUserId = null;
+function getInitialArcadeUserId() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      return localStorage.getItem('keyflow_current_user_id') || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+let currentArcadeUserId = getInitialArcadeUserId();
 
 export const setArcadeStorageUser = (userId) => {
   currentArcadeUserId = userId ? String(userId) : null;
@@ -13,6 +24,16 @@ export const setArcadeStorageUser = (userId) => {
     window.dispatchEvent(
       new CustomEvent('keyflow-arcade-record-updated', { detail: getArcadeRecords() })
     );
+  }
+};
+
+export const resetGuestArcadeRecords = () => {
+  if (typeof window === 'undefined') return DEFAULT_RECORDS;
+  try {
+    localStorage.removeItem('keyflow_arcade_records_guest');
+    return DEFAULT_RECORDS;
+  } catch {
+    return DEFAULT_RECORDS;
   }
 };
 
