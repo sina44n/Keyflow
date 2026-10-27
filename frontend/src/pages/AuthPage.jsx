@@ -8,13 +8,14 @@
  * - Right panel: clean white authentication form with rounded fields
  * - Eye password toggle
  * - Prominent orange primary action button (#F95700)
- * - Switch between Login and Create Account
- * - Restrained social links footer
- * - Full integration with real Knox token Django backend
+ * - Switch between Login, Create Account, Forgot Password, and Reset Password
+ * - Working "Continue with Google" OAuth integration
+ * - Interactive social platform icons with status notifications
+ * - Full integration with real Knox token Django backend and PostgreSQL
  */
 
 import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { authAPI } from '../utils/api';
@@ -29,10 +30,14 @@ import {
 } from 'lucide-react';
 
 export const AuthPage = ({ mode = 'login' }) => {
-  const { login, register } = useAuth();
+  const { login, register, loginWithGoogle } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams();
+
+  const searchParams = new URLSearchParams(location.search);
+  const resetToken = params.token || searchParams.get('token') || '';
 
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -42,12 +47,15 @@ export const AuthPage = ({ mode = 'login' }) => {
   const [showPassword2, setShowPassword2] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [providerNotice, setProviderNotice] = useState('');
 
   const isLogin = mode === 'login';
   const isRegister = mode === 'register';
   const isForgot = mode === 'forgot';
+  const isReset = mode === 'reset';
 
   const destination = location.state?.from || '/academy';
 
@@ -62,6 +70,11 @@ export const AuthPage = ({ mode = 'login' }) => {
         await login({ email, password });
         navigate(destination, { replace: true });
       } else if (isRegister) {
+        if (password.length < 8) {
+          setErrorMessage('Password must be at least 8 characters long.');
+          setIsSubmitting(false);
+          return;
+        }
         if (password !== password2) {
           setErrorMessage('Passwords do not match.');
           setIsSubmitting(false);
@@ -75,9 +88,29 @@ export const AuthPage = ({ mode = 'login' }) => {
         });
         navigate(destination, { replace: true });
       } else if (isForgot) {
-        // Send reset email via API
         await authAPI.passwordResetRequest(email);
         setSuccessMessage('If that email exists in our system, password reset instructions have been sent.');
+      } else if (isReset) {
+        if (!resetToken) {
+          setErrorMessage('Password reset token is missing. Please check your reset link or request a new one.');
+          setIsSubmitting(false);
+          return;
+        }
+        if (password.length < 8) {
+          setErrorMessage('Password must be at least 8 characters long.');
+          setIsSubmitting(false);
+          return;
+        }
+        if (password !== password2) {
+          setErrorMessage('Passwords do not match.');
+          setIsSubmitting(false);
+          return;
+        }
+        await authAPI.passwordResetConfirm(resetToken, password);
+        setSuccessMessage('Password reset successfully! Redirecting to sign in...');
+        setTimeout(() => {
+          navigate('/login', { replace: true });
+        }, 1800);
       }
     } catch (err) {
       const data = err.response?.data;
@@ -85,20 +118,64 @@ export const AuthPage = ({ mode = 'login' }) => {
         setErrorMessage(data);
       } else if (data?.non_field_errors) {
         setErrorMessage(data.non_field_errors.join(' '));
+      } else if (data?.detail) {
+        setErrorMessage(data.detail);
+      } else if (data?.error) {
+        setErrorMessage(data.error);
       } else if (data?.email) {
         setErrorMessage(Array.isArray(data.email) ? data.email.join(' ') : data.email);
       } else if (data?.username) {
         setErrorMessage(Array.isArray(data.username) ? data.username.join(' ') : data.username);
       } else if (data?.password) {
         setErrorMessage(Array.isArray(data.password) ? data.password.join(' ') : data.password);
-      } else if (data?.error) {
-        setErrorMessage(data.error);
+      } else if (data?.password2) {
+        setErrorMessage(Array.isArray(data.password2) ? data.password2.join(' ') : data.password2);
+      } else if (err.message && err.message.includes('Network Error')) {
+        setErrorMessage('Cannot reach KEYFLOW API server. Please check your connection.');
       } else {
         setErrorMessage('Authentication failed. Please verify your details and try again.');
       }
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setErrorMessage('');
+    setIsGoogleLoading(true);
+    try {
+      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+      if (typeof window !== 'undefined' && window.google?.accounts?.id && clientId) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: async (response) => {
+            try {
+              await loginWithGoogle(response.credential);
+              navigate(destination, { replace: true });
+            } catch (err) {
+              setErrorMessage(err.response?.data?.error || 'Google authentication failed.');
+            } finally {
+              setIsGoogleLoading(false);
+            }
+          },
+        });
+        window.google.accounts.id.prompt();
+      } else {
+        setErrorMessage(
+          'Google OAuth is configured on the backend. To enable frontend Google Sign-In, configure VITE_GOOGLE_CLIENT_ID in your environment.'
+        );
+      }
+    } catch {
+      setErrorMessage('Google authentication could not be completed.');
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const handleSocialClick = (provider) => {
+    setProviderNotice(
+      `Sign-in with ${provider} is currently in preview. To sign in now, please use Google or your registered email address.`
+    );
   };
 
   return (
@@ -158,11 +235,13 @@ export const AuthPage = ({ mode = 'login' }) => {
                   {isLogin && (t('auth.login.title') || 'Log In')}
                   {isRegister && (t('auth.register.title') || 'Create Account')}
                   {isForgot && (t('auth.forgot.title') || 'Reset Password')}
+                  {isReset && 'Set New Password'}
                 </h1>
                 <p className="text-xs text-gray-500 mt-1">
                   {isLogin && (t('auth.login.subtitle') || 'Enter your credentials to access your terminal.')}
                   {isRegister && (t('auth.register.subtitle') || 'Join KEYFLOW and master touch typing with precision.')}
                   {isForgot && (t('auth.forgot.subtitle') || 'Enter your email to receive a password reset link.')}
+                  {isReset && 'Enter your new secure password below to regain access.'}
                 </p>
               </div>
 
@@ -180,6 +259,51 @@ export const AuthPage = ({ mode = 'login' }) => {
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                   <span>{successMessage}</span>
                 </div>
+              )}
+
+              {/* Continue with Google (Login and Register modes) */}
+              {(isLogin || isRegister) && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleGoogleSignIn}
+                    disabled={isSubmitting || isGoogleLoading}
+                    className="w-full py-2.5 px-4 rounded-xl border border-gray-300 hover:border-gray-400 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-xs transition-all flex items-center justify-center gap-2.5 shadow-sm active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+                  >
+                    {isGoogleLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-500" />
+                    ) : (
+                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                        <path
+                          fill="#4285F4"
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                        />
+                        <path
+                          fill="#EA4335"
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                        />
+                      </svg>
+                    )}
+                    <span>Continue with Google</span>
+                  </button>
+
+                  <div className="relative my-4 text-center">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200" />
+                    </div>
+                    <div className="relative flex justify-center text-[11px] uppercase">
+                      <span className="bg-white px-2 text-gray-400 font-medium">or continue with email</span>
+                    </div>
+                  </div>
+                </>
               )}
 
               {/* Form */}
@@ -202,27 +326,29 @@ export const AuthPage = ({ mode = 'login' }) => {
                   </div>
                 )}
 
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    {t('auth.emailAddress') || 'Email Address'}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="email"
-                      required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="name@example.com"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 text-gray-900 placeholder:text-gray-400 text-sm focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
-                    />
+                {!isReset && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      {t('auth.emailAddress') || 'Email Address'}
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="name@example.com"
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 text-gray-900 placeholder:text-gray-400 text-sm focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
+                      />
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {!isForgot && (
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <label className="block text-xs font-semibold text-gray-700">
-                        {t('auth.password') || 'Password'}
+                        {isReset ? 'New Password' : (t('auth.password') || 'Password')}
                       </label>
                       {isLogin && (
                         <Link
@@ -254,10 +380,10 @@ export const AuthPage = ({ mode = 'login' }) => {
                   </div>
                 )}
 
-                {isRegister && (
+                {(isRegister || isReset) && (
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      {t('auth.confirmPassword') || 'Confirm Password'}
+                      {isReset ? 'Confirm New Password' : (t('auth.confirmPassword') || 'Confirm Password')}
                     </label>
                     <div className="relative">
                       <input
@@ -296,6 +422,7 @@ export const AuthPage = ({ mode = 'login' }) => {
                       {isLogin && (t('auth.login.button') || 'Log In')}
                       {isRegister && (t('auth.register.button') || 'Create Account')}
                       {isForgot && (t('auth.forgot.button') || 'Send Reset Link')}
+                      {isReset && 'Update Password'}
                     </span>
                   )}
                 </button>
@@ -325,7 +452,7 @@ export const AuthPage = ({ mode = 'login' }) => {
                     </Link>
                   </p>
                 )}
-                {isForgot && (
+                {(isForgot || isReset) && (
                   <p>
                     <Link
                       to="/login"
@@ -337,20 +464,47 @@ export const AuthPage = ({ mode = 'login' }) => {
                 )}
               </div>
 
-              {/* Restrained Social Links (Exact visual match from reference image) */}
-              <div className="mt-6 pt-5 border-t border-gray-100 flex items-center justify-center gap-3">
-                <span className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-[11px] font-bold">
-                  f
-                </span>
-                <span className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-[11px] font-bold">
-                  𝕏
-                </span>
-                <span className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-[11px] font-bold">
-                  in
-                </span>
-                <span className="w-7 h-7 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors text-[11px] font-bold">
-                  ig
-                </span>
+              {/* Restrained Social Links (Interactive with transparent notice) */}
+              <div className="mt-6 pt-5 border-t border-gray-100 flex flex-col items-center gap-2">
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleSocialClick('Facebook')}
+                    title="Sign in with Facebook"
+                    className="w-7 h-7 rounded-full border border-gray-200 hover:border-blue-400 hover:text-blue-600 flex items-center justify-center text-gray-400 transition-colors text-[11px] font-bold cursor-pointer"
+                  >
+                    f
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSocialClick('X')}
+                    title="Sign in with X"
+                    className="w-7 h-7 rounded-full border border-gray-200 hover:border-gray-500 hover:text-gray-900 flex items-center justify-center text-gray-400 transition-colors text-[11px] font-bold cursor-pointer"
+                  >
+                    𝕏
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSocialClick('LinkedIn')}
+                    title="Sign in with LinkedIn"
+                    className="w-7 h-7 rounded-full border border-gray-200 hover:border-blue-500 hover:text-blue-700 flex items-center justify-center text-gray-400 transition-colors text-[11px] font-bold cursor-pointer"
+                  >
+                    in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSocialClick('Instagram')}
+                    title="Sign in with Instagram"
+                    className="w-7 h-7 rounded-full border border-gray-200 hover:border-pink-400 hover:text-pink-600 flex items-center justify-center text-gray-400 transition-colors text-[11px] font-bold cursor-pointer"
+                  >
+                    ig
+                  </button>
+                </div>
+                {providerNotice && (
+                  <div className="mt-2 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg text-center animate-in fade-in max-w-[320px]">
+                    {providerNotice}
+                  </div>
+                )}
               </div>
             </div>
           </div>

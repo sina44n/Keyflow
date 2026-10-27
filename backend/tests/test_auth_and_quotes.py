@@ -281,3 +281,156 @@ class QuoteSystemTests(TestCase):
         res = client.get('/api/quotes/current/')
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertFalse(res.data['is_personalized'])
+
+
+class PasswordResetFlowTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+        self.user = User.objects.create_user(
+            email='resetuser@example.com',
+            username='resetuser',
+            password='OldPassword123!',
+        )
+
+    def test_full_password_reset_flow(self):
+        from django.core import mail
+        from django_rest_passwordreset.models import ResetPasswordToken
+
+        # Step 1: Request password reset
+        res = self.client.post('/api/auth/password-reset/', {'email': 'resetuser@example.com'})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+
+        # Step 2: Verify reset token was generated and email sent
+        token_obj = ResetPasswordToken.objects.filter(user=self.user).first()
+        self.assertIsNotNone(token_obj)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn(token_obj.key, mail.outbox[0].body)
+        self.assertIn('/reset-password?token=', mail.outbox[0].body)
+
+        # Step 3: Validate token
+        val_res = self.client.post('/api/auth/password-reset/validate_token/', {'token': token_obj.key})
+        self.assertEqual(val_res.status_code, status.HTTP_200_OK)
+
+        # Step 4: Confirm reset with new password
+        confirm_res = self.client.post('/api/auth/password-reset/confirm/', {
+            'token': token_obj.key,
+            'password': 'NewPassword123!',
+        })
+        self.assertEqual(confirm_res.status_code, status.HTTP_200_OK)
+
+        # Step 5: Verify old password fails
+        login_old = self.client.post('/api/auth/login/', {
+            'email': 'resetuser@example.com',
+            'password': 'OldPassword123!',
+        })
+        self.assertEqual(login_old.status_code, status.HTTP_400_BAD_REQUEST)
+
+        # Step 6: Verify new password succeeds
+        login_new = self.client.post('/api/auth/login/', {
+            'email': 'resetuser@example.com',
+            'password': 'NewPassword123!',
+        })
+        self.assertEqual(login_new.status_code, status.HTTP_200_OK)
+        self.assertIn('token', login_new.data)
+
+        # Step 7: Verify token cannot be reused
+        reuse_res = self.client.post('/api/auth/password-reset/confirm/', {
+            'token': token_obj.key,
+            'password': 'AnotherPassword123!',
+        })
+        self.assertNotEqual(reuse_res.status_code, status.HTTP_200_OK)
+
+
+class GoogleLoginEndpointTests(TestCase):
+    def setUp(self):
+        self.client = APIClient()
+
+    def test_missing_token_returns_400(self):
+        res = self.client.post('/api/auth/google/', {})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_first_time_google_login_creates_user(self):
+        res = self.client.post('/api/auth/google/', {
+            'id_token': 'mock_google_id_token_123',
+            'email': 'NewGoogleUser@Example.COM',
+            'name': 'Google Hero',
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn('token', res.data)
+        self.assertEqual(res.data['user']['email'], 'newgoogleuser@example.com')
+        self.assertTrue(res.data['user']['is_email_verified'])
+
+        # Verify persisted in database
+        db_user = User.objects.get(email='newgoogleuser@example.com')
+        self.assertFalse(db_user.has_usable_password())
+        self.assertTrue(db_user.is_email_verified)
+
+    def test_returning_google_user_signs_in(self):
+        existing = User.objects.create_user(
+            email='returning@example.com',
+            username='returning',
+            password='Password123!',
+        )
+        res = self.client.post('/api/auth/google/', {
+            'id_token': 'mock_returning_token',
+            'email': 'returning@example.com',
+            'name': 'Returning User',
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data['user']['id'], existing.id)
+
+
+class UserProgressionIsolationTests(TestCase):
+    def setUp(self):
+        self.client_a = APIClient()
+        self.user_a = User.objects.create_user(
+            email='usera@example.com',
+            username='user_a',
+            password='Password123!',
+        )
+        _, token_a = AuthToken.objects.create(self.user_a)
+        self.client_a.credentials(HTTP_AUTHORIZATION=f'Token {token_a}')
+
+        self.client_b = APIClient()
+        self.user_b = User.objects.create_user(
+            email='userb@example.com',
+            username='user_b',
+            password='Password123!',
+        )
+        _, token_b = AuthToken.objects.create(self.user_b)
+        self.client_b.credentials(HTTP_AUTHORIZATION=f'Token {token_b}')
+
+    def test_two_user_progression_isolation(self):
+        # 1. User B starts at Level 1 with 0 completed lessons
+        summary_b_initial = self.client_b.get('/api/lessons/progress/summary/')
+        self.assertEqual(summary_b_initial.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(summary_b_initial.data['lessons']), 0)
+        self.assertEqual(summary_b_initial.data['stageProgress']['1'], 1)
+
+        # 2. User A completes Stage 1 Lesson 1
+        rec_res = self.client_a.post('/api/lessons/record/', {
+            'stage': 1,
+            'lesson': 1,
+            'wpm': 65,
+            'accuracy': 98,
+            'completed': True,
+            'stars': 3,
+        })
+        self.assertEqual(rec_res.status_code, status.HTTP_200_OK)
+        self.assertTrue(rec_res.data['is_completed'])
+
+        # 3. User A summary shows S1-L001 completed
+        summary_a = self.client_a.get('/api/lessons/progress/summary/')
+        self.assertEqual(summary_a.status_code, status.HTTP_200_OK)
+        self.assertTrue(summary_a.data['lessons']['S1-L001']['completed'])
+
+        # 4. User B summary STILL has ZERO completed lessons
+        summary_b_after = self.client_b.get('/api/lessons/progress/summary/')
+        self.assertEqual(summary_b_after.status_code, status.HTTP_200_OK)
+        self.assertNotIn('S1-L001', summary_b_after.data['lessons'])
+        self.assertEqual(len(summary_b_after.data['lessons']), 0)
+
+        # 5. Database verify: User A has 1 record, User B has 0 records
+        self.assertEqual(LessonProgress.objects.filter(user=self.user_a).count(), 1)
+        self.assertEqual(LessonProgress.objects.filter(user=self.user_b).count(), 0)
+

@@ -8,7 +8,7 @@
 
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || (typeof window !== 'undefined' ? '/api' : 'http://127.0.0.1:8000/api');
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -62,6 +62,8 @@ api.interceptors.response.use(
 export const authAPI = {
   register: (data) => api.post('/auth/register/', data),
   login: (data) => api.post('/auth/login/', data),
+  googleLogin: (payload) =>
+    api.post('/auth/google/', typeof payload === 'string' ? { id_token: payload } : payload),
   logout: () => api.post('/auth/logout/'),
   logoutAll: () => api.post('/auth/logout-all/'),
   me: () => api.get('/auth/me/'),
@@ -69,6 +71,7 @@ export const authAPI = {
   verifyEmail: (token) => api.post('/auth/verify-email/', { token }),
   resendVerification: () => api.post('/auth/resend-verification/'),
   passwordResetRequest: (email) => api.post('/auth/password-reset/', { email }),
+  passwordResetValidate: (token) => api.post('/auth/password-reset/validate_token/', { token }),
   passwordResetConfirm: (token, password) =>
     api.post('/auth/password-reset/confirm/', { token, password }),
 };
@@ -81,6 +84,15 @@ export const profileAPI = {
   update: (data) => api.patch('/profile/', data),
   getPreferences: () => api.get('/profile/preferences/'),
   updatePreferences: (data) => api.patch('/profile/preferences/', data),
+};
+
+// ---------------------------------------------------------------------------
+// Lessons & Progression API Methods
+// ---------------------------------------------------------------------------
+export const lessonsAPI = {
+  recordProgress: (data) => api.post('/lessons/record/', data),
+  getProgress: () => api.get('/lessons/progress/'),
+  getProgressSummary: () => api.get('/lessons/progress/summary/'),
 };
 
 // ---------------------------------------------------------------------------

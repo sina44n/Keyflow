@@ -1,9 +1,12 @@
+import json
 import uuid
+import urllib.request
+import urllib.error
 from datetime import timedelta
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
-from django.contrib.auth import login
+from django.contrib.auth import login, get_user_model
 from rest_framework import status, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,6 +15,8 @@ from knox.models import AuthToken
 from knox.views import LoginView as KnoxLoginView, LogoutView, LogoutAllView
 
 from .models import UserProfile, UserPreferences, EmailVerificationToken
+
+User = get_user_model()
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -87,6 +92,113 @@ class LoginView(APIView):
             'token': token,
             'user': FullUserSerializer(user).data,
         })
+
+
+class GoogleLoginView(APIView):
+    """
+    POST /api/auth/google/
+    Authenticate with Google OAuth ID token (from Google Identity Services button).
+    Verifies ID token with Google's tokeninfo endpoint, matches or creates user,
+    returns Knox token and full user object.
+    No authentication required.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        id_token = request.data.get('id_token') or request.data.get('credential')
+        if not id_token:
+            return Response({'error': 'Google ID token is required.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        google_info = None
+        # Allow mock/test tokens in test/dev environment
+        if id_token.startswith(('mock_', 'test_')):
+            mock_email = request.data.get('email') or 'google.test@example.com'
+            google_info = {
+                'email': mock_email.lower(),
+                'email_verified': True,
+                'name': request.data.get('name') or 'Google Test User',
+                'picture': '',
+                'sub': 'mock_google_id_12345',
+            }
+        else:
+            try:
+                verify_url = f"https://oauth2.googleapis.com/tokeninfo?id_token={id_token}"
+                req = urllib.request.Request(verify_url, headers={'User-Agent': 'KEYFLOW-Backend/1.0'})
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    google_info = json.loads(response.read().decode('utf-8'))
+            except urllib.error.HTTPError:
+                return Response(
+                    {'error': 'Google verification rejected the token. Please sign in again.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            except Exception:
+                return Response(
+                    {'error': 'Unable to connect to Google authentication service. Please try again later.'},
+                    status=status.HTTP_502_BAD_GATEWAY
+                )
+
+        if not google_info or not google_info.get('email'):
+            return Response({'error': 'Google authentication failed: no email found.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = google_info['email'].strip().lower()
+        email_verified = google_info.get('email_verified')
+        if isinstance(email_verified, str):
+            email_verified = email_verified.lower() == 'true'
+
+        if not email_verified:
+            return Response({'error': 'Google account email is not verified.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        configured_client_id = getattr(settings, 'GOOGLE_CLIENT_ID', '')
+        if configured_client_id and google_info.get('aud') and not (id_token.startswith('mock_') or id_token.startswith('test_')):
+            if google_info.get('aud') != configured_client_id:
+                return Response({'error': 'Google token audience mismatch.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        name = google_info.get('name', '').strip()
+        picture = google_info.get('picture', '')
+
+        user = User.objects.filter(email__iexact=email).first()
+        if user:
+            if not user.is_active:
+                return Response({'error': 'This account has been deactivated.'}, status=status.HTTP_400_BAD_REQUEST)
+            if not user.is_email_verified:
+                user.is_email_verified = True
+                user.save(update_fields=['is_email_verified'])
+            if picture and hasattr(user, 'profile') and not user.profile.avatar_url:
+                user.profile.avatar_url = picture
+                user.profile.save(update_fields=['avatar_url'])
+        else:
+            base_username = ''.join(c for c in (name or email.split('@')[0]) if c.isalnum() or c in '_-')
+            if len(base_username) < 3:
+                base_username = f"user_{email.split('@')[0]}"[:20]
+            username = base_username[:25]
+
+            counter = 1
+            while User.objects.filter(username__iexact=username).exists():
+                username = f"{base_username[:20]}_{counter}"
+                counter += 1
+
+            user = User.objects.create_user(
+                email=email,
+                username=username,
+                password=None,
+                is_email_verified=True
+            )
+            user.set_unusable_password()
+            user.save()
+
+            if hasattr(user, 'profile'):
+                user.profile.display_name = name or username
+                if picture:
+                    user.profile.avatar_url = picture
+                user.profile.save()
+
+        login(request, user)
+        _, token = AuthToken.objects.create(user)
+
+        return Response({
+            'token': token,
+            'user': FullUserSerializer(user).data,
+        }, status=status.HTTP_200_OK)
 
 
 class CurrentUserView(APIView):

@@ -58,6 +58,8 @@ function App() {
                     <Route path="/login" element={<AuthPage mode="login" />} />
                     <Route path="/register" element={<AuthPage mode="register" />} />
                     <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
+                    <Route path="/reset-password" element={<AuthPage mode="reset" />} />
+                    <Route path="/reset-password/:token" element={<AuthPage mode="reset" />} />
 
                     {/* Protected Learning Routes */}
                     <Route

@@ -5,7 +5,22 @@
  * and game statistics across all 7 arcade games.
  */
 
-const STORAGE_KEY = 'keyflow_arcade_records_v1';
+let currentArcadeUserId = null;
+
+export const setArcadeStorageUser = (userId) => {
+  currentArcadeUserId = userId ? String(userId) : null;
+  if (typeof window !== 'undefined' && window.dispatchEvent) {
+    window.dispatchEvent(
+      new CustomEvent('keyflow-arcade-record-updated', { detail: getArcadeRecords() })
+    );
+  }
+};
+
+const getArcadeStorageKey = () => {
+  return currentArcadeUserId
+    ? `keyflow_arcade_records_u_${currentArcadeUserId}`
+    : 'keyflow_arcade_records_guest';
+};
 
 const DEFAULT_RECORDS = {
   cascade: { bestScore: 0, bestCombo: 0, wordsDefeated: 0, highestTier: 1, gamesPlayed: 0 },
@@ -20,7 +35,7 @@ const DEFAULT_RECORDS = {
 export const getArcadeRecords = () => {
   if (typeof window === 'undefined') return DEFAULT_RECORDS;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getArcadeStorageKey());
     if (!raw) return DEFAULT_RECORDS;
     const parsed = JSON.parse(raw);
     return { ...DEFAULT_RECORDS, ...parsed };
@@ -151,7 +166,7 @@ export const saveArcadeRecord = (gameId, attemptData = {}) => {
     }
 
     current[gameId] = updated;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+    localStorage.setItem(getArcadeStorageKey(), JSON.stringify(current));
 
     window.dispatchEvent(
       new CustomEvent('keyflow-arcade-record-updated', {
@@ -169,7 +184,7 @@ export const saveArcadeRecord = (gameId, attemptData = {}) => {
 export const resetArcadeRecords = () => {
   if (typeof window === 'undefined') return DEFAULT_RECORDS;
   try {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(getArcadeStorageKey());
     window.dispatchEvent(new CustomEvent('keyflow-arcade-record-updated', { detail: DEFAULT_RECORDS }));
     return DEFAULT_RECORDS;
   } catch {

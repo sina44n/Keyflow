@@ -11,7 +11,27 @@
  * 4. Zero artificial statistics and full preservation of existing records.
  */
 
-const STORAGE_KEY = 'keyflow_lesson_progress_v2';
+let currentUserId = null;
+let backendSyncHandler = null;
+
+export function registerBackendSyncHandler(handler) {
+  backendSyncHandler = typeof handler === 'function' ? handler : null;
+}
+
+export function setLessonProgressUser(userId) {
+  currentUserId = userId ? String(userId) : null;
+  if (typeof window !== 'undefined' && window.dispatchEvent) {
+    window.dispatchEvent(new CustomEvent('keyflow-lesson-progress-updated', { detail: loadState() }));
+  }
+}
+
+export function getCurrentUserId() {
+  return currentUserId;
+}
+
+function getStorageKey() {
+  return currentUserId ? `keyflow_lesson_progress_u_${currentUserId}` : 'keyflow_lesson_progress_guest';
+}
 
 const DEFAULT_STATE = {
   // lesson progress: key = "S{stage}-L{level}" and "s{stage}_l{level}" => { completed, bestWpm, bestAccuracy, stars, attempts, completedAt }
@@ -29,8 +49,9 @@ const DEFAULT_STATE = {
 };
 
 function loadState() {
+  const key = getStorageKey();
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) {
       return {
         ...DEFAULT_STATE,
@@ -61,14 +82,54 @@ function loadState() {
 }
 
 function saveState(state) {
+  const key = getStorageKey();
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    localStorage.setItem(key, JSON.stringify(state));
     if (typeof window !== 'undefined' && window.dispatchEvent) {
       window.dispatchEvent(new CustomEvent('keyflow-lesson-progress-updated', { detail: state }));
     }
   } catch {
     /* localStorage blocked in private/sandboxed iframe */
   }
+}
+
+export function syncLessonProgressFromBackend(backendSummary) {
+  if (!backendSummary) return;
+  const state = loadState();
+  const mergedLessons = { ...state.lessons };
+
+  if (backendSummary.lessons) {
+    for (const [key, val] of Object.entries(backendSummary.lessons)) {
+      const existing = mergedLessons[key] || {};
+      mergedLessons[key] = {
+        ...existing,
+        completed: Boolean(val.completed || existing.completed),
+        bestWpm: Math.max(existing.bestWpm || 0, val.bestWpm || 0),
+        bestAccuracy: Math.max(existing.bestAccuracy || 0, val.bestAccuracy || 0),
+        attempts: Math.max(existing.attempts || 0, val.attempts || 0),
+        completedAt: val.completedAt || existing.completedAt,
+      };
+    }
+  }
+
+  const mergedStageProgress = { ...state.stageProgress };
+  if (backendSummary.stageProgress) {
+    for (const [stg, lvl] of Object.entries(backendSummary.stageProgress)) {
+      mergedStageProgress[stg] = Math.max(mergedStageProgress[stg] || 0, lvl || 0);
+    }
+  }
+
+  const mergedUnlocked = Array.from(new Set([
+    ...(state.unlockedStages || [1]),
+    ...(backendSummary.unlockedStages || [1]),
+  ])).sort((a, b) => a - b);
+
+  state.lessons = mergedLessons;
+  state.stageProgress = mergedStageProgress;
+  state.unlockedStages = mergedUnlocked.length > 0 ? mergedUnlocked : [1];
+
+  saveState(state);
+  return state;
 }
 
 export function getLessonProgress() {
@@ -331,6 +392,23 @@ export function recordLessonResult(stageId, lessonNum, options = {}) {
   }
 
   saveState(state);
+
+  // Asynchronously sync with backend if user is authenticated and handler is registered
+  if (currentUserId && backendSyncHandler) {
+    try {
+      backendSyncHandler({
+        stage: sId,
+        lesson: lNum,
+        wpm,
+        accuracy,
+        completed: isCompleted,
+        stars,
+      });
+    } catch {
+      // Safe background catch to maintain smooth offline play
+    }
+  }
+
   return state;
 }
 

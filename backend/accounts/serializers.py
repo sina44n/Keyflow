@@ -23,14 +23,23 @@ class RegisterSerializer(serializers.ModelSerializer):
         model = User
         fields = ['email', 'username', 'password', 'password2']
 
+    def validate_email(self, value):
+        normalized = value.strip().lower()
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError('A user with that email already exists.')
+        return normalized
+
     def validate_username(self, value):
-        if len(value) < 3:
+        normalized = value.strip()
+        if len(normalized) < 3:
             raise serializers.ValidationError('Username must be at least 3 characters.')
-        if not value.replace('_', '').replace('-', '').isalnum():
+        if not normalized.replace('_', '').replace('-', '').isalnum():
             raise serializers.ValidationError(
                 'Username may only contain letters, numbers, hyphens, and underscores.'
             )
-        return value
+        if User.objects.filter(username__iexact=normalized).exists():
+            raise serializers.ValidationError('A user with that username already exists.')
+        return normalized
 
     def validate(self, data):
         if data['password'] != data['password2']:
@@ -39,17 +48,33 @@ class RegisterSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password2')
+        validated_data['email'] = validated_data['email'].strip().lower()
+        validated_data['username'] = validated_data['username'].strip()
         user = User.objects.create_user(**validated_data)
         return user
 
 
 class LoginSerializer(serializers.Serializer):
     """Login by email + password."""
-    email = serializers.EmailField()
+    email = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        user = authenticate(username=data['email'], password=data['password'])
+        raw_email = data.get('email', '').strip().lower()
+        password = data.get('password', '')
+
+        if not raw_email or not password:
+            raise serializers.ValidationError('Both email and password are required.')
+
+        user = authenticate(username=raw_email, password=password)
+        if not user:
+            # Check case-insensitive email match
+            matched_user = User.objects.filter(email__iexact=raw_email).first()
+            if matched_user:
+                user = authenticate(username=matched_user.email, password=password)
+                if not user:
+                    user = authenticate(username=matched_user.username, password=password)
+
         if not user:
             raise serializers.ValidationError('Invalid email or password.')
         if not user.is_active:

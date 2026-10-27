@@ -9,7 +9,14 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { authAPI, setStoredToken, clearStoredToken, getStoredToken } from '../utils/api';
+import { authAPI, lessonsAPI, setStoredToken, clearStoredToken, getStoredToken } from '../utils/api';
+import { setLessonProgressUser, syncLessonProgressFromBackend, registerBackendSyncHandler } from '../utils/lessonProgress';
+import { setArcadeStorageUser } from '../utils/arcadeStorage';
+
+// Wire up asynchronous backend lesson progress synchronization
+registerBackendSyncHandler((data) => {
+  lessonsAPI.recordProgress(data).catch(() => {});
+});
 
 export const AuthContext = createContext(null);
 
@@ -26,6 +33,26 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const mountedRef = useRef(true);
 
+  // Apply user session and synchronize isolated progression
+  const applyUserSession = useCallback(async (userData) => {
+    setUser(userData);
+    if (userData?.id) {
+      setLessonProgressUser(userData.id);
+      setArcadeStorageUser(userData.id);
+      try {
+        const summaryRes = await lessonsAPI.getProgressSummary();
+        if (summaryRes?.data) {
+          syncLessonProgressFromBackend(summaryRes.data);
+        }
+      } catch {
+        // Safe fallback if offline
+      }
+    } else {
+      setLessonProgressUser(null);
+      setArcadeStorageUser(null);
+    }
+  }, []);
+
   // -----------------------------------------------------------------------
   // Restore session on mount — check stored token validity
   // -----------------------------------------------------------------------
@@ -33,17 +60,21 @@ export const AuthProvider = ({ children }) => {
     const restoreSession = async () => {
       const token = getStoredToken();
       if (!token) {
+        setLessonProgressUser(null);
+        setArcadeStorageUser(null);
         setIsLoading(false);
         return;
       }
       try {
         const res = await authAPI.me();
         if (mountedRef.current) {
-          setUser(res.data);
+          await applyUserSession(res.data);
         }
       } catch {
         // Token expired or invalid
         clearStoredToken();
+        setLessonProgressUser(null);
+        setArcadeStorageUser(null);
       } finally {
         if (mountedRef.current) {
           setIsLoading(false);
@@ -52,13 +83,15 @@ export const AuthProvider = ({ children }) => {
     };
     restoreSession();
     return () => { mountedRef.current = false; };
-  }, []);
+  }, [applyUserSession]);
 
   // -----------------------------------------------------------------------
   // Listen for auth-expired events from API interceptor
   // -----------------------------------------------------------------------
   useEffect(() => {
     const handleExpired = () => {
+      setLessonProgressUser(null);
+      setArcadeStorageUser(null);
       setUser(null);
     };
     window.addEventListener('keyflow-auth-expired', handleExpired);
@@ -72,9 +105,9 @@ export const AuthProvider = ({ children }) => {
     const res = await authAPI.register({ email, username, password, password2 });
     const { token, user: userData } = res.data;
     setStoredToken(token);
-    setUser(userData);
+    await applyUserSession(userData);
     return userData;
-  }, []);
+  }, [applyUserSession]);
 
   // -----------------------------------------------------------------------
   // Login
@@ -83,9 +116,20 @@ export const AuthProvider = ({ children }) => {
     const res = await authAPI.login({ email, password });
     const { token, user: userData } = res.data;
     setStoredToken(token);
-    setUser(userData);
+    await applyUserSession(userData);
     return userData;
-  }, []);
+  }, [applyUserSession]);
+
+  // -----------------------------------------------------------------------
+  // Google Login
+  // -----------------------------------------------------------------------
+  const loginWithGoogle = useCallback(async (payload) => {
+    const res = await authAPI.googleLogin(payload);
+    const { token, user: userData } = res.data;
+    setStoredToken(token);
+    await applyUserSession(userData);
+    return userData;
+  }, [applyUserSession]);
 
   // -----------------------------------------------------------------------
   // Logout
@@ -97,6 +141,8 @@ export const AuthProvider = ({ children }) => {
       // Even if server logout fails, clear local state
     }
     clearStoredToken();
+    setLessonProgressUser(null);
+    setArcadeStorageUser(null);
     setUser(null);
   }, []);
 
@@ -106,20 +152,23 @@ export const AuthProvider = ({ children }) => {
   const refreshUser = useCallback(async () => {
     try {
       const res = await authAPI.me();
-      setUser(res.data);
+      await applyUserSession(res.data);
       return res.data;
     } catch {
       clearStoredToken();
+      setLessonProgressUser(null);
+      setArcadeStorageUser(null);
       setUser(null);
       return null;
     }
-  }, []);
+  }, [applyUserSession]);
 
   const value = {
     user,
     isAuthenticated: !!user,
     isLoading,
     login,
+    loginWithGoogle,
     register,
     logout,
     refreshUser,

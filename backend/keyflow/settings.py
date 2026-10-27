@@ -203,9 +203,12 @@ REST_KNOX = {
 # ---------------------------------------------------------------------------
 CORS_ALLOWED_ORIGINS = config(
     'CORS_ALLOWED_ORIGINS',
-    default='http://localhost:5173,http://127.0.0.1:5173',
+    default='http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:5175,http://127.0.0.1:5175',
     cast=Csv()
 )
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -218,6 +221,12 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+
+# ---------------------------------------------------------------------------
+# Frontend URL & Google OAuth Settings
+# ---------------------------------------------------------------------------
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
+GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
 
 # ---------------------------------------------------------------------------
 # Email (password reset)

@@ -4,6 +4,7 @@ from django.urls import path, include
 from .views import (
     RegisterView,
     LoginView,
+    GoogleLoginView,
     CurrentUserView,
     LogoutCurrentView,
     LogoutAllDevicesView,
@@ -16,6 +17,7 @@ urlpatterns = [
     # Registration & Authentication
     path('register/', RegisterView.as_view(), name='auth_register'),
     path('login/', LoginView.as_view(), name='auth_login'),
+    path('google/', GoogleLoginView.as_view(), name='auth_google'),
     path('logout/', LogoutCurrentView.as_view(), name='auth_logout'),
     path('logout-all/', LogoutAllDevicesView.as_view(), name='auth_logout_all'),
     path('me/', CurrentUserView.as_view(), name='auth_me'),
