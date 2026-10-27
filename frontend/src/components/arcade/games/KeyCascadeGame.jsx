@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Shield, Flame, RotateCcw, Play, Pause, ArrowLeft, Trophy, AlertTriangle } from 'lucide-react';
 import { Button } from '../../common/Button';
-import { calculateAccuracy, calculateWpm, getRandomWord, playArcadeSound } from '../../../utils/arcadeEngine';
+import { calculateAccuracy, calculateWpm, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getKeyCascadeConfig } from '../../../utils/arcadeDifficulty';
+import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
+import { ArcadeExitDialog } from '../ArcadeExitDialog';
 
 const ARENA_HEIGHT = 440;
 const DANGER_LINE_Y = 380;
@@ -13,6 +15,12 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
   // Game states: 'ready', 'countdown', 'playing', 'paused', 'gameover'
   const [gameState, setGameState] = useState('ready');
   const [countdown, setCountdown] = useState(3);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Anti-repetition word deck initialized with Tier 1 pool
+  const wordDeckRef = useRef(
+    new ArcadeWordDeck({ gameId: 'cascade', pool: getVocabularyPool('cascade', 1) })
+  );
 
   // Gameplay metrics
   const [score, setScore] = useState(0);
@@ -52,6 +60,8 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
     if (difficultyInfo.tier > prevTierRef.current) {
       setTierUpToast(`DIFFICULTY INCREASED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
       playArcadeSound('combo', soundEnabled);
+      // Dynamically update deck pool to match new tier
+      wordDeckRef.current.setPool(getVocabularyPool('cascade', difficultyInfo.tier));
       const t = setTimeout(() => setTierUpToast(null), 3000);
       prevTierRef.current = difficultyInfo.tier;
       return () => clearTimeout(t);
@@ -88,6 +98,7 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
     setLaserBeam(null);
     setPersonalBestNotice(false);
     nextWordIdRef.current = 1;
+    wordDeckRef.current?.resetRun();
   }, []);
 
   const startCountdown = () => {
@@ -137,16 +148,18 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
       const delta = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
       lastTimestamp = timestamp;
 
-      // Spawn words dynamically based on dynamic difficulty tier
+      // Spawn words dynamically with anti-repetition and on-screen deduplication
       if (timestamp - lastSpawnTimeRef.current > cascadeConfig.spawnInterval * 1000) {
         lastSpawnTimeRef.current = timestamp;
-        const newWordText = getRandomWord(cascadeConfig.pool);
-        const col = Math.floor(Math.random() * 4);
-        const x = 40 + col * 120 + Math.random() * 30;
-        const speed = cascadeConfig.fallSpeed + Math.random() * 8;
 
         setFallingWords((prev) => {
           if (prev.length >= cascadeConfig.maxWords) return prev;
+          const activeScreenWords = prev.map((w) => w.text);
+          const newWordText = wordDeckRef.current.draw(activeScreenWords);
+          const col = Math.floor(Math.random() * 4);
+          const x = 40 + col * 120 + Math.random() * 30;
+          const speed = cascadeConfig.fallSpeed + Math.random() * 8;
+
           return [
             ...prev,
             {
@@ -216,14 +229,30 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
     }
   }, [gameState, score, bestCombo, wordsEliminated, difficultyInfo.tier, soundEnabled]);
 
+  const handleAttemptExit = () => {
+    if (gameState === 'playing' || gameState === 'paused') {
+      setShowExitConfirm(true);
+    } else {
+      onExit();
+    }
+  };
+
   // Handle typing inputs
   const handleKeyDown = (e) => {
-    if (gameState !== 'playing') return;
-
-    if (e.key === 'Escape') {
-      setGameState('paused');
+    if (showExitConfirm) {
+      if (e.key === 'Escape') {
+        setShowExitConfirm(false);
+      }
       return;
     }
+
+    if (e.key === 'Escape') {
+      if (gameState === 'playing') setGameState('paused');
+      else if (gameState === 'paused') setGameState('playing');
+      return;
+    }
+
+    if (gameState !== 'playing') return;
 
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
@@ -314,7 +343,7 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
       {/* Top Controls Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={onExit}>
+          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
             Arcade Hub
           </Button>
           <div>
@@ -556,6 +585,13 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
         <span>Click anywhere to refocus typing input</span>
         <span>Wave {wave} • Missed: {missedWords} • Velocity {wpm} WPM</span>
       </div>
+
+      {/* Exit Run Confirmation Dialog */}
+      <ArcadeExitDialog
+        isOpen={showExitConfirm}
+        onCancel={() => setShowExitConfirm(false)}
+        onConfirm={onExit}
+      />
     </div>
   );
 };

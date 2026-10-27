@@ -1,10 +1,23 @@
 import React from 'react';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { Gamepad2 } from 'lucide-react';
 import { ArcadeHub } from '../components/arcade/ArcadeHub';
 
 export const ArcadePage = () => {
-  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
-  const initialGame = searchParams ? searchParams.get('game') : null;
+  const { gameId } = useParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
+  // Support both /arcade/:gameId and /arcade?game=:gameId
+  const activeGameId = gameId || searchParams.get('game') || null;
+
+  const handleGameChange = (newGameId) => {
+    if (newGameId) {
+      navigate(`/arcade/${newGameId}`, { replace: false });
+    } else {
+      navigate('/arcade', { replace: false });
+    }
+  };
 
   return (
     <main className="min-h-screen py-10 sm:py-16 bg-[var(--bg-main)]">
@@ -26,7 +39,7 @@ export const ArcadePage = () => {
         </div>
 
         {/* Arcade Experience Hub */}
-        <ArcadeHub initialGameId={initialGame} />
+        <ArcadeHub initialGameId={activeGameId} onGameChange={handleGameChange} />
       </div>
     </main>
   );

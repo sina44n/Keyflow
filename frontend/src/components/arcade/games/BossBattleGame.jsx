@@ -8,6 +8,8 @@ import { calculateAccuracy, calculateWpm, playArcadeSound } from '../../../utils
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { ARCADE_WORDS, SOLDIER_CLASSES } from '../../../data/arcadeGamesData';
 import { calculateDifficultyTier, getBossBattleConfig } from '../../../utils/arcadeDifficulty';
+import { ArcadeWordDeck } from '../../../utils/arcadeVocabulary';
+import { ArcadeExitDialog } from '../ArcadeExitDialog';
 
 const ARENA_WIDTH = 760;
 const ARENA_HEIGHT = 460;
@@ -30,11 +32,13 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
   // Statistics
   const [soldiersDefeated, setSoldiersDefeated] = useState(0);
   const [bossesDefeated, setBossesDefeated] = useState(0);
+  const [classKillCounts, setClassKillCounts] = useState({ infantry: 0, assault: 0, armored: 0, elite: 0 });
   const [totalStrokes, setTotalStrokes] = useState(0);
   const [correctStrokes, setCorrectStrokes] = useState(0);
   const [errorCount, setErrorCount] = useState(0);
   const [personalBestNotice, setPersonalBestNotice] = useState(false);
   const [tierUpToast, setTierUpToast] = useState(null);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   // Active battlefield soldiers: [{ id, classId, word, x, y, hp, maxHp, speed, isDefeated, defeatTimer }]
   const [soldiers, setSoldiers] = useState([]);
@@ -49,6 +53,7 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
   const [bossAttackTimeLeft, setBossAttackTimeLeft] = useState(0);
   const [bossPhrase, setBossPhrase] = useState('');
   const [bossTypedBuffer, setBossTypedBuffer] = useState('');
+  const [bossAttackActive, setBossAttackActive] = useState(false);
 
   // Visual effects
   const [tracers, setTracers] = useState([]); // [{ id, startX, startY, endX, endY, color }]
@@ -67,6 +72,14 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
   const phraseIndexRef = useRef(0);
 
   const personalBest = getGameRecord('boss');
+
+  // Anti-repetition decks per combat class
+  const combatDecksRef = useRef({
+    infantry: new ArcadeWordDeck({ gameId: 'boss-infantry', pool: ARCADE_WORDS.infantry }),
+    assault: new ArcadeWordDeck({ gameId: 'boss-assault', pool: ARCADE_WORDS.assault }),
+    armored: new ArcadeWordDeck({ gameId: 'boss-armored', pool: ARCADE_WORDS.armored }),
+    elite: new ArcadeWordDeck({ gameId: 'boss-elite', pool: ARCADE_WORDS.elite }),
+  });
 
   // Dynamic difficulty calculation based on performance & progression
   const difficultyInfo = useMemo(() => {
@@ -129,6 +142,8 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
     setBossName('');
     setBossPhrase('');
     setBossTypedBuffer('');
+    setBossAttackActive(false);
+    setShowExitConfirm(false);
     setTracers([]);
     setParticles([]);
     setFloatingTexts([]);
@@ -140,6 +155,10 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
     nextSoldierIdRef.current = 1;
     prevTierRef.current = 1;
     phraseIndexRef.current = 0;
+    combatDecksRef.current.infantry.resetRun();
+    combatDecksRef.current.assault.resetRun();
+    combatDecksRef.current.armored.resetRun();
+    combatDecksRef.current.elite.resetRun();
   }, []);
 
   const startCountdown = () => {
@@ -248,10 +267,10 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
     return 'elite';
   }, []);
 
-  // Pick soldier word
-  const pickSoldierWord = useCallback((classId) => {
-    const pool = ARCADE_WORDS[classId] || ARCADE_WORDS.infantry;
-    return pool[Math.floor(Math.random() * pool.length)];
+  // Pick soldier word with anti-repetition and on-screen deduplication
+  const pickSoldierWord = useCallback((classId, excludeWords = []) => {
+    const deck = combatDecksRef.current[classId] || combatDecksRef.current.infantry;
+    return deck.draw(excludeWords);
   }, []);
 
   // Advance to next wave
@@ -309,7 +328,6 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
 
           const classId = pickSoldierClass(waveConfig.classWeights);
           const classMeta = SOLDIER_CLASSES[classId];
-          const word = pickSoldierWord(classId);
 
           // Distributed lane X coordinates: 4 lanes across battlefield
           const lane = Math.floor(Math.random() * 4);
@@ -318,21 +336,25 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
           const y = 30;
           const speed = waveConfig.marchSpeed * classMeta.speedMult;
 
-          setSoldiers((prev) => [
-            ...prev,
-            {
-              id: nextSoldierIdRef.current++,
-              classId,
-              word,
-              x,
-              y,
-              hp: classMeta.maxHp,
-              maxHp: classMeta.maxHp,
-              speed,
-              isDefeated: false,
-              defeatTimer: 0,
-            },
-          ]);
+          setSoldiers((prev) => {
+            const activeWords = prev.map((s) => s.word);
+            const word = pickSoldierWord(classId, activeWords);
+            return [
+              ...prev,
+              {
+                id: nextSoldierIdRef.current++,
+                classId,
+                word,
+                x,
+                y,
+                hp: classMeta.maxHp,
+                maxHp: classMeta.maxHp,
+                speed,
+                isDefeated: false,
+                defeatTimer: 0,
+              },
+            ];
+          });
         }
       }
 
@@ -468,14 +490,30 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
     soundEnabled,
   ]);
 
+  const handleAttemptExit = () => {
+    if (gameState === 'playing' || gameState === 'paused' || gameState === 'wave_cleared' || gameState === 'boss_alert') {
+      setShowExitConfirm(true);
+    } else {
+      onExit();
+    }
+  };
+
   // Handle typing combat input
   const handleKeyDown = (e) => {
-    if (gameState !== 'playing') return;
-
-    if (e.key === 'Escape') {
-      setGameState('paused');
+    if (showExitConfirm) {
+      if (e.key === 'Escape') {
+        setShowExitConfirm(false);
+      }
       return;
     }
+
+    if (e.key === 'Escape') {
+      if (gameState === 'playing') setGameState('paused');
+      else if (gameState === 'paused') setGameState('playing');
+      return;
+    }
+
+    if (gameState !== 'playing') return;
 
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
@@ -655,7 +693,7 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={onExit}>
+          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
             Arcade Hub
           </Button>
           <div>
@@ -722,6 +760,17 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
         <div>
           <span className="text-[10px] uppercase text-[var(--text-muted)] block">Score</span>
           <span className="text-sm sm:text-base font-bold text-[var(--accent)]">{score}</span>
+        </div>
+      </div>
+
+      {/* Soldier Class Breakdown */}
+      <div className="flex flex-wrap items-center justify-between text-[11px] font-mono px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)]/50 border border-[var(--border)] text-[var(--text-muted)]">
+        <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-secondary)]">Defeated by Class:</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <span>Infantry: <strong className="text-emerald-400 font-bold">{classKillCounts.infantry}</strong></span>
+          <span>Assault: <strong className="text-amber-400 font-bold">{classKillCounts.assault}</strong></span>
+          <span>Armored: <strong className="text-cyan-400 font-bold">{classKillCounts.armored}</strong></span>
+          <span>Elite: <strong className="text-purple-400 font-bold">{classKillCounts.elite}</strong></span>
         </div>
       </div>
 
@@ -839,7 +888,11 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
 
         {/* Boss Encounter Header & Phrase Display (When Boss is Active) */}
         {bossActive && (
-          <div className="relative z-20 p-3 bg-black/70 border-b border-orange-500/40 rounded-t-xl backdrop-blur-xs space-y-2">
+          <div className={`relative z-20 p-3 bg-black/70 border-b rounded-t-xl backdrop-blur-xs space-y-2 transition-all duration-150 ${
+            bossAttackActive
+              ? 'border-rose-500 bg-rose-950/80 ring-2 ring-rose-500 shadow-[0_0_20px_rgba(239,68,68,0.5)]'
+              : 'border-orange-500/40'
+          }`}>
             <div className="flex flex-wrap items-center justify-between text-xs font-mono">
               <span className="text-orange-400 font-bold flex items-center gap-1.5">
                 <Skull className="w-4 h-4 text-orange-500 animate-pulse" />
@@ -1107,6 +1160,13 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
           Personal Best: {personalBest?.bestScore || 0} pts (Wave {personalBest?.highestWave || 1})
         </span>
       </div>
+
+      {/* Exit Run Confirmation Dialog */}
+      <ArcadeExitDialog
+        isOpen={showExitConfirm}
+        onCancel={() => setShowExitConfirm(false)}
+        onConfirm={onExit}
+      />
     </div>
   );
 };

@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Target, RotateCcw, Play, Pause, ArrowLeft, Trophy, Crosshair, Clock, Flame } from 'lucide-react';
 import { Button } from '../../common/Button';
-import { calculateAccuracy, getRandomWord, playArcadeSound } from '../../../utils/arcadeEngine';
+import { calculateAccuracy, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getWordHunterConfig } from '../../../utils/arcadeDifficulty';
+import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
+import { ArcadeExitDialog } from '../ArcadeExitDialog';
 
 const TOTAL_GAME_TIME = 60; // 60s tactical hunt
 const TARGET_LIFETIME = 4.5; // seconds to destroy current target
@@ -11,6 +13,12 @@ const TARGET_LIFETIME = 4.5; // seconds to destroy current target
 export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
   const [gameState, setGameState] = useState('ready');
   const [countdown, setCountdown] = useState(3);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Anti-repetition word deck initialized with Tier 1 pool
+  const wordDeckRef = useRef(
+    new ArcadeWordDeck({ gameId: 'hunter', pool: getVocabularyPool('hunter', 1) })
+  );
 
   const [timeLeft, setTimeLeft] = useState(TOTAL_GAME_TIME);
   const [targetTimeLeft, setTargetTimeLeft] = useState(TARGET_LIFETIME);
@@ -58,6 +66,8 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
     if (difficultyInfo.tier > prevTierRef.current) {
       setTierUpToast(`TARGET SECTOR ESCALATION — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
       playArcadeSound('combo', soundEnabled);
+      // Dynamically switch deck pool to elevated difficulty tier
+      wordDeckRef.current.setPool(getVocabularyPool('hunter', difficultyInfo.tier));
       const t = setTimeout(() => setTierUpToast(null), 3000);
       prevTierRef.current = difficultyInfo.tier;
       return () => clearTimeout(t);
@@ -65,19 +75,24 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
     prevTierRef.current = difficultyInfo.tier;
   }, [difficultyInfo.tier, difficultyInfo.tierName, soundEnabled]);
 
-  // Spawn initial cluster of radar targets
+  // Spawn initial cluster of radar targets with anti-repetition
   const spawnInitialCluster = useCallback(() => {
     const coords = [
       { x: 18, y: 22 }, { x: 50, y: 16 }, { x: 80, y: 26 },
       { x: 26, y: 55 }, { x: 52, y: 52 }, { x: 76, y: 62 },
       { x: 34, y: 82 }, { x: 68, y: 84 },
     ];
-    const newTargets = coords.map((pos) => ({
-      id: nextTargetIdRef.current++,
-      word: getRandomWord(Math.random() > 0.4 ? 'medium' : 'short'),
-      x: pos.x,
-      y: pos.y,
-    }));
+    const drawnWords = [];
+    const newTargets = coords.map((pos) => {
+      const word = wordDeckRef.current.draw(drawnWords);
+      drawnWords.push(word);
+      return {
+        id: nextTargetIdRef.current++,
+        word,
+        x: pos.x,
+        y: pos.y,
+      };
+    });
     setTargets(newTargets);
     if (newTargets.length > 0) {
       setLockedTargetId(newTargets[0].id);
@@ -97,6 +112,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
     setCorrectStrokes(0);
     setTypedBuffer('');
     setPersonalBestNotice(false);
+    wordDeckRef.current?.resetRun();
     spawnInitialCluster();
   }, [spawnInitialCluster]);
 
@@ -168,19 +184,23 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
     return () => clearInterval(targetTimerRef.current);
   }, [gameState, lockedTargetId, hunterConfig.targetLifetime, soundEnabled]);
 
-  // Maintain dynamic targets on radar based on difficulty tier
+  // Maintain dynamic targets on radar based on difficulty tier with anti-repetition
   useEffect(() => {
     if (gameState !== 'playing') return;
     if (targets.length < hunterConfig.targetCount) {
-      const newWord = getRandomWord(hunterConfig.pool);
-      const x = 15 + Math.random() * 70;
-      const y = 15 + Math.random() * 70;
-      setTargets((prev) => [
-        ...prev,
-        { id: nextTargetIdRef.current++, word: newWord, x, y },
-      ]);
+      setTargets((prev) => {
+        if (prev.length >= hunterConfig.targetCount) return prev;
+        const activeWords = prev.map((t) => t.word);
+        const newWord = wordDeckRef.current.draw(activeWords);
+        const x = 15 + Math.random() * 70;
+        const y = 15 + Math.random() * 70;
+        return [
+          ...prev,
+          { id: nextTargetIdRef.current++, word: newWord, x, y },
+        ];
+      });
     }
-  }, [targets.length, gameState, hunterConfig.targetCount, hunterConfig.pool]);
+  }, [targets.length, gameState, hunterConfig.targetCount]);
 
   // On Game Over, save record
   useEffect(() => {
@@ -206,14 +226,30 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
     }
   }, [gameState]);
 
+  const handleAttemptExit = () => {
+    if (gameState === 'playing' || gameState === 'paused') {
+      setShowExitConfirm(true);
+    } else {
+      onExit();
+    }
+  };
+
   // Handle typing input
   const handleKeyDown = (e) => {
-    if (gameState !== 'playing') return;
-
-    if (e.key === 'Escape') {
-      setGameState('paused');
+    if (showExitConfirm) {
+      if (e.key === 'Escape') {
+        setShowExitConfirm(false);
+      }
       return;
     }
+
+    if (e.key === 'Escape') {
+      if (gameState === 'playing') setGameState('paused');
+      else if (gameState === 'paused') setGameState('playing');
+      return;
+    }
+
+    if (gameState !== 'playing') return;
 
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
@@ -284,7 +320,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={onExit}>
+          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
             Arcade Hub
           </Button>
           <div>
@@ -529,6 +565,13 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
         <span>Type characters in sequence or click targets to switch lock</span>
         <span>Escaped: {mistakes} • Personal Best: {personalBest?.bestScore || 0} pts</span>
       </div>
+
+      {/* Exit Run Confirmation Dialog */}
+      <ArcadeExitDialog
+        isOpen={showExitConfirm}
+        onCancel={() => setShowExitConfirm(false)}
+        onConfirm={onExit}
+      />
     </div>
   );
 };

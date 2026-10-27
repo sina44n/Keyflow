@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Volume2, VolumeX } from 'lucide-react';
 import { ARCADE_GAMES, ARCADE_CATEGORIES } from '../../data/arcadeGamesData';
 import { getArcadeRecords } from '../../utils/arcadeStorage';
 import { ArcadeGameCard } from './ArcadeGameCard';
+import { ArcadeErrorBoundary } from './ArcadeErrorBoundary';
 import { KeyCascadeGame } from './games/KeyCascadeGame';
 import { SpeedSprintGame } from './games/SpeedSprintGame';
 import { WordHunterGame } from './games/WordHunterGame';
@@ -11,13 +13,22 @@ import { WordRunnerGame } from './games/WordRunnerGame';
 import { TypingMemoryGame } from './games/TypingMemoryGame';
 import { BossBattleGame } from './games/BossBattleGame';
 
-export const ArcadeHub = ({ initialGameId = null, _isEmbedded = false }) => {
+export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedded = false }) => {
   const [selectedGameId, setSelectedGameId] = useState(initialGameId);
   const [activeCategory, setActiveCategory] = useState('all');
   const [records, setRecords] = useState(getArcadeRecords);
   const [soundOn, setSoundOn] = useState(true);
+  const [isLaunching, setIsLaunching] = useState(false);
 
+  const navigate = useNavigate();
   const arenaRef = useRef(null);
+
+  // Sync internal selected game if parent/route updates initialGameId
+  const [prevInitialId, setPrevInitialId] = useState(initialGameId);
+  if (initialGameId !== prevInitialId) {
+    setPrevInitialId(initialGameId);
+    setSelectedGameId(initialGameId);
+  }
 
   // Sync personal best records across tab events
   useEffect(() => {
@@ -28,14 +39,35 @@ export const ArcadeHub = ({ initialGameId = null, _isEmbedded = false }) => {
     return () => window.removeEventListener('keyflow-arcade-record-updated', handleRecordUpdate);
   }, []);
 
-  // When a game is chosen, smoothly scroll to the game arena
+  // When a game is chosen, launch reliably with double-click protection and scroll
   const handlePlayGame = (gameId) => {
+    if (isLaunching) return;
+    setIsLaunching(true);
+
+    if (isEmbedded) {
+      navigate(`/arcade/${gameId}`);
+      setIsLaunching(false);
+      return;
+    }
+
     setSelectedGameId(gameId);
+    if (onGameChange) {
+      onGameChange(gameId);
+    }
+
     setTimeout(() => {
+      setIsLaunching(false);
       if (arenaRef.current) {
         arenaRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
-    }, 50);
+    }, 80);
+  };
+
+  const handleExitGame = () => {
+    setSelectedGameId(null);
+    if (onGameChange) {
+      onGameChange(null);
+    }
   };
 
   // Filter games
@@ -47,54 +79,58 @@ export const ArcadeHub = ({ initialGameId = null, _isEmbedded = false }) => {
     return true;
   });
 
+  const isValidGame = ARCADE_GAMES.some((game) => game.id === selectedGameId);
+
   return (
     <div className="space-y-10" ref={arenaRef}>
-      {/* If a game is actively running, render its dedicated interface */}
-      {selectedGameId ? (
-        <div className="space-y-4 animate-in fade-in duration-200">
-          {selectedGameId === 'cascade' && (
-            <KeyCascadeGame
-              onExit={() => setSelectedGameId(null)}
-              soundEnabled={soundOn}
-            />
-          )}
-          {selectedGameId === 'sprint' && (
-            <SpeedSprintGame
-              onExit={() => setSelectedGameId(null)}
-              soundEnabled={soundOn}
-            />
-          )}
-          {selectedGameId === 'hunter' && (
-            <WordHunterGame
-              onExit={() => setSelectedGameId(null)}
-              soundEnabled={soundOn}
-            />
-          )}
-          {selectedGameId === 'ninja' && (
-            <KeyNinjaGame
-              onExit={() => setSelectedGameId(null)}
-              soundEnabled={soundOn}
-            />
-          )}
-          {selectedGameId === 'runner' && (
-            <WordRunnerGame
-              onExit={() => setSelectedGameId(null)}
-              soundEnabled={soundOn}
-            />
-          )}
-          {selectedGameId === 'memory' && (
-            <TypingMemoryGame
-              onExit={() => setSelectedGameId(null)}
-              soundEnabled={soundOn}
-            />
-          )}
-          {selectedGameId === 'boss' && (
-            <BossBattleGame
-              onExit={() => setSelectedGameId(null)}
-              soundEnabled={soundOn}
-            />
-          )}
-        </div>
+      {/* If a game is actively running, render its dedicated interface inside an Error Boundary */}
+      {selectedGameId && isValidGame ? (
+        <ArcadeErrorBoundary onExit={handleExitGame}>
+          <div className="space-y-4 animate-in fade-in duration-200">
+            {selectedGameId === 'cascade' && (
+              <KeyCascadeGame
+                onExit={handleExitGame}
+                soundEnabled={soundOn}
+              />
+            )}
+            {selectedGameId === 'sprint' && (
+              <SpeedSprintGame
+                onExit={handleExitGame}
+                soundEnabled={soundOn}
+              />
+            )}
+            {selectedGameId === 'hunter' && (
+              <WordHunterGame
+                onExit={handleExitGame}
+                soundEnabled={soundOn}
+              />
+            )}
+            {selectedGameId === 'ninja' && (
+              <KeyNinjaGame
+                onExit={handleExitGame}
+                soundEnabled={soundOn}
+              />
+            )}
+            {selectedGameId === 'runner' && (
+              <WordRunnerGame
+                onExit={handleExitGame}
+                soundEnabled={soundOn}
+              />
+            )}
+            {selectedGameId === 'memory' && (
+              <TypingMemoryGame
+                onExit={handleExitGame}
+                soundEnabled={soundOn}
+              />
+            )}
+            {selectedGameId === 'boss' && (
+              <BossBattleGame
+                onExit={handleExitGame}
+                soundEnabled={soundOn}
+              />
+            )}
+          </div>
+        </ArcadeErrorBoundary>
       ) : (
         /* Discovery Hub View */
         <div className="space-y-8">
@@ -125,7 +161,7 @@ export const ArcadeHub = ({ initialGameId = null, _isEmbedded = false }) => {
               <button
                 type="button"
                 onClick={() => setSoundOn((s) => !s)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
                 title={soundOn ? 'Arcade sound effects enabled' : 'Arcade sound effects muted'}
                 aria-label="Toggle arcade audio"
               >

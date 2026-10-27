@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Zap, RotateCcw, Play, Pause, ArrowLeft, Trophy, Clock, Flame } from 'lucide-react';
 import { Button } from '../../common/Button';
-import { calculateAccuracy, calculateWpm, generateWordStream, playArcadeSound } from '../../../utils/arcadeEngine';
+import { calculateAccuracy, calculateWpm, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getSpeedSprintConfig } from '../../../utils/arcadeDifficulty';
+import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
+import { ArcadeExitDialog } from '../ArcadeExitDialog';
 
 const TIME_PRESETS = [30, 60, 120];
 
@@ -11,9 +13,30 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
   const [selectedDuration, setSelectedDuration] = useState(60);
   const [gameState, setGameState] = useState('ready'); // ready, countdown, playing, paused, gameover
   const [countdown, setCountdown] = useState(3);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Anti-repetition word deck initialized with Tier 1 pool
+  const wordDeckRef = useRef(
+    new ArcadeWordDeck({ gameId: 'sprint', pool: getVocabularyPool('sprint', 1) })
+  );
+
+  const generateStreamFromDeck = useCallback(() => {
+    const list = [];
+    for (let i = 0; i < 100; i++) {
+      list.push(wordDeckRef.current.draw());
+    }
+    return list;
+  }, []);
 
   const [timeLeft, setTimeLeft] = useState(60);
-  const [words, setWords] = useState(() => generateWordStream(100, 'medium'));
+  const [words, setWords] = useState(() => {
+    const initialDeck = new ArcadeWordDeck({ gameId: 'sprint', pool: getVocabularyPool('sprint', 1) });
+    const initial = [];
+    for (let i = 0; i < 100; i++) {
+      initial.push(initialDeck.draw());
+    }
+    return initial;
+  });
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [currentInput, setCurrentInput] = useState('');
 
@@ -56,6 +79,8 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
     if (difficultyInfo.tier > prevTierRef.current) {
       setTierUpToast(`VELOCITY INTENSITY INCREASED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
       playArcadeSound('combo', soundEnabled);
+      // Dynamically switch deck pool to elevated intensity
+      wordDeckRef.current.setPool(getVocabularyPool('sprint', difficultyInfo.tier));
       const t = setTimeout(() => setTierUpToast(null), 3000);
       prevTierRef.current = difficultyInfo.tier;
       return () => clearTimeout(t);
@@ -67,7 +92,8 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
   const resetGame = useCallback(() => {
     setGameState('ready');
     setTimeLeft(selectedDuration);
-    setWords(generateWordStream(120, 'medium'));
+    wordDeckRef.current?.resetRun();
+    setWords(generateStreamFromDeck());
     setCurrentWordIndex(0);
     setCurrentInput('');
     setTotalStrokes(0);
@@ -79,7 +105,7 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
     setScore(0);
     setPersonalBestNotice(false);
     setTimeBonusNotice(false);
-  }, [selectedDuration]);
+  }, [selectedDuration, generateStreamFromDeck]);
 
   const startCountdown = () => {
     resetGame();
@@ -183,14 +209,34 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
         setTimeBonusNotice(true);
         setTimeout(() => setTimeBonusNotice(false), 500);
 
-        setCurrentWordIndex((idx) => idx + 1);
+        setCurrentWordIndex((idx) => {
+          const next = idx + 1;
+          if (words.length - next < 30) {
+            const more = [];
+            for (let i = 0; i < 40; i++) {
+              more.push(wordDeckRef.current.draw());
+            }
+            setWords((w) => [...w, ...more]);
+          }
+          return next;
+        });
         setCurrentInput('');
       } else {
         // Word submitted with error
         playArcadeSound('damage', soundEnabled);
         setErrorCount((err) => err + 1);
         setCurrentStreak(0);
-        setCurrentWordIndex((idx) => idx + 1);
+        setCurrentWordIndex((idx) => {
+          const next = idx + 1;
+          if (words.length - next < 30) {
+            const more = [];
+            for (let i = 0; i < 40; i++) {
+              more.push(wordDeckRef.current.draw());
+            }
+            setWords((w) => [...w, ...more]);
+          }
+          return next;
+        });
         setCurrentInput('');
       }
       return;
@@ -214,15 +260,38 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
     setCurrentInput(value);
   };
 
+  const handleAttemptExit = () => {
+    if (gameState === 'playing' || gameState === 'paused') {
+      setShowExitConfirm(true);
+    } else {
+      onExit();
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (showExitConfirm) {
+      if (e.key === 'Escape') {
+        setShowExitConfirm(false);
+      }
+      return;
+    }
+    if (e.key === 'Escape') {
+      if (gameState === 'playing') setGameState('paused');
+      else if (gameState === 'paused') setGameState('playing');
+    }
+  };
+
   return (
     <div
       className="card-panel p-4 sm:p-6 space-y-4 max-w-4xl mx-auto border border-[var(--border)] shadow-2xl relative select-none"
       onClick={() => inputRef.current?.focus()}
+      onKeyDown={handleKeyDown}
+      tabIndex={-1}
     >
       {/* Top Controls Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={onExit}>
+          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
             Arcade Hub
           </Button>
           <div>
@@ -494,6 +563,13 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
         <span>Press Space to submit current word and advance</span>
         <span>Errors: {errorCount} • Personal Best: {personalBest?.bestWpm || 0} WPM</span>
       </div>
+
+      {/* Exit Run Confirmation Dialog */}
+      <ArcadeExitDialog
+        isOpen={showExitConfirm}
+        onCancel={() => setShowExitConfirm(false)}
+        onConfirm={onExit}
+      />
     </div>
   );
 };

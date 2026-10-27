@@ -1,15 +1,23 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Footprints, RotateCcw, Play, Pause, ArrowLeft, Trophy, Shield, AlertTriangle, Flame } from 'lucide-react';
 import { Button } from '../../common/Button';
-import { calculateAccuracy, getRandomWord, playArcadeSound } from '../../../utils/arcadeEngine';
+import { calculateAccuracy, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getWordRunnerConfig } from '../../../utils/arcadeDifficulty';
+import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
+import { ArcadeExitDialog } from '../ArcadeExitDialog';
 
 const TRACK_LENGTH = 1000; // 1,000 meters to finish line
 
 export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
   const [gameState, setGameState] = useState('ready'); // ready, countdown, playing, paused, gameover, victory
   const [countdown, setCountdown] = useState(3);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Anti-repetition word deck initialized with Tier 1 pool
+  const wordDeckRef = useRef(
+    new ArcadeWordDeck({ gameId: 'runner', pool: getVocabularyPool('runner', 1) })
+  );
 
   const [distance, setDistance] = useState(0); // 0 to 1,000 meters
   const [lives, setLives] = useState(3);
@@ -54,6 +62,8 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
     if (difficultyInfo.tier > prevTierRef.current) {
       setTierUpToast(`CYBER SPRINT ACCELERATED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
       playArcadeSound('combo', soundEnabled);
+      // Dynamically switch deck pool to elevated difficulty tier
+      wordDeckRef.current.setPool(getVocabularyPool('runner', difficultyInfo.tier));
       const t = setTimeout(() => setTierUpToast(null), 3000);
       prevTierRef.current = difficultyInfo.tier;
       return () => clearTimeout(t);
@@ -61,17 +71,17 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
     prevTierRef.current = difficultyInfo.tier;
   }, [difficultyInfo.tier, difficultyInfo.tierName, soundEnabled]);
 
-  // Generate next obstacle using dynamic spacing & pool
+  // Generate next obstacle using dynamic spacing & wordDeck
   const spawnNextObstacle = useCallback((currentDist) => {
     const distToSpawn = Math.min(TRACK_LENGTH, currentDist + runnerConfig.obstacleSpacing);
     const types = ['barrier', 'laser', 'spikes'];
     return {
       id: Math.random(),
-      word: getRandomWord(runnerConfig.pool),
+      word: wordDeckRef.current.draw(),
       type: types[Math.floor(Math.random() * types.length)],
       targetDistance: distToSpawn,
     };
-  }, [runnerConfig.obstacleSpacing, runnerConfig.pool]);
+  }, [runnerConfig.obstacleSpacing]);
 
   const resetGame = useCallback(() => {
     setGameState('ready');
@@ -88,6 +98,7 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
     setJumpProgress(0);
     setPersonalBestNotice(false);
     setTierUpToast(null);
+    wordDeckRef.current?.resetRun();
     setActiveObstacle(spawnNextObstacle(0));
   }, [spawnNextObstacle]);
 
@@ -203,14 +214,30 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
     }
   }, [gameState, distance, score, obstaclesCleared, difficultyInfo.tier]);
 
+  const handleAttemptExit = () => {
+    if (gameState === 'playing' || gameState === 'paused') {
+      setShowExitConfirm(true);
+    } else {
+      onExit();
+    }
+  };
+
   // Handle typing to clear upcoming obstacle
   const handleKeyDown = (e) => {
-    if (gameState !== 'playing') return;
-
-    if (e.key === 'Escape') {
-      setGameState('paused');
+    if (showExitConfirm) {
+      if (e.key === 'Escape') {
+        setShowExitConfirm(false);
+      }
       return;
     }
+
+    if (e.key === 'Escape') {
+      if (gameState === 'playing') setGameState('paused');
+      else if (gameState === 'paused') setGameState('playing');
+      return;
+    }
+
+    if (gameState !== 'playing') return;
 
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
@@ -271,7 +298,7 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={onExit}>
+          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
             Arcade Hub
           </Button>
           <div>
@@ -566,6 +593,13 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
         <span>Type word to jump obstacle before collision</span>
         <span>Stumbles: {stumbles} • Personal Best: {personalBest?.maxDistance || 0}m</span>
       </div>
+
+      {/* Exit Run Confirmation Dialog */}
+      <ArcadeExitDialog
+        isOpen={showExitConfirm}
+        onCancel={() => setShowExitConfirm(false)}
+        onConfirm={onExit}
+      />
     </div>
   );
 };

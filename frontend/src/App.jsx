@@ -45,6 +45,7 @@ function App() {
                 <Route path="/academy" element={<AcademyHomeRoute />} />
                 <Route path="/academy/stage/:stageId" element={<AcademyStageRoute />} />
                 <Route path="/arcade" element={<ArcadePage />} />
+                <Route path="/arcade/:gameId" element={<ArcadePage />} />
                 <Route path="/curriculum" element={<Navigate to="/academy" replace />} />
                 <Route path="*" element={<LandingPage />} />
               </Routes>

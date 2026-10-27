@@ -1,13 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Brain, RotateCcw, Play, ArrowLeft, Trophy, Eye, EyeOff, CheckCircle2, AlertTriangle, Flame } from 'lucide-react';
 import { Button } from '../../common/Button';
-import { getRandomWord, playArcadeSound } from '../../../utils/arcadeEngine';
+import { playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getTypingMemoryConfig } from '../../../utils/arcadeDifficulty';
+import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
+import { ArcadeExitDialog } from '../ArcadeExitDialog';
 
 export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
   // Game states: 'ready', 'viewing', 'recalling', 'review', 'gameover'
   const [gameState, setGameState] = useState('ready');
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Anti-repetition word deck initialized with Tier 1 pool
+  const wordDeckRef = useRef(
+    new ArcadeWordDeck({ gameId: 'memory', pool: getVocabularyPool('memory', 1) })
+  );
 
   const [round, setRound] = useState(1);
   const [strikes, setStrikes] = useState(0); // Max 3 strikes
@@ -52,6 +60,8 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
     if (difficultyInfo.tier > prevTierRef.current) {
       setTierUpToast(`NEURAL CAPACITY EXPANDED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
       playArcadeSound('combo', soundEnabled);
+      // Dynamically switch deck pool to elevated difficulty tier
+      wordDeckRef.current.setPool(getVocabularyPool('memory', difficultyInfo.tier));
       const t = setTimeout(() => setTierUpToast(null), 3000);
       prevTierRef.current = difficultyInfo.tier;
       return () => clearTimeout(t);
@@ -71,12 +81,12 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
     }
   }, [gameState]);
 
-  // Generate sequence for current round scaled by difficulty config
+  // Generate sequence for current round with anti-repetition
   const generateSequenceForRound = useCallback((config) => {
     const length = config.sequenceLength;
     const words = [];
     for (let i = 0; i < length; i++) {
-      words.push(getRandomWord(config.pool, words));
+      words.push(wordDeckRef.current.draw(words));
     }
     return words;
   }, []);
@@ -93,6 +103,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
     setRoundResult(null);
     setPersonalBestNotice(false);
     setTierUpToast(null);
+    wordDeckRef.current?.resetRun();
   }, []);
 
   // Start next round in viewing phase
@@ -218,6 +229,29 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
     startRound(round, memoryConfig);
   };
 
+  const handleAttemptExit = useCallback(() => {
+    if (gameState === 'viewing' || gameState === 'recalling' || gameState === 'review') {
+      setShowExitConfirm(true);
+    } else {
+      onExit();
+    }
+  }, [gameState, onExit]);
+
+  // Global Escape key listener for pause and modal handling
+  useEffect(() => {
+    const handleGlobalKey = (e) => {
+      if (e.key === 'Escape') {
+        if (showExitConfirm) {
+          setShowExitConfirm(false);
+        } else if (gameState === 'viewing' || gameState === 'recalling') {
+          handleAttemptExit();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, [showExitConfirm, gameState, handleAttemptExit]);
+
   return (
     <div
       className="card-panel p-4 sm:p-6 space-y-4 max-w-4xl mx-auto border border-[var(--border)] shadow-2xl relative select-none"
@@ -226,7 +260,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={onExit}>
+          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
             Arcade Hub
           </Button>
           <div>
@@ -498,6 +532,13 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
         <span>Type from memory, space commits word</span>
         <span>Deepest Recall: Round {personalBest?.deepestRound || 0}</span>
       </div>
+
+      {/* Exit Run Confirmation Dialog */}
+      <ArcadeExitDialog
+        isOpen={showExitConfirm}
+        onCancel={() => setShowExitConfirm(false)}
+        onConfirm={onExit}
+      />
     </div>
   );
 };

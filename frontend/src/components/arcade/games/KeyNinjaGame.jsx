@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Swords, RotateCcw, Play, Pause, ArrowLeft, Trophy, Heart, AlertTriangle, Flame } from 'lucide-react';
 import { Button } from '../../common/Button';
-import { calculateAccuracy, getRandomWord, playArcadeSound } from '../../../utils/arcadeEngine';
+import { calculateAccuracy, playArcadeSound } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getKeyNinjaConfig } from '../../../utils/arcadeDifficulty';
+import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
+import { ArcadeExitDialog } from '../ArcadeExitDialog';
 
 const ARENA_WIDTH = 700;
 const ARENA_HEIGHT = 440;
@@ -12,6 +14,12 @@ const GRAVITY = 380; // px/s^2
 export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
   const [gameState, setGameState] = useState('ready');
   const [countdown, setCountdown] = useState(3);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
+
+  // Anti-repetition word deck initialized with Tier 1 pool
+  const wordDeckRef = useRef(
+    new ArcadeWordDeck({ gameId: 'ninja', pool: getVocabularyPool('ninja', 1) })
+  );
 
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
@@ -59,6 +67,8 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
     if (difficultyInfo.tier > prevTierRef.current) {
       setTierUpToast(`BLADE TEMPO INCREASED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
       playArcadeSound('combo', soundEnabled);
+      // Dynamically switch deck pool to elevated difficulty tier
+      wordDeckRef.current.setPool(getVocabularyPool('ninja', difficultyInfo.tier));
       const t = setTimeout(() => setTierUpToast(null), 3000);
       prevTierRef.current = difficultyInfo.tier;
       return () => clearTimeout(t);
@@ -82,6 +92,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
     setActiveTargetId(null);
     setTypedBuffer('');
     setPersonalBestNotice(false);
+    wordDeckRef.current?.resetRun();
   }, []);
 
   const startCountdown = () => {
@@ -124,16 +135,17 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
       const dt = Math.min((time - lastTime) / 1000, 0.05);
       lastTime = time;
 
-      // Launch new airborne targets based on dynamic difficulty tier
+      // Launch new airborne targets based on dynamic difficulty tier with anti-repetition
       if (time - lastLaunchRef.current > ninjaConfig.spawnInterval * 1000) {
         lastLaunchRef.current = time;
-        const text = getRandomWord(ninjaConfig.pool);
         const startX = 80 + Math.random() * (ARENA_WIDTH - 200);
         const vx = (Math.random() - 0.5) * ninjaConfig.launchVelocityX;
         const vy = ninjaConfig.launchVelocityY - Math.random() * 40;
 
         setProjectiles((prev) => {
           if (prev.length >= ninjaConfig.maxAirborne) return prev;
+          const activeWords = prev.map((p) => p.text);
+          const text = wordDeckRef.current.draw(activeWords);
           return [
             ...prev,
             {
@@ -232,14 +244,30 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
     }
   }, [gameState, score, slices, maxCombo, difficultyInfo.tier, soundEnabled]);
 
+  const handleAttemptExit = () => {
+    if (gameState === 'playing' || gameState === 'paused') {
+      setShowExitConfirm(true);
+    } else {
+      onExit();
+    }
+  };
+
   // Handle typing input
   const handleKeyDown = (e) => {
-    if (gameState !== 'playing') return;
-
-    if (e.key === 'Escape') {
-      setGameState('paused');
+    if (showExitConfirm) {
+      if (e.key === 'Escape') {
+        setShowExitConfirm(false);
+      }
       return;
     }
+
+    if (e.key === 'Escape') {
+      if (gameState === 'playing') setGameState('paused');
+      else if (gameState === 'paused') setGameState('playing');
+      return;
+    }
+
+    if (gameState !== 'playing') return;
 
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();
@@ -351,7 +379,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={onExit}>
+          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
             Arcade Hub
           </Button>
           <div>
@@ -600,6 +628,13 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
         <span>Type first letter to target any flying fruit or word</span>
         <span>Missed: {misses} • Personal Best: {personalBest?.bestScore || 0} pts</span>
       </div>
+
+      {/* Exit Run Confirmation Dialog */}
+      <ArcadeExitDialog
+        isOpen={showExitConfirm}
+        onCancel={() => setShowExitConfirm(false)}
+        onConfirm={onExit}
+      />
     </div>
   );
 };

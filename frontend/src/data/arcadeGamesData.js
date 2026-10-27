@@ -5,6 +5,7 @@
  * for all seven authentic typing arcade games.
  */
 import { Flame, Zap, Target, Swords, Footprints, Brain, ShieldAlert } from 'lucide-react';
+import { ARCADE_VOCABULARY } from '../utils/arcadeVocabulary.js';
 
 export const ARCADE_GAMES = [
   {
@@ -218,64 +219,26 @@ export const SOLDIER_CLASSES = {
 
 /**
  * Curated dictionaries by theme, difficulty, and military combat
+ * Sourced from the master ARCADE_VOCABULARY database (3,300+ unique words)
  */
 export const ARCADE_WORDS = {
-  short: [
-    'flow', 'code', 'type', 'fast', 'keys', 'dash', 'sync', 'neon', 'rush', 'wave',
-    'core', 'link', 'grid', 'byte', 'data', 'flex', 'jump', 'volt', 'fire', 'glow',
-    'gate', 'lock', 'mind', 'root', 'apex', 'zero', 'hack', 'echo', 'beam', 'warp',
-  ],
-  medium: [
-    'kinetic', 'circuit', 'quantum', 'tactile', 'reactor', 'velocity', 'cadence', 'matrix',
-    'terminal', 'friction', 'impulse', 'overload', 'firewall', 'protocol', 'telemetry',
-    'anchor', 'precision', 'endurance', 'dynamic', 'glitch', 'shadow', 'cyborg', 'network',
-    'algorithm', 'keycaps', 'switches', 'reflexes', 'frequency', 'spectrum', 'momentum',
-  ],
-  long: [
-    'neuromuscular', 'cybernetics', 'synchronous', 'transmission', 'architecture',
-    'acceleration', 'interference', 'countermeasure', 'optimization', 'biometrics',
-    'submillisecond', 'infrastructure', 'decryption', 'articulation', 'calibration',
-    'electromagnetic', 'hyperspeed', 'annihilator', 'supercharged', 'overclocked',
-  ],
-  // Dedicated soldier combat dictionaries
-  infantry: [
-    'scout', 'squad', 'flank', 'cover', 'patrol', 'recon', 'guard', 'rifle',
-    'trench', 'point', 'relay', 'charge', 'secure', 'target', 'radar', 'radio',
-    'march', 'smoke', 'alert', 'field', 'armor', 'depot', 'fort', 'bunker',
-  ],
-  assault: [
-    'breach', 'advance', 'assault', 'tactical', 'bayonet', 'ambush', 'strike',
-    'outpost', 'soldier', 'vanguard', 'barrage', 'grenade', 'rapid', 'charge',
-    'combat', 'pursuit', 'deploy', 'raider', 'blitz', 'trigger', 'infiltrator',
-  ],
-  armored: [
-    'defensive', 'bastion', 'perimeter', 'bulwark', 'ironclad', 'shielding',
-    'garrison', 'artillery', 'fortified', 'phalanx', 'barricade', 'reinforced',
-    'dreadnought', 'heavygun', 'stronghold', 'vanguard', 'mechanized',
-  ],
-  elite: [
-    'intercept', 'sniperfire', 'infiltrate', 'counterfire', 'overwatch',
-    'reconnaissance', 'neutralize', 'precision', 'commander', 'subversion',
-    'counterstrike', 'sharpshooter', 'assassination', 'nightvision',
-  ],
-  bossPhrases: [
-    'divert power to main shields',
-    'engage plasma pulse cannons',
-    'override defensive protocol',
-    'bypass central neural core',
-    'fire laser beam trajectory',
-    'calibrate kinetic stabilizers',
-    'recharge cybernetic armor',
-    'disrupt mechanical power grid',
-    'activate hyperdrive burst',
-    'deploy emergency EMP blast',
-    'synchronize target coordinates',
-    'counterstrike titan mainframe',
-    'neutralize heavy artillery cannon',
-    'target central armor power grid',
-    'coordinate orbital laser strike',
-    'destroy frontline weapons battery',
-  ],
+  short: ARCADE_VOCABULARY.beginnerShort,
+  medium: ARCADE_VOCABULARY.mediumWords,
+  long: ARCADE_VOCABULARY.longAdvanced,
+  infantry: ARCADE_VOCABULARY.militaryInfantry,
+  assault: ARCADE_VOCABULARY.militaryAssault,
+  armored: ARCADE_VOCABULARY.militaryArmored,
+  elite: ARCADE_VOCABULARY.militaryElite,
+  bossPhrases: ARCADE_VOCABULARY.bossPhrases,
+  technology: ARCADE_VOCABULARY.technology,
+  science: ARCADE_VOCABULARY.science,
+  space: ARCADE_VOCABULARY.space,
+  nature: ARCADE_VOCABULARY.nature,
+  sports: ARCADE_VOCABULARY.sports,
+  adventure: ARCADE_VOCABULARY.adventure,
+  commonEveryday: ARCADE_VOCABULARY.commonEveryday,
+  difficultCombinations: ARCADE_VOCABULARY.difficultCombinations,
+  commonLetterCombinations: ARCADE_VOCABULARY.commonLetterCombinations,
 };
 
 /**
