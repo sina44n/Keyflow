@@ -1,8 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '../common/Button';
 import { ArrowRight, Keyboard } from 'lucide-react';
 
 export const CTASection = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="section-spacing border-t border-[var(--border)] relative overflow-hidden bg-[var(--bg-main)]">
       {/* Background glow */}
@@ -43,12 +46,9 @@ export const CTASection = () => {
             <Button
               variant="secondary"
               size="md"
-              onClick={() => {
-                const el = document.getElementById('curriculum');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
-              }}
+              onClick={() => navigate('/academy')}
             >
-              Explore 7-Level Academy
+              Explore 7-Stage Academy
             </Button>
           </div>
 
