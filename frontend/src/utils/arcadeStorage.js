@@ -8,13 +8,13 @@
 const STORAGE_KEY = 'keyflow_arcade_records_v1';
 
 const DEFAULT_RECORDS = {
-  cascade: { bestScore: 0, bestCombo: 0, wordsDefeated: 0, gamesPlayed: 0 },
-  sprint: { bestWpm: 0, bestAccuracy: 0, wordsTyped: 0, gamesPlayed: 0 },
-  hunter: { bestScore: 0, bestStreak: 0, targetsEliminated: 0, gamesPlayed: 0 },
-  ninja: { bestScore: 0, bestSlices: 0, maxCombo: 0, gamesPlayed: 0 },
-  runner: { maxDistance: 0, bestScore: 0, obstaclesCleared: 0, gamesPlayed: 0 },
-  memory: { deepestRound: 0, bestScore: 0, perfectRecalls: 0, gamesPlayed: 0 },
-  boss: { bossDefeated: false, bestScore: 0, fastestDefeatSeconds: null, gamesPlayed: 0 },
+  cascade: { bestScore: 0, bestCombo: 0, wordsDefeated: 0, highestTier: 1, gamesPlayed: 0 },
+  sprint: { bestWpm: 0, bestAccuracy: 0, wordsTyped: 0, highestTier: 1, gamesPlayed: 0 },
+  hunter: { bestScore: 0, bestStreak: 0, targetsEliminated: 0, highestTier: 1, gamesPlayed: 0 },
+  ninja: { bestScore: 0, bestSlices: 0, maxCombo: 0, highestTier: 1, gamesPlayed: 0 },
+  runner: { maxDistance: 0, bestScore: 0, obstaclesCleared: 0, highestTier: 1, gamesPlayed: 0 },
+  memory: { deepestRound: 0, bestScore: 0, perfectRecalls: 0, highestTier: 1, gamesPlayed: 0 },
+  boss: { bossDefeated: false, bestScore: 0, highestWave: 1, highestTier: 1, soldiersDefeated: 0, fastestDefeatSeconds: null, gamesPlayed: 0 },
 };
 
 export const getArcadeRecords = () => {
@@ -49,6 +49,7 @@ export const saveArcadeRecord = (gameId, attemptData = {}) => {
       ...gamePrev,
       gamesPlayed: (gamePrev.gamesPlayed || 0) + 1,
       lastPlayedAt: new Date().toISOString(),
+      highestTier: Math.max(gamePrev.highestTier || 1, Number(attemptData.highestTier || 1)),
     };
 
     switch (gameId) {
@@ -122,7 +123,13 @@ export const saveArcadeRecord = (gameId, attemptData = {}) => {
       }
       case 'boss': {
         const score = Number(attemptData.score || 0);
+        const wave = Number(attemptData.highestWave || attemptData.wave || 1);
+        const soldiers = Number(attemptData.soldiersDefeated || 0);
         const defeated = Boolean(attemptData.bossDefeated);
+        if (wave > (gamePrev.highestWave || 1)) {
+          updated.highestWave = wave;
+          isNewBest = true;
+        }
         if (defeated && !gamePrev.bossDefeated) {
           isNewBest = true;
           updated.bossDefeated = true;
@@ -131,6 +138,7 @@ export const saveArcadeRecord = (gameId, attemptData = {}) => {
           updated.bestScore = score;
           isNewBest = true;
         }
+        updated.soldiersDefeated = (gamePrev.soldiersDefeated || 0) + soldiers;
         if (defeated && attemptData.durationSeconds) {
           updated.fastestDefeatSeconds = gamePrev.fastestDefeatSeconds
             ? Math.min(gamePrev.fastestDefeatSeconds, attemptData.durationSeconds)

@@ -148,30 +148,76 @@ export const ARCADE_GAMES = [
   {
     id: 'boss',
     title: 'Boss Battle',
-    subtitle: 'Colossal mecha titan confrontation',
+    subtitle: 'Battlefield soldier combat & mecha warlord warfare',
     category: 'combat',
-    categoryLabel: 'Typing Combat',
+    categoryLabel: 'Military Combat',
     badge: 'Combat Trial',
     icon: ShieldAlert,
     color: '#F97316',
     image: '/arcade/boss_battle.jpg',
     description:
-      'Clash against Aethelred the Annihilator, a rogue cybernetic titan. Type attack phrases to deflect incoming lasers and deplete the boss 1,000 HP bar.',
-    difficulty: 'Epic Encounter',
-    defaultMetricLabel: 'Boss Slain',
-    defaultMetricUnit: 'victory',
+      'Defend your frontline military base against waves of advancing enemy soldiers. Type assigned combat codes to fire tracer rounds and eliminate infantry, assault, armored, and elite units before clashing with titanic enemy commanders.',
+    difficulty: 'Dynamic Waves (1 → 10+)',
+    defaultMetricLabel: 'Top Wave',
+    defaultMetricUnit: 'wave',
     instructions: [
-      'Aethelred has 1,000 HP and launches multi-stage energy attacks.',
-      'Each typing target represents an energy blast from your battle console.',
-      'Complete words to damage the boss. Complete them fast to interrupt boss attacks.',
-      'If the boss attack timer hits zero, you take damage. Survive and defeat the titan!',
+      'Enemy soldiers continuously advance across the battlefield toward your perimeter.',
+      'Type the combat phrase above the targeted soldier to fire defensive tracer strikes.',
+      'Neutralize assault, armored, and spec-ops units before they breach your barricade.',
+      'On boss waves, counterstrike the commander attack targets before their charge timer detonates!',
     ],
-    features: ['1,000 HP Boss health bar', 'Incoming attack countdowns', 'Dynamic boss phases', 'Victory & Defeat cinematics'],
+    features: ['Real-time battlefield soldier combat', '4 distinct enemy soldier classes', 'Titanic boss charge encounters', 'Multi-wave progressive warfare'],
   },
 ];
 
 /**
- * Curated dictionaries by theme and difficulty
+ * Soldier classes configuration for Boss Battle
+ */
+export const SOLDIER_CLASSES = {
+  infantry: {
+    id: 'infantry',
+    name: 'Infantry Soldier',
+    badge: 'Frontline Unit',
+    color: '#10B981',
+    speedMult: 1.0,
+    scoreValue: 100,
+    maxHp: 1,
+    pool: 'infantry',
+  },
+  assault: {
+    id: 'assault',
+    name: 'Assault Soldier',
+    badge: 'Velocity Unit',
+    color: '#F43F5E',
+    speedMult: 1.35,
+    scoreValue: 175,
+    maxHp: 1,
+    pool: 'assault',
+  },
+  armored: {
+    id: 'armored',
+    name: 'Armored Soldier',
+    badge: 'Reinforced Unit',
+    color: '#38BDF8',
+    speedMult: 0.85,
+    scoreValue: 275,
+    maxHp: 2,
+    pool: 'armored',
+  },
+  elite: {
+    id: 'elite',
+    name: 'Elite Commando',
+    badge: 'Spec-Ops Unit',
+    color: '#A855F7',
+    speedMult: 1.45,
+    scoreValue: 400,
+    maxHp: 1,
+    pool: 'elite',
+  },
+};
+
+/**
+ * Curated dictionaries by theme, difficulty, and military combat
  */
 export const ARCADE_WORDS = {
   short: [
@@ -191,6 +237,27 @@ export const ARCADE_WORDS = {
     'submillisecond', 'infrastructure', 'decryption', 'articulation', 'calibration',
     'electromagnetic', 'hyperspeed', 'annihilator', 'supercharged', 'overclocked',
   ],
+  // Dedicated soldier combat dictionaries
+  infantry: [
+    'scout', 'squad', 'flank', 'cover', 'patrol', 'recon', 'guard', 'rifle',
+    'trench', 'point', 'relay', 'charge', 'secure', 'target', 'radar', 'radio',
+    'march', 'smoke', 'alert', 'field', 'armor', 'depot', 'fort', 'bunker',
+  ],
+  assault: [
+    'breach', 'advance', 'assault', 'tactical', 'bayonet', 'ambush', 'strike',
+    'outpost', 'soldier', 'vanguard', 'barrage', 'grenade', 'rapid', 'charge',
+    'combat', 'pursuit', 'deploy', 'raider', 'blitz', 'trigger', 'infiltrator',
+  ],
+  armored: [
+    'defensive', 'bastion', 'perimeter', 'bulwark', 'ironclad', 'shielding',
+    'garrison', 'artillery', 'fortified', 'phalanx', 'barricade', 'reinforced',
+    'dreadnought', 'heavygun', 'stronghold', 'vanguard', 'mechanized',
+  ],
+  elite: [
+    'intercept', 'sniperfire', 'infiltrate', 'counterfire', 'overwatch',
+    'reconnaissance', 'neutralize', 'precision', 'commander', 'subversion',
+    'counterstrike', 'sharpshooter', 'assassination', 'nightvision',
+  ],
   bossPhrases: [
     'divert power to main shields',
     'engage plasma pulse cannons',
@@ -204,6 +271,10 @@ export const ARCADE_WORDS = {
     'deploy emergency EMP blast',
     'synchronize target coordinates',
     'counterstrike titan mainframe',
+    'neutralize heavy artillery cannon',
+    'target central armor power grid',
+    'coordinate orbital laser strike',
+    'destroy frontline weapons battery',
   ],
 };
 
