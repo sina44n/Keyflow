@@ -44,7 +44,7 @@ class LessonsAPITests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data['id'], lesson.id)
-        self.assertTrue('fff jjj' in data['exercise_content'])
+        self.assertTrue('a lad' in data['exercise_content'])
 
     def test_record_progress_requires_authentication(self):
         """Verify unauthenticated requests cannot record progress."""
