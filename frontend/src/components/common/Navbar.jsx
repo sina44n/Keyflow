@@ -24,6 +24,7 @@ import {
   User as UserIcon,
   LogOut,
   Sparkles,
+  BarChart3,
 } from 'lucide-react';
 
 export const Navbar = () => {
@@ -49,6 +50,7 @@ export const Navbar = () => {
     { label: t('nav.workstation') || 'Workstation', href: '/workstation', isInternal: true, icon: Keyboard },
     { label: t('nav.academy') || 'Academy', href: '/academy', isInternal: true, icon: BookOpen },
     { label: t('nav.arcade') || 'Arcade', href: '/arcade', isInternal: true, icon: Gamepad2 },
+    { label: t('nav.telemetry') || 'Telemetry', href: '/telemetry', isInternal: true, icon: BarChart3 },
     { label: t('nav.features') || 'Features', href: '/#features', isInternal: false, icon: Sparkles },
     { label: t('nav.themes') || 'Themes', href: '/#themes', isInternal: false, icon: Palette },
   ];
@@ -138,7 +140,7 @@ export const Navbar = () => {
         </nav>
 
         {/* Right Action Stack */}
-        <div className="hidden sm:flex items-center gap-2">
+        <div className="hidden md:flex items-center gap-2">
           <LanguageSelector compact={true} />
           <ThemeSwitcher />
 
@@ -190,7 +192,7 @@ export const Navbar = () => {
         </div>
 
         {/* Mobile Navigation Controls */}
-        <div className="flex sm:hidden items-center gap-2">
+        <div className="flex md:hidden items-center gap-1.5 sm:gap-2">
           <LanguageSelector compact={true} />
           <ThemeSwitcher />
           <button
@@ -207,7 +209,7 @@ export const Navbar = () => {
 
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="sm:hidden border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-4 space-y-3 animate-in fade-in duration-150">
+        <div className="md:hidden border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-4 space-y-3 animate-in fade-in duration-150">
           <nav className="space-y-1" aria-label="Mobile navigation">
             {navLinks.map((link) => {
               const Icon = link.icon;
