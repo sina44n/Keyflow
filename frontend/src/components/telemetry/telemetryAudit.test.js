@@ -21,7 +21,10 @@ import {
   generatePracticeCalendar,
   formatDuration,
   DAY_HEADERS,
+  calculateTypingConsistency,
+  filterSessionsByTimeRange,
 } from '../../utils/telemetryStorage.js';
+
 
 describe('KEYFLOW Telemetry Masterpiece Audit & Data Integrity Suite', () => {
   beforeEach(() => {
@@ -307,6 +310,53 @@ describe('KEYFLOW Telemetry Masterpiece Audit & Data Integrity Suite', () => {
           });
         });
       }
+    });
+  });
+
+  describe('6. Circular Intelligence Infographic & Rhythm Consistency', () => {
+    it('calculates genuine rhythm consistency without fabricated values', () => {
+      // Empty sessions -> honest null
+      assert.equal(calculateTypingConsistency([]), null);
+
+
+      // Single session -> derives from accuracy
+      const single = [{ id: 's1', wpm: 60, accuracy: 96 }];
+      const singleCons = calculateTypingConsistency(single);
+      assert.ok(singleCons >= 70 && singleCons <= 100);
+
+      // Multiple steady sessions -> high consistency score
+      const steadySessions = [
+        { id: 's1', wpm: 70, accuracy: 98 },
+        { id: 's2', wpm: 72, accuracy: 97 },
+        { id: 's3', wpm: 69, accuracy: 98 },
+        { id: 's4', wpm: 71, accuracy: 99 },
+      ];
+      const highCons = calculateTypingConsistency(steadySessions);
+      assert.ok(highCons >= 90);
+
+      // Wildly erratic sessions -> lower consistency score
+      const erraticSessions = [
+        { id: 's1', wpm: 30, accuracy: 75 },
+        { id: 's2', wpm: 90, accuracy: 80 },
+        { id: 's3', wpm: 25, accuracy: 70 },
+        { id: 's4', wpm: 110, accuracy: 85 },
+      ];
+      const lowCons = calculateTypingConsistency(erraticSessions);
+      assert.ok(lowCons < highCons);
+
+      // Time range filtering
+      const now = Date.now();
+      const timedSessions = [
+        { id: 'recent', timestamp: now - 2 * 86400 * 1000, wpm: 60 },
+        { id: 'two_weeks', timestamp: now - 14 * 86400 * 1000, wpm: 65 },
+        { id: 'two_months', timestamp: now - 60 * 86400 * 1000, wpm: 55 },
+        { id: 'last_year', timestamp: now - 200 * 86400 * 1000, wpm: 50 },
+      ];
+
+      assert.equal(filterSessionsByTimeRange(timedSessions, '7d').length, 1);
+      assert.equal(filterSessionsByTimeRange(timedSessions, '30d').length, 2);
+      assert.equal(filterSessionsByTimeRange(timedSessions, '90d').length, 3);
+      assert.equal(filterSessionsByTimeRange(timedSessions, 'all').length, 4);
     });
   });
 });

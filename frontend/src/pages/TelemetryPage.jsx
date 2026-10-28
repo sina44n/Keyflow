@@ -16,6 +16,7 @@ import SpeedAccuracySummary from '../components/telemetry/SpeedAccuracySummary';
 import PracticeTimeDonut from '../components/telemetry/PracticeTimeDonut';
 import PracticeAttemptsGrid from '../components/telemetry/PracticeAttemptsGrid';
 import ProgressOverviewChart from '../components/telemetry/ProgressOverviewChart';
+import CircularIntelligenceInfographic from '../components/telemetry/CircularIntelligenceInfographic';
 import KeyboardMastery from '../components/telemetry/KeyboardMastery';
 import FingerMasteryMatrix from '../components/telemetry/FingerMasteryMatrix';
 import CharacterPerformanceChart from '../components/telemetry/CharacterPerformanceChart';
@@ -150,7 +151,10 @@ export default function TelemetryPage() {
           </div>
         </div>
 
-        {/* 3. Progress Overview Time-Series (Matching Reference Image 3) */}
+        {/* 3. Reference-Based Circular Intelligence Infographic */}
+        <CircularIntelligenceInfographic sessions={sessions} />
+
+        {/* 4. Progress Overview Time-Series */}
         <ProgressOverviewChart sessions={sessions} activeReportMetrics={metrics} activeReport={activeReport} />
 
         {/* 4. Keyboard Mastery ANSI 60% Interactive Heatmap (Matching Reference Image 2) */}

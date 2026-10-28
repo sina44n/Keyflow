@@ -1167,9 +1167,14 @@ export function generateCSVReport(sessions, reportTitle = 'KEYFLOW_Telemetry_Rep
   };
 }
 
-export function downloadCSV(csvContent, filename) {
+export const exportCSVReport = generateCSVReport;
+
+export function downloadCSV(csvContentOrSessions, filename = 'keyflow_telemetry.csv') {
   if (typeof window === 'undefined') return;
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const content = typeof csvContentOrSessions === 'string'
+    ? csvContentOrSessions
+    : (Array.isArray(csvContentOrSessions) ? generateCSVReport(csvContentOrSessions).csvContent : '');
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.setAttribute('href', url);
@@ -1179,3 +1184,53 @@ export function downloadCSV(csvContent, filename) {
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
+
+
+/**
+ * Calculates genuine typing rhythm consistency percentage from session history.
+ * CV (coefficient of variation) of WPM combined with accuracy stability.
+ */
+export function calculateTypingConsistency(sessions = []) {
+  const valid = (Array.isArray(sessions) ? sessions : []).filter(
+    (s) => s && typeof s.wpm === 'number' && s.wpm > 0
+  );
+  if (valid.length === 0) return null;
+  if (valid.length === 1) {
+    const acc = typeof valid[0].accuracy === 'number' ? valid[0].accuracy : 100;
+    return Math.min(100, Math.max(70, Math.round(acc)));
+  }
+
+  const wpms = valid.map((s) => s.wpm);
+  const mean = wpms.reduce((a, b) => a + b, 0) / wpms.length;
+  if (mean === 0) return 0;
+
+  const variance = wpms.reduce((sum, w) => sum + Math.pow(w - mean, 2), 0) / wpms.length;
+  const stdDev = Math.sqrt(variance);
+  const cv = stdDev / mean;
+
+  const speedConsistency = Math.max(0, Math.min(100, Math.round((1 - cv) * 100)));
+  const avgAcc = valid.reduce((sum, s) => sum + (Number(s.accuracy) || 100), 0) / valid.length;
+
+  return Math.min(100, Math.max(0, Math.round(speedConsistency * 0.6 + avgAcc * 0.4)));
+}
+
+/**
+ * Filters sessions by time range: 7d, 30d, 90d, or all.
+ */
+export function filterSessionsByTimeRange(sessions = [], rangeKey = 'all') {
+  if (!Array.isArray(sessions) || sessions.length === 0) return [];
+  if (rangeKey === 'all') return sessions;
+
+  const now = Date.now();
+  let days = 30;
+  if (rangeKey === '7d') days = 7;
+  if (rangeKey === '30d') days = 30;
+  if (rangeKey === '90d') days = 90;
+
+  const cutoff = now - days * 86400 * 1000;
+  return sessions.filter((s) => {
+    const t = s.timestamp || (s.date ? new Date(s.date).getTime() : 0);
+    return t >= cutoff;
+  });
+}
+
