@@ -53,10 +53,21 @@ api.interceptors.request.use(
 );
 
 // ---------------------------------------------------------------------------
-// Response Interceptor — handle 401 (expired/invalid token)
+// Response Interceptor — handle 401 & HTML SPA fallback responses
 // ---------------------------------------------------------------------------
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // If the backend returns HTML (e.g. Vercel SPA rewrite fallback when VITE_API_URL is missing)
+    if (typeof response.data === 'string' && /^\s*<!doctype\s+html/i.test(response.data)) {
+      const err = new Error(
+        'Received an HTML response instead of JSON. Ensure VITE_API_URL is configured to point to the Django API.'
+      );
+      err.isSpaFallback = true;
+      err.response = response;
+      return Promise.reject(err);
+    }
+    return response;
+  },
   (error) => {
     if (error.response?.status === 401) {
       clearStoredToken();
@@ -78,6 +89,8 @@ export const authAPI = {
   logout: () => api.post('/auth/logout/'),
   logoutAll: () => api.post('/auth/logout-all/'),
   me: () => api.get('/auth/me/'),
+  updateMe: (data) => api.patch('/auth/me/', data),
+  deleteAccount: (password) => api.delete('/auth/me/', { data: { password } }),
   changePassword: (data) => api.post('/auth/change-password/', data),
   verifyEmail: (token) => api.post('/auth/verify-email/', { token }),
   resendVerification: () => api.post('/auth/resend-verification/'),
@@ -104,6 +117,24 @@ export const lessonsAPI = {
   recordProgress: (data) => api.post('/lessons/record/', data),
   getProgress: () => api.get('/lessons/progress/'),
   getProgressSummary: () => api.get('/lessons/progress/summary/'),
+};
+
+// ---------------------------------------------------------------------------
+// Practice & Typing Sessions API Methods
+// ---------------------------------------------------------------------------
+export const practiceAPI = {
+  getPassages: (params) => api.get('/practice/passages/', { params }),
+  getPassage: (id) => api.get(`/practice/passages/${id}/`),
+  recordSession: (data) => api.post('/practice/sessions/', data),
+  getHistory: () => api.get('/practice/history/'),
+};
+
+// ---------------------------------------------------------------------------
+// Arcade Games API Methods
+// ---------------------------------------------------------------------------
+export const gamesAPI = {
+  recordSession: (data) => api.post('/games/record/', data),
+  getRecords: () => api.get('/games/records/'),
 };
 
 // ---------------------------------------------------------------------------

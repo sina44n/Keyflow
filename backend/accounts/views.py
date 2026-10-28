@@ -237,12 +237,99 @@ class GoogleLoginView(APIView):
 class CurrentUserView(APIView):
     """
     GET /api/auth/me/
-    Returns current authenticated user's full profile and preferences.
+    PATCH /api/auth/me/
+    DELETE /api/auth/me/
+    Returns current authenticated user's full profile and preferences,
+    supports in-place profile updates and protected account deletion.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
         return Response(FullUserSerializer(request.user).data)
+
+    def patch(self, request):
+        user = request.user
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+        prefs, _ = UserPreferences.objects.get_or_create(user=user)
+
+        data = request.data
+        errors = {}
+
+        # Update username
+        new_username = data.get('username')
+        if new_username and new_username != user.username:
+            new_username = str(new_username).strip()
+            if len(new_username) < 3:
+                errors['username'] = ['Username must be at least 3 characters.']
+            elif User.objects.filter(username__iexact=new_username).exclude(pk=user.pk).exists():
+                errors['username'] = ['A user with this username already exists.']
+            else:
+                user.username = new_username
+
+        # Update email
+        new_email = data.get('email')
+        if new_email and new_email.lower() != user.email.lower():
+            new_email = str(new_email).strip().lower()
+            if User.objects.filter(email__iexact=new_email).exclude(pk=user.pk).exists():
+                errors['email'] = ['A user with this email already exists.']
+            else:
+                user.email = new_email
+                user.is_email_verified = False
+
+        # First name / Last name / Display name
+        first_name = data.get('first_name')
+        last_name = data.get('last_name')
+        display_name = data.get('display_name')
+        if first_name is not None or last_name is not None:
+            fn = str(first_name).strip() if first_name is not None else ''
+            ln = str(last_name).strip() if last_name is not None else ''
+            combined = f"{fn} {ln}".strip()
+            if combined:
+                profile.display_name = combined
+        elif display_name is not None:
+            profile.display_name = str(display_name).strip()
+
+        # Timezone
+        if 'timezone' in data and data['timezone']:
+            profile.timezone = str(data['timezone']).strip()
+
+        # Bio
+        if 'bio' in data:
+            profile.bio = str(data['bio']).strip()
+
+        # Preferences
+        if 'daily_goal_minutes' in data:
+            try:
+                prefs.daily_goal_minutes = int(data['daily_goal_minutes'])
+            except (ValueError, TypeError):
+                pass
+        if 'reduced_motion' in data:
+            prefs.reduced_motion = bool(data['reduced_motion'])
+        if 'theme_preset' in data and data['theme_preset']:
+            prefs.theme_preset = str(data['theme_preset'])
+
+        if errors:
+            return Response(errors, status=status.HTTP_400_BAD_REQUEST)
+
+        user.save()
+        profile.save()
+        prefs.save()
+
+        return Response(FullUserSerializer(user).data, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        user = request.user
+        password = request.data.get('password')
+        if user.has_usable_password():
+            if not password or not user.check_password(password):
+                return Response(
+                    {'password': ['Current password is required to delete your account.']},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        user_id = user.id
+        user.delete()
+        logger.info(f"[KEYFLOW Auth] User id={user_id} deleted account.")
+        return Response({'detail': 'Account permanently deleted.'}, status=status.HTTP_200_OK)
 
 
 class LogoutCurrentView(LogoutView):
