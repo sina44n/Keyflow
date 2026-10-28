@@ -18,11 +18,12 @@ import { Link } from 'react-router-dom';
  * - Real zero-flash theme switching, active state indicators, and localStorage persistence
  */
 
-// 16 Themes mapped across 4 rows of 4 cards
+// 16 Themes organized across 4 curated typing collections
 const THEME_ROWS = [
-  // Row 1: Premier Masterpiece & Flagships (Exact Reference Colors: Orange, Pink, Cyan, Blue)
+  // 1: Premier Masterpiece & Flagship Palettes
   {
-    rowTitle: 'Masterpiece Architectures',
+    category: 'Masterpiece',
+    rowTitle: 'Masterpiece Collection',
     cards: [
       { num: '01', themeId: 'burgundy-cream', backingColor: '#FF6B00', tag: 'Masterpiece' },
       { num: '02', themeId: 'espresso-latte', backingColor: '#E91E63', tag: 'Artisan' },
@@ -30,32 +31,35 @@ const THEME_ROWS = [
       { num: '04', themeId: 'midnight-slate', backingColor: '#0066FF', tag: 'Industrial' },
     ],
   },
-  // Row 2: Artisan & Nocturnal Studios
+  // 2: Nocturnal & Dark Studios
   {
-    rowTitle: 'Nocturnal & Signature Studios',
+    category: 'Nocturnal',
+    rowTitle: 'Nocturnal Collection',
     cards: [
-      { num: '05', themeId: 'dark-charcoal-lime', backingColor: '#10B981', tag: 'High-Contrast' },
-      { num: '06', themeId: 'dark-theme', backingColor: '#FF1744', tag: 'Signature' },
+      { num: '05', themeId: 'dark-theme', backingColor: '#FF1744', tag: 'Nocturnal' },
+      { num: '06', themeId: 'dark-charcoal-lime', backingColor: '#10B981', tag: 'Terminal' },
       { num: '07', themeId: 'midnight-blue', backingColor: '#0EA5E9', tag: 'Oceanic' },
-      { num: '08', themeId: 'lavender-purple', backingColor: '#8B5CF6', tag: 'Aesthetic' },
+      { num: '08', themeId: 'lavender-purple', backingColor: '#8B5CF6', tag: 'Twilight' },
     ],
   },
-  // Row 3: Vibrant & Calm Studios
+  // 3: High-Cadence Vibrant Palettes
   {
-    rowTitle: 'Vibrant & Natural Palettes',
+    category: 'Vibrant',
+    rowTitle: 'Vibrant Collection',
     cards: [
-      { num: '09', themeId: 'forest-green', backingColor: '#059669', tag: 'Botanical' },
-      { num: '10', themeId: 'ocean-teal', backingColor: '#0D9488', tag: 'Vibrant' },
-      { num: '11', themeId: 'sunset-orange', backingColor: '#F97316', tag: 'Energetic' },
+      { num: '09', themeId: 'forest-green', backingColor: '#059669', tag: 'Focus' },
+      { num: '10', themeId: 'ocean-teal', backingColor: '#0D9488', tag: 'Velocity' },
+      { num: '11', themeId: 'sunset-orange', backingColor: '#F97316', tag: 'Cadence' },
       { num: '12', themeId: 'rose-pink', backingColor: '#EC4899', tag: 'Neon' },
     ],
   },
-  // Row 4: Cool, Minimalist & Daylight Systems
+  // 4: Daylight & Clean Minimalist Palettes
   {
-    rowTitle: 'Cool, Daylight & Minimalist Systems',
+    category: 'Daylight',
+    rowTitle: 'Daylight & Minimalist Palettes',
     cards: [
       { num: '13', themeId: 'arctic-blue', backingColor: '#06B6D4', tag: 'Sub-Zero' },
-      { num: '14', themeId: 'solarized-light', backingColor: '#2563EB', tag: 'Daytime' },
+      { num: '14', themeId: 'solarized-light', backingColor: '#2563EB', tag: 'Daylight' },
       { num: '15', themeId: 'warm-sand', backingColor: '#D97706', tag: 'Natural' },
       { num: '16', themeId: 'classic-black-white', backingColor: '#475569', tag: 'Monochrome' },
     ],
@@ -78,23 +82,23 @@ export const ThemesShowcase = () => {
   return (
     <section
       id="themes"
-      className="py-14 sm:py-16 lg:py-20 border-t border-[var(--border)] relative bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-300 overflow-hidden"
+      className="py-12 sm:py-14 lg:py-16 border-t border-[var(--border)] relative bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-300 overflow-hidden"
     >
-      <div className="container-app max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
+      <div className="container-app max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         {/* ================================================================= */}
-        {/* TOP HEADER: EXACT REFERENCE TYPOGRAPHY                            */}
+        {/* TOP HEADER: FIND YOUR FLOW                                        */}
         {/* ================================================================= */}
-        <div className="text-center max-w-xl mx-auto space-y-1 select-none">
-          <h2 className="text-xs sm:text-sm font-bold tracking-[0.22em] uppercase text-[var(--text-primary)]">
-            {t('themes.header', 'MODERN BUSINESS')}
+        <div className="text-center max-w-xl mx-auto space-y-2 select-none">
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text-primary)] font-sans">
+            {t('themes.heading', 'Find Your Flow')}
           </h2>
-          <p className="text-[10px] sm:text-[11px] font-semibold tracking-[0.28em] uppercase text-[var(--text-muted)]">
-            {t('themes.subheader', 'STEP INFOGRAPHIC')}
+          <p className="text-xs sm:text-sm text-[var(--text-muted)] font-normal max-w-md mx-auto">
+            {t('themes.subheading', 'Choose a visual theme that suits your typing experience.')}
           </p>
         </div>
 
         {/* Minimal Control Bar: Current Active Badge & Filter Tabs */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 max-w-5xl mx-auto border-b border-[var(--border)] pb-4 text-xs font-mono">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 max-w-5xl mx-auto border-b border-[var(--border)] pb-3 text-xs font-mono">
           <div className="flex items-center gap-2.5 text-[var(--text-secondary)]">
             <span
               className="w-3.5 h-3.5 rounded-full shadow-xs shrink-0"
@@ -117,7 +121,7 @@ export const ThemesShowcase = () => {
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              All 16 Palettes
+              All Palettes
             </button>
             <button
               type="button"
@@ -128,7 +132,7 @@ export const ThemesShowcase = () => {
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              Masterpiece (Row 1)
+              Masterpiece
             </button>
             <button
               type="button"
@@ -139,7 +143,7 @@ export const ThemesShowcase = () => {
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              Nocturnal (Row 2)
+              Nocturnal
             </button>
             <button
               type="button"
@@ -150,7 +154,7 @@ export const ThemesShowcase = () => {
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              Vibrant (Row 3)
+              Vibrant
             </button>
             <button
               type="button"
@@ -161,7 +165,7 @@ export const ThemesShowcase = () => {
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
-              Daylight (Row 4)
+              Daylight
             </button>
           </div>
         </div>
@@ -169,14 +173,14 @@ export const ThemesShowcase = () => {
         {/* ================================================================= */}
         {/* MAIN CONTENT: FOUR-CARD HORIZONTAL COMPOSITIONS                   */}
         {/* ================================================================= */}
-        <div className="space-y-12">
+        <div className="space-y-10">
           {visibleRows.map((row) => (
-            <div key={row.rowTitle} className="space-y-5">
-              {/* Optional subtle row subtitle when viewing all rows */}
+            <div key={row.rowTitle} className="space-y-4">
+              {/* Subtle collection subtitle when viewing all rows */}
               {selectedFilter === 'all' && (
                 <div className="flex items-center gap-2 max-w-5xl mx-auto px-2">
                   <div className="h-px bg-[var(--border)] flex-1" />
-                  <span className="text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] font-semibold">
                     {row.rowTitle}
                   </span>
                   <div className="h-px bg-[var(--border)] flex-1" />
@@ -184,7 +188,7 @@ export const ThemesShowcase = () => {
               )}
 
               {/* Four prominent cards arranged horizontally on desktop */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5 lg:gap-6 max-w-5xl mx-auto items-center justify-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-4 lg:gap-5 max-w-5xl mx-auto items-center justify-center">
                 {row.cards.map((card) => {
                   const themeItem = getTheme(card.themeId);
                   const isActive = themeItem.id === theme;
@@ -228,20 +232,20 @@ export const ThemesShowcase = () => {
  * TiltedThemeCard
  * 
  * Recreates the exact visual appearance of the reference card:
- * 1. Colorful rotated backing shape (rotated counter-clockwise ~ -5deg)
- * 2. Pure white rounded foreground card (rotated clockwise ~ +1.5deg)
- * 3. Step/Theme index, compact number, title, option/tag, swatches, description, and selection indicator
+ * 1. Colorful rotated backing shape (rotated counter-clockwise ~ -4.5deg)
+ * 2. Pure white rounded foreground card (rotated clockwise ~ +1.2deg)
+ * 3. Compact number, theme title, category tag, swatches, description, and selection indicator
  */
 const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
   return (
-    <div className="relative group w-full max-w-[225px] mx-auto py-3.5 select-none">
+    <div className="relative group w-full max-w-[205px] mx-auto py-2.5 select-none">
       {/* 1. COLORFUL ROTATED BACKING SHAPE */}
       <div
-        className="absolute inset-x-2 inset-y-3 rounded-[26px] transition-transform duration-300 ease-out pointer-events-none group-hover:scale-[1.03]"
+        className="absolute inset-x-1.5 inset-y-2 rounded-[22px] transition-transform duration-300 ease-out pointer-events-none group-hover:scale-[1.03]"
         style={{
           backgroundColor: card.backingColor,
-          transform: 'rotate(-5deg)',
-          boxShadow: `0 16px 28px -6px ${card.backingColor}55, 0 6px 12px -3px rgba(0,0,0,0.12)`,
+          transform: 'rotate(-4.5deg)',
+          boxShadow: `0 14px 24px -6px ${card.backingColor}55, 0 4px 10px -3px rgba(0,0,0,0.1)`,
         }}
         aria-hidden="true"
       />
@@ -252,18 +256,18 @@ const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
         onClick={onSelect}
         role="button"
         aria-pressed={isActive}
-        className={`relative z-10 w-full rounded-[22px] bg-white text-gray-800 p-4 sm:p-4.5 flex flex-col items-center text-center transition-all duration-300 ease-out cursor-pointer shadow-lg hover:shadow-xl group-hover:translate-y-[-3px] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-black/20 ${
-          isActive ? 'ring-3 ring-black/40 shadow-xl' : ''
+        className={`relative z-10 w-full rounded-[18px] bg-white text-gray-800 p-3.5 sm:p-4 flex flex-col items-center text-center transition-all duration-300 ease-out cursor-pointer shadow-md hover:shadow-xl group-hover:translate-y-[-2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
+          isActive ? 'ring-2 ring-black/40 shadow-lg' : ''
         }`}
         style={{
-          transform: 'rotate(1.5deg)',
-          minHeight: '330px',
+          transform: 'rotate(1.2deg)',
+          minHeight: '260px',
         }}
       >
         {/* Active Pill / Indicator */}
         {isActive && (
           <div
-            className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[8.5px] font-mono font-bold flex items-center gap-1 shadow-xs"
+            className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[8px] font-mono font-bold flex items-center gap-0.5 shadow-xs"
             style={{
               backgroundColor: card.backingColor,
               color: '#FFFFFF',
@@ -274,36 +278,26 @@ const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
           </div>
         )}
 
-        {/* Top: STEP / THEME label */}
-        <span className="text-[9.5px] font-mono uppercase tracking-[0.2em] text-gray-400 font-semibold pt-1">
-          STEP
-        </span>
-
         {/* Compact Bold Number (01, 02, 03, 04...) */}
-        <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-800 font-sans my-0.5">
+        <span className="text-2xl sm:text-[26px] font-extrabold tracking-tight text-gray-800 font-sans mt-0.5">
           {card.num}
         </span>
 
         {/* Theme Name */}
-        <h4 className="text-xs sm:text-[12.5px] font-bold uppercase tracking-wider text-gray-800 line-clamp-1 mt-0.5">
+        <h4 className="text-xs sm:text-[12px] font-bold uppercase tracking-wider text-gray-900 line-clamp-1 mt-0.5">
           {themeItem.name}
         </h4>
 
-        {/* Subtle Horizontal Divider */}
-        <div className="w-9 h-[1.5px] bg-gray-200 my-2 rounded-full" />
-
-        {/* OPTION A / Theme Category Tag */}
-        <span className="text-[9px] font-mono uppercase tracking-widest text-gray-500 font-bold mb-0.5">
+        {/* Category Tag Badge */}
+        <span className="inline-block text-[8.5px] font-mono uppercase tracking-wider text-gray-500 font-semibold px-2 py-0.5 rounded-full bg-gray-100 mt-1">
           {card.tag}
         </span>
 
-        {/* Short Subtitle / Subtext */}
-        <span className="text-[9px] font-semibold tracking-wider uppercase text-gray-400 mb-2">
-          KEYFLOW STUDIO
-        </span>
+        {/* Subtle Horizontal Divider */}
+        <div className="w-8 h-[1px] bg-gray-200 my-2 rounded-full" />
 
         {/* Palette Color Swatch Circles */}
-        <div className="flex items-center justify-center gap-1.5 mb-2.5">
+        <div className="flex items-center justify-center gap-1.5 mb-2">
           {[
             { label: 'Accent', color: themeItem.accent },
             { label: 'Surface', color: themeItem.surface },
@@ -319,15 +313,15 @@ const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
           ))}
         </div>
 
-        {/* Description: Matching reference's sample text block */}
-        <p className="text-[9.5px] leading-relaxed text-gray-400 font-sans line-clamp-2 px-0.5 mt-auto">
+        {/* Description: Clean 2 lines */}
+        <p className="text-[9px] leading-snug text-gray-400 font-sans line-clamp-2 px-0.5 mt-auto">
           {themeItem.subtitle}
         </p>
 
         {/* Bottom Selection Action Button */}
         <div className="w-full pt-2 mt-2 border-t border-gray-100">
           <span
-            className={`inline-block w-full py-1.5 rounded-xl text-[9.5px] font-mono font-bold uppercase tracking-wider transition-colors ${
+            className={`inline-block w-full py-1 rounded-lg text-[9px] font-mono font-bold uppercase tracking-wider transition-colors ${
               isActive
                 ? 'bg-gray-900 text-white shadow-xs'
                 : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
