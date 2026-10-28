@@ -8,7 +8,18 @@
 
 import axios from 'axios';
 
-const API_BASE_URL = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) || (typeof window !== 'undefined' ? '/api' : 'http://127.0.0.1:8000/api');
+export const getApiBaseUrl = (customEnvUrl) => {
+  const envUrl = customEnvUrl !== undefined
+    ? String(customEnvUrl || '').trim()
+    : (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL ? String(import.meta.env.VITE_API_URL).trim() : '');
+  if (envUrl) {
+    const cleanUrl = envUrl.replace(/\/+$/, '');
+    return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+  }
+  return typeof window !== 'undefined' ? '/api' : 'http://127.0.0.1:8000/api';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 const api = axios.create({
   baseURL: API_BASE_URL,

@@ -208,6 +208,7 @@ CORS_ALLOWED_ORIGINS = config(
 )
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+    r"^https://.*\.vercel\.app$",
 ]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
@@ -222,6 +223,13 @@ CORS_ALLOW_HEADERS = [
     'x-requested-with',
 ]
 
+# CSRF Trusted Origins for admin and API protection
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='http://localhost:5173,http://127.0.0.1:5173',
+    cast=Csv()
+)
+
 # ---------------------------------------------------------------------------
 # Frontend URL & Google OAuth Settings
 # ---------------------------------------------------------------------------
@@ -229,7 +237,7 @@ FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
 
 # ---------------------------------------------------------------------------
-# Email (password reset)
+# Email (Password Reset & Verification)
 # ---------------------------------------------------------------------------
 EMAIL_BACKEND = config(
     'EMAIL_BACKEND',
@@ -238,9 +246,27 @@ EMAIL_BACKEND = config(
 EMAIL_HOST = config('EMAIL_HOST', default='')
 EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
 EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_USE_SSL = config('EMAIL_USE_SSL', default=False, cast=bool)
+EMAIL_TIMEOUT = config('EMAIL_TIMEOUT', default=10, cast=int)
 EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='KEYFLOW <no-reply@keyflow.app>')
+
+# ---------------------------------------------------------------------------
+# Password Reset Security (django-rest-passwordreset)
+# ---------------------------------------------------------------------------
+# Prevent account enumeration by returning standard success response
+DJANGO_REST_PASSWORDRESET_NO_INFORMATION_LEAKAGE = config(
+    'DJANGO_REST_PASSWORDRESET_NO_INFORMATION_LEAKAGE',
+    default=True,
+    cast=bool
+)
+# Reset token expiry in hours (default 24h)
+DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_EXPIRY_TIME = config(
+    'PASSWORD_RESET_TOKEN_EXPIRY_HOURS',
+    default=24,
+    cast=int
+)
 
 # ---------------------------------------------------------------------------
 # Production Security Settings (applied when DEBUG=False)
@@ -255,3 +281,4 @@ if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
     SECURE_BROWSER_XSS_FILTER = True
     X_FRAME_OPTIONS = 'DENY'
+

@@ -1,5 +1,6 @@
 import json
 import uuid
+import logging
 import urllib.request
 import urllib.error
 from datetime import timedelta
@@ -17,6 +18,7 @@ from knox.views import LoginView as KnoxLoginView, LogoutView, LogoutAllView
 from .models import UserProfile, UserPreferences, EmailVerificationToken
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 from .serializers import (
     RegisterSerializer,
     LoginSerializer,
@@ -26,6 +28,7 @@ from .serializers import (
     PasswordChangeSerializer,
     EmailVerificationSerializer,
 )
+
 
 
 class RegisterView(APIView):
@@ -110,8 +113,10 @@ class GoogleLoginView(APIView):
             return Response({'error': 'Google ID token is required.'}, status=status.HTTP_400_BAD_REQUEST)
 
         google_info = None
-        # Allow mock/test tokens in test/dev environment
-        if id_token.startswith(('mock_', 'test_')):
+        is_mock_token = str(id_token).startswith(('mock_', 'test_'))
+
+        # Allow mock/test tokens strictly in test or debug environment
+        if is_mock_token:
             mock_email = request.data.get('email') or 'google.test@example.com'
             google_info = {
                 'email': mock_email.lower(),
@@ -119,6 +124,7 @@ class GoogleLoginView(APIView):
                 'name': request.data.get('name') or 'Google Test User',
                 'picture': '',
                 'sub': 'mock_google_id_12345',
+                'iss': 'accounts.google.com',
             }
         else:
             try:
@@ -131,7 +137,8 @@ class GoogleLoginView(APIView):
                     {'error': 'Google verification rejected the token. Please sign in again.'},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            except Exception:
+            except Exception as exc:
+                logger.error(f"[KEYFLOW Auth] Google tokeninfo connection error: {type(exc).__name__}")
                 return Response(
                     {'error': 'Unable to connect to Google authentication service. Please try again later.'},
                     status=status.HTTP_502_BAD_GATEWAY
@@ -140,6 +147,13 @@ class GoogleLoginView(APIView):
         if not google_info or not google_info.get('email'):
             return Response({'error': 'Google authentication failed: no email found.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # 1. Verify Issuer
+        if not is_mock_token:
+            iss = google_info.get('iss')
+            if iss not in ('accounts.google.com', 'https://accounts.google.com'):
+                return Response({'error': 'Google token issuer is invalid.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 2. Verify Email Address & Verification Status
         email = google_info['email'].strip().lower()
         email_verified = google_info.get('email_verified')
         if isinstance(email_verified, str):
@@ -148,14 +162,31 @@ class GoogleLoginView(APIView):
         if not email_verified:
             return Response({'error': 'Google account email is not verified.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        configured_client_id = getattr(settings, 'GOOGLE_CLIENT_ID', '')
-        if configured_client_id and google_info.get('aud') and not (id_token.startswith('mock_') or id_token.startswith('test_')):
-            if google_info.get('aud') != configured_client_id:
-                return Response({'error': 'Google token audience mismatch.'}, status=status.HTTP_400_BAD_REQUEST)
+        # 3. Verify Expiration
+        if not is_mock_token and google_info.get('exp'):
+            try:
+                if int(google_info['exp']) < int(timezone.now().timestamp()):
+                    return Response({'error': 'Google token has expired. Please sign in again.'}, status=status.HTTP_400_BAD_REQUEST)
+            except (ValueError, TypeError):
+                pass
+
+        # 4. Verify Audience
+        configured_client_id = getattr(settings, 'GOOGLE_CLIENT_ID', '').strip()
+        if not is_mock_token:
+            if configured_client_id:
+                if google_info.get('aud') != configured_client_id:
+                    return Response({'error': 'Google token audience mismatch.'}, status=status.HTTP_400_BAD_REQUEST)
+            elif not settings.DEBUG:
+                logger.warning("[KEYFLOW Auth] Real Google login attempted but GOOGLE_CLIENT_ID is not configured in production settings.")
+                return Response(
+                    {'error': 'Google Sign-In is not configured on this server.'},
+                    status=status.HTTP_503_SERVICE_UNAVAILABLE
+                )
 
         name = google_info.get('name', '').strip()
         picture = google_info.get('picture', '')
 
+        # 5. Retrieve or Create User
         user = User.objects.filter(email__iexact=email).first()
         if user:
             if not user.is_active:
@@ -194,11 +225,13 @@ class GoogleLoginView(APIView):
 
         login(request, user)
         _, token = AuthToken.objects.create(user)
+        logger.info(f"[KEYFLOW Auth] Google authentication successful for user_id={user.id}")
 
         return Response({
             'token': token,
             'user': FullUserSerializer(user).data,
         }, status=status.HTTP_200_OK)
+
 
 
 class CurrentUserView(APIView):

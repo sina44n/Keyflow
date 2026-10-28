@@ -304,8 +304,19 @@ class PasswordResetFlowTests(TestCase):
         token_obj = ResetPasswordToken.objects.filter(user=self.user).first()
         self.assertIsNotNone(token_obj)
         self.assertEqual(len(mail.outbox), 1)
-        self.assertIn(token_obj.key, mail.outbox[0].body)
-        self.assertIn('/reset-password?token=', mail.outbox[0].body)
+        sent_email = mail.outbox[0]
+        self.assertIn(token_obj.key, sent_email.body)
+        self.assertIn('/reset-password?token=', sent_email.body)
+        # Verify HTML alternative with KEYFLOW branding was attached
+        self.assertTrue(len(sent_email.alternatives) > 0)
+        html_body = sent_email.alternatives[0][0]
+        self.assertIn('KEYFLOW', html_body)
+        self.assertIn('Set New Password', html_body)
+        self.assertIn(token_obj.key, html_body)
+
+        # Create an existing active Knox token to verify revocation
+        _, existing_knox = AuthToken.objects.create(self.user)
+        self.assertTrue(AuthToken.objects.filter(user=self.user).exists())
 
         # Step 3: Validate token
         val_res = self.client.post('/api/auth/password-reset/validate_token/', {'token': token_obj.key})
@@ -317,6 +328,9 @@ class PasswordResetFlowTests(TestCase):
             'password': 'NewPassword123!',
         })
         self.assertEqual(confirm_res.status_code, status.HTTP_200_OK)
+
+        # Verify all existing Knox tokens for this user were invalidated upon password reset
+        self.assertFalse(AuthToken.objects.filter(user=self.user).exists())
 
         # Step 5: Verify old password fails
         login_old = self.client.post('/api/auth/login/', {
@@ -339,6 +353,30 @@ class PasswordResetFlowTests(TestCase):
             'password': 'AnotherPassword123!',
         })
         self.assertNotEqual(reuse_res.status_code, status.HTTP_200_OK)
+
+    def test_password_reset_email_failure_raises_503(self):
+        from unittest.mock import patch
+        with patch('django.core.mail.EmailMultiAlternatives.send', side_effect=Exception('SMTP connection timed out')):
+            res = self.client.post('/api/auth/password-reset/', {'email': 'resetuser@example.com'})
+            self.assertEqual(res.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+            self.assertIn('detail', res.data)
+
+    def test_password_reset_validate_invalid_token(self):
+        res = self.client.post('/api/auth/password-reset/validate_token/', {'token': 'completely_invalid_token_123'})
+        self.assertNotEqual(res.status_code, status.HTTP_200_OK)
+
+    def test_password_reset_validate_expired_token(self):
+        import datetime
+        from django.utils import timezone
+        from django_rest_passwordreset.models import ResetPasswordToken
+
+        token_obj = ResetPasswordToken.objects.create(user=self.user)
+        # Backdate token by 48 hours to exceed the default 24h expiration
+        ResetPasswordToken.objects.filter(pk=token_obj.pk).update(
+            created_at=timezone.now() - datetime.timedelta(hours=48)
+        )
+        res = self.client.post('/api/auth/password-reset/validate_token/', {'token': token_obj.key})
+        self.assertNotEqual(res.status_code, status.HTTP_200_OK)
 
 
 class GoogleLoginEndpointTests(TestCase):
@@ -378,6 +416,103 @@ class GoogleLoginEndpointTests(TestCase):
         })
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['user']['id'], existing.id)
+
+    def test_google_login_deactivated_account_rejected(self):
+        User.objects.create_user(
+            email='deactivated@example.com',
+            username='deactivated_user',
+            password='Password123!',
+            is_active=False,
+        )
+        res = self.client.post('/api/auth/google/', {
+            'id_token': 'mock_deactivated_token',
+            'email': 'deactivated@example.com',
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('deactivated', res.data.get('error', '').lower())
+
+    def test_google_login_unverified_email_rejected(self):
+        from unittest.mock import patch
+        mock_response = (
+            b'{"email": "unverified@example.com", "email_verified": false, '
+            b'"iss": "accounts.google.com", "sub": "12345"}'
+        )
+        with patch('urllib.request.urlopen') as mock_urlopen:
+            mock_cm = mock_urlopen.return_value.__enter__.return_value
+            mock_cm.read.return_value = mock_response
+            res = self.client.post('/api/auth/google/', {
+                'id_token': 'real_google_unverified_token',
+            })
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn('not verified', res.data.get('error', '').lower())
+
+    def test_google_login_invalid_issuer_rejected(self):
+        from unittest.mock import patch
+        mock_response = (
+            b'{"email": "attacker@example.com", "email_verified": true, '
+            b'"iss": "evil-oauth.example.com", "sub": "12345"}'
+        )
+        with patch('urllib.request.urlopen') as mock_urlopen:
+            mock_cm = mock_urlopen.return_value.__enter__.return_value
+            mock_cm.read.return_value = mock_response
+            res = self.client.post('/api/auth/google/', {
+                'id_token': 'real_google_spoofed_issuer',
+            })
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn('issuer is invalid', res.data.get('error', '').lower())
+
+    def test_google_login_audience_mismatch_rejected(self):
+        from unittest.mock import patch
+        from django.conf import settings
+        mock_response = (
+            b'{"email": "audtest@example.com", "email_verified": true, '
+            b'"iss": "accounts.google.com", "aud": "wrong-client-id.apps.googleusercontent.com", "sub": "12345"}'
+        )
+        with patch.object(settings, 'GOOGLE_CLIENT_ID', 'expected-client-id.apps.googleusercontent.com'):
+            with patch('urllib.request.urlopen') as mock_urlopen:
+                mock_cm = mock_urlopen.return_value.__enter__.return_value
+                mock_cm.read.return_value = mock_response
+                res = self.client.post('/api/auth/google/', {
+                    'id_token': 'real_token_aud_mismatch',
+                })
+                self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+                self.assertIn('audience mismatch', res.data.get('error', '').lower())
+
+    def test_google_login_expired_token_rejected(self):
+        from unittest.mock import patch
+        mock_response = (
+            b'{"email": "expired@example.com", "email_verified": true, '
+            b'"iss": "accounts.google.com", "exp": 1000000000, "sub": "12345"}'
+        )
+        with patch('urllib.request.urlopen') as mock_urlopen:
+            mock_cm = mock_urlopen.return_value.__enter__.return_value
+            mock_cm.read.return_value = mock_response
+            res = self.client.post('/api/auth/google/', {
+                'id_token': 'real_google_expired_token',
+            })
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn('expired', res.data.get('error', '').lower())
+
+    def test_google_login_http_error_rejected(self):
+        import urllib.error
+        from unittest.mock import patch
+        http_err = urllib.error.HTTPError('https://oauth2.googleapis.com', 400, 'Bad Request', {}, None)
+        with patch('urllib.request.urlopen', side_effect=http_err):
+            res = self.client.post('/api/auth/google/', {
+                'id_token': 'malformed_invalid_token',
+            })
+            self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+            self.assertIn('rejected the token', res.data.get('error', '').lower())
+
+    def test_google_login_service_error_502(self):
+        from unittest.mock import patch
+        with patch('urllib.request.urlopen', side_effect=Exception('Connection reset')):
+            res = self.client.post('/api/auth/google/', {
+                'id_token': 'real_token_network_glitch',
+            })
+            self.assertEqual(res.status_code, status.HTTP_502_BAD_GATEWAY)
+            self.assertIn('unable to connect to google', res.data.get('error', '').lower())
+
 
 
 class UserProgressionIsolationTests(TestCase):
