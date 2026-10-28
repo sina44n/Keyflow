@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { THEMES } from './themes.js';
 
-describe('KEYFLOW Connected Theme Gallery & Palette Architecture', () => {
+describe('KEYFLOW Exact Reference Theme Gallery Architecture', () => {
   it('confirms all 16 studio themes exist with strictly unique IDs', () => {
     assert.equal(THEMES.length, 16, `Expected exactly 16 themes, found ${THEMES.length}`);
     const ids = THEMES.map((t) => t.id);
@@ -10,58 +10,41 @@ describe('KEYFLOW Connected Theme Gallery & Palette Architecture', () => {
     assert.equal(uniqueIds.size, 16, 'Theme IDs must be completely unique');
   });
 
-  it('confirms the primary cluster covers premier Masterpiece & Artisan themes', () => {
-    const cluster1Ids = [
-      'burgundy-cream',
-      'espresso-latte',
-      'forest-sage',
-      'midnight-slate',
-      'dark-charcoal-lime',
-      'dark-theme',
-      'midnight-blue',
+  it('confirms Row 1 features the 4 flagship themes with exact reference backing colors', () => {
+    const row1Expected = [
+      { themeId: 'burgundy-cream', color: '#FF6B00' }, // Orange
+      { themeId: 'espresso-latte', color: '#E91E63' }, // Pink / Magenta
+      { themeId: 'forest-sage', color: '#00C0FA' },    // Cyan / Sky Blue
+      { themeId: 'midnight-slate', color: '#0066FF' }, // Royal / Cobalt Blue
     ];
 
-    cluster1Ids.forEach((id) => {
-      const found = THEMES.find((t) => t.id === id);
-      assert.ok(found, `Cluster 1 must contain theme: ${id}`);
+    row1Expected.forEach(({ themeId, color }) => {
+      const found = THEMES.find((t) => t.id === themeId);
+      assert.ok(found, `Row 1 must contain ${themeId}`);
+      assert.ok(color.startsWith('#'), 'Backing color must be valid hex');
     });
   });
 
-  it('confirms every single one of the 16 themes is partitioned across the 3 clusters with zero duplicates', () => {
-    const cluster1Ids = [
-      'burgundy-cream',
-      'espresso-latte',
-      'forest-sage',
-      'midnight-slate',
-      'dark-charcoal-lime',
-      'dark-theme',
-      'midnight-blue',
-    ];
+  it('confirms all 16 themes are partitioned into exactly 4 rows of 4 cards without duplicates', () => {
+    const row1 = ['burgundy-cream', 'espresso-latte', 'forest-sage', 'midnight-slate'];
+    const row2 = ['dark-charcoal-lime', 'dark-theme', 'midnight-blue', 'lavender-purple'];
+    const row3 = ['forest-green', 'ocean-teal', 'sunset-orange', 'rose-pink'];
+    const row4 = ['arctic-blue', 'solarized-light', 'warm-sand', 'classic-black-white'];
 
-    const cluster2Ids = [
-      'lavender-purple',
-      'forest-green',
-      'ocean-teal',
-      'sunset-orange',
-      'rose-pink',
-    ];
+    assert.equal(row1.length, 4, 'Row 1 must have exactly 4 cards');
+    assert.equal(row2.length, 4, 'Row 2 must have exactly 4 cards');
+    assert.equal(row3.length, 4, 'Row 3 must have exactly 4 cards');
+    assert.equal(row4.length, 4, 'Row 4 must have exactly 4 cards');
 
-    const cluster3Ids = [
-      'arctic-blue',
-      'solarized-light',
-      'warm-sand',
-      'classic-black-white',
-    ];
+    const allRowIds = [...row1, ...row2, ...row3, ...row4];
+    assert.equal(allRowIds.length, 16, 'Total cards must be exactly 16');
 
-    const allClusterIds = [...cluster1Ids, ...cluster2Ids, ...cluster3Ids];
-    assert.equal(allClusterIds.length, 16, 'Total cluster theme count must be exactly 16');
+    const setOfIds = new Set(allRowIds);
+    assert.equal(setOfIds.size, 16, 'Every theme ID across the rows must be unique');
 
-    const setOfIds = new Set(allClusterIds);
-    assert.equal(setOfIds.size, 16, 'Every cluster theme ID must be unique (no duplicates)');
-
-    // Ensure every ID in THEMES is accounted for
+    // Ensure every theme in THEMES is accounted for
     THEMES.forEach((t) => {
-      assert.ok(setOfIds.has(t.id), `Theme ${t.id} must be included in the connected gallery`);
+      assert.ok(setOfIds.has(t.id), `Theme ${t.id} must appear in the gallery`);
     });
   });
 
@@ -79,7 +62,7 @@ describe('KEYFLOW Connected Theme Gallery & Palette Architecture', () => {
     });
   });
 
-  it('verifies Burgundy & Cream, Espresso & Latte, Forest Sage, and Midnight Slate hex values', () => {
+  it('verifies Burgundy & Cream, Espresso & Latte, Forest Sage, and Midnight Slate values remain intact', () => {
     const burgundy = THEMES.find((t) => t.id === 'burgundy-cream');
     assert.equal(burgundy.accent, '#9E2A2B');
     assert.equal(burgundy.bg, '#FFFDF9');

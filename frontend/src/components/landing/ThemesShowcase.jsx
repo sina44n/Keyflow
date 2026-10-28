@@ -1,567 +1,231 @@
 import React, { useState } from 'react';
 import { useTheme, THEMES } from '../../context/ThemeContext';
 import { useI18n } from '../../i18n/I18nContext';
-import {
-  Palette,
-  Check,
-  Sparkles,
-  ArrowRight,
-  Keyboard,
-  Info,
-} from 'lucide-react';
-
+import { Check, Sparkles, SlidersHorizontal, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 /**
- * ThemesShowcase — Connected Geometric Theme Gallery
- * =================================================
- * Faithful reproduction of the reference infographic layout:
- * - Light, soft, modern elevated backdrop with subtle depth
- * - Connected geometric layout with white rounded rectangular panels
- * - Thick white conduit tubing linking the cards with 90° rounded corners
- * - Vibrant colored square accents placed at network junctions
- * - Hollow wireframe square rings decorating perimeters
- * - Large colored numeric badges ('01', '02', '03'...) in signature theme accents
- * - Full support for all 16 KEYFLOW color systems with zero-flash switching
+ * ThemesShowcase — Exact Reference Image Redesign
+ * ===============================================
+ * Faithfully reproduces the attached visual reference:
+ * - Soft, light grey / off-white background with subtle radial depth
+ * - Small centered heading and subtle uppercase subtitle at top
+ * - Four prominent vertical cards arranged horizontally on desktop
+ * - Each card consists of a white, vertically oriented rounded rectangle
+ * - Behind every white card: a colorful, rotated offset backing shape (Orange, Pink, Cyan, Blue)
+ * - Layered floating drop shadows giving tactile depth
+ * - Complete, uncompromised support for all 16 KEYFLOW themes (4 balanced rows of 4)
+ * - Real zero-flash theme switching, active state indicators, and localStorage persistence
  */
+
+// Four distinct reference accent colors for each 4-card row
+const REFERENCE_BACKING_COLORS = [
+  '#FF6B00', // Reference Card 1: Vibrant Orange
+  '#E91E63', // Reference Card 2: Vivid Pink / Magenta
+  '#00C0FA', // Reference Card 3: Crisp Sky Blue / Cyan
+  '#0066FF', // Reference Card 4: Royal / Cobalt Blue
+];
+
+// 16 Themes mapped across 4 rows of 4 cards
+const THEME_ROWS = [
+  // Row 1: Premier Masterpiece & Flagships (Exact Reference Colors: Orange, Pink, Cyan, Blue)
+  {
+    rowTitle: 'Masterpiece Architectures',
+    cards: [
+      { num: '01', themeId: 'burgundy-cream', backingColor: '#FF6B00', tag: 'Masterpiece' },
+      { num: '02', themeId: 'espresso-latte', backingColor: '#E91E63', tag: 'Artisan' },
+      { num: '03', themeId: 'forest-sage', backingColor: '#00C0FA', tag: 'Botanical' },
+      { num: '04', themeId: 'midnight-slate', backingColor: '#0066FF', tag: 'Industrial' },
+    ],
+  },
+  // Row 2: Artisan & Nocturnal Studios
+  {
+    rowTitle: 'Nocturnal & Signature Studios',
+    cards: [
+      { num: '05', themeId: 'dark-charcoal-lime', backingColor: '#10B981', tag: 'High-Contrast' },
+      { num: '06', themeId: 'dark-theme', backingColor: '#FF1744', tag: 'Signature' },
+      { num: '07', themeId: 'midnight-blue', backingColor: '#0EA5E9', tag: 'Oceanic' },
+      { num: '08', themeId: 'lavender-purple', backingColor: '#8B5CF6', tag: 'Aesthetic' },
+    ],
+  },
+  // Row 3: Vibrant & Calm Studios
+  {
+    rowTitle: 'Vibrant & Natural Palettes',
+    cards: [
+      { num: '09', themeId: 'forest-green', backingColor: '#059669', tag: 'Botanical' },
+      { num: '10', themeId: 'ocean-teal', backingColor: '#0D9488', tag: 'Vibrant' },
+      { num: '11', themeId: 'sunset-orange', backingColor: '#F97316', tag: 'Energetic' },
+      { num: '12', themeId: 'rose-pink', backingColor: '#EC4899', tag: 'Neon' },
+    ],
+  },
+  // Row 4: Cool, Minimalist & Daylight Systems
+  {
+    rowTitle: 'Cool, Daylight & Minimalist Systems',
+    cards: [
+      { num: '13', themeId: 'arctic-blue', backingColor: '#06B6D4', tag: 'Sub-Zero' },
+      { num: '14', themeId: 'solarized-light', backingColor: '#2563EB', tag: 'Daytime' },
+      { num: '15', themeId: 'warm-sand', backingColor: '#D97706', tag: 'Natural' },
+      { num: '16', themeId: 'classic-black-white', backingColor: '#475569', tag: 'Monochrome' },
+    ],
+  },
+];
+
 export const ThemesShowcase = () => {
   const { theme, setTheme, currentThemeObj } = useTheme();
   const { t } = useI18n();
-  const [activeCategory, setActiveCategory] = useState('all'); // 'all' | 'artisan' | 'nocturnal' | 'radiant'
+  const [selectedFilter, setSelectedFilter] = useState('all'); // 'all' | 0 | 1 | 2 | 3
 
-  // Partition themes across the connected geometric clusters
-  // 1. Primary Masterpiece Cluster (Exact 1:1 constellation of Image 2)
-  const cluster1 = [
-    { num: '01', themeId: 'burgundy-cream', accentColor: '#9E2A2B' },
-    { num: '02', themeId: 'espresso-latte', accentColor: '#C48A5A' },
-    { num: '03', themeId: 'forest-sage', accentColor: '#6B9071' },
-    { num: '05', themeId: 'midnight-slate', accentColor: '#9BA8AB' }, // Center large
-    { num: '04', themeId: 'dark-charcoal-lime', accentColor: '#C8F36A' },
-    { num: '06', themeId: 'dark-theme', accentColor: '#FF1744' }, // Secondary mid-left
-    { num: '07', themeId: 'midnight-blue', accentColor: '#38BDF8' }, // Secondary lower-left
-  ];
-
-  // 2. Nocturnal & Cyberpunk Studio Cluster
-  const cluster2 = [
-    { num: '08', themeId: 'lavender-purple', accentColor: '#C084FC' },
-    { num: '09', themeId: 'forest-green', accentColor: '#4ADE80' },
-    { num: '10', themeId: 'ocean-teal', accentColor: '#2DD4BF' },
-    { num: '11', themeId: 'sunset-orange', accentColor: '#FB923C' },
-    { num: '12', themeId: 'rose-pink', accentColor: '#F472B6' },
-  ];
-
-  // 3. Radiant, Cool & Minimalist Cluster
-  const cluster3 = [
-    { num: '13', themeId: 'arctic-blue', accentColor: '#67E8F9' },
-    { num: '14', themeId: 'solarized-light', accentColor: '#268BD2' },
-    { num: '15', themeId: 'warm-sand', accentColor: '#D97706' },
-    { num: '16', themeId: 'classic-black-white', accentColor: '#FFFFFF' },
-  ];
-
-  // Helper to find full theme object
+  // Helper to retrieve full theme definition
   const getTheme = (id) => THEMES.find((t) => t.id === id) || THEMES[0];
 
+  // Filter rows if user chooses a specific set, or display all 4 rows
+  const visibleRows = selectedFilter === 'all'
+    ? THEME_ROWS
+    : [THEME_ROWS[selectedFilter]];
+
   return (
-    <section id="themes" className="section-spacing border-t border-[var(--border)] relative bg-[var(--bg-main)]">
-      <div className="container-app space-y-10">
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto space-y-3">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--accent)] font-mono shadow-xs">
-            <Palette className="w-3.5 h-3.5" aria-hidden="true" />
-            <span>{t('themes.badge', `${THEMES.length} Studio Color Architectures`)}</span>
-          </div>
-          <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[var(--text-primary)] tracking-tight">
-            {t('themes.title', "Tailored for Every Typist's Eye")}
+    <section
+      id="themes"
+      className="py-16 sm:py-20 lg:py-24 border-t border-[var(--border)] relative bg-[#ECEEF2] dark:bg-[#12171F] transition-colors duration-200 overflow-hidden"
+    >
+      <div className="container-app max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+        {/* ================================================================= */}
+        {/* TOP HEADER: EXACT REFERENCE TYPOGRAPHY                            */}
+        {/* ================================================================= */}
+        <div className="text-center max-w-xl mx-auto space-y-1 select-none">
+          <h2 className="text-xs sm:text-sm font-bold tracking-[0.22em] uppercase text-gray-800 dark:text-gray-200">
+            {t('themes.header', 'MODERN BUSINESS')}
           </h2>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
-            {t('themes.subtitle', "Select any palette below to instantly re-theme KEYFLOW's interface. Every token, virtual keycap, and metric graph transitions with zero flash.")}
+          <p className="text-[10px] sm:text-[11px] font-semibold tracking-[0.28em] uppercase text-gray-400 dark:text-gray-500">
+            {t('themes.subheader', 'STEP INFOGRAPHIC')}
           </p>
         </div>
 
-        {/* Live Active Theme Studio Sandbox & Controls */}
-        <div className="p-4 sm:p-6 rounded-3xl bg-[var(--bg-elevated)] border border-[var(--border)] shadow-xl space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
-            <div className="flex items-center gap-3">
-              <span
-                className="w-4 h-4 rounded-full shadow-[0_0_12px_currentColor]"
-                style={{ backgroundColor: currentThemeObj.accent, color: currentThemeObj.accent }}
-              />
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-extrabold text-sm sm:text-base text-[var(--text-primary)]">
-                    {currentThemeObj.name}
-                  </span>
-                  <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-md border border-[var(--border)] text-[var(--text-muted)] bg-[var(--bg-surface)]">
-                    {currentThemeObj.tag}
-                  </span>
-                </div>
-                <p className="text-xs text-[var(--text-secondary)]">
-                  {currentThemeObj.subtitle}
-                </p>
-              </div>
-            </div>
-
-            {/* Quick Filter / Jump Tabs */}
-            <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-mono">
-              {[
-                { id: 'all', label: `All Systems (${THEMES.length})` },
-                { id: 'artisan', label: 'Masterpiece (7)' },
-                { id: 'nocturnal', label: 'Nocturnal (5)' },
-                { id: 'radiant', label: 'Radiant (4)' },
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setActiveCategory(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer font-semibold ${
-                    activeCategory === tab.id
-                      ? 'bg-[var(--accent)] text-[var(--accent-fg)] shadow-xs'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
+        {/* Minimal Control Bar: Current Active Badge & Filter Tabs */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 max-w-5xl mx-auto border-b border-gray-300/60 dark:border-gray-800 pb-4 text-xs font-mono">
+          <div className="flex items-center gap-2.5 text-gray-700 dark:text-gray-300">
+            <span
+              className="w-3.5 h-3.5 rounded-full shadow-xs shrink-0"
+              style={{ backgroundColor: currentThemeObj.accent }}
+            />
+            <span className="text-[11px] text-gray-500 dark:text-gray-400">Current Theme:</span>
+            <span className="font-bold text-gray-900 dark:text-white font-sans">{currentThemeObj.name}</span>
+            <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500">
+              {currentThemeObj.tag}
+            </span>
           </div>
 
-          {/* Interactive Live Typing Token Preview */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-center pt-1">
-            <div className="lg:col-span-8 p-3.5 sm:p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1.5">
-                <span className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
-                  <Keyboard className="w-3.5 h-3.5 text-[var(--accent)]" />
-                  Live Virtual Keycaps & Typography Tokens
-                </span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {['Q', 'W', 'E', 'R', 'T', 'Y', 'SPACE'].map((key) => (
-                    <span
-                      key={key}
-                      className="px-2.5 py-1 rounded-lg text-xs font-mono font-bold shadow-xs border"
-                      style={{
-                        backgroundColor: key === 'E' ? currentThemeObj.accent : 'var(--key-bg)',
-                        color: key === 'E' ? 'var(--accent-fg)' : 'var(--key-text)',
-                        borderColor: key === 'E' ? currentThemeObj.accent : 'var(--key-border)',
-                      }}
-                    >
-                      {key}
-                    </span>
-                  ))}
-                  <span className="text-xs font-mono text-[var(--text-muted)] ml-2">
-                    <span className="text-[var(--typing-correct)]">deliberate</span>{' '}
-                    <span className="text-[var(--typing-caret)] underline">f</span>
-                    <span className="text-[var(--text-muted)]">low</span>
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
-                <Link
-                  to="/practice"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] font-bold text-xs shadow-xs hover:brightness-105 transition-all"
-                >
-                  <span>Test in Workstation</span>
-                  <ArrowRight className="w-3 h-3" />
-                </Link>
-              </div>
-            </div>
-
-            {/* Active Theme Hex Swatches */}
-            <div className="lg:col-span-4 p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] flex items-center justify-between">
-              <div className="space-y-1">
-                <span className="text-[10px] font-mono text-[var(--text-muted)] uppercase">Active Palette Hexes</span>
-                <div className="flex items-center gap-1.5 font-mono text-[11px] text-[var(--text-secondary)]">
-                  <span>{currentThemeObj.accent}</span>
-                  <span>•</span>
-                  <span>{currentThemeObj.bg}</span>
-                </div>
-              </div>
-              <div className="flex items-center gap-1.5">
-                {[
-                  { label: 'Accent', color: currentThemeObj.accent },
-                  { label: 'Surface', color: currentThemeObj.surface },
-                  { label: 'Border', color: currentThemeObj.border },
-                  { label: 'Background', color: currentThemeObj.bg },
-                ].map((swatch) => (
-                  <div
-                    key={swatch.label}
-                    className="w-5 h-5 rounded-md border border-black/10 shadow-xs"
-                    style={{ backgroundColor: swatch.color }}
-                    title={`${swatch.label}: ${swatch.color}`}
-                  />
-                ))}
-              </div>
-            </div>
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-white/70 dark:bg-gray-800/80 border border-gray-200/80 dark:border-gray-700 text-[11px]">
+            <button
+              type="button"
+              onClick={() => setSelectedFilter('all')}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
+                selectedFilter === 'all'
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              All 16 Palettes
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedFilter(0)}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
+                selectedFilter === 0
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              Masterpiece (Row 1)
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedFilter(1)}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
+                selectedFilter === 1
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              Nocturnal (Row 2)
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedFilter(2)}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
+                selectedFilter === 2
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              Vibrant (Row 3)
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedFilter(3)}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
+                selectedFilter === 3
+                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
+                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+              }`}
+            >
+              Daylight (Row 4)
+            </button>
           </div>
         </div>
 
-        {/* ========================================================================= */}
-        {/* CLUSTER 1: PRIMARY MASTERPIECE CONSTELLATION (EXACT 1:1 MATCH OF IMAGE 2) */}
-        {/* ========================================================================= */}
-        {(activeCategory === 'all' || activeCategory === 'artisan') && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider pl-2">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--accent)]" />
-              <span>Masterpiece & Artisan Constellation (Exact Reference Geometry)</span>
-            </div>
+        {/* ================================================================= */}
+        {/* MAIN CONTENT: FOUR-CARD HORIZONTAL COMPOSITIONS                   */}
+        {/* ================================================================= */}
+        <div className="space-y-16">
+          {visibleRows.map((row, rowIdx) => (
+            <div key={row.rowTitle} className="space-y-6">
+              {/* Optional subtle row subtitle when viewing all rows */}
+              {selectedFilter === 'all' && (
+                <div className="flex items-center gap-2 max-w-5xl mx-auto px-2">
+                  <div className="h-px bg-gray-300 dark:bg-gray-800 flex-1" />
+                  <span className="text-[11px] font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                    {row.rowTitle}
+                  </span>
+                  <div className="h-px bg-gray-300 dark:bg-gray-800 flex-1" />
+                </div>
+              )}
 
-            <div className="relative w-full rounded-3xl p-4 sm:p-8 bg-[#dfe4ea] dark:bg-[#1a222d] border border-white/60 dark:border-white/10 shadow-inner overflow-hidden select-none transition-colors duration-200">
-              {/* DESKTOP CONNECTED INFOGRAPHIC CANVAS (Exact layout of Image 2) */}
-              <div className="relative w-full max-w-[1020px] mx-auto aspect-[1/0.95] hidden lg:block">
-                {/* SVG LAYER: Connected White Conduit Tubing & Hollow Wireframe Square Rings */}
-                <svg
-                  viewBox="0 0 1000 950"
-                  className="absolute inset-0 w-full h-full pointer-events-none drop-shadow-sm z-0"
-                  aria-hidden="true"
-                >
-                  <defs>
-                    {/* Realistic soft drop shadow filter for conduits */}
-                    <filter id="conduitGlow" x="-10%" y="-10%" width="130%" height="130%">
-                      <feDropShadow dx="0" dy="6" stdDeviation="6" floodOpacity="0.14" floodColor="#000000" />
-                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.08" floodColor="#000000" />
-                    </filter>
-                  </defs>
+              {/* Four prominent cards arranged horizontally on desktop */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-6 lg:gap-7 max-w-5xl mx-auto items-center justify-center">
+                {row.cards.map((card, cardIndex) => {
+                  const themeItem = getTheme(card.themeId);
+                  const isActive = themeItem.id === theme;
 
-                  {/* 1. Hollow White Wireframe Rings with Rounded Corners (Matching Image 2) */}
-                  <g stroke="#ffffff" strokeWidth="4.5" fill="none" filter="url(#conduitGlow)">
-                    {/* Ring 1: Far top-left */}
-                    <rect x="75" y="170" width="120" height="120" rx="18" />
-                    {/* Ring 2: Far mid-left */}
-                    <rect x="15" y="485" width="120" height="120" rx="18" />
-                    {/* Ring 3: Top-right */}
-                    <rect x="830" y="190" width="90" height="90" rx="16" />
-                    {/* Ring 4: Mid-right */}
-                    <rect x="805" y="420" width="85" height="85" rx="16" />
-                    {/* Ring 5: Bottom-center */}
-                    <rect x="340" y="810" width="125" height="125" rx="20" />
-                    {/* Ring 6: Lower-mid-right */}
-                    <rect x="620" y="875" width="70" height="70" rx="14" />
-                    {/* Ring 7: Far bottom-right */}
-                    <rect x="875" y="855" width="90" height="90" rx="18" />
-                  </g>
-
-                  {/* 2. White Conduit Pipes (15px thick white tracks with smooth 90° rounded corners) */}
-                  <g
-                    stroke="#ffffff"
-                    strokeWidth="15"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                    filter="url(#conduitGlow)"
-                  >
-                    {/* Pipe A: Top-left path connecting Accent 1 into Card 01 and Card 02 */}
-                    <path d="M 335 155 L 430 155 M 335 155 L 335 240 L 275 240" />
-
-                    {/* Pipe B: Top-right path connecting Accent 3 to Card 02 and down to Card 03 */}
-                    <path d="M 610 135 L 750 135 L 750 240" />
-                    <path d="M 750 135 L 820 135" />
-
-                    {/* Pipe C: Central Hub connecting Card 01, Center Crimson Accent 2, Card 02, and Card 03 */}
-                    <path d="M 390 355 L 460 355 L 460 465" />
-                    <path d="M 505 240 L 505 330" />
-                    <path d="M 460 355 L 635 355" />
-
-                    {/* Pipe D: Left Branch down through Accent 4 and Accent 5 into Secondary A and B */}
-                    <path d="M 215 470 L 118 470 L 118 678 L 238 678" />
-                    <path d="M 178 715 L 178 795 L 238 795" />
-
-                    {/* Pipe E: Right Branch connecting Card 03 through Accent 6 into Card 04 */}
-                    <path d="M 700 460 L 700 652 L 750 652 L 750 715" />
-
-                    {/* Pipe F: Bottom Hub connecting Card 05 through Accent 7 into Card 04 and Secondary B */}
-                    <path d="M 518 720 L 570 720 L 570 790 L 650 790" />
-                    <path d="M 570 790 L 398 790" />
-                  </g>
-                </svg>
-
-                {/* 3. SOLID COLORED ACCENT SQUARES (Interactive, matching Image 2 placement) */}
-                {/* Accent 1: Top Blue */}
-                <button
-                  type="button"
-                  onClick={() => setTheme('midnight-blue')}
-                  className="absolute z-10 rounded-2xl shadow-lg border-2 border-white/80 cursor-pointer transition-transform hover:scale-105 active:scale-95"
-                  style={{
-                    left: '290px',
-                    top: '110px',
-                    width: '95px',
-                    height: '95px',
-                    backgroundColor: '#0284c7',
-                  }}
-                  title="Activate Midnight Blue Accent"
-                />
-
-                {/* Accent 2: Center Crimson / Magenta */}
-                <button
-                  type="button"
-                  onClick={() => setTheme('burgundy-cream')}
-                  className="absolute z-10 rounded-2xl shadow-xl border-2 border-white/80 cursor-pointer transition-transform hover:scale-105 active:scale-95"
-                  style={{
-                    left: '400px',
-                    top: '335px',
-                    width: '120px',
-                    height: '120px',
-                    backgroundColor: '#e11d48',
-                  }}
-                  title="Activate Burgundy & Cream Accent"
-                />
-
-                {/* Accent 3: Top-Right Teal */}
-                <button
-                  type="button"
-                  onClick={() => setTheme('ocean-teal')}
-                  className="absolute z-10 rounded-2xl shadow-md border-2 border-white/80 cursor-pointer transition-transform hover:scale-105 active:scale-95"
-                  style={{
-                    left: '780px',
-                    top: '90px',
-                    width: '85px',
-                    height: '85px',
-                    backgroundColor: '#0d9488',
-                  }}
-                  title="Activate Ocean Teal Accent"
-                />
-
-                {/* Accent 4: Mid-Left Cyan */}
-                <button
-                  type="button"
-                  onClick={() => setTheme('arctic-blue')}
-                  className="absolute z-10 rounded-2xl shadow-md border-2 border-white/80 cursor-pointer transition-transform hover:scale-105 active:scale-95"
-                  style={{
-                    left: '75px',
-                    top: '465px',
-                    width: '85px',
-                    height: '85px',
-                    backgroundColor: '#06b6d4',
-                  }}
-                  title="Activate Arctic Blue Accent"
-                />
-
-                {/* Accent 5: Lower-Left Violet */}
-                <button
-                  type="button"
-                  onClick={() => setTheme('lavender-purple')}
-                  className="absolute z-10 rounded-2xl shadow-lg border-2 border-white/80 cursor-pointer transition-transform hover:scale-105 active:scale-95"
-                  style={{
-                    left: '130px',
-                    top: '630px',
-                    width: '95px',
-                    height: '95px',
-                    backgroundColor: '#8b5cf6',
-                  }}
-                  title="Activate Lavender Purple Accent"
-                />
-
-                {/* Accent 6: Mid-Right Sky Blue */}
-                <button
-                  type="button"
-                  onClick={() => setTheme('midnight-blue')}
-                  className="absolute z-10 rounded-2xl shadow-lg border-2 border-white/80 cursor-pointer transition-transform hover:scale-105 active:scale-95"
-                  style={{
-                    left: '655px',
-                    top: '605px',
-                    width: '95px',
-                    height: '95px',
-                    backgroundColor: '#38bdf8',
-                  }}
-                  title="Activate Sky Blue Accent"
-                />
-
-                {/* Accent 7: Bottom Orange / Coral */}
-                <button
-                  type="button"
-                  onClick={() => setTheme('sunset-orange')}
-                  className="absolute z-10 rounded-2xl shadow-xl border-2 border-white/80 cursor-pointer transition-transform hover:scale-105 active:scale-95"
-                  style={{
-                    left: '510px',
-                    top: '730px',
-                    width: '120px',
-                    height: '120px',
-                    backgroundColor: '#f97316',
-                  }}
-                  title="Activate Sunset Orange Accent"
-                />
-
-                {/* 4. REAL WHITE CONTENT CARDS WITH ELEVATED DROP SHADOWS */}
-                {/* CARD 01: Top-Left (Burgundy & Cream) */}
-                <ThemeInfographicCard
-                  item={cluster1[0]}
-                  themeItem={getTheme(cluster1[0].themeId)}
-                  currentTheme={theme}
-                  onSelect={setTheme}
-                  style={{
-                    left: '160px',
-                    top: '240px',
-                    width: '235px',
-                    height: '235px',
-                  }}
-                />
-
-                {/* CARD 02: Top-Center (Espresso & Latte) */}
-                <ThemeInfographicCard
-                  item={cluster1[1]}
-                  themeItem={getTheme(cluster1[1].themeId)}
-                  currentTheme={theme}
-                  onSelect={setTheme}
-                  style={{
-                    left: '400px',
-                    top: '30px',
-                    width: '215px',
-                    height: '215px',
-                  }}
-                />
-
-                {/* CARD 03: Top-Right (Forest Sage) */}
-                <ThemeInfographicCard
-                  item={cluster1[2]}
-                  themeItem={getTheme(cluster1[2].themeId)}
-                  currentTheme={theme}
-                  onSelect={setTheme}
-                  style={{
-                    left: '635px',
-                    top: '240px',
-                    width: '225px',
-                    height: '225px',
-                  }}
-                />
-
-                {/* CARD 05: Center-Large (Midnight Slate) */}
-                <ThemeInfographicCard
-                  item={cluster1[3]}
-                  themeItem={getTheme(cluster1[3].themeId)}
-                  currentTheme={theme}
-                  onSelect={setTheme}
-                  isLarge
-                  style={{
-                    left: '390px',
-                    top: '465px',
-                    width: '260px',
-                    height: '260px',
-                  }}
-                />
-
-                {/* CARD 04: Bottom-Right (Charcoal Lime) */}
-                <ThemeInfographicCard
-                  item={cluster1[4]}
-                  themeItem={getTheme(cluster1[4].themeId)}
-                  currentTheme={theme}
-                  onSelect={setTheme}
-                  style={{
-                    left: '650px',
-                    top: '715px',
-                    width: '205px',
-                    height: '205px',
-                  }}
-                />
-
-                {/* SECONDARY CARD A: Mid-Left (Dark Theme) */}
-                <ThemeInfographicCard
-                  item={cluster1[5]}
-                  themeItem={getTheme(cluster1[5].themeId)}
-                  currentTheme={theme}
-                  onSelect={setTheme}
-                  isCompact
-                  style={{
-                    left: '225px',
-                    top: '480px',
-                    width: '160px',
-                    height: '160px',
-                  }}
-                />
-
-                {/* SECONDARY CARD B: Lower-Left (Midnight Ocean) */}
-                <ThemeInfographicCard
-                  item={cluster1[6]}
-                  themeItem={getTheme(cluster1[6].themeId)}
-                  currentTheme={theme}
-                  onSelect={setTheme}
-                  isCompact
-                  style={{
-                    left: '238px',
-                    top: '715px',
-                    width: '160px',
-                    height: '160px',
-                  }}
-                />
-              </div>
-
-              {/* MOBILE & TABLET FALLBACK FOR CLUSTER 1 */}
-              <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {cluster1.map((item) => (
-                  <MobileThemeCard
-                    key={item.themeId}
-                    item={item}
-                    themeItem={getTheme(item.themeId)}
-                    currentTheme={theme}
-                    onSelect={setTheme}
-                  />
-                ))}
+                  return (
+                    <TiltedThemeCard
+                      key={card.themeId}
+                      card={card}
+                      themeItem={themeItem}
+                      isActive={isActive}
+                      onSelect={() => setTheme(themeItem.id)}
+                    />
+                  );
+                })}
               </div>
             </div>
+          ))}
+        </div>
+
+        {/* Bottom subtle note & practice link */}
+        <div className="text-center pt-8 border-t border-gray-300/60 dark:border-gray-800/80 max-w-2xl mx-auto space-y-3">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Instant theme transitions apply site-wide to all typing workstations, virtual keyboards, and analytics.
+          </p>
+          <div>
+            <Link
+              to="/practice"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold text-xs shadow-md hover:scale-105 active:scale-95 transition-all"
+            >
+              <span>Test Current Theme in Workstation</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* CLUSTER 2: NOCTURNAL & CYBERPUNK STUDIO CONSTELLATION                     */}
-        {/* ========================================================================= */}
-        {(activeCategory === 'all' || activeCategory === 'nocturnal') && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider pl-2">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--accent)]" />
-              <span>Nocturnal & Cyberpunk Studio Cluster (Themes 08 – 12)</span>
-            </div>
-
-            <div className="relative w-full rounded-3xl p-4 sm:p-6 bg-[#dfe4ea] dark:bg-[#1a222d] border border-white/60 dark:border-white/10 shadow-inner overflow-hidden">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {cluster2.map((item) => (
-                  <MobileThemeCard
-                    key={item.themeId}
-                    item={item}
-                    themeItem={getTheme(item.themeId)}
-                    currentTheme={theme}
-                    onSelect={setTheme}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ========================================================================= */}
-        {/* CLUSTER 3: RADIANT, COOL & MINIMALIST CONSTELLATION                       */}
-        {/* ========================================================================= */}
-        {(activeCategory === 'all' || activeCategory === 'radiant') && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-muted)] uppercase tracking-wider pl-2">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--accent)]" />
-              <span>Radiant, Cool & Minimalist Cluster (Themes 13 – 16)</span>
-            </div>
-
-            <div className="relative w-full rounded-3xl p-4 sm:p-6 bg-[#dfe4ea] dark:bg-[#1a222d] border border-white/60 dark:border-white/10 shadow-inner overflow-hidden">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                {cluster3.map((item) => (
-                  <MobileThemeCard
-                    key={item.themeId}
-                    item={item}
-                    themeItem={getTheme(item.themeId)}
-                    currentTheme={theme}
-                    onSelect={setTheme}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Bottom Synced Guarantee Notice */}
-        <div className="p-4 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] flex flex-wrap items-center justify-between gap-4 text-xs font-mono">
-          <div className="flex items-center gap-2 text-[var(--text-secondary)]">
-            <Info className="w-4 h-4 text-[var(--accent)] shrink-0" />
-            <span>
-              All 16 studio themes maintain zero-flash transitions and adhere to WCAG AAA/AA legibility standards.
-            </span>
-          </div>
-          <span className="text-[11px] text-[var(--text-muted)]">
-            Instant persistence via localStorage: 'keyflow-theme'
-          </span>
         </div>
       </div>
     </section>
@@ -569,87 +233,85 @@ export const ThemesShowcase = () => {
 };
 
 /**
- * Desktop Connected Infographic Theme Card
- * Matches the white rounded panels, bold colored numbers, and clean typography of Image 2.
+ * TiltedThemeCard
+ * 
+ * Recreates the exact visual appearance of the reference card:
+ * 1. Colorful rotated backing shape (rotated counter-clockwise ~ -6deg)
+ * 2. Pure white rounded foreground card (rotated clockwise ~ +1.5deg)
+ * 3. Step/Theme index, large number, title, option/tag, description, and selection indicator
  */
-const ThemeInfographicCard = ({
-  item,
-  themeItem,
-  currentTheme,
-  onSelect,
-  isLarge = false,
-  isCompact = false,
-  style = {},
-}) => {
-  const isActive = themeItem.id === currentTheme;
-
+const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(themeItem.id)}
-      role="button"
-      aria-pressed={isActive}
-      className={`absolute z-20 rounded-3xl p-4 sm:p-5 flex flex-col justify-between text-left cursor-pointer transition-all duration-200 group bg-white dark:bg-[#0f1724] border border-white/90 dark:border-white/10 ${
-        isActive
-          ? 'ring-4 ring-[var(--accent)] shadow-2xl scale-[1.03]'
-          : 'shadow-xl hover:shadow-2xl hover:scale-[1.02]'
-      }`}
-      style={{
-        ...style,
-        boxShadow: isActive
-          ? '0 24px 48px -12px rgba(0,0,0,0.25), 0 8px 16px -4px rgba(0,0,0,0.1)'
-          : '0 16px 36px -8px rgba(0,0,0,0.15), 0 6px 12px -3px rgba(0,0,0,0.06)',
-      }}
-    >
-      {/* Top Header: Bold Colored Number & Tag */}
-      <div className="flex items-start justify-between gap-1 w-full">
-        <span
-          className="font-mono font-extrabold tracking-tight"
-          style={{
-            color: item.accentColor,
-            fontSize: isLarge ? '26px' : isCompact ? '18px' : '22px',
-          }}
-        >
-          {item.num}
-        </span>
+    <div className="relative group w-full max-w-[250px] mx-auto py-5 select-none">
+      {/* 1. COLORFUL ROTATED BACKING SHAPE */}
+      <div
+        className="absolute inset-x-2 inset-y-4 rounded-[32px] transition-transform duration-300 ease-out pointer-events-none group-hover:scale-[1.04]"
+        style={{
+          backgroundColor: card.backingColor,
+          transform: 'rotate(-6deg)',
+          boxShadow: `0 20px 35px -8px ${card.backingColor}66, 0 8px 16px -4px rgba(0,0,0,0.12)`,
+        }}
+        aria-hidden="true"
+      />
 
-        {isActive ? (
-          <span
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold shadow-xs"
+      {/* 2. PURE WHITE FOREGROUND ROUNDED RECTANGLE */}
+      <button
+        type="button"
+        onClick={onSelect}
+        role="button"
+        aria-pressed={isActive}
+        className={`relative z-10 w-full rounded-[28px] bg-white text-gray-800 p-6 flex flex-col items-center text-center transition-all duration-300 ease-out cursor-pointer shadow-xl hover:shadow-2xl group-hover:translate-y-[-4px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/20 ${
+          isActive ? 'ring-3 ring-black/40 shadow-2xl' : ''
+        }`}
+        style={{
+          transform: 'rotate(1.5deg)',
+          minHeight: '390px',
+        }}
+      >
+        {/* Active Pill / Indicator */}
+        {isActive && (
+          <div
+            className="absolute top-3.5 right-4 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold flex items-center gap-1 shadow-xs"
             style={{
-              backgroundColor: themeItem.accent,
-              color: 'var(--accent-fg)',
+              backgroundColor: card.backingColor,
+              color: '#FFFFFF',
             }}
           >
-            <Check className="w-2.5 h-2.5" />
-            <span>Active</span>
-          </span>
-        ) : (
-          <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800">
-            {themeItem.tag}
-          </span>
+            <Check className="w-2.5 h-2.5 stroke-[3]" />
+            <span>ACTIVE</span>
+          </div>
         )}
-      </div>
 
-      {/* Middle Body: Theme Name & Subtitle */}
-      <div className="space-y-1 w-full my-auto">
-        <h4
-          className="font-bold text-gray-900 dark:text-gray-100 truncate tracking-tight"
-          style={{ fontSize: isLarge ? '15px' : isCompact ? '12px' : '13.5px' }}
-        >
+        {/* Top: STEP / THEME label */}
+        <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-400 font-semibold pt-2">
+          STEP
+        </span>
+
+        {/* Large Bold Number (01, 02, 03, 04...) */}
+        <span className="text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-800 font-sans my-1">
+          {card.num}
+        </span>
+
+        {/* YOUR TEXT HERE / Theme Name */}
+        <h4 className="text-xs sm:text-[13px] font-bold uppercase tracking-wider text-gray-800 line-clamp-1 mt-1">
           {themeItem.name}
         </h4>
-        <p
-          className="text-gray-500 dark:text-gray-400 leading-snug line-clamp-2"
-          style={{ fontSize: isLarge ? '11px' : isCompact ? '9.5px' : '10.5px' }}
-        >
-          {themeItem.subtitle}
-        </p>
-      </div>
 
-      {/* Bottom Swatch Bar */}
-      <div className="flex items-center justify-between gap-1 pt-1 border-t border-gray-100 dark:border-gray-800 w-full">
-        <div className="flex items-center gap-1">
+        {/* Subtle Horizontal Divider */}
+        <div className="w-12 h-[1.5px] bg-gray-200 my-3 rounded-full" />
+
+        {/* OPTION A / Theme Category Tag */}
+        <span className="text-[10px] font-mono uppercase tracking-widest text-gray-500 font-bold mb-1">
+          {card.tag}
+        </span>
+
+        {/* Short Subtitle / Subtext */}
+        <span className="text-[10px] font-semibold tracking-wider uppercase text-gray-400 mb-3">
+          KEYFLOW STUDIO
+        </span>
+
+        {/* Palette Color Swatch Circles */}
+        <div className="flex items-center justify-center gap-1.5 mb-4">
           {[
             { label: 'Accent', color: themeItem.accent },
             { label: 'Surface', color: themeItem.surface },
@@ -658,98 +320,32 @@ const ThemeInfographicCard = ({
           ].map((swatch) => (
             <div
               key={swatch.label}
-              className="rounded-md border border-black/10 shadow-xs"
-              style={{
-                backgroundColor: swatch.color,
-                width: isCompact ? '13px' : '17px',
-                height: isCompact ? '13px' : '17px',
-              }}
-              title={`${swatch.label}: ${swatch.color}`}
-            />
-          ))}
-        </div>
-
-        <span className="text-[9px] font-mono text-gray-400 group-hover:text-gray-700 dark:group-hover:text-gray-200 transition-colors">
-          {isActive ? 'Applied' : 'Select'}
-        </span>
-      </div>
-    </button>
-  );
-};
-
-/**
- * Mobile / Responsive Theme Card
- */
-const MobileThemeCard = ({ item, themeItem, currentTheme, onSelect }) => {
-  const isActive = themeItem.id === currentTheme;
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(themeItem.id)}
-      role="button"
-      aria-pressed={isActive}
-      className={`rounded-2xl p-4 flex flex-col justify-between text-left cursor-pointer transition-all duration-150 bg-white dark:bg-[#0f1724] border ${
-        isActive
-          ? 'ring-3 ring-[var(--accent)] shadow-lg'
-          : 'border-white/80 dark:border-white/10 shadow-md hover:shadow-lg'
-      }`}
-    >
-      <div className="flex items-start justify-between gap-2">
-        <span
-          className="font-mono font-extrabold text-xl"
-          style={{ color: item.accentColor }}
-        >
-          {item.num}
-        </span>
-        {isActive ? (
-          <span
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold shadow-xs"
-            style={{
-              backgroundColor: themeItem.accent,
-              color: 'var(--accent-fg)',
-            }}
-          >
-            <Check className="w-2.5 h-2.5" />
-            <span>Active</span>
-          </span>
-        ) : (
-          <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800">
-            {themeItem.tag}
-          </span>
-        )}
-      </div>
-
-      <div className="space-y-1 my-3">
-        <h4 className="font-bold text-sm text-gray-900 dark:text-gray-100 truncate">
-          {themeItem.name}
-        </h4>
-        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">
-          {themeItem.subtitle}
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-gray-800">
-        <div className="flex items-center gap-1.5">
-          {[
-            { label: 'Accent', color: themeItem.accent },
-            { label: 'Surface', color: themeItem.surface },
-            { label: 'Border', color: themeItem.border },
-            { label: 'Background', color: themeItem.bg },
-          ].map((swatch) => (
-            <div
-              key={swatch.label}
-              className="w-4 h-4 rounded-md border border-black/10 shadow-xs"
+              className="w-4 h-4 rounded-full border border-black/10 shadow-xs"
               style={{ backgroundColor: swatch.color }}
               title={`${swatch.label}: ${swatch.color}`}
             />
           ))}
         </div>
-        <span className="text-[10px] font-mono text-gray-400">
-          {isActive ? 'Current' : 'Apply'}
-        </span>
-      </div>
-    </button>
+
+        {/* Description: Matching reference's sample text block */}
+        <p className="text-[10px] leading-relaxed text-gray-400 font-sans line-clamp-3 px-1 mt-auto">
+          {themeItem.subtitle}
+        </p>
+
+        {/* Bottom Selection Action Button */}
+        <div className="w-full pt-3 mt-3 border-t border-gray-100">
+          <span
+            className={`inline-block w-full py-1.5 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-colors ${
+              isActive
+                ? 'bg-gray-900 text-white shadow-xs'
+                : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
+            }`}
+          >
+            {isActive ? 'Applied' : 'Select Theme'}
+          </span>
+        </div>
+      </button>
+    </div>
   );
 };
 
