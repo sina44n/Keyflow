@@ -18,7 +18,10 @@ import { AuthPage } from './pages/AuthPage';
 import { AcademyPage } from './pages/AcademyPage';
 import { WorkstationPage } from './pages/WorkstationPage';
 import { ArcadePage } from './pages/ArcadePage';
+import TelemetryPage from './pages/TelemetryPage';
+import { ThemesPage } from './pages/ThemesPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+
 import { Footer } from './components/common/Footer';
 
 const AcademyStageRoute = () => {
@@ -60,6 +63,10 @@ function App() {
                     <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
                     <Route path="/reset-password" element={<AuthPage mode="reset" />} />
                     <Route path="/reset-password/:token" element={<AuthPage mode="reset" />} />
+                    <Route path="/telemetry" element={<TelemetryPage />} />
+                    <Route path="/analytics" element={<Navigate to="/telemetry" replace />} />
+                    <Route path="/themes" element={<ThemesPage />} />
+
 
                     {/* Protected Learning Routes */}
                     <Route
