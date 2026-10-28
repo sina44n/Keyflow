@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTheme, THEMES } from '../../context/ThemeContext';
 import { useI18n } from '../../i18n/I18nContext';
-import { Check, Sparkles, SlidersHorizontal, ArrowRight } from 'lucide-react';
+import { Check, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 /**
@@ -17,14 +17,6 @@ import { Link } from 'react-router-dom';
  * - Complete, uncompromised support for all 16 KEYFLOW themes (4 balanced rows of 4)
  * - Real zero-flash theme switching, active state indicators, and localStorage persistence
  */
-
-// Four distinct reference accent colors for each 4-card row
-const REFERENCE_BACKING_COLORS = [
-  '#FF6B00', // Reference Card 1: Vibrant Orange
-  '#E91E63', // Reference Card 2: Vivid Pink / Magenta
-  '#00C0FA', // Reference Card 3: Crisp Sky Blue / Cyan
-  '#0066FF', // Reference Card 4: Royal / Cobalt Blue
-];
 
 // 16 Themes mapped across 4 rows of 4 cards
 const THEME_ROWS = [
@@ -86,43 +78,43 @@ export const ThemesShowcase = () => {
   return (
     <section
       id="themes"
-      className="py-16 sm:py-20 lg:py-24 border-t border-[var(--border)] relative bg-[#ECEEF2] dark:bg-[#12171F] transition-colors duration-200 overflow-hidden"
+      className="py-14 sm:py-16 lg:py-20 border-t border-[var(--border)] relative bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-300 overflow-hidden"
     >
-      <div className="container-app max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+      <div className="container-app max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         {/* ================================================================= */}
         {/* TOP HEADER: EXACT REFERENCE TYPOGRAPHY                            */}
         {/* ================================================================= */}
         <div className="text-center max-w-xl mx-auto space-y-1 select-none">
-          <h2 className="text-xs sm:text-sm font-bold tracking-[0.22em] uppercase text-gray-800 dark:text-gray-200">
+          <h2 className="text-xs sm:text-sm font-bold tracking-[0.22em] uppercase text-[var(--text-primary)]">
             {t('themes.header', 'MODERN BUSINESS')}
           </h2>
-          <p className="text-[10px] sm:text-[11px] font-semibold tracking-[0.28em] uppercase text-gray-400 dark:text-gray-500">
+          <p className="text-[10px] sm:text-[11px] font-semibold tracking-[0.28em] uppercase text-[var(--text-muted)]">
             {t('themes.subheader', 'STEP INFOGRAPHIC')}
           </p>
         </div>
 
         {/* Minimal Control Bar: Current Active Badge & Filter Tabs */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 max-w-5xl mx-auto border-b border-gray-300/60 dark:border-gray-800 pb-4 text-xs font-mono">
-          <div className="flex items-center gap-2.5 text-gray-700 dark:text-gray-300">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 max-w-5xl mx-auto border-b border-[var(--border)] pb-4 text-xs font-mono">
+          <div className="flex items-center gap-2.5 text-[var(--text-secondary)]">
             <span
               className="w-3.5 h-3.5 rounded-full shadow-xs shrink-0"
               style={{ backgroundColor: currentThemeObj.accent }}
             />
-            <span className="text-[11px] text-gray-500 dark:text-gray-400">Current Theme:</span>
-            <span className="font-bold text-gray-900 dark:text-white font-sans">{currentThemeObj.name}</span>
-            <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-500">
+            <span className="text-[11px] text-[var(--text-muted)]">Current Theme:</span>
+            <span className="font-bold text-[var(--text-primary)] font-sans">{currentThemeObj.name}</span>
+            <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)]">
               {currentThemeObj.tag}
             </span>
           </div>
 
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-white/70 dark:bg-gray-800/80 border border-gray-200/80 dark:border-gray-700 text-[11px]">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[11px]">
             <button
               type="button"
               onClick={() => setSelectedFilter('all')}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
                 selectedFilter === 'all'
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-main)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               All 16 Palettes
@@ -132,8 +124,8 @@ export const ThemesShowcase = () => {
               onClick={() => setSelectedFilter(0)}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
                 selectedFilter === 0
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-main)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Masterpiece (Row 1)
@@ -143,8 +135,8 @@ export const ThemesShowcase = () => {
               onClick={() => setSelectedFilter(1)}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
                 selectedFilter === 1
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-main)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Nocturnal (Row 2)
@@ -154,8 +146,8 @@ export const ThemesShowcase = () => {
               onClick={() => setSelectedFilter(2)}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
                 selectedFilter === 2
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-main)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Vibrant (Row 3)
@@ -165,8 +157,8 @@ export const ThemesShowcase = () => {
               onClick={() => setSelectedFilter(3)}
               className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
                 selectedFilter === 3
-                  ? 'bg-gray-900 text-white dark:bg-white dark:text-gray-900 shadow-xs'
-                  : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'
+                  ? 'bg-[var(--text-primary)] text-[var(--bg-main)] shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
             >
               Daylight (Row 4)
@@ -177,23 +169,23 @@ export const ThemesShowcase = () => {
         {/* ================================================================= */}
         {/* MAIN CONTENT: FOUR-CARD HORIZONTAL COMPOSITIONS                   */}
         {/* ================================================================= */}
-        <div className="space-y-16">
-          {visibleRows.map((row, rowIdx) => (
-            <div key={row.rowTitle} className="space-y-6">
+        <div className="space-y-12">
+          {visibleRows.map((row) => (
+            <div key={row.rowTitle} className="space-y-5">
               {/* Optional subtle row subtitle when viewing all rows */}
               {selectedFilter === 'all' && (
                 <div className="flex items-center gap-2 max-w-5xl mx-auto px-2">
-                  <div className="h-px bg-gray-300 dark:bg-gray-800 flex-1" />
-                  <span className="text-[11px] font-mono uppercase tracking-widest text-gray-400 dark:text-gray-500">
+                  <div className="h-px bg-[var(--border)] flex-1" />
+                  <span className="text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted)]">
                     {row.rowTitle}
                   </span>
-                  <div className="h-px bg-gray-300 dark:bg-gray-800 flex-1" />
+                  <div className="h-px bg-[var(--border)] flex-1" />
                 </div>
               )}
 
               {/* Four prominent cards arranged horizontally on desktop */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 sm:gap-6 lg:gap-7 max-w-5xl mx-auto items-center justify-center">
-                {row.cards.map((card, cardIndex) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-5 lg:gap-6 max-w-5xl mx-auto items-center justify-center">
+                {row.cards.map((card) => {
                   const themeItem = getTheme(card.themeId);
                   const isActive = themeItem.id === theme;
 
@@ -213,14 +205,14 @@ export const ThemesShowcase = () => {
         </div>
 
         {/* Bottom subtle note & practice link */}
-        <div className="text-center pt-8 border-t border-gray-300/60 dark:border-gray-800/80 max-w-2xl mx-auto space-y-3">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
+        <div className="text-center pt-6 border-t border-[var(--border)] max-w-2xl mx-auto space-y-3">
+          <p className="text-xs text-[var(--text-muted)]">
             Instant theme transitions apply site-wide to all typing workstations, virtual keyboards, and analytics.
           </p>
           <div>
             <Link
               to="/practice"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-gray-900 text-white dark:bg-white dark:text-gray-900 font-semibold text-xs shadow-md hover:scale-105 active:scale-95 transition-all"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--text-primary)] text-[var(--bg-main)] font-semibold text-xs shadow-md hover:scale-105 active:scale-95 transition-all"
             >
               <span>Test Current Theme in Workstation</span>
               <ArrowRight className="w-3.5 h-3.5" />
@@ -236,20 +228,20 @@ export const ThemesShowcase = () => {
  * TiltedThemeCard
  * 
  * Recreates the exact visual appearance of the reference card:
- * 1. Colorful rotated backing shape (rotated counter-clockwise ~ -6deg)
+ * 1. Colorful rotated backing shape (rotated counter-clockwise ~ -5deg)
  * 2. Pure white rounded foreground card (rotated clockwise ~ +1.5deg)
- * 3. Step/Theme index, large number, title, option/tag, description, and selection indicator
+ * 3. Step/Theme index, compact number, title, option/tag, swatches, description, and selection indicator
  */
 const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
   return (
-    <div className="relative group w-full max-w-[250px] mx-auto py-5 select-none">
+    <div className="relative group w-full max-w-[225px] mx-auto py-3.5 select-none">
       {/* 1. COLORFUL ROTATED BACKING SHAPE */}
       <div
-        className="absolute inset-x-2 inset-y-4 rounded-[32px] transition-transform duration-300 ease-out pointer-events-none group-hover:scale-[1.04]"
+        className="absolute inset-x-2 inset-y-3 rounded-[26px] transition-transform duration-300 ease-out pointer-events-none group-hover:scale-[1.03]"
         style={{
           backgroundColor: card.backingColor,
-          transform: 'rotate(-6deg)',
-          boxShadow: `0 20px 35px -8px ${card.backingColor}66, 0 8px 16px -4px rgba(0,0,0,0.12)`,
+          transform: 'rotate(-5deg)',
+          boxShadow: `0 16px 28px -6px ${card.backingColor}55, 0 6px 12px -3px rgba(0,0,0,0.12)`,
         }}
         aria-hidden="true"
       />
@@ -260,18 +252,18 @@ const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
         onClick={onSelect}
         role="button"
         aria-pressed={isActive}
-        className={`relative z-10 w-full rounded-[28px] bg-white text-gray-800 p-6 flex flex-col items-center text-center transition-all duration-300 ease-out cursor-pointer shadow-xl hover:shadow-2xl group-hover:translate-y-[-4px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-black/20 ${
-          isActive ? 'ring-3 ring-black/40 shadow-2xl' : ''
+        className={`relative z-10 w-full rounded-[22px] bg-white text-gray-800 p-4 sm:p-4.5 flex flex-col items-center text-center transition-all duration-300 ease-out cursor-pointer shadow-lg hover:shadow-xl group-hover:translate-y-[-3px] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-black/20 ${
+          isActive ? 'ring-3 ring-black/40 shadow-xl' : ''
         }`}
         style={{
           transform: 'rotate(1.5deg)',
-          minHeight: '390px',
+          minHeight: '330px',
         }}
       >
         {/* Active Pill / Indicator */}
         {isActive && (
           <div
-            className="absolute top-3.5 right-4 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold flex items-center gap-1 shadow-xs"
+            className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-full text-[8.5px] font-mono font-bold flex items-center gap-1 shadow-xs"
             style={{
               backgroundColor: card.backingColor,
               color: '#FFFFFF',
@@ -283,35 +275,35 @@ const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
         )}
 
         {/* Top: STEP / THEME label */}
-        <span className="text-[11px] font-mono uppercase tracking-[0.2em] text-gray-400 font-semibold pt-2">
+        <span className="text-[9.5px] font-mono uppercase tracking-[0.2em] text-gray-400 font-semibold pt-1">
           STEP
         </span>
 
-        {/* Large Bold Number (01, 02, 03, 04...) */}
-        <span className="text-4xl sm:text-5xl font-extrabold tracking-tight text-gray-800 font-sans my-1">
+        {/* Compact Bold Number (01, 02, 03, 04...) */}
+        <span className="text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-800 font-sans my-0.5">
           {card.num}
         </span>
 
-        {/* YOUR TEXT HERE / Theme Name */}
-        <h4 className="text-xs sm:text-[13px] font-bold uppercase tracking-wider text-gray-800 line-clamp-1 mt-1">
+        {/* Theme Name */}
+        <h4 className="text-xs sm:text-[12.5px] font-bold uppercase tracking-wider text-gray-800 line-clamp-1 mt-0.5">
           {themeItem.name}
         </h4>
 
         {/* Subtle Horizontal Divider */}
-        <div className="w-12 h-[1.5px] bg-gray-200 my-3 rounded-full" />
+        <div className="w-9 h-[1.5px] bg-gray-200 my-2 rounded-full" />
 
         {/* OPTION A / Theme Category Tag */}
-        <span className="text-[10px] font-mono uppercase tracking-widest text-gray-500 font-bold mb-1">
+        <span className="text-[9px] font-mono uppercase tracking-widest text-gray-500 font-bold mb-0.5">
           {card.tag}
         </span>
 
         {/* Short Subtitle / Subtext */}
-        <span className="text-[10px] font-semibold tracking-wider uppercase text-gray-400 mb-3">
+        <span className="text-[9px] font-semibold tracking-wider uppercase text-gray-400 mb-2">
           KEYFLOW STUDIO
         </span>
 
         {/* Palette Color Swatch Circles */}
-        <div className="flex items-center justify-center gap-1.5 mb-4">
+        <div className="flex items-center justify-center gap-1.5 mb-2.5">
           {[
             { label: 'Accent', color: themeItem.accent },
             { label: 'Surface', color: themeItem.surface },
@@ -320,7 +312,7 @@ const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
           ].map((swatch) => (
             <div
               key={swatch.label}
-              className="w-4 h-4 rounded-full border border-black/10 shadow-xs"
+              className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs"
               style={{ backgroundColor: swatch.color }}
               title={`${swatch.label}: ${swatch.color}`}
             />
@@ -328,14 +320,14 @@ const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
         </div>
 
         {/* Description: Matching reference's sample text block */}
-        <p className="text-[10px] leading-relaxed text-gray-400 font-sans line-clamp-3 px-1 mt-auto">
+        <p className="text-[9.5px] leading-relaxed text-gray-400 font-sans line-clamp-2 px-0.5 mt-auto">
           {themeItem.subtitle}
         </p>
 
         {/* Bottom Selection Action Button */}
-        <div className="w-full pt-3 mt-3 border-t border-gray-100">
+        <div className="w-full pt-2 mt-2 border-t border-gray-100">
           <span
-            className={`inline-block w-full py-1.5 rounded-xl text-[10px] font-mono font-bold uppercase tracking-wider transition-colors ${
+            className={`inline-block w-full py-1.5 rounded-xl text-[9.5px] font-mono font-bold uppercase tracking-wider transition-colors ${
               isActive
                 ? 'bg-gray-900 text-white shadow-xs'
                 : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
