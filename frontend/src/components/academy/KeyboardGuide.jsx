@@ -3,14 +3,20 @@ import { HandGuide } from './HandGuide';
 import { Hand3DGuide } from './Hand3DGuide';
 
 /**
- * KeyboardGuide — Precision-Engineered ANSI 60% Virtual Keyboard.
+ * KeyboardGuide — Ultra-Realistic Redragon K617 Fizz 60% Mechanical Keyboard.
  * 
- * Symmetrical 15.0 Unit calibration across all 5 rows (ViewBox: 0 0 900 350).
- * Every row matches exactly 860.0px total width with zero gap disparity:
- * - Key Area: x = 20 to 880 (centered at x = 450.0)
- * - Symmetrical 12px chassis padding on both left and right (chassis: x = 8 to 892)
- * Features dual glyphs, tactile bumps on F & J, and signature KEYFLOW neon-red key glow.
- * Integrates realistic articulated human hands naturally positioned over the keys.
+ * Recreated with photographic precision from the custom 60% mechanical reference:
+ * - CNC-milled aluminum chassis with authentic 45-degree chamfered corners
+ * - High-contrast Monochrome Two-Tone:
+ *   • 46 Chalk White keycaps (Alphanumerics, numbers 1 to =, and 6.25u Spacebar)
+ *   • 15 Matte Obsidian Black modifier keycaps (Esc, Tab, Caps, Shifts, Ctrl, Code, Alt, Fn, Backspace, Enter, \)
+ * - Multi-layered 3D mechanical keycaps with realistic plastic thickness, angled skirts, and dished typing surfaces
+ * - Natural ambient contact shadows and soft reflections between keys
+ * - Target key highlight in rich darker red matching KEYFLOW's burgundy/crimson palette
+ * - Physical mechanical switch downstroke displacement on keystroke
+ * - Authentic legends and icons: Tab (⇥), Caps (⇩), Shift (⇧), Backspace (←), Enter (↵), Code (Win/Super)
+ * - Molded tactile homing bars on F & J keycaps
+ * - Coordinated with WebGL 3D anatomical skeletal hand rig for genuine human touch-typing kinematics
  */
 
 import {
@@ -44,6 +50,15 @@ export function KeyboardGuide({
     return { targetKeyId: targetChar.toLowerCase(), needsShift: false };
   }, [targetChar]);
 
+  // Determine key ID from last keystroke
+  const lastPressedKeyId = useMemo(() => {
+    if (!lastKeystroke) return null;
+    const raw = typeof lastKeystroke === 'string' ? lastKeystroke : lastKeystroke.key;
+    if (raw === ' ') return 'space';
+    if (raw && SHIFT_MAP[raw]) return SHIFT_MAP[raw];
+    return raw ? raw.toLowerCase() : null;
+  }, [lastKeystroke]);
+
   // If both keyboard and hand guide are disabled, render nothing
   if (!isVisible && !handGuideVisible) return null;
 
@@ -57,15 +72,15 @@ export function KeyboardGuide({
         viewBox="0 0 900 350"
         className="w-full h-auto block overflow-visible"
         style={{
-          filter: 'drop-shadow(0 20px 50px rgba(0, 0, 0, 0.6))',
+          filter: 'drop-shadow(0 24px 60px rgba(0, 0, 0, 0.70))',
         }}
       >
         <defs>
-          {/* Active Key Neon-Red Bloom */}
-          <filter id="activeKeyRedBloom" x="-40%" y="-40%" width="180%" height="180%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="blur1" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur2" />
-            <feFlood floodColor="#FF1744" floodOpacity="0.65" result="redFlood" />
+          {/* Target Key Dark-Red Bloom (Matches KEYFLOW Burgundy/Crimson Palette) */}
+          <filter id="targetKeyDarkRedBloom" x="-40%" y="-40%" width="180%" height="180%">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur1" />
+            <feGaussianBlur in="SourceGraphic" stdDeviation="7.5" result="blur2" />
+            <feFlood floodColor="#8B001D" floodOpacity="0.60" result="redFlood" />
             <feComposite in="redFlood" in2="blur2" operator="in" result="redGlow" />
             <feMerge>
               <feMergeNode in="redGlow" />
@@ -74,137 +89,287 @@ export function KeyboardGuide({
             </feMerge>
           </filter>
 
-          {/* Outer Chassis Linear Gradient */}
-          <linearGradient id="chassisGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#0F1420" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="#07090F" stopOpacity="0.98" />
+          {/* Target Key Dark-Red Dish Gradient (Rich Burgundy Crimson) */}
+          <linearGradient id="targetKeyDarkRedGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#A81E32" />
+            <stop offset="45%" stopColor="#851022" />
+            <stop offset="100%" stopColor="#680A18" />
           </linearGradient>
 
-          {/* Key Normal Gradient */}
-          <linearGradient id="keyNormGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#151C2B" />
-            <stop offset="100%" stopColor="#0B1019" />
+          {/* CNC Aluminum Chassis Gradient (Silver-Grey Anodized Aluminum with Specular Edge) */}
+          <linearGradient id="chassisAlumGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#C4CCD6" />
+            <stop offset="12%" stopColor="#A8B2BF" />
+            <stop offset="85%" stopColor="#87919E" />
+            <stop offset="100%" stopColor="#6C7581" />
           </linearGradient>
 
-          {/* Active Key Signature Neon-Red Gradient (Matches Reference Image 2) */}
-          <linearGradient id="keyActiveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#FF304F" />
-            <stop offset="100%" stopColor="#D50032" />
+          {/* Inner Recessed Switch Plate Cavity */}
+          <linearGradient id="plateCavityGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#1A202C" />
+            <stop offset="100%" stopColor="#0F131A" />
           </linearGradient>
+
+          {/* Chalk White Keycap Top Dish Gradient (Matte Plastic with Directional Studio Highlight) */}
+          <linearGradient id="chalkWhiteDishGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#FFFFFF" />
+            <stop offset="40%" stopColor="#F8FAFC" />
+            <stop offset="100%" stopColor="#EEF1F5" />
+          </linearGradient>
+
+          {/* Chalk White Keycap Skirt/Wall Gradient */}
+          <linearGradient id="chalkWhiteSkirtGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#CBD1DC" />
+            <stop offset="100%" stopColor="#B4BAC6" />
+          </linearGradient>
+
+          {/* Matte Obsidian Black Keycap Top Dish Gradient */}
+          <linearGradient id="matteBlackDishGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#323742" />
+            <stop offset="45%" stopColor="#21252E" />
+            <stop offset="100%" stopColor="#161920" />
+          </linearGradient>
+
+          {/* Matte Obsidian Black Keycap Skirt/Wall Gradient */}
+          <linearGradient id="matteBlackSkirtGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#1C2028" />
+            <stop offset="100%" stopColor="#101318" />
+          </linearGradient>
+
+          {/* Ambient Contact Shadow Under Keycaps */}
+          <filter id="keyContactShadow" x="-10%" y="-10%" width="120%" height="135%">
+            <feDropShadow dx="0" dy="2.8" stdDeviation="1.6" floodColor="#06090F" floodOpacity="0.65" />
+          </filter>
         </defs>
 
-        {/* ── KEYBOARD CHASSIS BACKGROUND (Symmetrical 12px padding: x=8 to 892) ── */}
+        {/* ── CNC ALUMINUM CHAMFERED CHASSIS (Matches Physical Reference) ── */}
         {isVisible && (
-          <rect
-            x="8"
-            y="6"
-            width="884"
-            height="278"
-            rx="18"
-            ry="18"
-            fill="url(#chassisGrad)"
-            stroke="var(--border, #222B38)"
-            strokeWidth="1.2"
-          />
+          <g className="chassis-group">
+            {/* Outer Case with 45-Degree Chamfered Corners */}
+            <path
+              d="
+                M 22 6
+                L 878 6
+                L 894 22
+                L 894 262
+                L 878 278
+                L 22 278
+                L 6 262
+                L 6 22
+                Z
+              "
+              fill="url(#chassisAlumGrad)"
+              stroke="#CBD5E1"
+              strokeWidth="1.2"
+            />
+
+            {/* Chamfered Bevel Highlight Lip */}
+            <path
+              d="
+                M 23 8
+                L 877 8
+                L 892 23
+                L 892 261
+                L 877 276
+                L 23 276
+                L 8 261
+                L 8 23
+                Z
+              "
+              fill="none"
+              stroke="rgba(255, 255, 255, 0.45)"
+              strokeWidth="0.8"
+            />
+
+            {/* Recessed Switch Plate Cavity */}
+            <path
+              d="
+                M 25 12
+                L 875 12
+                L 888 25
+                L 888 259
+                L 875 272
+                L 25 272
+                L 12 259
+                L 12 25
+                Z
+              "
+              fill="url(#plateCavityGrad)"
+              stroke="#262F3D"
+              strokeWidth="1"
+            />
+          </g>
         )}
 
-        {/* ── KEYBOARD-OFF DESK MAT SILHOUETTE (When Hands ON but Keyboard OFF) ── */}
+        {/* ── KEYBOARD-OFF SILHOUETTE (When Hands ON but Keyboard OFF) ── */}
         {!isVisible && handGuideVisible && (
-          <rect
-            x="8"
-            y="6"
-            width="884"
-            height="278"
-            rx="18"
-            ry="18"
+          <path
+            d="
+              M 22 6
+              L 878 6
+              L 894 22
+              L 894 262
+              L 878 278
+              L 22 278
+              L 6 262
+              L 6 22
+              Z
+            "
             fill="rgba(10, 14, 22, 0.45)"
-            stroke="rgba(255, 23, 68, 0.15)"
+            stroke="rgba(255, 23, 68, 0.20)"
             strokeWidth="1"
             strokeDasharray="4 4"
           />
         )}
 
-        {/* ── KEYCAPS ─────────────────────────────────────────────── */}
+        {/* ── 61-KEY MECHANICAL KEYCAPS (46 Chalk White + 15 Obsidian Black) ── */}
         {isVisible &&
           CALIBRATED_KEYS.map((k) => {
             const isTarget = k.id === targetKeyId;
             const isShiftActive =
               (k.id === 'shift-left' || k.id === 'shift-right') && needsShift;
-            const isActive = isTarget || isShiftActive;
+            const isPressed = k.id === lastPressedKeyId;
+            const isHighlighted = isTarget || isShiftActive;
+            const isBlackKey = k.color === 'black';
+
+            // Real physical mechanical switch downstroke displacement on keystroke
+            const dy = isPressed ? 2.4 : (isHighlighted ? 0.6 : 0);
+
+            // Shading and fills
+            let skirtFill;
+            let dishFill;
+            let dishStroke;
+            let textColor;
+            let secondaryColor;
+            let filterEffect = 'none';
+
+            if (isHighlighted || (isPressed && isTarget)) {
+              // Target key: Darker red matching KEYFLOW's burgundy palette
+              skirtFill = '#520612';
+              dishFill = 'url(#targetKeyDarkRedGrad)';
+              dishStroke = '#BD2D44';
+              textColor = '#FFFFFF';
+              secondaryColor = 'rgba(255, 255, 255, 0.90)';
+              filterEffect = 'url(#targetKeyDarkRedBloom)';
+            } else if (isBlackKey) {
+              // Matte obsidian black modifiers
+              skirtFill = 'url(#matteBlackSkirtGrad)';
+              dishFill = 'url(#matteBlackDishGrad)';
+              dishStroke = '#3D4452';
+              textColor = '#F8FAFC';
+              secondaryColor = '#CBD5E1';
+            } else {
+              // Chalk white alphanumerics
+              skirtFill = 'url(#chalkWhiteSkirtGrad)';
+              dishFill = 'url(#chalkWhiteDishGrad)';
+              dishStroke = '#D7DCE4';
+              textColor = '#0F131A';
+              secondaryColor = '#1E2530';
+            }
+
+            const strokeWidth = isHighlighted ? 1.5 : 0.8;
 
             return (
-              <g key={k.id} className="transition-all duration-100">
-                {/* Keycap rectangle */}
+              <g
+                key={k.id}
+                className="transition-transform duration-75 select-none"
+                style={{
+                  transform: `translate3d(0, ${dy}px, 0)`,
+                }}
+              >
+                {/* 3D Extruded Keycap Skirt (Side Walls & Contact Shadow) */}
                 <rect
                   x={k.x}
-                  y={k.y}
+                  y={k.y + 2.5}
                   width={k.w}
                   height={k.h}
-                  rx="7"
-                  ry="7"
-                  fill={isActive ? 'url(#keyActiveGrad)' : 'url(#keyNormGrad)'}
-                  stroke={isActive ? '#FF6B8B' : 'rgba(255, 255, 255, 0.08)'}
-                  strokeWidth={isActive ? '1.8' : '1'}
-                  filter={isActive ? 'url(#activeKeyRedBloom)' : 'none'}
+                  rx="4.5"
+                  ry="4.5"
+                  fill={skirtFill}
+                  filter={isHighlighted ? 'none' : 'url(#keyContactShadow)'}
                 />
 
-                {/* Keycap Dual Glyphs */}
+                {/* 3D Cradled Keycap Top Dish (Typing Surface) */}
+                <rect
+                  x={k.x + 1.2}
+                  y={k.y + 0.8}
+                  width={k.w - 2.4}
+                  height={k.h - 4.2}
+                  rx="3.5"
+                  ry="3.5"
+                  fill={dishFill}
+                  stroke={dishStroke}
+                  strokeWidth={strokeWidth}
+                  filter={filterEffect}
+                />
+
+                {/* ── KEYCAP LEGENDS (Exact Match to Physical Reference) ── */}
+                {/* Case 1: Dual Glyph Keys (Numbers 1-0, -, =, [, ], ;, ', ,, ., /) */}
                 {k.top && k.bot ? (
                   <g textAnchor="middle" className="select-none pointer-events-none">
-                    {/* Shift character (top) */}
+                    {/* Shifted symbol (top) */}
                     <text
                       x={k.cx}
-                      y={k.y + 16}
-                      fill={isActive ? 'rgba(255,255,255,0.9)' : '#64748b'}
-                      fontSize="11"
+                      y={k.y + 15}
+                      fill={secondaryColor}
+                      fontSize="10"
                       fontFamily="Inter, ui-monospace, monospace"
-                      fontWeight="500"
+                      fontWeight="700"
                     >
                       {k.top}
                     </text>
-                    {/* Base character (bottom) */}
+
+                    {/* Primary character / digit (bottom) */}
                     <text
                       x={k.cx}
-                      y={k.y + 34}
-                      fill={isActive ? '#ffffff' : '#cbd5e1'}
-                      fontSize="14"
+                      y={k.y + 30}
+                      fill={textColor}
+                      fontSize="13"
                       fontFamily="Inter, ui-monospace, monospace"
-                      fontWeight={isActive ? '700' : '500'}
+                      fontWeight={isHighlighted ? '800' : '700'}
                     >
                       {k.bot}
                     </text>
                   </g>
+                ) : k.id === 'space' ? (
+                  /* Case 2: Clean Matte White 6.25u Spacebar */
+                  <g className="select-none pointer-events-none">
+                    {/* Subtle centered ergonomic tactile groove */}
+                    <line
+                      x1={k.cx - 24}
+                      y1={k.cy + 1}
+                      x2={k.cx + 24}
+                      y2={k.cy + 1}
+                      stroke={isHighlighted ? '#FFFFFF' : '#D1D5DB'}
+                      strokeWidth="1.2"
+                      strokeLinecap="round"
+                    />
+                  </g>
                 ) : (
-                  /* Single Label Key */
-                  <text
-                    x={k.cx}
-                    y={k.cy + (k.isSpecial ? 4 : 5)}
-                    textAnchor="middle"
-                    fill={
-                      isActive
-                        ? '#ffffff'
-                        : k.isSpecial
-                        ? '#64748b'
-                        : '#cbd5e1'
-                    }
-                    fontSize={k.isSpecial ? '12' : '15'}
-                    fontFamily="Inter, ui-monospace, monospace"
-                    fontWeight={isActive ? '700' : '500'}
-                    className="select-none pointer-events-none"
-                  >
-                    {k.label}
-                  </text>
+                  /* Case 3: Single Label Keycaps (Alphas & Modifiers) */
+                  <g textAnchor="middle" className="select-none pointer-events-none">
+                    <text
+                      x={k.cx}
+                      y={k.cy + (k.isSpecial ? 4 : 5)}
+                      fill={textColor}
+                      fontSize={k.u >= 2.0 ? '12' : k.isSpecial ? '11.5' : '14'}
+                      fontFamily="Inter, ui-monospace, monospace"
+                      fontWeight={isHighlighted ? '800' : '700'}
+                    >
+                      {k.label || k.id.toUpperCase()}
+                    </text>
+                  </g>
                 )}
 
-                {/* Tactile home bumps on 'F' and 'J' */}
+                {/* Tactile Homing Bars on 'F' and 'J' Keycaps */}
                 {k.hasBump && (
                   <rect
-                    x={k.cx - 8}
-                    y={k.y + k.h - 6}
-                    width="16"
-                    height="2"
-                    rx="1"
-                    fill={isActive ? 'rgba(255,255,255,0.9)' : '#64748b'}
+                    x={k.cx - 7}
+                    y={k.y + k.h - 8.5}
+                    width="14"
+                    height="2.2"
+                    rx="1.1"
+                    fill={isHighlighted ? '#FFFFFF' : '#94A3B8'}
                   />
                 )}
               </g>

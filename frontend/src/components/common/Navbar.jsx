@@ -25,15 +25,47 @@ import {
   LogOut,
   Sparkles,
   BarChart3,
+  ChevronDown,
+  Target,
+  Sliders,
+  Shield,
 } from 'lucide-react';
+import TelemetryProfileModal from '../telemetry/TelemetryProfileModal';
 
 export const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profileTab, setProfileTab] = useState('profile');
+  const userMenuRef = React.useRef(null);
+
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
   const { t } = useI18n();
   useTheme();
+
+  // Close user menu on outside click or Escape
+  useEffect(() => {
+    const handleOutsideClick = (e) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setUserMenuOpen(false);
+      }
+    };
+    if (userMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [userMenuOpen]);
 
   // Close mobile menu on resize to desktop (md: 768px)
   useEffect(() => {
@@ -84,7 +116,7 @@ export const Navbar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full backdrop-blur-md bg-[color-mix(in_srgb,var(--bg-main)_90%,transparent)] border-b border-[var(--border)] transition-colors duration-200">
+    <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-[color-mix(in_srgb,var(--bg-main)_90%,transparent)] border-b border-[var(--border)] transition-colors duration-200">
       <div className="container-app h-16 flex items-center justify-between gap-2 lg:gap-4">
         {/* Brand Logo */}
         <Link
@@ -148,12 +180,148 @@ export const Navbar = () => {
 
           {isAuthenticated ? (
             <div className="flex items-center gap-2 pl-2 border-l border-[var(--border)] shrink-0">
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-xs font-mono text-[var(--text-primary)] shrink-0">
-                <UserIcon className="w-3.5 h-3.5 text-[var(--accent)] shrink-0" />
-                <span className="font-semibold max-w-[100px] truncate">
-                  {user?.profile?.display_name || user?.username || 'Learner'}
-                </span>
+              {/* Authenticated User Menu Dropdown Button */}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen((prev) => !prev)}
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] transition-all cursor-pointer shrink-0 shadow-xs"
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="menu"
+                  aria-label="User profile and settings menu"
+                >
+                  <div className="w-5 h-5 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center text-[10px] font-bold">
+                    {(user?.profile?.display_name || user?.username || 'U')[0].toUpperCase()}
+                  </div>
+                  <span className="font-semibold max-w-[100px] truncate">
+                    {user?.profile?.display_name || user?.username || 'Learner'}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-[var(--text-muted)] transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {/* Dropdown Menu */}
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100 font-mono text-xs backdrop-blur-md">
+                    <div className="px-3 py-2 border-b border-[var(--border)] mb-1">
+                      <div className="font-bold text-[var(--text-primary)] truncate">
+                        {user?.profile?.display_name || user?.username}
+                      </div>
+                      <div className="text-[10px] text-[var(--text-muted)] truncate">
+                        {user?.email || 'Logged In'}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                        <span className="text-[10px] text-emerald-400 font-semibold">Active Member</span>
+                      </div>
+                    </div>
+
+                    {/* Profile Navigation Links */}
+                    <div className="space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          setProfileTab('profile');
+                          setIsProfileOpen(true);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+                      >
+                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                          <UserIcon className="w-3.5 h-3.5 text-[var(--accent)]" />
+                        </div>
+                        <span>Profile Information</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          setProfileTab('goals');
+                          setIsProfileOpen(true);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+                      >
+                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                          <Target className="w-3.5 h-3.5 text-emerald-400" />
+                        </div>
+                        <span>Practice Targets & Goals</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          setProfileTab('accessibility');
+                          setIsProfileOpen(true);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+                      >
+                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                          <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                        </div>
+                        <span>Accessibility & Motion</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          setProfileTab('security');
+                          setIsProfileOpen(true);
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+                      >
+                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                          <Shield className="w-3.5 h-3.5 text-sky-400" />
+                        </div>
+                        <span>Security & Export Data</span>
+                      </button>
+                    </div>
+
+                    <div className="my-1 border-t border-[var(--border)]" />
+
+                    <div className="space-y-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigate('/telemetry');
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+                      >
+                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                          <BarChart3 className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                        </div>
+                        <span>Telemetry Dashboard</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          navigate('/workstation');
+                        }}
+                        className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] transition-colors cursor-pointer"
+                      >
+                        <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                          <Keyboard className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                        </div>
+                        <span>Workstation Studio</span>
+                      </button>
+                    </div>
+
+                    <div className="my-1 border-t border-[var(--border)]" />
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer font-semibold"
+                    >
+                      <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                        <LogOut className="w-3.5 h-3.5" />
+                      </div>
+                      <span>{t('nav.logout') || 'Sign Out'}</span>
+                    </button>
+                  </div>
+                )}
               </div>
+
               <button
                 type="button"
                 onClick={handleLogout}
@@ -244,14 +412,30 @@ export const Navbar = () => {
           <div className="pt-3 border-t border-[var(--border)] flex flex-col gap-2">
             {isAuthenticated ? (
               <>
-                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--bg-elevated)] text-sm">
-                  <span className="font-semibold text-[var(--text-primary)]">
-                    {user?.profile?.display_name || user?.username}
-                  </span>
+                <div className="flex items-center justify-between p-2.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-sm">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setProfileTab('profile');
+                      setIsProfileOpen(true);
+                    }}
+                    className="flex items-center gap-2 text-left cursor-pointer hover:text-[var(--accent)] transition-colors"
+                  >
+                    <UserIcon className="w-4 h-4 text-[var(--accent)] shrink-0" />
+                    <div>
+                      <div className="font-semibold text-[var(--text-primary)]">
+                        {user?.profile?.display_name || user?.username}
+                      </div>
+                      <div className="text-[10px] text-[var(--accent)] font-mono">
+                        Profile & Settings →
+                      </div>
+                    </div>
+                  </button>
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="text-xs text-red-400 hover:underline flex items-center gap-1"
+                    className="text-xs text-red-400 hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <LogOut className="w-3.5 h-3.5" />
                     <span>{t('nav.logout') || 'Sign Out'}</span>
@@ -293,6 +477,15 @@ export const Navbar = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Global Authoritative Profile & Settings Modal */}
+      {isAuthenticated && (
+        <TelemetryProfileModal
+          isOpen={isProfileOpen}
+          onClose={() => setIsProfileOpen(false)}
+          initialTab={profileTab}
+        />
       )}
     </header>
   );

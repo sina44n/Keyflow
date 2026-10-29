@@ -21,7 +21,7 @@ import {
   RotateCcw,
   Keyboard,
   HandMetal,
-  Sparkles,
+  User,
 } from 'lucide-react';
 import { SoundSelector } from '../common/SoundSelector';
 import { Button } from '../common/Button';
@@ -50,23 +50,24 @@ export const WorkstationToolbar = ({
   onOpenHistory,
   onOpenShortcuts,
   onOpenCompetitions,
+  onOpenProfile,
   onResetTest,
-  t,
+  _t,
 }) => {
   const TIME_OPTIONS = [15, 30, 60, 120];
   const WORD_OPTIONS = [10, 25, 50, 100];
 
   return (
-    <div className="card-panel p-2.5 sm:p-3 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+    <div className="card-panel p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2.5 text-xs font-mono w-full">
       {/* Left Cluster: Practice Mode Selectors */}
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {/* Core Modes */}
         <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
           {/* Timed Mode */}
           <button
             type="button"
             onClick={() => setMode('timed')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
               mode === 'timed' && !customActive && !activeCompetition
                 ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -81,7 +82,7 @@ export const WorkstationToolbar = ({
           <button
             type="button"
             onClick={() => setMode('words')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
               mode === 'words' && !customActive && !activeCompetition
                 ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -96,7 +97,7 @@ export const WorkstationToolbar = ({
           <button
             type="button"
             onClick={() => setMode('passage')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
               mode === 'passage' && !customActive && !activeCompetition
                 ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -111,7 +112,7 @@ export const WorkstationToolbar = ({
           <button
             type="button"
             onClick={() => setMode('accuracy')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
               mode === 'accuracy'
                 ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -123,16 +124,16 @@ export const WorkstationToolbar = ({
           </button>
         </div>
 
-        {/* Custom Studio Trigger Button (PART 3.1) */}
+        {/* Custom Studio Trigger Button */}
         <button
           type="button"
           onClick={onOpenCustomStudio}
-          className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border font-medium transition-all cursor-pointer ${
+          className={`h-8 flex items-center gap-1.5 px-2.5 rounded-xl border font-medium transition-all cursor-pointer ${
             customActive
               ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] font-bold shadow-xs'
               : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
           }`}
-          title="Open Custom Typing Studio (Alt+C)"
+          title={customTitle ? `Custom Studio: ${customTitle} (Alt+C)` : "Open Custom Typing Studio (Alt+C)"}
           aria-label="Open Custom Typing Studio"
         >
           <Sliders className="w-3.5 h-3.5" />
@@ -142,11 +143,11 @@ export const WorkstationToolbar = ({
           )}
         </button>
 
-        {/* Competition Arena Trigger Button (PART 5.1) */}
+        {/* Competition Arena Trigger Button */}
         <button
           type="button"
           onClick={onOpenCompetitions}
-          className={`flex items-center gap-1.5 px-2.5 py-2 rounded-xl border font-medium transition-all cursor-pointer ${
+          className={`h-8 flex items-center gap-1.5 px-2.5 rounded-xl border font-medium transition-all cursor-pointer ${
             activeCompetition
               ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] font-bold shadow-xs'
               : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
@@ -164,15 +165,15 @@ export const WorkstationToolbar = ({
         </button>
 
         {/* Secondary Sub-Controls depending on active mode */}
-        <div className="flex items-center gap-1 pl-1">
+        <div className="flex items-center gap-1">
           {mode === 'timed' && !customActive && !activeCompetition && (
-            <div className="flex items-center gap-1 bg-[var(--bg-elevated)] p-1 rounded-lg border border-[var(--border)]">
+            <div className="flex items-center gap-1 bg-[var(--bg-elevated)] p-1 rounded-xl border border-[var(--border)] h-8">
               {TIME_OPTIONS.map((timeVal) => (
                 <button
                   key={timeVal}
                   type="button"
                   onClick={() => setTimeLimit(timeVal)}
-                  className={`px-2 py-0.5 rounded text-xs transition-colors cursor-pointer ${
+                  className={`h-6 px-2 rounded text-xs transition-colors cursor-pointer flex items-center justify-center ${
                     timeLimit === timeVal
                       ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold'
                       : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -185,13 +186,13 @@ export const WorkstationToolbar = ({
           )}
 
           {mode === 'words' && !customActive && !activeCompetition && (
-            <div className="flex items-center gap-1 bg-[var(--bg-elevated)] p-1 rounded-lg border border-[var(--border)]">
+            <div className="flex items-center gap-1 bg-[var(--bg-elevated)] p-1 rounded-xl border border-[var(--border)] h-8">
               {WORD_OPTIONS.map((w) => (
                 <button
                   key={w}
                   type="button"
                   onClick={() => setWordLimit(w)}
-                  className={`px-2 py-0.5 rounded text-xs transition-colors cursor-pointer ${
+                  className={`h-6 px-2 rounded text-xs transition-colors cursor-pointer flex items-center justify-center ${
                     wordLimit === w
                       ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold'
                       : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -207,7 +208,7 @@ export const WorkstationToolbar = ({
             <select
               value={selectedPassageIndex}
               onChange={(e) => setSelectedPassageIndex(parseInt(e.target.value, 10))}
-              className="px-2.5 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--text-primary)] cursor-pointer focus:outline-none focus:border-[var(--accent)] max-w-[160px] truncate"
+              className="h-8 px-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--text-primary)] cursor-pointer focus:outline-none focus:border-[var(--accent)] max-w-[170px] truncate"
             >
               {passages.map((p, idx) => (
                 <option key={p.id} value={idx}>
@@ -218,12 +219,12 @@ export const WorkstationToolbar = ({
           )}
 
           {customActive && (
-            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[var(--bg-elevated)] border border-[var(--accent)]/40 text-[11px] text-[var(--accent)]">
+            <div className="h-8 flex items-center gap-1.5 px-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 text-[11px] text-[var(--accent)]">
               <span>Custom Text Active</span>
               <button
                 type="button"
                 onClick={onOpenCustomStudio}
-                className="underline hover:text-[var(--text-primary)]"
+                className="underline hover:text-[var(--text-primary)] cursor-pointer"
               >
                 Configure
               </button>
@@ -238,7 +239,7 @@ export const WorkstationToolbar = ({
         <button
           type="button"
           onClick={onOpenSavedTexts}
-          className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
+          className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
           title="Saved Passages Library (Alt+S)"
           aria-label="Saved Passages"
         >
@@ -250,7 +251,7 @@ export const WorkstationToolbar = ({
         <button
           type="button"
           onClick={onOpenHistory}
-          className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
+          className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
           title="Practice Session History (Alt+H)"
           aria-label="Practice History"
         >
@@ -262,9 +263,9 @@ export const WorkstationToolbar = ({
         <button
           type="button"
           onClick={toggleFocusMode}
-          className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+          className={`h-8 px-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
             focusMode
-              ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)] font-bold'
+              ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
               : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
           }`}
           title="Focus Mode (Alt+F)"
@@ -279,7 +280,7 @@ export const WorkstationToolbar = ({
         <button
           type="button"
           onClick={toggleKeyboardGuide}
-          className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+          className={`h-8 px-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
             keyboardGuideOn
               ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-semibold shadow-xs'
               : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -295,7 +296,7 @@ export const WorkstationToolbar = ({
         <button
           type="button"
           onClick={toggleHandGuide}
-          className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1.5 ${
+          className={`h-8 px-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
             handGuideOn
               ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-semibold shadow-xs'
               : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -310,11 +311,25 @@ export const WorkstationToolbar = ({
         {/* Keyboard Sound Selector */}
         <SoundSelector variant="toolbar" />
 
+        {/* Workstation Profile Access Button */}
+        {onOpenProfile && (
+          <button
+            type="button"
+            onClick={onOpenProfile}
+            className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
+            title="Workstation Profile & Settings"
+            aria-label="Workstation Profile & Settings"
+          >
+            <User className="w-3.5 h-3.5 text-[var(--accent)]" />
+            <span className="hidden lg:inline">Profile</span>
+          </button>
+        )}
+
         {/* Shortcuts Help (PART 4.5) */}
         <button
           type="button"
           onClick={onOpenShortcuts}
-          className="p-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer"
+          className="h-8 w-8 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center justify-center"
           title="Keyboard Shortcuts (Alt+K)"
           aria-label="Keyboard Shortcuts"
         >

@@ -61,12 +61,18 @@ const WEEKLY_GOAL_OPTIONS = [
  * Comprehensive Profile and Settings experience embedded directly within Telemetry.
  * Features 2-column responsive layout (Desktop: Form left, Navigation card right; Mobile: single-column).
  */
-export default function TelemetryProfileModal({ isOpen, onClose, sessions = [] }) {
+export default function TelemetryProfileModal({ isOpen, onClose, sessions = [], initialTab = 'profile' }) {
   const { user, applyUserSession, logout } = useAuth();
   const userId = user?.id || null;
 
   // Active navigation tab
-  const [activeTab, setActiveTab] = useState('profile');
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   // Form states
   const [username, setUsername] = useState(user?.username || '');

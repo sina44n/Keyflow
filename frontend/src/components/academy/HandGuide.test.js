@@ -37,16 +37,16 @@ describe('Realistic Hand Guidance & Virtual Keyboard Calibration', () => {
     assert.equal(KEY_COORDS['l'].cy, 145);
     assert.equal(KEY_COORDS[';'].cy, 145);
 
-    // Space bar should be centered horizontally at x = 450
-    assert.equal(KEY_COORDS['space'].cx, 450);
+    // Space bar should be calibrated for ANSI 60% mechanical layout (cx = 413.9)
+    assert.equal(KEY_COORDS['space'].cx, 413.9);
     assert.equal(KEY_COORDS['space'].cy, 251);
   });
 
   it('validates 15.0 ANSI layout with exactly calibrated row widths', () => {
-    assert.equal(CALIBRATED_KEYS.length, 58, 'Contains 58 calibrated keyboard keys');
+    assert.equal(CALIBRATED_KEYS.length, 61, 'Contains 61 calibrated Redragon K617 Fizz mechanical keys');
     const spaceKey = CALIBRATED_KEYS.find((k) => k.id === 'space');
     assert.ok(spaceKey, 'Space key exists in calibrated layout');
-    assert.ok(spaceKey.w > 400, 'Space key has proper 8.5U width');
+    assert.ok(spaceKey.w > 300, 'Space key has proper 6.25U width');
   });
 
   it('provides comprehensive dual-character shift mappings', () => {

@@ -13,6 +13,7 @@ import {
   Minimize2,
   Flag,
   AlertCircle,
+  User,
 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { KeyboardGuide } from '../components/academy/KeyboardGuide';
@@ -31,6 +32,7 @@ import { SavedTextsModal } from '../components/workstation/SavedTextsModal';
 import { PracticeHistoryModal } from '../components/workstation/PracticeHistoryModal';
 import { ShortcutsModal } from '../components/workstation/ShortcutsModal';
 import { CompetitionModal } from '../components/workstation/CompetitionModal';
+import TelemetryProfileModal from '../components/telemetry/TelemetryProfileModal';
 
 const PRACTICE_PASSAGES = [
   {
@@ -98,6 +100,7 @@ export const WorkstationPage = () => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [competitionsOpen, setCompetitionsOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   // Focus Mode (distraction-free)
   const [focusMode, setFocusMode] = useState(false);
@@ -194,8 +197,18 @@ export const WorkstationPage = () => {
   // Automatic line-by-line smooth viewport progression
   useEffect(() => {
     if (!viewportRef.current) return;
+    const prefersReducedMotion =
+      (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) ||
+      (() => {
+        try {
+          return localStorage.getItem('keyflow_reduced_motion') === 'true';
+        } catch {
+          return false;
+        }
+      })();
+
     if (typed.length === 0) {
-      viewportRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      viewportRef.current.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
       return;
     }
     const activeSpan = activeCharSpanRef.current;
@@ -205,12 +218,12 @@ export const WorkstationPage = () => {
     const spanHeight = activeSpan.offsetHeight || 38;
 
     // Center active line in 3-line viewport:
-    // When spanTop > spanHeight, scroll so active line remains in center
+    // When spanTop > spanHeight, scroll so active line remains in center without pushing keyboard
     const targetScrollTop = Math.max(0, spanTop - spanHeight);
 
     viewportRef.current.scrollTo({
       top: targetScrollTop,
-      behavior: 'smooth',
+      behavior: prefersReducedMotion ? 'auto' : 'smooth',
     });
   }, [typed.length, currentTargetText]);
 
@@ -490,196 +503,216 @@ export const WorkstationPage = () => {
   }, [mode, timeLimit, wordLimit, selectedPassageIndex, handleReset]);
 
   return (
-    <div className="container-app py-6 sm:py-10 space-y-5">
-      {/* Top Banner & Header (Hidden in Focus Mode) */}
-      {!focusMode && (
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-[var(--border)] transition-all">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[11px] font-mono text-[var(--accent)]">
-              <Sparkles className="w-3 h-3" />
-              <span>{t('hero.latency') || 'Zero Latency Precision'}</span>
+    <div className="container-app py-6 sm:py-10">
+      <div className="w-full max-w-5xl mx-auto space-y-5">
+        {/* Top Banner & Header (Hidden in Focus Mode) */}
+        {!focusMode && (
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-[var(--border)] transition-all">
+            <div>
+              <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[11px] font-mono text-[var(--accent)]">
+                <Sparkles className="w-3 h-3" />
+                <span>{t('hero.latency') || 'Zero Latency Precision'}</span>
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] mt-1 tracking-tight">
+                {t('nav.workstation') || 'Workstation'}
+              </h1>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] mt-1 tracking-tight">
-              {t('nav.workstation') || 'Workstation'}
-            </h1>
-          </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              icon={BookOpen}
-              onClick={() => navigate('/academy')}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                icon={User}
+                onClick={() => setProfileModalOpen(true)}
+                title="Workstation Profile & Settings"
+              >
+                Profile
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                icon={BookOpen}
+                onClick={() => navigate('/academy')}
+              >
+                {t('hero.exploreAcademy') || 'Academy'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Focus Mode floating banner */}
+        {focusMode && (
+          <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 text-xs font-mono animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 text-[var(--text-secondary)]">
+              <Eye className="w-4 h-4 text-[var(--accent)]" />
+              <span>Focus Mode Active • Distraction-free typing</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFocusMode(false)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--accent)] text-[var(--accent-fg)] font-bold hover:bg-[var(--accent-hover)] transition-colors cursor-pointer"
             >
-              {t('hero.exploreAcademy') || 'Academy'}
-            </Button>
+              <Minimize2 className="w-3.5 h-3.5" />
+              <span>Exit Focus (Esc)</span>
+            </button>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Focus Mode floating banner */}
-      {focusMode && (
-        <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 text-xs font-mono animate-in fade-in duration-150">
-          <div className="flex items-center gap-2 text-[var(--text-secondary)]">
-            <Eye className="w-4 h-4 text-[var(--accent)]" />
-            <span>Focus Mode Active • Distraction-free typing</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setFocusMode(false)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--accent)] text-[var(--accent-fg)] font-bold hover:bg-[var(--accent-hover)] transition-colors cursor-pointer"
-          >
-            <Minimize2 className="w-3.5 h-3.5" />
-            <span>Exit Focus (Esc)</span>
-          </button>
-        </div>
-      )}
-
-      {/* Workstation Feature Toolbar (Hidden in Focus Mode) */}
-      {!focusMode && (
-        <WorkstationToolbar
-          mode={mode}
-          setMode={handleModeChange}
-          timeLimit={timeLimit}
-          setTimeLimit={(val) => {
-            setTimeLimit(val);
-            if (user?.id) profileAPI.updatePreferences({ preferred_duration: val }).catch(() => {});
-          }}
-          wordLimit={wordLimit}
-          setWordLimit={(val) => {
-            setWordLimit(val);
-            if (user?.id) profileAPI.updatePreferences({ preferred_word_count: val }).catch(() => {});
-          }}
-          selectedPassageIndex={selectedPassageIndex}
-          setSelectedPassageIndex={setSelectedPassageIndex}
-          passages={PRACTICE_PASSAGES}
-          customActive={Boolean(customPrompt)}
-          customTitle="Custom Drill"
-          activeCompetition={activeCompetition?.competition}
-          keyboardGuideOn={keyboardGuideOn}
-          toggleKeyboardGuide={toggleKeyboardGuide}
-          handGuideOn={handGuideOn}
-          toggleHandGuide={toggleHandGuide}
-          focusMode={focusMode}
-          toggleFocusMode={() => setFocusMode((v) => !v)}
-          onOpenCustomStudio={() => setCustomStudioOpen(true)}
-          onOpenSavedTexts={() => setSavedTextsOpen(true)}
-          onOpenHistory={() => setHistoryOpen(true)}
-          onOpenShortcuts={() => setShortcutsOpen(true)}
-          onOpenCompetitions={() => setCompetitionsOpen(true)}
-          onResetTest={handleReset}
-          t={t}
-        />
-      )}
-
-      {/* Main Workstation Layout — Centered Symmetrical Composition */}
-      <div className="w-full max-w-[820px] mx-auto space-y-6">
-        {/* Live Telemetry Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-3 px-2 text-xs font-mono text-[var(--text-muted)]">
-          <div className="flex items-center gap-3 sm:gap-6">
-            <div className="flex items-center gap-1.5">
-              <Gauge className="w-4 h-4 text-[var(--accent)]" />
-              <span className="text-[11px] uppercase">{t('workstation.liveWpm') || 'Live WPM'}</span>
-              <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveWpm}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Target className="w-4 h-4 text-[var(--ui-success)]" />
-              <span className="text-[11px] uppercase">{t('workstation.accuracy') || 'Accuracy'}</span>
-              <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveAccuracy}%</span>
-            </div>
-            {/* Target Goal Selector */}
-            <div className="flex items-center gap-1.5 pl-1 border-l border-[var(--border)]">
-              <Flag className="w-3.5 h-3.5 text-amber-400" />
-              <span className="text-[10px] uppercase">Goal</span>
-              <select
-                value={wpmGoal || ''}
-                onChange={(e) => setWpmGoal(e.target.value ? Number(e.target.value) : null)}
-                className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[11px] font-mono text-[var(--text-primary)] cursor-pointer"
-                title="Set Target Speed Goal"
-              >
-                <option value="">None</option>
-                <option value="40">40 WPM</option>
-                <option value="60">60 WPM</option>
-                <option value="80">80 WPM</option>
-                <option value="100">100 WPM</option>
-                <option value="120">120 WPM</option>
-              </select>
-            </div>
-            {mode === 'accuracy' && (
-              <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                98%+ Goal
-              </span>
-            )}
-            {activeCompetition && (
-              <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                <Trophy className="w-3 h-3" />
-                <span>Room {activeCompetition.competition.code}</span>
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-4">
-            {mode === 'timed' ? (
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-[var(--accent)]" />
-                <span className="text-base font-bold text-[var(--accent)] font-mono">{remainingTime}s</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1">
-                <span>{typed.length}</span>
-                <span>/</span>
-                <span>{currentTargetText.length} chars</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Controlled Fixed-Height Typing Viewport — Smooth Line-by-Line Progression */}
-        <div
-          ref={viewportRef}
-          onClick={() => inputRef.current && inputRef.current.focus()}
-          className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-text relative select-none leading-relaxed font-mono text-base sm:text-2xl whitespace-pre-wrap break-words overflow-hidden min-h-[160px] h-[160px] sm:h-[175px] ${
-            isCompleted ? 'opacity-85 border-[var(--border)]' : 'border-[var(--accent)] shadow-sm'
-          }`}
-          style={{ background: 'var(--bg-surface)', scrollBehavior: 'smooth' }}
-        >
-          {currentTargetText.split('').map((char, idx) => {
-            const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted);
-            const isCurrent = idx === typed.length && !isCompleted;
-            return (
-              <span
-                key={idx}
-                ref={isCurrent ? activeCharSpanRef : null}
-                className={feedback.className}
-              >
-                {char}
-              </span>
-            );
-          })}
-
-          <input
-            ref={inputRef}
-            type="text"
-            value={typed}
-            onChange={handleInputChange}
-            onKeyDown={(e) => {
-              if (isCompleted) return;
-              if (e.key === 'Escape') return;
-              if (e.key === 'Tab') {
-                e.preventDefault();
-              }
-              setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+        {/* Workstation Feature Toolbar (Hidden in Focus Mode) */}
+        {!focusMode && (
+          <WorkstationToolbar
+            mode={mode}
+            setMode={handleModeChange}
+            timeLimit={timeLimit}
+            setTimeLimit={(val) => {
+              setTimeLimit(val);
+              if (user?.id) profileAPI.updatePreferences({ preferred_duration: val }).catch(() => {});
             }}
-            disabled={isCompleted}
-            className="absolute inset-0 opacity-0 cursor-default"
-            autoFocus
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            aria-label="Type the passage text here"
+            wordLimit={wordLimit}
+            setWordLimit={(val) => {
+              setWordLimit(val);
+              if (user?.id) profileAPI.updatePreferences({ preferred_word_count: val }).catch(() => {});
+            }}
+            selectedPassageIndex={selectedPassageIndex}
+            setSelectedPassageIndex={setSelectedPassageIndex}
+            passages={PRACTICE_PASSAGES}
+            customActive={Boolean(customPrompt)}
+            customTitle="Custom Drill"
+            activeCompetition={activeCompetition?.competition}
+            keyboardGuideOn={keyboardGuideOn}
+            toggleKeyboardGuide={toggleKeyboardGuide}
+            handGuideOn={handGuideOn}
+            toggleHandGuide={toggleHandGuide}
+            focusMode={focusMode}
+            toggleFocusMode={() => setFocusMode((v) => !v)}
+            onOpenCustomStudio={() => setCustomStudioOpen(true)}
+            onOpenSavedTexts={() => setSavedTextsOpen(true)}
+            onOpenHistory={() => setHistoryOpen(true)}
+            onOpenShortcuts={() => setShortcutsOpen(true)}
+            onOpenCompetitions={() => setCompetitionsOpen(true)}
+            onOpenProfile={() => setProfileModalOpen(true)}
+            onResetTest={handleReset}
+            t={t}
           />
-        </div>
+        )}
+
+        {/* Main Workstation Layout — Expanded Typing Workspace */}
+        <div className="w-full space-y-5">
+          {/* Live Telemetry Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-2 text-xs font-mono text-[var(--text-muted)]">
+            <div className="flex items-center gap-3 sm:gap-6">
+              <div className="flex items-center gap-1.5">
+                <Gauge className="w-4 h-4 text-[var(--accent)]" />
+                <span className="text-[11px] uppercase">{t('workstation.liveWpm') || 'Live WPM'}</span>
+                <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveWpm}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-[var(--ui-success)]" />
+                <span className="text-[11px] uppercase">{t('workstation.accuracy') || 'Accuracy'}</span>
+                <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveAccuracy}%</span>
+              </div>
+              {/* Target Goal Selector */}
+              <div className="flex items-center gap-1.5 pl-1 border-l border-[var(--border)]">
+                <Flag className="w-3.5 h-3.5 text-amber-400" />
+                <span className="text-[10px] uppercase">Goal</span>
+                <select
+                  value={wpmGoal || ''}
+                  onChange={(e) => setWpmGoal(e.target.value ? Number(e.target.value) : null)}
+                  className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[11px] font-mono text-[var(--text-primary)] cursor-pointer"
+                  title="Set Target Speed Goal"
+                >
+                  <option value="">None</option>
+                  <option value="40">40 WPM</option>
+                  <option value="60">60 WPM</option>
+                  <option value="80">80 WPM</option>
+                  <option value="100">100 WPM</option>
+                  <option value="120">120 WPM</option>
+                </select>
+              </div>
+              {mode === 'accuracy' && (
+                <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                  98%+ Goal
+                </span>
+              )}
+              {activeCompetition && (
+                <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <Trophy className="w-3 h-3" />
+                  <span>Room {activeCompetition.competition.code}</span>
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4">
+              {mode === 'timed' ? (
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-[var(--accent)]" />
+                  <span className="text-base font-bold text-[var(--accent)] font-mono">{remainingTime}s</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1">
+                  <span>{typed.length}</span>
+                  <span>/</span>
+                  <span>{currentTargetText.length} chars</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Controlled Fixed-Height Typing Viewport — Smooth Line-by-Line Progression */}
+          <div
+            ref={viewportRef}
+            onClick={() => inputRef.current && inputRef.current.focus()}
+            className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-text relative select-none leading-relaxed font-mono text-base sm:text-2xl whitespace-pre-wrap break-words overflow-hidden min-h-[160px] h-[160px] sm:h-[180px] max-h-[180px] ${
+              isCompleted ? 'opacity-85 border-[var(--border)]' : 'border-[var(--accent)] shadow-sm'
+            }`}
+            style={{ background: 'var(--bg-surface)', scrollBehavior: 'smooth' }}
+          >
+            {currentTargetText.split('').map((char, idx) => {
+              const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted);
+              const isCurrent = idx === typed.length && !isCompleted;
+              return (
+                <span
+                  key={idx}
+                  ref={isCurrent ? activeCharSpanRef : null}
+                  className={feedback.className}
+                >
+                  {char === '\n' ? '↵\n' : char}
+                </span>
+              );
+            })}
+
+            <input
+              ref={inputRef}
+              type="text"
+              value={typed}
+              onChange={handleInputChange}
+              onKeyDown={(e) => {
+                if (isCompleted) return;
+                if (e.key === 'Escape') return;
+                if (e.key === 'Tab') {
+                  e.preventDefault();
+                  if (currentTargetChar === '\t') {
+                    handleInputChange({ target: { value: typed + '\t' } });
+                  }
+                  return;
+                }
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleInputChange({ target: { value: typed + '\n' } });
+                  return;
+                }
+                setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+              }}
+              disabled={isCompleted}
+              className="absolute inset-0 opacity-0 cursor-default"
+              autoFocus
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              aria-label="Type the passage text here"
+            />
+          </div>
 
         {/* Session Complete Results Card */}
         {isCompleted && sessionResults && (
@@ -846,7 +879,7 @@ export const WorkstationPage = () => {
 
         {/* Precision Virtual Keyboard + Realistic Hand Overlay (Hidden in Focus Mode) */}
         {!focusMode && (keyboardGuideOn || handGuideOn) && (
-          <div className="w-full flex flex-col items-center pt-2">
+          <div className="w-full max-w-[820px] mx-auto flex flex-col items-center pt-2">
             <KeyboardGuide
               targetChar={currentTargetChar}
               lastKeystroke={lastKeystroke}
@@ -855,6 +888,7 @@ export const WorkstationPage = () => {
             />
           </div>
         )}
+      </div>
       </div>
 
       {/* Modals & Overlays */}
@@ -912,6 +946,15 @@ export const WorkstationPage = () => {
         onStartCompetitionTest={handleStartCompetitionTest}
         user={user}
         activeCompetition={activeCompetition?.competition}
+      />
+
+      <TelemetryProfileModal
+        isOpen={profileModalOpen}
+        onClose={() => {
+          setProfileModalOpen(false);
+          if (inputRef.current) inputRef.current.focus();
+        }}
+        initialTab="profile"
       />
     </div>
   );
