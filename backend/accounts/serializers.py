@@ -1,5 +1,6 @@
 """Accounts Serializers — Registration, Auth, Profile, Preferences."""
 
+from django.db.models import Q
 from django.contrib.auth import authenticate
 from rest_framework import serializers
 from .models import User, UserProfile, UserPreferences
@@ -55,25 +56,27 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class LoginSerializer(serializers.Serializer):
-    """Login by email + password."""
+    """Login by email or username + password."""
     email = serializers.CharField()
     password = serializers.CharField(write_only=True)
 
     def validate(self, data):
-        raw_email = data.get('email', '').strip().lower()
+        raw_input = data.get('email', '').strip()
+        raw_email = raw_input.lower()
         password = data.get('password', '')
 
-        if not raw_email or not password:
-            raise serializers.ValidationError('Both email and password are required.')
+        if not raw_input or not password:
+            raise serializers.ValidationError('Both email or username and password are required.')
 
         user = authenticate(username=raw_email, password=password)
         if not user:
-            # Check case-insensitive email match
-            matched_user = User.objects.filter(email__iexact=raw_email).first()
+            # Check case-insensitive email or username match
+            matched_user = User.objects.filter(
+                Q(email__iexact=raw_email) | Q(username__iexact=raw_input)
+            ).first()
             if matched_user:
+                # In Django ModelBackend with USERNAME_FIELD='email', authenticate requires matched_user.email
                 user = authenticate(username=matched_user.email, password=password)
-                if not user:
-                    user = authenticate(username=matched_user.username, password=password)
 
         if not user:
             raise serializers.ValidationError('Invalid email or password.')
@@ -101,8 +104,13 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
             'theme_preset',
             'daily_goal_minutes',
             'preferred_duration',
+            'preferred_word_count',
+            'preferred_mode',
+            'passage_category',
             'sound_enabled',
+            'sound_profile',
             'keyboard_visual_enabled',
+            'hand_guide_enabled',
             'reduced_motion',
             'language',
             'updated_at',
@@ -112,13 +120,33 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
 
 class FullUserSerializer(serializers.ModelSerializer):
     """Complete user payload returned after login or /me."""
-    profile = UserProfileSerializer(read_only=True)
-    preferences = UserPreferencesSerializer(read_only=True)
+    profile = serializers.SerializerMethodField()
+    preferences = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = ['id', 'email', 'username', 'is_email_verified', 'date_joined', 'profile', 'preferences']
         read_only_fields = fields
+
+    def get_profile(self, obj):
+        try:
+            profile = obj.profile
+        except (UserProfile.DoesNotExist, AttributeError):
+            if obj.pk:
+                profile, _ = UserProfile.objects.get_or_create(user=obj)
+            else:
+                profile = None
+        return UserProfileSerializer(profile).data if profile else None
+
+    def get_preferences(self, obj):
+        try:
+            prefs = obj.preferences
+        except (UserPreferences.DoesNotExist, AttributeError):
+            if obj.pk:
+                prefs, _ = UserPreferences.objects.get_or_create(user=obj)
+            else:
+                prefs = None
+        return UserPreferencesSerializer(prefs).data if prefs else None
 
 
 class PasswordChangeSerializer(serializers.Serializer):

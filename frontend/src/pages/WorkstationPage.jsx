@@ -11,6 +11,8 @@ import {
   Trophy,
   Eye,
   Minimize2,
+  Flag,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { KeyboardGuide } from '../components/academy/KeyboardGuide';
@@ -156,12 +158,16 @@ export const WorkstationPage = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [remainingTime, setRemainingTime] = useState(30);
   const [mistakes, setMistakes] = useState(0);
+  const [errorHistory, setErrorHistory] = useState([]);
+  const [wpmGoal, setWpmGoal] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [sessionResults, setSessionResults] = useState(null);
   const [lastKeystroke, setLastKeystroke] = useState(null);
 
   const inputRef = useRef(null);
   const timerRef = useRef(null);
+  const viewportRef = useRef(null);
+  const activeCharSpanRef = useRef(null);
 
   // Determine current active text
   const currentTargetText = useMemo(() => {
@@ -184,6 +190,29 @@ export const WorkstationPage = () => {
     // timed mode default
     return PRACTICE_PASSAGES[selectedPassageIndex].text;
   }, [mode, wordLimit, selectedPassageIndex, customPrompt, activeCompetition]);
+
+  // Automatic line-by-line smooth viewport progression
+  useEffect(() => {
+    if (!viewportRef.current) return;
+    if (typed.length === 0) {
+      viewportRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    const activeSpan = activeCharSpanRef.current;
+    if (!activeSpan) return;
+
+    const spanTop = activeSpan.offsetTop;
+    const spanHeight = activeSpan.offsetHeight || 38;
+
+    // Center active line in 3-line viewport:
+    // When spanTop > spanHeight, scroll so active line remains in center
+    const targetScrollTop = Math.max(0, spanTop - spanHeight);
+
+    viewportRef.current.scrollTo({
+      top: targetScrollTop,
+      behavior: 'smooth',
+    });
+  }, [typed.length, currentTargetText]);
 
   // Next expected character for guide highlight
   const currentTargetChar = useMemo(() => {
@@ -232,6 +261,9 @@ export const WorkstationPage = () => {
         isCompetition: Boolean(activeCompetition),
         competitionCode: activeCompetition?.competition?.code || null,
         accuracyTargetPassed: mode === 'accuracy' ? accuracy >= 98 : null,
+        wpmGoal,
+        wpmGoalPassed: wpmGoal ? netWpm >= wpmGoal : null,
+        errorDetails: [...errorHistory],
       };
 
       setSessionResults(results);
@@ -280,7 +312,7 @@ export const WorkstationPage = () => {
           .catch(() => {});
       }
     },
-    [typed, mistakes, correctChars, mode, user, activeCompetition, competitionParticipantId, customPrompt]
+    [typed, mistakes, correctChars, mode, user, activeCompetition, competitionParticipantId, customPrompt, wpmGoal, errorHistory]
   );
 
   // Key input handler
@@ -300,6 +332,23 @@ export const WorkstationPage = () => {
       playClick(isError);
       if (isError) {
         setMistakes((m) => m + 1);
+        const textBefore = currentTargetText.slice(0, charIndex);
+        const lastSpace = textBefore.lastIndexOf(' ');
+        const textAfter = currentTargetText.slice(charIndex);
+        const nextSpace = textAfter.indexOf(' ');
+        const wordStart = lastSpace === -1 ? 0 : lastSpace + 1;
+        const wordEnd = nextSpace === -1 ? currentTargetText.length : charIndex + nextSpace;
+        const targetWord = currentTargetText.slice(wordStart, wordEnd).trim();
+
+        setErrorHistory((prev) => [
+          ...prev,
+          {
+            index: charIndex,
+            expected: expectedChar,
+            actual: actualChar,
+            word: targetWord,
+          },
+        ]);
       }
       setLastKeystroke({ key: actualChar, code: '', id: performance.now() });
     } else if (val.length < typed.length) {
@@ -322,10 +371,14 @@ export const WorkstationPage = () => {
     setElapsedSeconds(0);
     setRemainingTime(timeLimit);
     setMistakes(0);
+    setErrorHistory([]);
     setIsCompleted(false);
     setSessionResults(null);
     setLastKeystroke(null);
     clearInterval(timerRef.current);
+    if (viewportRef.current) {
+      viewportRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     setTimeout(() => {
       if (inputRef.current) inputRef.current.focus();
     }, 40);
@@ -523,7 +576,7 @@ export const WorkstationPage = () => {
       <div className="w-full max-w-[820px] mx-auto space-y-6">
         {/* Live Telemetry Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 px-2 text-xs font-mono text-[var(--text-muted)]">
-          <div className="flex items-center gap-4 sm:gap-6">
+          <div className="flex items-center gap-3 sm:gap-6">
             <div className="flex items-center gap-1.5">
               <Gauge className="w-4 h-4 text-[var(--accent)]" />
               <span className="text-[11px] uppercase">{t('workstation.liveWpm') || 'Live WPM'}</span>
@@ -533,6 +586,24 @@ export const WorkstationPage = () => {
               <Target className="w-4 h-4 text-[var(--ui-success)]" />
               <span className="text-[11px] uppercase">{t('workstation.accuracy') || 'Accuracy'}</span>
               <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveAccuracy}%</span>
+            </div>
+            {/* Target Goal Selector */}
+            <div className="flex items-center gap-1.5 pl-1 border-l border-[var(--border)]">
+              <Flag className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-[10px] uppercase">Goal</span>
+              <select
+                value={wpmGoal || ''}
+                onChange={(e) => setWpmGoal(e.target.value ? Number(e.target.value) : null)}
+                className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[11px] font-mono text-[var(--text-primary)] cursor-pointer"
+                title="Set Target Speed Goal"
+              >
+                <option value="">None</option>
+                <option value="40">40 WPM</option>
+                <option value="60">60 WPM</option>
+                <option value="80">80 WPM</option>
+                <option value="100">100 WPM</option>
+                <option value="120">120 WPM</option>
+              </select>
             </div>
             {mode === 'accuracy' && (
               <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
@@ -563,18 +634,24 @@ export const WorkstationPage = () => {
           </div>
         </div>
 
-        {/* Existing Non-Negotiable Typing Area Box — 100% Preserved Appearance & Logic */}
+        {/* Controlled Fixed-Height Typing Viewport — Smooth Line-by-Line Progression */}
         <div
+          ref={viewportRef}
           onClick={() => inputRef.current && inputRef.current.focus()}
-          className={`p-4 sm:p-8 rounded-2xl border transition-all cursor-text min-h-[160px] relative select-none leading-relaxed font-mono text-base sm:text-2xl whitespace-pre-wrap break-words ${
+          className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-text relative select-none leading-relaxed font-mono text-base sm:text-2xl whitespace-pre-wrap break-words overflow-hidden min-h-[160px] h-[160px] sm:h-[175px] ${
             isCompleted ? 'opacity-85 border-[var(--border)]' : 'border-[var(--accent)] shadow-sm'
           }`}
-          style={{ background: 'var(--bg-surface)' }}
+          style={{ background: 'var(--bg-surface)', scrollBehavior: 'smooth' }}
         >
           {currentTargetText.split('').map((char, idx) => {
             const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted);
+            const isCurrent = idx === typed.length && !isCompleted;
             return (
-              <span key={idx} className={feedback.className}>
+              <span
+                key={idx}
+                ref={isCurrent ? activeCharSpanRef : null}
+                className={feedback.className}
+              >
                 {char}
               </span>
             );
@@ -620,6 +697,19 @@ export const WorkstationPage = () => {
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--accent)]">
                       {sessionResults.netWpm} {t('common.wpm') || 'WPM'}
                     </span>
+                    {sessionResults.wpmGoal && (
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          sessionResults.wpmGoalPassed
+                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                        }`}
+                      >
+                        {sessionResults.wpmGoalPassed
+                          ? `Goal Achieved (${sessionResults.wpmGoal} WPM)`
+                          : `Goal: ${sessionResults.wpmGoal} WPM`}
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-[var(--text-secondary)] mt-0.5">
                     Completed {activeCompetition ? 'competition' : customPrompt ? 'custom' : mode} test in{' '}
@@ -659,7 +749,7 @@ export const WorkstationPage = () => {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
                 <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">
                   {t('workstation.netWpm') || 'Net Speed'}
@@ -685,6 +775,12 @@ export const WorkstationPage = () => {
                 </div>
               </div>
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">CPM</div>
+                <div className="text-2xl font-extrabold font-mono text-sky-400">
+                  {Math.round(sessionResults.netWpm * 5)} <span className="text-xs text-[var(--text-muted)]">CPM</span>
+                </div>
+              </div>
+              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
                 <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">
                   {t('workstation.mistakes') || 'Mistakes'}
                 </div>
@@ -693,6 +789,58 @@ export const WorkstationPage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Post-Test Error Review Section */}
+            {sessionResults.errorDetails && sessionResults.errorDetails.length > 0 && (
+              <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] space-y-2.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--ui-error)]">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Mistakes Review ({sessionResults.errorDetails.length} errors)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const words = Array.from(
+                        new Set(sessionResults.errorDetails.map((e) => e.word).filter(Boolean))
+                      );
+                      if (words.length > 0) {
+                        handleApplyCustomText({
+                          prompt: words.join(' '),
+                          mode: 'words',
+                          wordLimit: words.length,
+                          timeLimit: 30,
+                        });
+                      }
+                    }}
+                    className="px-3 py-1 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)] text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Practice Mistakes</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 text-xs font-mono">
+                  {sessionResults.errorDetails.slice(0, 10).map((err, i) => (
+                    <span
+                      key={i}
+                      className="px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] inline-flex items-center gap-1 text-[11px]"
+                    >
+                      <span className="text-[var(--ui-error)] line-through">
+                        {err.actual === ' ' ? '␣' : err.actual}
+                      </span>
+                      <span className="text-[var(--text-muted)]">→</span>
+                      <span className="text-[var(--ui-success)] font-bold">
+                        {err.expected === ' ' ? '␣' : err.expected}
+                      </span>
+                      {err.word && (
+                        <span className="text-[var(--text-muted)] text-[10px]">({err.word})</span>
+                      )}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

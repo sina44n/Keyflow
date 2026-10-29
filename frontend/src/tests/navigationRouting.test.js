@@ -8,30 +8,26 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 describe('KEYFLOW Navigation & Core Routing Integrity', () => {
-  it('App.jsx exposes workstation, practice, academy, and arcade routes without forced ProtectedRoute redirect', () => {
+  it('App.jsx requires authentication for workstation, practice, academy, and arcade routes via ProtectedRoute', () => {
     const appPath = path.resolve(__dirname, '../App.jsx');
     const appContent = fs.readFileSync(appPath, 'utf-8');
 
-    // Confirm core learning routes are not wrapped in ProtectedRoute
-    const workstationMatch = appContent.match(/path="\/workstation"\s+element=\{([^}]+)\}/);
-    assert.ok(workstationMatch, 'Workstation route must exist in App.jsx');
+    // Confirm core learning routes are properly wrapped in ProtectedRoute
     assert.ok(
-      !workstationMatch[1].includes('ProtectedRoute'),
-      'Workstation route must not be locked behind ProtectedRoute'
+      appContent.includes('<Route\n                      path="/workstation"\n                      element={\n                        <ProtectedRoute>'),
+      'Workstation route must be protected by ProtectedRoute'
     );
-
-    const arcadeMatch = appContent.match(/path="\/arcade"\s+element=\{([^}]+)\}/);
-    assert.ok(arcadeMatch, 'Arcade route must exist in App.jsx');
     assert.ok(
-      !arcadeMatch[1].includes('ProtectedRoute'),
-      'Arcade route must not be locked behind ProtectedRoute'
+      appContent.includes('<Route\n                      path="/practice"\n                      element={\n                        <ProtectedRoute>'),
+      'Practice route must be protected by ProtectedRoute'
     );
-
-    const academyMatch = appContent.match(/path="\/academy"\s+element=\{([^}]+)\}/);
-    assert.ok(academyMatch, 'Academy route must exist in App.jsx');
     assert.ok(
-      !academyMatch[1].includes('ProtectedRoute'),
-      'Academy route must not be locked behind ProtectedRoute'
+      appContent.includes('<Route\n                      path="/academy"\n                      element={\n                        <ProtectedRoute>'),
+      'Academy route must be protected by ProtectedRoute'
+    );
+    assert.ok(
+      appContent.includes('<Route\n                      path="/arcade"\n                      element={\n                        <ProtectedRoute>'),
+      'Arcade route must be protected by ProtectedRoute'
     );
   });
 

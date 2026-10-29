@@ -172,6 +172,7 @@ export const AuthPage = ({ mode = 'login' }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setErrorMessage('');
     setSuccessMessage('');
     setIsSubmitting(true);
@@ -241,10 +242,12 @@ export const AuthPage = ({ mode = 'login' }) => {
         setErrorMessage(Array.isArray(data.password) ? data.password.join(' ') : data.password);
       } else if (data?.password2) {
         setErrorMessage(Array.isArray(data.password2) ? data.password2.join(' ') : data.password2);
+      } else if (err.isSpaFallback) {
+        setErrorMessage(err.message);
       } else if (err.message && err.message.includes('Network Error')) {
         setErrorMessage('Cannot reach KEYFLOW API server. Please check your connection.');
       } else {
-        setErrorMessage('Authentication failed. Please verify your details and try again.');
+        setErrorMessage(err.message || 'Authentication failed. Please verify your details and try again.');
       }
     } finally {
       setIsSubmitting(false);
@@ -265,20 +268,37 @@ export const AuthPage = ({ mode = 'login' }) => {
       }
 
       if (typeof window === 'undefined' || !window.google?.accounts?.id) {
-        setErrorMessage(
-          'Google Identity Services is loading or was blocked by browser shields. Please refresh the page or disable content blockers.'
-        );
+        const gisScript = typeof document !== 'undefined' ? document.querySelector('script[src*="accounts.google.com/gsi/client"]') : null;
+        if (!gisScript) {
+          setErrorMessage(
+            'Google Identity Services script is missing from index.html. Please ensure Google Identity script is loaded.'
+          );
+        } else {
+          setErrorMessage(
+            'Google Identity Services is still loading or was blocked by browser shields/ad-blocker. Please refresh the page or check privacy extensions.'
+          );
+        }
         setIsGoogleLoading(false);
         return;
       }
 
       window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        if (notification.isNotDisplayed()) {
+          const reason = typeof notification.getNotDisplayedReason === 'function' ? notification.getNotDisplayedReason() : 'unknown';
+          if (reason === 'suppressed_by_user') {
+            setErrorMessage('Google prompt was closed or suppressed by the user.');
+          } else if (reason === 'opt_out_or_no_session') {
+            setErrorMessage('No active Google session found. Please sign in to Google in your browser first.');
+          } else {
+            setErrorMessage(`Google Sign-In prompt could not be displayed (${reason}). Please check third-party cookie and pop-up settings.`);
+          }
+          setIsGoogleLoading(false);
+        } else if (notification.isSkippedMoment()) {
           setIsGoogleLoading(false);
         }
       });
-    } catch {
-      setErrorMessage('Google authentication could not be completed.');
+    } catch (err) {
+      setErrorMessage(err.message || 'Google authentication could not be completed.');
       setIsGoogleLoading(false);
     }
   };
@@ -290,7 +310,7 @@ export const AuthPage = ({ mode = 'login' }) => {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 md:p-8 overflow-hidden bg-[#0d0f12]">
+    <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center p-2.5 sm:p-6 md:p-8 overflow-hidden bg-[#0d0f12]">
       {/* ------------------------------------------------------------------- */}
       {/* Full-viewport softly blurred background image                      */}
       {/* ------------------------------------------------------------------- */}
@@ -305,8 +325,8 @@ export const AuthPage = ({ mode = 'login' }) => {
       {/* Centered Split Authentication Card                                  */}
       {/* Thick white outer border, large rounded corners                      */}
       {/* ------------------------------------------------------------------- */}
-      <div className="relative z-10 w-full max-w-[940px] bg-white rounded-[32px] p-2.5 sm:p-3 shadow-[0_20px_70px_rgba(0,0,0,0.65)] border-4 border-white transition-all">
-        <div className="grid grid-cols-1 md:grid-cols-2 rounded-[24px] overflow-hidden min-h-[580px]">
+      <div className="relative z-10 w-full max-w-[940px] bg-white rounded-2xl sm:rounded-[32px] p-1.5 sm:p-3 shadow-[0_20px_70px_rgba(0,0,0,0.65)] border-2 sm:border-4 border-white transition-all">
+        <div className="grid grid-cols-1 md:grid-cols-2 rounded-xl sm:rounded-[24px] overflow-hidden min-h-0 md:min-h-[580px]">
           {/* ----------------------------------------------------------------- */}
           {/* LEFT PANEL: Cinematic Typing Illustration                         */}
           {/* ----------------------------------------------------------------- */}
@@ -338,7 +358,7 @@ export const AuthPage = ({ mode = 'login' }) => {
           {/* ----------------------------------------------------------------- */}
           {/* RIGHT PANEL: Clean White Authentication Form                      */}
           {/* ----------------------------------------------------------------- */}
-          <div className="bg-white text-gray-900 p-6 sm:p-8 md:p-10 flex flex-col justify-between rounded-[24px]">
+          <div className="bg-white text-gray-900 p-4 sm:p-8 md:p-10 flex flex-col justify-between rounded-xl sm:rounded-[24px]">
             <div className="w-full max-w-[360px] mx-auto my-auto">
               {/* Heading */}
               <div className="text-center mb-6">
@@ -473,15 +493,16 @@ export const AuthPage = ({ mode = 'login' }) => {
                 {!isReset && (
                   <div>
                     <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      {t('auth.emailAddress') || 'Email Address'}
+                      {isLogin ? (t('auth.emailOrUsername') || 'Email or Username') : (t('auth.emailAddress') || 'Email Address')}
                     </label>
                     <div className="relative">
                       <input
-                        type="email"
+                        type={isLogin ? 'text' : 'email'}
                         required
+                        autoComplete={isLogin ? 'username' : 'email'}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        placeholder="name@example.com"
+                        placeholder={isLogin ? 'name@example.com or username' : 'name@example.com'}
                         className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50/50 text-gray-900 placeholder:text-gray-400 text-sm focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
                       />
                     </div>

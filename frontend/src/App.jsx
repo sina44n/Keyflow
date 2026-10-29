@@ -68,13 +68,55 @@ function App() {
                     <Route path="/themes" element={<ThemesPage />} />
 
 
-                    {/* Core Learning & Practice Routes */}
-                    <Route path="/workstation" element={<WorkstationPage />} />
-                    <Route path="/practice" element={<WorkstationPage />} />
-                    <Route path="/academy" element={<AcademyHomeRoute />} />
-                    <Route path="/academy/stage/:stageId" element={<AcademyStageRoute />} />
-                    <Route path="/arcade" element={<ArcadePage />} />
-                    <Route path="/arcade/:gameId" element={<ArcadePage />} />
+                    {/* Core Protected Learning, Practice & Arcade Routes */}
+                    <Route
+                      path="/workstation"
+                      element={
+                        <ProtectedRoute>
+                          <WorkstationPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/practice"
+                      element={
+                        <ProtectedRoute>
+                          <WorkstationPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/academy"
+                      element={
+                        <ProtectedRoute>
+                          <AcademyHomeRoute />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/academy/stage/:stageId"
+                      element={
+                        <ProtectedRoute>
+                          <AcademyStageRoute />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/arcade"
+                      element={
+                        <ProtectedRoute>
+                          <ArcadePage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/arcade/:gameId"
+                      element={
+                        <ProtectedRoute>
+                          <ArcadePage />
+                        </ProtectedRoute>
+                      }
+                    />
 
                     {/* Aliases & Fallbacks */}
                     <Route path="/curriculum" element={<Navigate to="/academy" replace />} />

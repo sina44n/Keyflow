@@ -26,9 +26,10 @@ export const ProtectedRoute = ({ children }) => {
     );
   }
 
-  // Not authenticated — redirect to login, preserving destination
+  // Not authenticated — redirect to login, preserving full destination path with query parameters
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location.pathname }} replace />;
+    const fullPath = location.pathname + (location.search || '');
+    return <Navigate to="/login" state={{ from: fullPath }} replace />;
   }
 
   return children;

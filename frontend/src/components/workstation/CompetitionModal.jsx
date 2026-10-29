@@ -17,6 +17,8 @@ import {
   RefreshCw,
   Award,
   ChevronRight,
+  Download,
+  FileText,
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { competitionAPI } from '../../utils/api.js';
@@ -183,6 +185,113 @@ export const CompetitionModal = ({
       targetLimit: currentComp.target_limit,
     });
     onClose();
+  };
+
+  // Export Results as CSV
+  const handleDownloadCSV = () => {
+    if (!currentComp) return;
+    const participants = currentComp.participants || [];
+    const escapeCSV = (val) => '"' + String(val ?? '').replace(/"/g, '""') + '"';
+
+    let csv = `KEYFLOW COMPETITION RESULTS REPORT\r\n`;
+    csv += `Competition Name,${escapeCSV(currentComp.name)}\r\n`;
+    csv += `Room Code,${escapeCSV(currentComp.code)}\r\n`;
+    csv += `Status,${escapeCSV(currentComp.status.toUpperCase())}\r\n`;
+    csv += `Mode,${escapeCSV(currentComp.challenge_type === 'words' ? `${currentComp.target_limit} words` : `${currentComp.target_limit} seconds`)}\r\n`;
+    csv += `Total Participants,${participants.length}\r\n`;
+    if (currentComp.summary) {
+      csv += `Completed Typists,${currentComp.summary.completed_count}\r\n`;
+      csv += `Average WPM,${currentComp.summary.avg_wpm}\r\n`;
+      csv += `Average Accuracy,${currentComp.summary.avg_accuracy}%\r\n`;
+      csv += `Top WPM,${currentComp.summary.top_wpm}\r\n`;
+      csv += `Top Score,${currentComp.summary.top_score}\r\n`;
+    }
+    csv += `\r\n`;
+    csv += `Rank,Display Name,Status,Score,Net WPM,Raw WPM,Accuracy (%),CPM,Correct Chars,Incorrect Chars,Total Chars,Correct Words,Words Completed,Duration (s),Completed At\r\n`;
+
+    participants.forEach((p, idx) => {
+      const rank = p.rank || (p.status === 'completed' ? idx + 1 : '—');
+      const name = escapeCSV(p.display_name || 'Anonymous');
+      const status = p.status;
+      const score = p.score || 0;
+      const netWpm = p.net_wpm || 0;
+      const rawWpm = p.gross_wpm || 0;
+      const accuracy = p.accuracy || 0;
+      const cpm = p.cpm || Math.round(Number(p.net_wpm || 0) * 5);
+      const correctChars = p.correct_chars || 0;
+      const incorrectChars = p.incorrect_chars || 0;
+      const totalChars = p.total_chars || (correctChars + incorrectChars);
+      const correctWords = p.correct_words || Math.round(correctChars / 5);
+      const wordsCompleted = p.words_completed || Math.round(totalChars / 5);
+      const duration = p.duration_seconds || 0;
+      const completedAt = p.completed_at ? escapeCSV(new Date(p.completed_at).toISOString()) : '—';
+
+      csv += `${rank},${name},${status},${score},${netWpm},${rawWpm},${accuracy},${cpm},${correctChars},${incorrectChars},${totalChars},${correctWords},${wordsCompleted},${duration},${completedAt}\r\n`;
+    });
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `keyflow-competition-${currentComp.code}-results.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // Export Results as JSON
+  const handleDownloadJSON = () => {
+    if (!currentComp) return;
+    const reportData = {
+      report: 'KEYFLOW Typing Competition Report',
+      exported_at: new Date().toISOString(),
+      competition: {
+        code: currentComp.code,
+        name: currentComp.name,
+        status: currentComp.status,
+        challenge_type: currentComp.challenge_type,
+        target_limit: currentComp.target_limit,
+        difficulty: currentComp.difficulty,
+        max_participants: currentComp.max_participants,
+        challenge_text: currentComp.challenge_text,
+        created_at: currentComp.created_at,
+        created_by: currentComp.created_by_name,
+      },
+      summary: currentComp.summary || null,
+      ranking_rules: [
+        '1. Highest Net WPM',
+        '2. Highest Accuracy percentage (tie-breaker)',
+        '3. Fastest duration (tie-breaker)',
+      ],
+      participants: (currentComp.participants || []).map((p, idx) => ({
+        rank: p.rank || (p.status === 'completed' ? idx + 1 : null),
+        display_name: p.display_name,
+        status: p.status,
+        score: p.score || 0,
+        net_wpm: Number(p.net_wpm || 0),
+        gross_wpm: Number(p.gross_wpm || 0),
+        accuracy: Number(p.accuracy || 0),
+        cpm: p.cpm || Math.round(Number(p.net_wpm || 0) * 5),
+        correct_chars: p.correct_chars || 0,
+        incorrect_chars: p.incorrect_chars || 0,
+        total_chars: p.total_chars || ((p.correct_chars || 0) + (p.incorrect_chars || 0)),
+        correct_words: p.correct_words || Math.round((p.correct_chars || 0) / 5),
+        words_completed: p.words_completed || Math.round(((p.correct_chars || 0) + (p.incorrect_chars || 0)) / 5),
+        duration_seconds: p.duration_seconds || 0,
+        completed_at: p.completed_at || null,
+      })),
+    };
+
+    const blob = new Blob([JSON.stringify(reportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `keyflow-competition-${currentComp.code}-results.json`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   if (!isOpen) return null;
@@ -505,15 +614,23 @@ export const CompetitionModal = ({
             </div>
           )}
 
-          {/* TAB 4: ACTIVE ROOM & LEADERBOARD */}
+          {/* TAB 4: ACTIVE ROOM, SUMMARY, PODIUM & FULL LEADERBOARD */}
           {activeTab === 'active' && currentComp && (
             <div className="space-y-4 text-xs">
-              {/* Room Card */}
+              {/* Room Header Card */}
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 flex flex-wrap items-center justify-between gap-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm text-[var(--text-primary)]">{currentComp.name}</span>
-                    <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                    <span
+                      className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
+                        currentComp.status === 'completed'
+                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+                          : currentComp.status === 'active'
+                          ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
+                          : 'bg-sky-500/15 text-sky-400 border-sky-500/30'
+                      }`}
+                    >
                       {currentComp.status}
                     </span>
                   </div>
@@ -528,29 +645,164 @@ export const CompetitionModal = ({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
                     <span className="text-xs font-bold text-[var(--accent)]">{currentComp.code}</span>
                     <button
                       type="button"
                       onClick={() => handleCopyCode(currentComp.code)}
-                      className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5"
+                      className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-0.5 cursor-pointer"
                       title="Copy lobby code"
                     >
                       {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
                   </div>
 
+                  {/* Download Results Buttons */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={handleDownloadCSV}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-primary)] font-semibold transition-all cursor-pointer text-[11px]"
+                      title="Download results as CSV spreadsheet"
+                    >
+                      <Download className="w-3 h-3 text-[var(--accent)]" />
+                      <span>CSV</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadJSON}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[var(--bg-surface)] hover:bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-[var(--text-primary)] font-semibold transition-all cursor-pointer text-[11px]"
+                      title="Download results as structured JSON"
+                    >
+                      <FileText className="w-3 h-3 text-[var(--accent)]" />
+                      <span>JSON</span>
+                    </button>
+                  </div>
+
                   <button
                     type="button"
                     onClick={handleStartTyping}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)] font-bold shadow-md transition-all cursor-pointer"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)] font-bold shadow-md transition-all cursor-pointer"
                   >
                     <Play className="w-3.5 h-3.5 fill-current" />
                     <span>Start Test</span>
                   </button>
                 </div>
               </div>
+
+              {/* Competition-Wide Summary Cards */}
+              {currentComp.summary && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="p-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                    <div className="text-[10px] uppercase text-[var(--text-muted)]">Typists</div>
+                    <div className="text-base font-bold text-[var(--text-primary)] font-mono">
+                      {currentComp.summary.completed_count}{' '}
+                      <span className="text-[10px] text-[var(--text-muted)]">
+                        / {currentComp.summary.total_participants} completed
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                    <div className="text-[10px] uppercase text-[var(--text-muted)]">Lobby Avg Speed</div>
+                    <div className="text-base font-bold text-[var(--accent)] font-mono">
+                      {currentComp.summary.avg_wpm} <span className="text-[10px]">WPM</span>
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                    <div className="text-[10px] uppercase text-[var(--text-muted)]">Lobby Avg Accuracy</div>
+                    <div className="text-base font-bold text-[var(--ui-success)] font-mono">
+                      {currentComp.summary.avg_accuracy}%
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+                    <div className="text-[10px] uppercase text-[var(--text-muted)]">Best Score</div>
+                    <div className="text-base font-bold text-amber-400 font-mono">
+                      {currentComp.summary.top_score}{' '}
+                      <span className="text-[10px] text-[var(--text-muted)]">
+                        ({currentComp.summary.top_wpm} WPM)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 1st, 2nd, 3rd Podium */}
+              {currentComp.summary?.podium && currentComp.summary.podium.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="text-[10px] uppercase font-bold text-[var(--text-muted)] flex items-center gap-1">
+                    <Award className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Podium Winners</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {/* 1st Place Gold */}
+                    {currentComp.summary.podium[0] && (
+                      <div className="p-3 rounded-xl bg-amber-500/10 border-2 border-amber-500/40 relative overflow-hidden flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-amber-400 flex items-center gap-1">
+                            🥇 1st Place
+                          </span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">
+                            Score {currentComp.summary.podium[0].score || Math.round(currentComp.summary.podium[0].net_wpm * (currentComp.summary.podium[0].accuracy / 100) * 10)}
+                          </span>
+                        </div>
+                        <div className="mt-1 font-bold text-sm text-[var(--text-primary)] truncate">
+                          {currentComp.summary.podium[0].display_name}
+                        </div>
+                        <div className="mt-1 text-xs font-mono text-amber-300 flex items-center gap-2">
+                          <span className="font-bold">{currentComp.summary.podium[0].net_wpm} WPM</span>
+                          <span>•</span>
+                          <span>{currentComp.summary.podium[0].accuracy}% acc</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 2nd Place Silver */}
+                    {currentComp.summary.podium[1] && (
+                      <div className="p-3 rounded-xl bg-slate-400/10 border border-slate-400/30 flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-300 flex items-center gap-1">
+                            🥈 2nd Place
+                          </span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-400/20 text-slate-200">
+                            Score {currentComp.summary.podium[1].score || Math.round(currentComp.summary.podium[1].net_wpm * (currentComp.summary.podium[1].accuracy / 100) * 10)}
+                          </span>
+                        </div>
+                        <div className="mt-1 font-bold text-sm text-[var(--text-primary)] truncate">
+                          {currentComp.summary.podium[1].display_name}
+                        </div>
+                        <div className="mt-1 text-xs font-mono text-slate-300 flex items-center gap-2">
+                          <span className="font-bold">{currentComp.summary.podium[1].net_wpm} WPM</span>
+                          <span>•</span>
+                          <span>{currentComp.summary.podium[1].accuracy}% acc</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 3rd Place Bronze */}
+                    {currentComp.summary.podium[2] && (
+                      <div className="p-3 rounded-xl bg-amber-700/10 border border-amber-700/30 flex flex-col justify-between">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-amber-600 flex items-center gap-1">
+                            🥉 3rd Place
+                          </span>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-700/20 text-amber-400">
+                            Score {currentComp.summary.podium[2].score || Math.round(currentComp.summary.podium[2].net_wpm * (currentComp.summary.podium[2].accuracy / 100) * 10)}
+                          </span>
+                        </div>
+                        <div className="mt-1 font-bold text-sm text-[var(--text-primary)] truncate">
+                          {currentComp.summary.podium[2].display_name}
+                        </div>
+                        <div className="mt-1 text-xs font-mono text-amber-500 flex items-center gap-2">
+                          <span className="font-bold">{currentComp.summary.podium[2].net_wpm} WPM</span>
+                          <span>•</span>
+                          <span>{currentComp.summary.podium[2].accuracy}% acc</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Shared Challenge Passage Preview */}
               <div className="p-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] space-y-1">
@@ -562,68 +814,119 @@ export const CompetitionModal = ({
                 </p>
               </div>
 
-              {/* Leaderboard */}
+              {/* Complete Participant-Level Leaderboard Table */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-[var(--text-primary)] flex items-center gap-1.5">
                     <Trophy className="w-3.5 h-3.5 text-[var(--accent)]" />
-                    <span>Verified Competition Leaderboard</span>
+                    <span>Complete Results for Every Participant ({currentComp.participants?.length || 0})</span>
                   </span>
-                  <span className="text-[10px] text-[var(--text-muted)]">Live verified results</span>
+                  <div className="flex items-center gap-2 text-[10px] text-[var(--text-muted)]">
+                    <span>Ranked: Net WPM → Acc → Duration</span>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const res = await competitionAPI.get(currentComp.code);
+                          if (res.data) setCurrentComp(res.data);
+                        } catch {}
+                      }}
+                      className="hover:text-[var(--text-primary)] p-0.5 cursor-pointer"
+                      title="Refresh results"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
 
-                <div className="rounded-xl border border-[var(--border)] overflow-hidden bg-[var(--bg-elevated)]">
-                  <div className="grid grid-cols-12 px-3 py-2 bg-[var(--bg-surface)] border-b border-[var(--border)] text-[10px] uppercase font-bold text-[var(--text-muted)]">
-                    <span className="col-span-1 text-center">#</span>
-                    <span className="col-span-4">Participant</span>
-                    <span className="col-span-3 text-right">Net Speed</span>
-                    <span className="col-span-2 text-right">Accuracy</span>
-                    <span className="col-span-2 text-right">Status</span>
-                  </div>
-
-                  <div className="divide-y divide-[var(--border)]">
-                    {currentComp.participants && currentComp.participants.length > 0 ? (
-                      currentComp.participants.map((p, idx) => {
-                        const isRank1 = p.rank === 1 || (idx === 0 && p.status === 'completed');
-                        return (
-                          <div
-                            key={p.id || idx}
-                            className={`grid grid-cols-12 px-3 py-2.5 items-center text-xs ${
-                              isRank1 ? 'bg-[var(--accent)]/5 font-semibold' : ''
-                            }`}
-                          >
-                            <span className="col-span-1 text-center font-bold text-[var(--accent)]">
-                              {p.rank || idx + 1}
-                            </span>
-                            <span className="col-span-4 truncate text-[var(--text-primary)]">
-                              {p.display_name}
-                            </span>
-                            <span className="col-span-3 text-right font-mono font-bold text-[var(--text-primary)]">
-                              {p.status === 'completed' ? `${p.net_wpm} WPM` : '—'}
-                            </span>
-                            <span className="col-span-2 text-right font-mono text-[var(--ui-success)]">
-                              {p.status === 'completed' ? `${p.accuracy}%` : '—'}
-                            </span>
-                            <span className="col-span-2 text-right text-[10px] uppercase">
-                              <span
-                                className={`px-1.5 py-0.5 rounded-full ${
-                                  p.status === 'completed'
-                                    ? 'bg-emerald-500/15 text-emerald-400'
-                                    : 'bg-[var(--bg-surface)] text-[var(--text-muted)]'
-                                }`}
-                              >
-                                {p.status}
-                              </span>
-                            </span>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-center py-6 text-xs text-[var(--text-muted)]">
-                        No participants joined yet.
-                      </div>
-                    )}
-                  </div>
+                <div className="rounded-xl border border-[var(--border)] overflow-x-auto bg-[var(--bg-elevated)]">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-[var(--bg-surface)] border-b border-[var(--border)] text-[10px] uppercase font-bold text-[var(--text-muted)]">
+                        <th className="py-2 px-2.5 text-center w-8">#</th>
+                        <th className="py-2 px-3">Participant</th>
+                        <th className="py-2 px-2 text-right">Score</th>
+                        <th className="py-2 px-2 text-right">Net WPM</th>
+                        <th className="py-2 px-2 text-right">Raw WPM</th>
+                        <th className="py-2 px-2 text-right">Accuracy</th>
+                        <th className="py-2 px-2 text-right">CPM</th>
+                        <th className="py-2 px-2 text-right">Chars (OK/Err)</th>
+                        <th className="py-2 px-2 text-right">Words</th>
+                        <th className="py-2 px-2 text-right">Duration</th>
+                        <th className="py-2 px-3 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border)]">
+                      {currentComp.participants && currentComp.participants.length > 0 ? (
+                        currentComp.participants.map((p, idx) => {
+                          const isRank1 = p.rank === 1 || (idx === 0 && p.status === 'completed');
+                          return (
+                            <tr
+                              key={p.id || idx}
+                              className={`transition-colors ${
+                                isRank1 ? 'bg-[var(--accent)]/5 font-semibold' : 'hover:bg-[var(--bg-surface)]/50'
+                              }`}
+                            >
+                              <td className="py-2 px-2.5 text-center font-bold text-[var(--accent)]">
+                                {p.rank || (p.status === 'completed' ? idx + 1 : '—')}
+                              </td>
+                              <td className="py-2 px-3 font-medium text-[var(--text-primary)] truncate max-w-[130px]">
+                                {p.display_name}
+                              </td>
+                              <td className="py-2 px-2 text-right font-mono font-bold text-amber-400">
+                                {p.status === 'completed' ? (p.score ?? Math.round(Number(p.net_wpm || 0) * (Number(p.accuracy || 0) / 100) * 10)) : '—'}
+                              </td>
+                              <td className="py-2 px-2 text-right font-mono font-bold text-[var(--text-primary)]">
+                                {p.status === 'completed' ? `${p.net_wpm}` : '—'}
+                              </td>
+                              <td className="py-2 px-2 text-right font-mono text-[var(--text-secondary)]">
+                                {p.status === 'completed' ? `${p.gross_wpm || p.net_wpm}` : '—'}
+                              </td>
+                              <td className="py-2 px-2 text-right font-mono text-[var(--ui-success)] font-bold">
+                                {p.status === 'completed' ? `${p.accuracy}%` : '—'}
+                              </td>
+                              <td className="py-2 px-2 text-right font-mono text-sky-400">
+                                {p.status === 'completed' ? (p.cpm ?? Math.round(Number(p.net_wpm || 0) * 5)) : '—'}
+                              </td>
+                              <td className="py-2 px-2 text-right font-mono text-[var(--text-muted)] text-[11px]">
+                                {p.status === 'completed' ? (
+                                  <span>
+                                    <span className="text-[var(--ui-success)]">{p.correct_chars ?? 0}</span> /{' '}
+                                    <span className="text-[var(--ui-error)]">{p.incorrect_chars ?? 0}</span>
+                                  </span>
+                                ) : '—'}
+                              </td>
+                              <td className="py-2 px-2 text-right font-mono text-[var(--text-muted)] text-[11px]">
+                                {p.status === 'completed' ? (p.correct_words ?? Math.round((p.correct_chars || 0) / 5)) : '—'}
+                              </td>
+                              <td className="py-2 px-2 text-right font-mono text-[var(--text-muted)]">
+                                {p.status === 'completed' ? `${p.duration_seconds || 0}s` : '—'}
+                              </td>
+                              <td className="py-2 px-3 text-right">
+                                <span
+                                  className={`px-2 py-0.5 rounded-full text-[10px] uppercase font-bold ${
+                                    p.status === 'completed'
+                                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                                      : p.status === 'typing'
+                                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse'
+                                      : 'bg-[var(--bg-surface)] text-[var(--text-muted)] border border-[var(--border)]'
+                                  }`}
+                                >
+                                  {p.status}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      ) : (
+                        <tr>
+                          <td colSpan={11} className="text-center py-6 text-xs text-[var(--text-muted)]">
+                            No participants joined yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>

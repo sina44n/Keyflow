@@ -161,14 +161,27 @@ class CompetitionAPITests(TestCase):
         # Fetch detail and verify rank 1 is Player B (105 WPM) and rank 2 is Player A (85 WPM)
         detail_res = self.client.get(f'/api/practice/competitions/{code}/')
         self.assertEqual(detail_res.status_code, 200)
-        participants = detail_res.json()['participants']
+        data = detail_res.json()
+        participants = data['participants']
 
         self.assertEqual(len(participants), 2)
         # Participants are ordered by -net_wpm
         self.assertEqual(participants[0]['display_name'], 'TypistB')
         self.assertEqual(float(participants[0]['net_wpm']), 105.0)
         self.assertEqual(participants[0]['rank'], 1)
+        self.assertGreater(participants[0]['score'], 0)
+        self.assertGreater(participants[0]['cpm'], 0)
+        self.assertEqual(participants[0]['total_chars'], 159)
+        self.assertEqual(participants[0]['correct_words'], 31)
 
         self.assertEqual(participants[1]['display_name'], 'TypistA')
         self.assertEqual(float(participants[1]['net_wpm']), 85.0)
         self.assertEqual(participants[1]['rank'], 2)
+
+        # Check summary & podium
+        self.assertIn('summary', data)
+        self.assertEqual(data['summary']['completed_count'], 2)
+        self.assertEqual(data['summary']['total_participants'], 2)
+        self.assertEqual(data['summary']['top_wpm'], 105.0)
+        self.assertEqual(len(data['summary']['podium']), 2)
+        self.assertEqual(data['summary']['podium'][0]['display_name'], 'TypistB')

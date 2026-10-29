@@ -9,9 +9,20 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { authAPI, lessonsAPI, setStoredToken, clearStoredToken, getStoredToken } from '../utils/api';
-import { setLessonProgressUser, syncLessonProgressFromBackend, registerBackendSyncHandler, resetGuestProgress } from '../utils/lessonProgress';
-import { setArcadeStorageUser, resetGuestArcadeRecords } from '../utils/arcadeStorage';
+import { authAPI, lessonsAPI, gamesAPI, setStoredToken, clearStoredToken, getStoredToken } from '../utils/api';
+import {
+  setLessonProgressUser,
+  syncLessonProgressFromBackend,
+  registerBackendSyncHandler,
+  migrateGuestProgressToAccount,
+  resetGuestProgress,
+} from '../utils/lessonProgress';
+import {
+  setArcadeStorageUser,
+  syncArcadeRecordsFromBackend,
+  migrateGuestArcadeRecordsToAccount,
+  resetGuestArcadeRecords,
+} from '../utils/arcadeStorage';
 
 // Wire up asynchronous backend lesson progress synchronization
 registerBackendSyncHandler((data) => {
@@ -42,6 +53,16 @@ export const AuthProvider = ({ children }) => {
       } catch {}
       setLessonProgressUser(userData.id);
       setArcadeStorageUser(userData.id);
+
+      // 1. Safely migrate any existing guest data into authenticated user account
+      try {
+        await migrateGuestProgressToAccount(userData.id, lessonsAPI.recordProgress);
+        await migrateGuestArcadeRecordsToAccount(userData.id);
+      } catch (err) {
+        console.warn('KEYFLOW guest data migration notice:', err);
+      }
+
+      // 2. Fetch authoritative lesson progress from backend PostgreSQL
       try {
         const summaryRes = await lessonsAPI.getProgressSummary();
         if (summaryRes?.data) {
@@ -50,14 +71,40 @@ export const AuthProvider = ({ children }) => {
       } catch {
         // Safe fallback if offline
       }
+
+      // 3. Fetch authoritative arcade records from backend
+      try {
+        const arcadeRes = await gamesAPI.getRecords();
+        if (arcadeRes?.data) {
+          syncArcadeRecordsFromBackend(arcadeRes.data);
+        }
+      } catch {
+        // Safe fallback
+      }
+
+      // 4. Dispatch theme and sound preference synchronization across contexts
+      if (userData.preferences?.theme_preset && typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('keyflow-theme-sync', { detail: userData.preferences.theme_preset })
+        );
+      }
+      if (userData.preferences?.sound_profile && typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('keyflow-sound-sync', {
+            detail: {
+              profile: userData.preferences.sound_profile,
+              enabled: userData.preferences.sound_enabled,
+            },
+          })
+        );
+      }
     } else {
       try {
         localStorage.removeItem('keyflow_current_user_id');
       } catch {}
       setLessonProgressUser(null);
       setArcadeStorageUser(null);
-      resetGuestProgress();
-      resetGuestArcadeRecords();
+      // Preserve local guest progress for anonymous play
     }
   }, []);
 
@@ -73,8 +120,6 @@ export const AuthProvider = ({ children }) => {
         } catch {}
         setLessonProgressUser(null);
         setArcadeStorageUser(null);
-        resetGuestProgress();
-        resetGuestArcadeRecords();
         setIsLoading(false);
         return;
       }
@@ -91,8 +136,6 @@ export const AuthProvider = ({ children }) => {
         } catch {}
         setLessonProgressUser(null);
         setArcadeStorageUser(null);
-        resetGuestProgress();
-        resetGuestArcadeRecords();
       } finally {
         if (mountedRef.current) {
           setIsLoading(false);
@@ -100,7 +143,9 @@ export const AuthProvider = ({ children }) => {
       }
     };
     restoreSession();
-    return () => { mountedRef.current = false; };
+    return () => {
+      mountedRef.current = false;
+    };
   }, [applyUserSession]);
 
   // -----------------------------------------------------------------------
@@ -113,8 +158,6 @@ export const AuthProvider = ({ children }) => {
       } catch {}
       setLessonProgressUser(null);
       setArcadeStorageUser(null);
-      resetGuestProgress();
-      resetGuestArcadeRecords();
       setUser(null);
     };
     window.addEventListener('keyflow-auth-expired', handleExpired);
