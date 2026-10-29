@@ -88,49 +88,32 @@ export function Hand3DGuide({
     const ambientLight = new THREE.AmbientLight(0xF4ECE6, 0.75);
     scene.add(ambientLight);
 
-    // Generate organic epidermal texture with fine pores and dermal scattering
-    function createProceduralSkinTexture() {
-      if (typeof document === 'undefined') return null;
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = 512;
-        canvas.height = 512;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return null;
-
-        ctx.fillStyle = '#D89E82';
-        ctx.fillRect(0, 0, 512, 512);
-
-        const imgData = ctx.getImageData(0, 0, 512, 512);
-        const data = imgData.data;
-        for (let i = 0; i < data.length; i += 4) {
-          const noise = (Math.random() - 0.5) * 10;
-          data[i] = Math.max(0, Math.min(255, data[i] + noise));
-          data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise * 0.75));
-          data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise * 0.65));
-        }
-        ctx.putImageData(imgData, 0, 0);
-
-        const tex = new THREE.CanvasTexture(canvas);
-        tex.wrapS = THREE.RepeatWrapping;
-        tex.wrapT = THREE.RepeatWrapping;
-        tex.repeat.set(8, 8);
-        return tex;
-      } catch {
-        return null;
-      }
-    }
-
-    const skinTexture = createProceduralSkinTexture();
-
-    // Create authentic 3D Volumetric SkinnedMesh with 32 bones
-    const rig = createHandRigMesh(skinTexture);
+    // Create authentic 3D Volumetric SkinnedMesh with 32-bone skeletal hierarchy
+    const rig = createHandRigMesh();
     const handMesh = rig.skinnedMesh;
     const skeleton = rig.skeleton;
     const animController = createHandAnimationController(rig.boneMap);
     controllerRef.current = animController;
 
     scene.add(handMesh);
+
+    // Load high-resolution photorealistic hands texture with accurate color space
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(
+      '/realistic_hands_both.png',
+      (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.generateMipmaps = true;
+        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        if (handMesh && handMesh.material) {
+          handMesh.material.map = texture;
+          handMesh.material.needsUpdate = true;
+          if (rendererRef.current && sceneRef.current && cameraRef.current) {
+            rendererRef.current.render(sceneRef.current, cameraRef.current);
+          }
+        }
+      }
+    );
 
     // Initial render
     renderer.render(scene, camera);

@@ -264,298 +264,212 @@ export function computeIsolatedSkinWeights(geometry, bones, landmarks) {
 }
 
 /**
- * Generates genuine 3D volumetric dual-hand geometry:
- * - Rounded 3D elliptical-cylinder finger shafts with dorsal, lateral, and ventral pulp
- * - Anatomical knuckle mounds and joint flexion creases at MCP, PIP, and DIP
- * - Distinct dorsal fingernail plates with realistic cuticle contour and nail bed shading
- * - Transverse carpal arch on the dorsal palm with extensor digitorum tendon ridges
- * - Rounded thenar and hypothenar eminences with wrist taper
- * - Strictly isolated vertex skin weights (100% bone isolation per finger, zero cross-finger drag)
+ * Applies anatomical 3D depth sculpting to mesh vertices based on clinical human hand morphology:
+ * - Semi-cylindrical finger cross-sections (volumetric depth along finger rays)
+ * - Volumetric knuckle elevations at MCP, PIP, and DIP joints
+ * - Distal fingernail plateau with dorsal specularity
+ * - Transverse carpal arch on the dorsal palm
+ * - Extensor digitorum tendon relief ridges leading down to the wrist
  */
-export function createVolumetricDualHandGeometry(landmarks, boneIndexMap) {
-  function buildDigit(chain, radiiLat, radiiDv, boneNames) {
-    const positions = [];
-    const uvs = [];
-    const colors = [];
-    const skinIndices = [];
-    const skinWeights = [];
-    const indices = [];
+export function sculptAnatomicalHandDepth(geometry) {
+  const position = geometry.attributes.position;
 
-    const bIndices = boneNames.map((n) => boneIndexMap[n]);
-    const rings = [];
+  const fingerDefinitions = [
+    // Left Hand Fingers
+    {
+      name: 'left-index',
+      chain: [
+        { pt: { x: 316, y: 230 }, z: 12.5, r: 13.5 }, // MCP
+        { pt: { x: 318, y: 202 }, z: 16.0, r: 12.5 }, // PIP
+        { pt: { x: 320, y: 180 }, z: 12.0, r: 10.5 }, // DIP
+        { pt: { x: 321, y: 161 }, z: 4.0,  r: 8.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'left-middle',
+      chain: [
+        { pt: { x: 266, y: 225 }, z: 14.0, r: 14.5 }, // MCP
+        { pt: { x: 268, y: 198 }, z: 18.0, r: 13.5 }, // PIP
+        { pt: { x: 270, y: 175 }, z: 13.0, r: 11.0 }, // DIP
+        { pt: { x: 272, y: 155 }, z: 4.0,  r: 9.0 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'left-ring',
+      chain: [
+        { pt: { x: 210, y: 222 }, z: 13.0, r: 13.5 }, // MCP
+        { pt: { x: 214, y: 195 }, z: 16.5, r: 12.5 }, // PIP
+        { pt: { x: 218, y: 175 }, z: 12.0, r: 10.5 }, // DIP
+        { pt: { x: 221, y: 157 }, z: 4.0,  r: 8.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'left-pinky',
+      chain: [
+        { pt: { x: 154, y: 218 }, z: 10.5, r: 11.5 }, // MCP
+        { pt: { x: 150, y: 192 }, z: 14.0, r: 10.5 }, // PIP
+        { pt: { x: 148, y: 168 }, z: 10.0, r: 9.0 },  // DIP
+        { pt: { x: 147, y: 146 }, z: 4.0,  r: 7.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'left-thumb',
+      chain: [
+        { pt: { x: 330, y: 310 }, z: 8.0,  r: 14.0 }, // Base
+        { pt: { x: 355, y: 280 }, z: 12.0, r: 13.0 }, // Mid
+        { pt: { x: 380, y: 255 }, z: 6.0,  r: 11.0 }, // Tip
+      ],
+      nailSegment: 1,
+    },
 
-    for (let s = 0; s < chain.length - 1; s++) {
-      const pA = chain[s];
-      const pB = chain[s + 1];
-      const bA = bIndices[s];
-      const bB = bIndices[Math.min(s + 1, bIndices.length - 1)];
-
-      const numSlices = s === chain.length - 2 ? 6 : 5;
-      for (let st = 0; st < numSlices; st++) {
-        const t = st / numSlices;
-        const cx = pA.x + t * (pB.x - pA.x);
-        const cy = pA.y + t * (pB.y - pA.y);
-        const cz = pA.z + t * (pB.z - pA.z);
-        const rLat = radiiLat[s] + t * (radiiLat[s + 1] - radiiLat[s]);
-        const rDv = radiiDv[s] + t * (radiiDv[s + 1] - radiiDv[s]);
-
-        let wA = 1.0;
-        let wB = 0.0;
-        if (t > 0.6) {
-          const blend = (t - 0.6) / 0.4;
-          wA = 1.0 - 0.5 * blend;
-          wB = 0.5 * blend;
-        }
-
-        rings.push({ cx, cy, cz, rLat, rDv, bA, bB, wA, wB, s, t });
-      }
-    }
-
-    // Tip ring
-    const tip = chain[chain.length - 1];
-    const lastBone = bIndices[bIndices.length - 1];
-    rings.push({
-      cx: tip.x,
-      cy: tip.y,
-      cz: tip.z,
-      rLat: 4.5,
-      rDv: 3.5,
-      bA: lastBone,
-      bB: lastBone,
-      wA: 1.0,
-      wB: 0.0,
-      s: chain.length - 2,
-      t: 1.0,
-    });
-
-    const radialSegments = 12;
-    for (let r = 0; r < rings.length; r++) {
-      const ring = rings[r];
-      for (let c = 0; c <= radialSegments; c++) {
-        const theta = (c / radialSegments) * Math.PI * 2;
-        const cos = Math.cos(theta);
-        const sin = Math.sin(theta);
-
-        let vx = ring.cx + ring.rLat * cos;
-        let vy = ring.cy;
-        let vz = ring.cz + ring.rDv * sin;
-
-        // Base human skin color (#D89E82 warm tone)
-        let cr = 0.847, cg = 0.620, cb = 0.510;
-
-        // Knuckle elevations and skin folds on dorsal side (sin > 0)
-        if (sin > 0) {
-          if (ring.s === 0 && ring.t < 0.25) {
-            vz += 2.0 * sin; // MCP
-            cr = 0.81; cg = 0.54; cb = 0.46;
-          }
-          if (ring.s === 0 && ring.t > 0.75) {
-            vz += 2.5 * sin; // PIP
-            cr = 0.80; cg = 0.53; cb = 0.45;
-          }
-          if (ring.s === 1 && ring.t > 0.75) {
-            vz += 1.8 * sin; // DIP
-            cr = 0.81; cg = 0.55; cb = 0.47;
-          }
-
-          // Distinct fingernail plate on dorsal distal phalanx
-          if (ring.s === chain.length - 2 && ring.t > 0.45 && ring.t < 0.95 && sin > 0.5) {
-            const nailT = (ring.t - 0.45) / 0.50;
-            vz += 1.6 * Math.sin(nailT * Math.PI) * sin;
-            cr = 0.918; cg = 0.765; cb = 0.722; // #EAC3B8 nail bed
-            if (ring.t > 0.88) {
-              cr = 0.96; cg = 0.92; cb = 0.90; // lunula / free margin
-            }
-          }
-        }
-
-        positions.push(vx, vy, vz);
-        uvs.push(c / radialSegments, r / (rings.length - 1));
-        colors.push(cr, cg, cb);
-        skinIndices.push(ring.bA, ring.bB, 0, 0);
-        skinWeights.push(ring.wA, ring.wB, 0, 0);
-      }
-    }
-
-    const vPerRing = radialSegments + 1;
-    for (let r = 0; r < rings.length - 1; r++) {
-      for (let c = 0; c < radialSegments; c++) {
-        const i0 = r * vPerRing + c;
-        const i1 = (r + 1) * vPerRing + c;
-        const i2 = (r + 1) * vPerRing + (c + 1);
-        const i3 = r * vPerRing + (c + 1);
-        indices.push(i0, i1, i2);
-        indices.push(i0, i2, i3);
-      }
-    }
-
-    // Fingertip cap apex (matching landmark tip exactly)
-    const capIdx = positions.length / 3;
-    positions.push(tip.x, tip.y, tip.z);
-    uvs.push(0.5, 1.0);
-    colors.push(0.85, 0.62, 0.52);
-    skinIndices.push(lastBone, lastBone, 0, 0);
-    skinWeights.push(1.0, 0.0, 0.0, 0.0);
-
-    const lastRingStart = (rings.length - 1) * vPerRing;
-    for (let c = 0; c < radialSegments; c++) {
-      indices.push(lastRingStart + c, capIdx, lastRingStart + c + 1);
-    }
-
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    geom.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndices, 4));
-    geom.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeights, 4));
-    geom.setIndex(indices);
-    return geom;
-  }
-
-  function buildPalm(wristPt, palmPt, knucklePts, wristBoneName, palmBoneName) {
-    const positions = [];
-    const uvs = [];
-    const colors = [];
-    const skinIndices = [];
-    const skinWeights = [];
-    const indices = [];
-
-    const wristBoneIdx = boneIndexMap[wristBoneName];
-    const palmBoneIdx = boneIndexMap[palmBoneName];
-
-    let kx = 0, ky = 0, kz = 0;
-    knucklePts.forEach((p) => { kx += p.x; ky += p.y; kz += p.z; });
-    kx /= knucklePts.length; ky /= knucklePts.length; kz /= knucklePts.length;
-
-    const numRings = 7;
-    const radialSegments = 16;
-
-    for (let r = 0; r < numRings; r++) {
-      const t = r / (numRings - 1);
-      let cx, cy, cz;
-      if (t < 0.5) {
-        const u = t / 0.5;
-        cx = wristPt.x + u * (palmPt.x - wristPt.x);
-        cy = wristPt.y + u * (palmPt.y - wristPt.y);
-        cz = wristPt.z + u * (palmPt.z - wristPt.z);
-      } else {
-        const u = (t - 0.5) / 0.5;
-        cx = palmPt.x + u * (kx - palmPt.x);
-        cy = palmPt.y + u * (ky - palmPt.y);
-        cz = palmPt.z + u * (kz - palmPt.z);
-      }
-
-      const halfWidth = 38 + t * 45;
-      const dorsalHeight = 6.0 + (1 - Math.abs(t - 0.6) * 1.5) * 8.0;
-      const palmarDepth = 4.0 + (1 - Math.abs(t - 0.6) * 1.5) * 3.0;
-
-      const wWrist = Math.max(0, 1 - t * 1.8);
-      const wPalm = 1 - wWrist;
-
-      for (let c = 0; c <= radialSegments; c++) {
-        const theta = (c / radialSegments) * Math.PI * 2;
-        const cos = Math.cos(theta);
-        const sin = Math.sin(theta);
-
-        let vx = cx + halfWidth * cos;
-        let vy = cy;
-        let vz = cz;
-        let cr = 0.847, cg = 0.620, cb = 0.510;
-
-        if (sin >= 0) {
-          vz += dorsalHeight * sin;
-          if (t > 0.3 && t < 0.95 && Math.abs(cos) < 0.8) {
-            vz += 1.2 * Math.cos(cos * 8);
-          }
-        } else {
-          vz += palmarDepth * sin;
-        }
-
-        positions.push(vx, vy, vz);
-        uvs.push(c / radialSegments, t);
-        colors.push(cr, cg, cb);
-        skinIndices.push(wristBoneIdx, palmBoneIdx, 0, 0);
-        skinWeights.push(wWrist, wPalm, 0, 0);
-      }
-    }
-
-    const vPerRing = radialSegments + 1;
-    for (let r = 0; r < numRings - 1; r++) {
-      for (let c = 0; c < radialSegments; c++) {
-        const i0 = r * vPerRing + c;
-        const i1 = (r + 1) * vPerRing + c;
-        const i2 = (r + 1) * vPerRing + (c + 1);
-        const i3 = r * vPerRing + (c + 1);
-        indices.push(i0, i1, i2);
-        indices.push(i0, i2, i3);
-      }
-    }
-
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-    geom.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-    geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-    geom.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndices, 4));
-    geom.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeights, 4));
-    geom.setIndex(indices);
-    return geom;
-  }
-
-  const L = landmarks.left;
-  const R = landmarks.right;
-
-  const parts = [
-    buildPalm(L.wrist, L.palm, [L.pinky.mcp, L.ring.mcp, L.middle.mcp, L.index.mcp, L.thumb.base], 'wrist_L', 'palm_L'),
-    buildDigit([L.pinky.mcp, L.pinky.pip, L.pinky.dip, L.pinky.tip], [10.5, 9.5, 8.5, 6.5], [9.0, 8.0, 7.0, 5.5], ['pinky_proximal_L', 'pinky_intermediate_L', 'pinky_distal_L']),
-    buildDigit([L.ring.mcp, L.ring.pip, L.ring.dip, L.ring.tip], [12.5, 11.5, 10.0, 8.0], [10.5, 9.8, 8.5, 6.5], ['ring_proximal_L', 'ring_intermediate_L', 'ring_distal_L']),
-    buildDigit([L.middle.mcp, L.middle.pip, L.middle.dip, L.middle.tip], [13.5, 12.5, 10.8, 8.5], [11.5, 10.8, 9.0, 7.0], ['middle_proximal_L', 'middle_intermediate_L', 'middle_distal_L']),
-    buildDigit([L.index.mcp, L.index.pip, L.index.dip, L.index.tip], [12.5, 11.5, 10.0, 8.0], [10.5, 9.8, 8.5, 6.5], ['index_proximal_L', 'index_intermediate_L', 'index_distal_L']),
-    buildDigit([L.thumb.base, L.thumb.mid, L.thumb.tip], [14.0, 13.0, 10.5], [12.0, 11.0, 8.5], ['thumb_proximal_L', 'thumb_distal_L']),
-
-    buildPalm(R.wrist, R.palm, [R.pinky.mcp, R.ring.mcp, R.middle.mcp, R.index.mcp, R.thumb.base], 'wrist_R', 'palm_R'),
-    buildDigit([R.thumb.base, R.thumb.mid, R.thumb.tip], [14.0, 13.0, 10.5], [12.0, 11.0, 8.5], ['thumb_proximal_R', 'thumb_distal_R']),
-    buildDigit([R.index.mcp, R.index.pip, R.index.dip, R.index.tip], [12.5, 11.5, 10.0, 8.0], [10.5, 9.8, 8.5, 6.5], ['index_proximal_R', 'index_intermediate_R', 'index_distal_R']),
-    buildDigit([R.middle.mcp, R.middle.pip, R.middle.dip, R.middle.tip], [13.5, 12.5, 10.8, 8.5], [11.5, 10.8, 9.0, 7.0], ['middle_proximal_R', 'middle_intermediate_R', 'middle_distal_R']),
-    buildDigit([R.ring.mcp, R.ring.pip, R.ring.dip, R.ring.tip], [12.5, 11.5, 10.0, 8.0], [10.5, 9.8, 8.5, 6.5], ['ring_proximal_R', 'ring_intermediate_R', 'ring_distal_R']),
-    buildDigit([R.pinky.mcp, R.pinky.pip, R.pinky.dip, R.pinky.tip], [10.5, 9.5, 8.5, 6.5], [9.0, 8.0, 7.0, 5.5], ['pinky_proximal_R', 'pinky_intermediate_R', 'pinky_distal_R']),
+    // Right Hand Fingers
+    {
+      name: 'right-index',
+      chain: [
+        { pt: { x: 498, y: 222 }, z: 12.5, r: 13.5 }, // MCP
+        { pt: { x: 496, y: 195 }, z: 16.0, r: 12.5 }, // PIP
+        { pt: { x: 494, y: 170 }, z: 12.0, r: 10.5 }, // DIP
+        { pt: { x: 492, y: 145 }, z: 4.0,  r: 8.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'right-middle',
+      chain: [
+        { pt: { x: 552, y: 220 }, z: 14.0, r: 14.5 }, // MCP
+        { pt: { x: 550, y: 192 }, z: 18.0, r: 13.5 }, // PIP
+        { pt: { x: 548, y: 165 }, z: 13.0, r: 11.0 }, // DIP
+        { pt: { x: 546, y: 140 }, z: 4.0,  r: 9.0 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'right-ring',
+      chain: [
+        { pt: { x: 606, y: 222 }, z: 13.0, r: 13.5 }, // MCP
+        { pt: { x: 604, y: 194 }, z: 16.5, r: 12.5 }, // PIP
+        { pt: { x: 602, y: 168 }, z: 12.0, r: 10.5 }, // DIP
+        { pt: { x: 600, y: 142 }, z: 4.0,  r: 8.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'right-pinky',
+      chain: [
+        { pt: { x: 658, y: 215 }, z: 10.5, r: 11.5 }, // MCP
+        { pt: { x: 662, y: 188 }, z: 14.0, r: 10.5 }, // PIP
+        { pt: { x: 664, y: 162 }, z: 10.0, r: 9.0 },  // DIP
+        { pt: { x: 665, y: 137 }, z: 4.0,  r: 7.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'right-thumb',
+      chain: [
+        { pt: { x: 490, y: 310 }, z: 8.0,  r: 14.0 }, // Base
+        { pt: { x: 475, y: 280 }, z: 12.0, r: 13.0 }, // Mid
+        { pt: { x: 460, y: 255 }, z: 6.0,  r: 11.0 }, // Tip
+      ],
+      nailSegment: 1,
+    },
   ];
 
-  const posArr = [], normArr = [], uvArr = [], colArr = [], sIdxArr = [], sWArr = [], indArr = [];
-  let vOffset = 0;
-  for (const part of parts) {
-    part.computeVertexNormals();
-    const p = part.attributes.position;
-    const n = part.attributes.normal;
-    const u = part.attributes.uv;
-    const c = part.attributes.color;
-    const s = part.attributes.skinIndex;
-    const w = part.attributes.skinWeight;
-    const idx = part.index;
+  const palms = [
+    { x: 240, y: 275, rx: 78, ry: 65, zMax: 12.0, wristX: 220, wristY: 360 },
+    { x: 570, y: 275, rx: 78, ry: 65, zMax: 12.0, wristX: 590, wristY: 360 },
+  ];
 
-    for (let i = 0; i < p.count; i++) {
-      posArr.push(p.getX(i), p.getY(i), p.getZ(i));
-      normArr.push(n.getX(i), n.getY(i), n.getZ(i));
-      uvArr.push(u.getX(i), u.getY(i));
-      colArr.push(c.getX(i), c.getY(i), c.getZ(i));
-      sIdxArr.push(s.getX(i), s.getY(i), s.getZ(i), s.getW(i));
-      sWArr.push(w.getX(i), w.getY(i), w.getZ(i), w.getW(i));
+  for (let i = 0; i < position.count; i++) {
+    const vx = position.getX(i);
+    const vy = position.getY(i);
+    const svgX = vx + 450;
+    const svgY = 175 - vy;
+
+    let maxFingerZ = 0;
+
+    for (let f = 0; f < fingerDefinitions.length; f++) {
+      const def = fingerDefinitions[f];
+      const chain = def.chain;
+
+      for (let s = 0; s < chain.length - 1; s++) {
+        const A = chain[s];
+        const B = chain[s + 1];
+
+        const abX = B.pt.x - A.pt.x;
+        const abY = B.pt.y - A.pt.y;
+        const apX = svgX - A.pt.x;
+        const apY = svgY - A.pt.y;
+        const lenSq = abX * abX + abY * abY;
+        if (lenSq === 0) continue;
+
+        let t = (apX * abX + apY * abY) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+
+        const projX = A.pt.x + t * abX;
+        const projY = A.pt.y + t * abY;
+        const dist = Math.hypot(svgX - projX, svgY - projY);
+
+        const r = A.r + t * (B.r - A.r);
+        if (dist < r) {
+          const cross = Math.sqrt(Math.max(0, 1 - (dist / r) * (dist / r)));
+          const centerZ = A.z + t * (B.z - A.z);
+          let localZ = centerZ * cross;
+
+          // Fingernail plateau on distal segment
+          if (s === def.nailSegment && t > 0.45 && t < 0.95 && dist < 0.65 * r) {
+            const nailT = (t - 0.45) / 0.50;
+            const nailArch = Math.sin(nailT * Math.PI);
+            localZ += 1.5 * nailArch * (1 - dist / (0.65 * r));
+          }
+
+          if (localZ > maxFingerZ) {
+            maxFingerZ = localZ;
+          }
+        }
+      }
     }
-    for (let i = 0; i < idx.count; i++) {
-      indArr.push(idx.getX(i) + vOffset);
+
+    // Check dorsal palm arch
+    let maxPalmZ = 0;
+    for (let p = 0; p < palms.length; p++) {
+      const palm = palms[p];
+      const dx = (svgX - palm.x) / palm.rx;
+      const dy = (svgY - palm.y) / palm.ry;
+      const distSq = dx * dx + dy * dy;
+      if (distSq < 1.0) {
+        let pz = palm.zMax * Math.sqrt(1.0 - distSq);
+
+        // Subtle extensor tendon ridges
+        if (svgY < 330 && svgY > 230) {
+          const tendonDist = Math.abs(dx * palm.rx) % 22;
+          if (tendonDist < 5.0) {
+            pz += 1.2 * (1 - tendonDist / 5.0);
+          }
+        }
+        if (pz > maxPalmZ) maxPalmZ = pz;
+      }
+
+      // Wrist region
+      if (svgY >= 330 && svgY <= 380) {
+        const wDistX = Math.abs(svgX - palm.wristX);
+        if (wDistX < 45) {
+          const wArch = Math.sqrt(Math.max(0, 1 - (wDistX / 45) ** 2));
+          const wFade = 1 - (svgY - 330) / 50;
+          const wz = 6.0 * wArch * wFade;
+          if (wz > maxPalmZ) maxPalmZ = wz;
+        }
+      }
     }
-    vOffset += p.count;
+
+    const vz = Math.max(maxFingerZ, maxPalmZ, 0);
+    position.setZ(i, vz);
   }
 
-  const merged = new THREE.BufferGeometry();
-  merged.setAttribute('position', new THREE.Float32BufferAttribute(posArr, 3));
-  merged.setAttribute('normal', new THREE.Float32BufferAttribute(normArr, 3));
-  merged.setAttribute('uv', new THREE.Float32BufferAttribute(uvArr, 2));
-  merged.setAttribute('color', new THREE.Float32BufferAttribute(colArr, 3));
-  merged.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(sIdxArr, 4));
-  merged.setAttribute('skinWeight', new THREE.Float32BufferAttribute(sWArr, 4));
-  merged.setIndex(indArr);
-  merged.computeVertexNormals();
-  return merged;
+  position.needsUpdate = true;
 }
 
 /**
@@ -626,13 +540,26 @@ export function createHandRigMesh(texture = null) {
   const pinky_int_R = addBone('pinky_intermediate_R', HAND_LANDMARKS.right.pinky.pip.clone().sub(HAND_LANDMARKS.right.pinky.mcp), pinky_prox_R);
   addBone('pinky_distal_R', HAND_LANDMARKS.right.pinky.dip.clone().sub(HAND_LANDMARKS.right.pinky.pip), pinky_int_R);
 
-  // Generate genuine volumetric 3D dual-hand geometry
-  const geometry = createVolumetricDualHandGeometry(HAND_LANDMARKS, boneIndexMap);
+  // Mesh proportions matching 750x364 bounds precisely
+  const meshWidth = 750;
+  const meshHeight = 364;
 
-  // High-fidelity PBR skin material with natural Caucasian warm tone, micro-roughness and dielectric specularity
+  // High-density continuous surface: 80x48 subdivisions for smooth skin curvature and joint deformation
+  const geometry = new THREE.PlaneGeometry(meshWidth, meshHeight, 80, 48);
+  geometry.translate(-11, -103, 0);
+
+  // Apply anatomical 3D depth sculpting (volumetric knuckles, curved fingers, fingernails, palm arch)
+  sculptAnatomicalHandDepth(geometry);
+
+  // Compute strictly isolated skin weights (no cross-finger deformation)
+  computeIsolatedSkinWeights(geometry, bones, HAND_LANDMARKS);
+
+  // Compute realistic 3D vertex normals for PBR skin lighting
+  geometry.computeVertexNormals();
+
+  // High-fidelity PBR skin material
   const material = new THREE.MeshStandardMaterial({
     map: texture,
-    vertexColors: true,
     roughness: 0.58,
     metalness: 0.04,
     transparent: true,

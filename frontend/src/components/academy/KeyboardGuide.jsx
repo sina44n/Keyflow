@@ -380,19 +380,9 @@ export function KeyboardGuide({
         {children}
       </svg>
 
-      {/* ── 3D ARTICULATED REALISTIC HUMAN HAND RIG ─────────────────── */}
+      {/* ── ACTIVE FINGERTIP ILLUMINATION LAYER (UNDERNEATH 3D HAND) ── */}
       {handGuideVisible && (
-        <Hand3DGuide
-          targetChar={targetChar}
-          lastKeystroke={lastKeystroke}
-          isVisible={handGuideVisible}
-          spaceThumb={spaceThumb}
-        />
-      )}
-
-      {/* ── ACTIVE FINGERTIP NEON-RED ILLUMINATION OVERLAY ─────────── */}
-      {handGuideVisible && (
-        <div className="absolute inset-0 w-full h-full pointer-events-none select-none z-20">
+        <div className="absolute inset-0 w-full h-full pointer-events-none select-none z-0">
           <svg
             viewBox="0 0 900 350"
             className="w-full h-auto block overflow-visible"
@@ -404,6 +394,16 @@ export function KeyboardGuide({
             />
           </svg>
         </div>
+      )}
+
+      {/* ── 3D ARTICULATED REALISTIC HUMAN HAND RIG ─────────────────── */}
+      {handGuideVisible && (
+        <Hand3DGuide
+          targetChar={targetChar}
+          lastKeystroke={lastKeystroke}
+          isVisible={handGuideVisible}
+          spaceThumb={spaceThumb}
+        />
       )}
     </div>
   );
