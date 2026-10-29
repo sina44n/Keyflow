@@ -477,3 +477,38 @@ class ResendVerificationEmailView(APIView):
             pass
 
         return Response({'detail': 'Verification email sent.', 'verification_token': verif_token}, status=status.HTTP_200_OK)
+
+
+class ClerkSyncView(APIView):
+    """
+    POST /api/auth/clerk-sync/
+    Explicitly synchronizes frontend Clerk user session with Django database.
+    Requires Clerk Bearer token (resolved by ClerkAuthentication).
+    Accepts optional display_name and avatar_url to update profile.
+    Returns synchronized FullUserSerializer payload.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        data = request.data or {}
+        profile, _ = UserProfile.objects.get_or_create(user=user)
+
+        display_name = data.get('display_name') or data.get('name')
+        avatar_url = data.get('avatar_url') or data.get('picture')
+
+        updated_profile = False
+        if display_name and display_name.strip():
+            profile.display_name = str(display_name).strip()[:50]
+            updated_profile = True
+        if avatar_url and avatar_url.strip():
+            profile.avatar_url = str(avatar_url).strip()
+            updated_profile = True
+        if updated_profile:
+            profile.save()
+
+        user.refresh_from_db()
+        return Response({
+            'status': 'synchronized',
+            'user': FullUserSerializer(user).data,
+        }, status=status.HTTP_200_OK)

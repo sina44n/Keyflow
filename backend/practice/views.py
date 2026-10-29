@@ -267,6 +267,28 @@ class CompetitionSubmitView(APIView):
         except CompetitionParticipant.DoesNotExist:
             return Response({'error': 'Participant record not found in this competition.'}, status=status.HTTP_404_NOT_FOUND)
 
+        # Enforce participant ownership if user is associated
+        if participant.user:
+            if not request.user or not request.user.is_authenticated:
+                return Response(
+                    {'error': 'Authentication required to submit results for this registered participant.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            if participant.user != request.user:
+                return Response(
+                    {'error': 'You are not authorized to submit results for another participant.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+        # Idempotent response if participant already submitted
+        if participant.status == 'completed':
+            serializer = CompetitionSerializer(competition)
+            return Response({
+                'status': 'success',
+                'competition': serializer.data,
+                'participant': CompetitionParticipantSerializer(participant).data,
+            })
+
         from django.utils import timezone
 
         net_wpm = max(0.0, float(request.data.get('net_wpm', 0.0)))

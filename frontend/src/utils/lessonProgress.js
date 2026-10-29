@@ -164,6 +164,53 @@ export function syncLessonProgressFromBackend(backendSummary) {
   return state;
 }
 
+/**
+ * Safely migrates anonymous guest progress to the authenticated user account upon login/registration.
+ * Preserves guest storage until migration is completed.
+ */
+export async function migrateGuestProgressToAccount(userId, recordApiFn) {
+  if (!userId || typeof window === 'undefined') return;
+  try {
+    const guestRaw =
+      localStorage.getItem('keyflow_lesson_progress_guest') ||
+      localStorage.getItem('keyflow_lesson_progress_v2');
+    if (!guestRaw) return;
+    const guestState = JSON.parse(guestRaw);
+    if (!guestState?.lessons) return;
+
+    // Filter only genuinely completed lessons
+    const completedEntries = Object.entries(guestState.lessons).filter(
+      ([key, val]) => val?.completed && key.startsWith('S') && key.includes('-L')
+    );
+
+    if (completedEntries.length === 0) return;
+
+    const recordFn = recordApiFn || (backendSyncHandler ? (p) => backendSyncHandler(p) : null);
+    if (!recordFn) return;
+
+    for (const [key, val] of completedEntries) {
+      const match = key.match(/^S(\d+)-L(\d+)$/i);
+      if (!match) continue;
+      const stage = parseInt(match[1], 10);
+      const lesson = parseInt(match[2], 10);
+      try {
+        await recordFn({
+          stage,
+          lesson,
+          wpm: val.bestWpm || 0,
+          accuracy: val.bestAccuracy || 0,
+          completed: true,
+          stars: val.stars || 0,
+        });
+      } catch {
+        // Continue with other entries if one fails
+      }
+    }
+  } catch (err) {
+    console.warn('KEYFLOW guest progress migration notice:', err);
+  }
+}
+
 export function getLessonProgress() {
   return loadState();
 }

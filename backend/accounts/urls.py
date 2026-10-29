@@ -11,6 +11,7 @@ from .views import (
     PasswordChangeView,
     VerifyEmailView,
     ResendVerificationEmailView,
+    ClerkSyncView,
 )
 
 urlpatterns = [
@@ -18,6 +19,7 @@ urlpatterns = [
     path('register/', RegisterView.as_view(), name='auth_register'),
     path('login/', LoginView.as_view(), name='auth_login'),
     path('google/', GoogleLoginView.as_view(), name='auth_google'),
+    path('clerk-sync/', ClerkSyncView.as_view(), name='auth_clerk_sync'),
     path('logout/', LogoutCurrentView.as_view(), name='auth_logout'),
     path('logout-all/', LogoutAllDevicesView.as_view(), name='auth_logout_all'),
     path('me/', CurrentUserView.as_view(), name='auth_me'),

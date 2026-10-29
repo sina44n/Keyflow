@@ -5,6 +5,8 @@
  * and game statistics across all 7 arcade games.
  */
 
+import { gamesAPI } from './api.js';
+
 function getInitialArcadeUserId() {
   try {
     if (typeof localStorage !== 'undefined') {
@@ -189,6 +191,34 @@ export const saveArcadeRecord = (gameId, attemptData = {}) => {
     current[gameId] = updated;
     localStorage.setItem(getArcadeStorageKey(), JSON.stringify(current));
 
+    // Asynchronously dispatch to backend if user is authenticated
+    if (currentArcadeUserId) {
+      try {
+        gamesAPI
+          .recordSession({
+            game_type: gameId,
+            score: Number(attemptData.score || attemptData.wpm || attemptData.distance || 0),
+            accuracy: Number(attemptData.accuracy || 0),
+            duration_seconds: Number(attemptData.durationSeconds || attemptData.duration || 0),
+            words_correct: Number(
+              attemptData.wordsDefeated ||
+                attemptData.wordsTyped ||
+                attemptData.targetsEliminated ||
+                attemptData.slices ||
+                attemptData.obstaclesCleared ||
+                attemptData.soldiersDefeated ||
+                0
+            ),
+            words_missed: Number(attemptData.mistakes || 0),
+            difficulty: String(attemptData.difficulty || 'normal'),
+            metadata: attemptData,
+          })
+          .catch(() => {});
+      } catch {
+        // Safe offline catch
+      }
+    }
+
     window.dispatchEvent(
       new CustomEvent('keyflow-arcade-record-updated', {
         detail: { gameId, record: updated, isNewBest },
@@ -199,6 +229,91 @@ export const saveArcadeRecord = (gameId, attemptData = {}) => {
   } catch (err) {
     console.error('Failed to save arcade record:', err);
     return { isNewBest: false, record: DEFAULT_RECORDS[gameId] };
+  }
+};
+
+/**
+ * Synchronizes authoritative arcade records returned from the backend into user's local store.
+ */
+export const syncArcadeRecordsFromBackend = (serverRecords) => {
+  if (!serverRecords || typeof serverRecords !== 'object') return;
+  try {
+    const current = getArcadeRecords();
+    const merged = { ...current };
+
+    for (const [gId, sRec] of Object.entries(serverRecords)) {
+      if (!sRec || typeof sRec !== 'object') continue;
+      const cRec = merged[gId] || DEFAULT_RECORDS[gId] || {};
+
+      merged[gId] = {
+        ...cRec,
+        ...sRec,
+        bestScore: Math.max(cRec.bestScore || 0, sRec.bestScore || 0),
+        bestCombo: Math.max(cRec.bestCombo || 0, sRec.bestCombo || 0),
+        wordsDefeated: Math.max(cRec.wordsDefeated || 0, sRec.wordsDefeated || 0),
+        bestWpm: Math.max(cRec.bestWpm || 0, sRec.bestWpm || 0),
+        bestAccuracy: Math.max(cRec.bestAccuracy || 0, sRec.bestAccuracy || 0),
+        wordsTyped: Math.max(cRec.wordsTyped || 0, sRec.wordsTyped || 0),
+        bestStreak: Math.max(cRec.bestStreak || 0, sRec.bestStreak || 0),
+        targetsEliminated: Math.max(cRec.targetsEliminated || 0, sRec.targetsEliminated || 0),
+        bestSlices: Math.max(cRec.bestSlices || 0, sRec.bestSlices || 0),
+        maxCombo: Math.max(cRec.maxCombo || 0, sRec.maxCombo || 0),
+        maxDistance: Math.max(cRec.maxDistance || 0, sRec.maxDistance || 0),
+        obstaclesCleared: Math.max(cRec.obstaclesCleared || 0, sRec.obstaclesCleared || 0),
+        deepestRound: Math.max(cRec.deepestRound || 0, sRec.deepestRound || 0),
+        perfectRecalls: Math.max(cRec.perfectRecalls || 0, sRec.perfectRecalls || 0),
+        highestWave: Math.max(cRec.highestWave || 1, sRec.highestWave || 1),
+        highestTier: Math.max(cRec.highestTier || 1, sRec.highestTier || 1),
+        soldiersDefeated: Math.max(cRec.soldiersDefeated || 0, sRec.soldiersDefeated || 0),
+        gamesPlayed: Math.max(cRec.gamesPlayed || 0, sRec.gamesPlayed || 0),
+        bossDefeated: Boolean(cRec.bossDefeated || sRec.bossDefeated),
+      };
+    }
+
+    localStorage.setItem(getArcadeStorageKey(), JSON.stringify(merged));
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(
+        new CustomEvent('keyflow-arcade-record-updated', { detail: merged })
+      );
+    }
+  } catch (err) {
+    console.warn('KEYFLOW arcade sync notice:', err);
+  }
+};
+
+/**
+ * Safely migrates guest arcade records to the newly authenticated account.
+ */
+export const migrateGuestArcadeRecordsToAccount = async (userId) => {
+  if (!userId || typeof window === 'undefined') return;
+  try {
+    const rawGuest = localStorage.getItem('keyflow_arcade_records_guest');
+    if (!rawGuest) return;
+    const guestRecords = JSON.parse(rawGuest);
+    if (!guestRecords || typeof guestRecords !== 'object') return;
+
+    for (const [gameId, rec] of Object.entries(guestRecords)) {
+      if (!rec || !rec.gamesPlayed) continue;
+      try {
+        await gamesAPI.recordSession({
+          game_type: gameId,
+          score: Number(rec.bestScore || rec.bestWpm || rec.maxDistance || 0),
+          accuracy: Number(rec.bestAccuracy || 0),
+          words_correct: Number(
+            rec.wordsDefeated ||
+              rec.wordsTyped ||
+              rec.targetsEliminated ||
+              rec.bestSlices ||
+              rec.obstaclesCleared ||
+              rec.soldiersDefeated ||
+              0
+          ),
+          metadata: rec,
+        });
+      } catch {}
+    }
+  } catch (err) {
+    console.warn('KEYFLOW guest arcade migration notice:', err);
   }
 };
 

@@ -125,6 +125,13 @@ DATABASES = {
     )
 }
 
+# Anchor relative SQLite paths to BASE_DIR so management commands and servers
+# consistently access backend/db.sqlite3 regardless of the shell working directory.
+if DATABASES['default'].get('ENGINE') == 'django.db.backends.sqlite3':
+    _sqlite_name = DATABASES['default'].get('NAME')
+    if _sqlite_name and not os.path.isabs(_sqlite_name):
+        DATABASES['default']['NAME'] = str((BASE_DIR / _sqlite_name).resolve())
+
 # ---------------------------------------------------------------------------
 # Custom User Model
 # ---------------------------------------------------------------------------
@@ -165,6 +172,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'accounts.authentication.ClerkAuthentication',
         'knox.auth.TokenAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
@@ -231,10 +239,18 @@ CSRF_TRUSTED_ORIGINS = config(
 )
 
 # ---------------------------------------------------------------------------
-# Frontend URL & Google OAuth Settings
+# Frontend URL & Auth Settings (Clerk & Google)
 # ---------------------------------------------------------------------------
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
+
+# Clerk Authentication Settings
+CLERK_SECRET_KEY = config('CLERK_SECRET_KEY', default='')
+CLERK_PUBLISHABLE_KEY = config('CLERK_PUBLISHABLE_KEY', default='')
+CLERK_ISSUER = config('CLERK_ISSUER', default='')
+CLERK_JWKS_URL = config('CLERK_JWKS_URL', default='')
+CLERK_PEM_PUBLIC_KEY = config('CLERK_PEM_PUBLIC_KEY', default='')
+CLERK_TEST_PUBLIC_KEY = None
 
 # ---------------------------------------------------------------------------
 # Email (Password Reset & Verification)

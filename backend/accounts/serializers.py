@@ -11,8 +11,8 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'username', 'is_email_verified', 'date_joined']
-        read_only_fields = ['id', 'is_email_verified', 'date_joined']
+        fields = ['id', 'email', 'username', 'clerk_id', 'is_email_verified', 'date_joined']
+        read_only_fields = ['id', 'clerk_id', 'is_email_verified', 'date_joined']
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -125,7 +125,7 @@ class FullUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'username', 'is_email_verified', 'date_joined', 'profile', 'preferences']
+        fields = ['id', 'email', 'username', 'clerk_id', 'is_email_verified', 'date_joined', 'profile', 'preferences']
         read_only_fields = fields
 
     def get_profile(self, obj):

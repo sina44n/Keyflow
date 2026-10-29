@@ -43,6 +43,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     """
     email = models.EmailField(unique=True, db_index=True)
     username = models.CharField(max_length=30, unique=True, db_index=True)
+    clerk_id = models.CharField(max_length=128, unique=True, null=True, blank=True, db_index=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_email_verified = models.BooleanField(default=False)
@@ -98,6 +99,7 @@ class UserPreferences(models.Model):
     Frontend reads these on login and applies them immediately.
     """
     THEME_CHOICES = [
+        ('dark-theme', 'Dark Theme'),
         ('dark-charcoal-lime', 'Dark Charcoal + Lime'),
         ('classic-black-white', 'Classic Black + White'),
         ('burgundy-cream', 'Burgundy + Cream'),
@@ -110,6 +112,9 @@ class UserPreferences(models.Model):
         ('arctic-blue', 'Arctic Blue'),
         ('solarized-light', 'Solarized Light'),
         ('warm-sand', 'Warm Sand'),
+        ('espresso-latte', 'Espresso & Latte'),
+        ('forest-sage', 'Forest Sage'),
+        ('midnight-slate', 'Midnight Slate'),
     ]
 
     DURATION_CHOICES = [(15, '15 seconds'), (30, '30 seconds'), (60, '60 seconds'), (120, '2 minutes')]
@@ -119,7 +124,7 @@ class UserPreferences(models.Model):
     theme_preset = models.CharField(
         max_length=30,
         choices=THEME_CHOICES,
-        default='dark-charcoal-lime'
+        default='burgundy-cream'
     )
     daily_goal_minutes = models.PositiveSmallIntegerField(
         choices=GOAL_CHOICES,
@@ -129,8 +134,13 @@ class UserPreferences(models.Model):
         choices=DURATION_CHOICES,
         default=60
     )
+    preferred_word_count = models.PositiveSmallIntegerField(default=25)
+    preferred_mode = models.CharField(max_length=20, default='timed')
+    passage_category = models.CharField(max_length=30, default='general')
     sound_enabled = models.BooleanField(default=True)
+    sound_profile = models.CharField(max_length=50, default='mechanical-blue')
     keyboard_visual_enabled = models.BooleanField(default=True)
+    hand_guide_enabled = models.BooleanField(default=True)
     reduced_motion = models.BooleanField(default=False)
     language = models.CharField(max_length=10, default='en')
     updated_at = models.DateTimeField(auto_now=True)

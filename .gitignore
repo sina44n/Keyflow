@@ -1,7 +1,10 @@
 # Environments & Secrets
 .env
+.env.*
 *.env
 !.env.example
+!frontend/.env.example
+!backend/.env.example
 .venv/
 venv/
 ENV/

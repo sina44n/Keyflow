@@ -30,22 +30,40 @@ const api = axios.create({
 });
 
 // ---------------------------------------------------------------------------
-// Token Storage (localStorage — Knox tokens are long-lived, per-device)
+// Token Storage & Dynamic Clerk Token Provider
 // ---------------------------------------------------------------------------
 const TOKEN_KEY = 'keyflow_auth_token';
+
+let tokenGetter = null;
+export const registerTokenGetter = (fn) => {
+  tokenGetter = fn;
+};
 
 export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
 export const setStoredToken = (token) => localStorage.setItem(TOKEN_KEY, token);
 export const clearStoredToken = () => localStorage.removeItem(TOKEN_KEY);
 
 // ---------------------------------------------------------------------------
-// Request Interceptor — inject Knox token
+// Request Interceptor — inject Clerk Bearer JWT or Knox token
 // ---------------------------------------------------------------------------
 api.interceptors.request.use(
-  (config) => {
-    const token = getStoredToken();
+  async (config) => {
+    let token = null;
+    if (tokenGetter) {
+      try {
+        token = await tokenGetter();
+      } catch {}
+    }
+    if (!token) {
+      token = getStoredToken();
+    }
     if (token) {
-      config.headers.Authorization = `Token ${token}`;
+      // If token is JWT (3 dot-separated segments), use Bearer for Clerk
+      if (typeof token === 'string' && token.split('.').length === 3) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        config.headers.Authorization = `Token ${token}`;
+      }
     }
     return config;
   },
@@ -82,6 +100,7 @@ api.interceptors.response.use(
 // Auth API Methods
 // ---------------------------------------------------------------------------
 export const authAPI = {
+  clerkSync: (data) => api.post('/auth/clerk-sync/', data || {}),
   register: (data) => api.post('/auth/register/', data),
   login: (data) => api.post('/auth/login/', data),
   googleLogin: (payload) =>

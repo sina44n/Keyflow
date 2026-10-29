@@ -16,6 +16,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
+import { SignIn, SignUp } from '@clerk/react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { authAPI } from '../utils/api';
@@ -29,8 +30,31 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 
+export const clerkAppearance = {
+  elements: {
+    rootBox: 'w-full',
+    card: 'bg-transparent shadow-none p-0 w-full',
+    headerTitle: 'text-2xl font-black text-gray-900 tracking-tight text-center',
+    headerSubtitle: 'text-xs text-gray-500 text-center',
+    socialButtonsBlockButton:
+      'bg-gray-50 border border-gray-200 text-gray-800 hover:bg-gray-100 transition-all rounded-xl py-2.5 shadow-sm',
+    socialButtonsBlockButtonText: 'text-gray-800 font-semibold text-xs',
+    dividerLine: 'bg-gray-200',
+    dividerText: 'text-gray-400 text-[11px] font-mono uppercase tracking-wider',
+    formButtonPrimary:
+      'bg-[#F95700] hover:bg-[#e04e00] text-white font-bold py-3 rounded-xl transition-all shadow-md shadow-orange-500/25 text-sm tracking-wide',
+    formFieldLabel: 'text-xs font-bold uppercase tracking-wider text-gray-700',
+    formFieldInput:
+      'bg-gray-50 border border-gray-300 text-gray-900 rounded-xl py-2.5 px-3.5 focus:border-[#F95700] focus:ring-1 focus:ring-[#F95700] transition-all text-sm',
+    footerActionText: 'text-gray-500 text-xs',
+    footerActionLink: 'text-[#F95700] hover:underline font-bold text-xs',
+    identityPreviewText: 'text-gray-900',
+    identityPreviewEditButton: 'text-[#F95700]',
+  },
+};
+
 export const AuthPage = ({ mode = 'login' }) => {
-  const { login, register, loginWithGoogle } = useAuth();
+  const { login, register, loginWithGoogle, isClerkConfigured, isAuthenticated, user } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
@@ -72,6 +96,13 @@ export const AuthPage = ({ mode = 'login' }) => {
   const isForgot = mode === 'forgot';
 
   const destination = location.state?.from || '/academy';
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      navigate(destination, { replace: true });
+    }
+  }, [isAuthenticated, user, navigate, destination]);
 
   // -------------------------------------------------------------------------
   // Token Validation on Mount for Password Reset
@@ -356,18 +387,59 @@ export const AuthPage = ({ mode = 'login' }) => {
           </div>
 
           {/* ----------------------------------------------------------------- */}
-          {/* RIGHT PANEL: Clean White Authentication Form                      */}
+          {/* RIGHT PANEL: Clean White Authentication Form / Clerk Auth          */}
           {/* ----------------------------------------------------------------- */}
           <div className="bg-white text-gray-900 p-4 sm:p-8 md:p-10 flex flex-col justify-between rounded-xl sm:rounded-[24px]">
-            <div className="w-full max-w-[360px] mx-auto my-auto">
-              {/* Heading */}
-              <div className="text-center mb-6">
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-                  {isLogin && (t('auth.login.title') || 'Log In')}
-                  {isRegister && (t('auth.register.title') || 'Create Account')}
-                  {isForgot && (t('auth.forgot.title') || 'Reset Password')}
-                  {isReset && 'Set New Password'}
-                </h1>
+            {isClerkConfigured ? (
+              <div className="w-full max-w-[380px] mx-auto my-auto py-2">
+                {isLogin && (
+                  <SignIn
+                    routing="path"
+                    path="/login"
+                    signUpUrl="/register"
+                    fallbackRedirectUrl={destination}
+                    appearance={clerkAppearance}
+                  />
+                )}
+                {isRegister && (
+                  <SignUp
+                    routing="path"
+                    path="/register"
+                    signInUrl="/login"
+                    fallbackRedirectUrl={destination}
+                    appearance={clerkAppearance}
+                  />
+                )}
+                {(isForgot || isReset) && (
+                  <SignIn
+                    routing="path"
+                    path="/forgot-password"
+                    signUpUrl="/register"
+                    appearance={clerkAppearance}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="w-full max-w-[360px] mx-auto my-auto">
+                {/* Fallback Setup Notice */}
+                <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 text-xs">
+                  <p className="font-bold flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Clerk Setup Required</span>
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-amber-800">
+                    To activate live Clerk sign-in and Google OAuth, add <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-amber-900">VITE_CLERK_PUBLISHABLE_KEY</code> in <code className="font-mono">frontend/.env</code>.
+                  </p>
+                </div>
+
+                {/* Heading */}
+                <div className="text-center mb-6">
+                  <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+                    {isLogin && (t('auth.login.title') || 'Log In')}
+                    {isRegister && (t('auth.register.title') || 'Create Account')}
+                    {isForgot && (t('auth.forgot.title') || 'Reset Password')}
+                    {isReset && 'Set New Password'}
+                  </h1>
                 <p className="text-xs text-gray-500 mt-1">
                   {isLogin && (t('auth.login.subtitle') || 'Enter your credentials to access your terminal.')}
                   {isRegister && (t('auth.register.subtitle') || 'Join KEYFLOW and master touch typing with precision.')}
@@ -673,6 +745,7 @@ export const AuthPage = ({ mode = 'login' }) => {
                 )}
               </div>
             </div>
+            )}
           </div>
         </div>
       </div>

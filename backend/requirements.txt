@@ -14,8 +14,9 @@ psycopg[binary]==3.3.6
 # Database URL parsing (reads DATABASE_URL env var)
 dj-database-url==2.3.0
 
-# Token Authentication — per-device, multi-session, revocable
-# Package is django-rest-knox (not django-knox)
+# Token Authentication — Clerk JWT verification & Knox legacy tokens
+pyjwt[crypto]==2.15.1
+cryptography==50.0.2
 django-rest-knox==5.1.0
 
 # CORS headers for React frontend communication

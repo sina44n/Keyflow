@@ -22,7 +22,15 @@ import TelemetryPage from './pages/TelemetryPage';
 import { ThemesPage } from './pages/ThemesPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
+import { ClerkProvider } from '@clerk/react';
 import { Footer } from './components/common/Footer';
+
+const CLERK_PUBLISHABLE_KEY =
+  typeof import.meta !== 'undefined' && import.meta.env?.VITE_CLERK_PUBLISHABLE_KEY
+    ? String(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY).trim()
+    : '';
+
+const isClerkConfigured = Boolean(CLERK_PUBLISHABLE_KEY);
 
 const AcademyStageRoute = () => {
   const { stageId } = useParams();
@@ -46,18 +54,17 @@ const AcademyHomeRoute = () => {
 };
 
 function App() {
-  return (
+  const router = (
     <ThemeProvider>
       <SoundProvider>
-        <AuthProvider>
-          <I18nProvider>
-            <BrowserRouter>
-              <div className="min-h-screen flex flex-col bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-200">
-                <Navbar />
-                <div className="flex-1">
-                  <Routes>
-                    {/* Public Pages */}
-                    <Route path="/" element={<LandingPage />} />
+        <I18nProvider>
+          <BrowserRouter>
+            <div className="min-h-screen flex flex-col bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-200">
+              <Navbar />
+              <div className="flex-1">
+                <Routes>
+                  {/* Public Pages */}
+                  <Route path="/" element={<LandingPage />} />
                     <Route path="/login" element={<AuthPage mode="login" />} />
                     <Route path="/register" element={<AuthPage mode="register" />} />
                     <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
@@ -124,13 +131,22 @@ function App() {
                   </Routes>
                 </div>
                 <Footer />
-              </div>
-            </BrowserRouter>
-          </I18nProvider>
-        </AuthProvider>
+            </div>
+          </BrowserRouter>
+        </I18nProvider>
       </SoundProvider>
     </ThemeProvider>
   );
+
+  if (isClerkConfigured) {
+    return (
+      <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
+        <AuthProvider isClerkConfigured={true}>{router}</AuthProvider>
+      </ClerkProvider>
+    );
+  }
+
+  return <AuthProvider isClerkConfigured={false}>{router}</AuthProvider>;
 }
 
 export default App;
