@@ -102,25 +102,6 @@ export function HandGuide({ targetChar, isVisible = true, standalone = false, hi
         </mask>
       </defs>
 
-      {/* ── PHOTOREALISTIC HUMAN HANDS ASSET ───────────────────────── */}
-      {/* Positioned accurately over home row with natural wrist extension */}
-      {!hideHandsImage && (
-        <g mask="url(#wristFadeMask)">
-          <image
-            href="/realistic_hands_both.png"
-            x="64"
-            y="96"
-            width="750"
-            height="364"
-            preserveAspectRatio="none"
-            style={{
-              filter: 'drop-shadow(0 20px 40px rgba(0, 0, 0, 0.75))',
-              pointerEvents: 'none',
-            }}
-          />
-        </g>
-      )}
-
       {/* ── DYNAMIC FINGER GUIDANCE: AMBIENT RED KEY REFLECTION ──────── */}
       {/* Lights up the active finger subtly with authentic neon-red glow */}
       {activeTips.map((tip, idx) => (

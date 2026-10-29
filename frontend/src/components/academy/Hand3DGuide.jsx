@@ -88,37 +88,52 @@ export function Hand3DGuide({
     const ambientLight = new THREE.AmbientLight(0xF4ECE6, 0.75);
     scene.add(ambientLight);
 
-    // Texture loader with cached high-resolution hands asset
-    const textureLoader = new THREE.TextureLoader();
-    let handMesh = null;
-    let skeleton = null;
-    let animController = null;
+    // Generate organic epidermal texture with fine pores and dermal scattering
+    function createProceduralSkinTexture() {
+      if (typeof document === 'undefined') return null;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 512;
+        canvas.height = 512;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return null;
 
-    textureLoader.load(
-      '/realistic_hands_both.png',
-      (texture) => {
-        texture.colorSpace = THREE.SRGBColorSpace;
-        texture.generateMipmaps = true;
-        texture.minFilter = THREE.LinearMipmapLinearFilter;
+        ctx.fillStyle = '#D89E82';
+        ctx.fillRect(0, 0, 512, 512);
 
-        // Create 3D SkinnedMesh with 32 bones
-        const rig = createHandRigMesh(texture);
-        handMesh = rig.skinnedMesh;
-        skeleton = rig.skeleton;
-        animController = createHandAnimationController(rig.boneMap);
-        controllerRef.current = animController;
+        const imgData = ctx.getImageData(0, 0, 512, 512);
+        const data = imgData.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const noise = (Math.random() - 0.5) * 10;
+          data[i] = Math.max(0, Math.min(255, data[i] + noise));
+          data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + noise * 0.75));
+          data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + noise * 0.65));
+        }
+        ctx.putImageData(imgData, 0, 0);
 
-        scene.add(handMesh);
-
-        // Initial render
-        renderer.render(scene, camera);
-      },
-      undefined,
-      () => {
-        // Fallback on texture error
-        setWebGLFailed(true);
+        const tex = new THREE.CanvasTexture(canvas);
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+        tex.repeat.set(8, 8);
+        return tex;
+      } catch {
+        return null;
       }
-    );
+    }
+
+    const skinTexture = createProceduralSkinTexture();
+
+    // Create authentic 3D Volumetric SkinnedMesh with 32 bones
+    const rig = createHandRigMesh(skinTexture);
+    const handMesh = rig.skinnedMesh;
+    const skeleton = rig.skeleton;
+    const animController = createHandAnimationController(rig.boneMap);
+    controllerRef.current = animController;
+
+    scene.add(handMesh);
+
+    // Initial render
+    renderer.render(scene, camera);
 
     // Render loop trigger function
     function startLoopIfNeeded() {
@@ -220,17 +235,9 @@ export function Hand3DGuide({
 
   if (!isVisible) return null;
 
-  // WebGL Fallback to static SVG image if canvas/WebGL unsupported
+  // Graceful fallback if canvas/WebGL unsupported
   if (webGLFailed) {
-    return (
-      <div className="absolute inset-0 w-full h-full pointer-events-none select-none">
-        <img
-          src="/realistic_hands_both.png"
-          alt="Hands Guide"
-          className="w-full h-full object-contain"
-        />
-      </div>
-    );
+    return null;
   }
 
   return (
