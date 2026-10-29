@@ -85,6 +85,20 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     BONE_NAMES.forEach((name) => {
       assert.ok(boneMap[name], `Bone ${name} is in boneMap`);
     });
+
+    // Verify PBR skin material and volumetric morphology
+    assert.ok(skinnedMesh.material.isMeshStandardMaterial, 'Uses MeshStandardMaterial for PBR skin shading');
+    assert.equal(skinnedMesh.material.roughness, 0.58, 'Configured with natural skin roughness');
+    assert.equal(skinnedMesh.material.metalness, 0.04, 'Configured with dielectric skin metalness');
+
+    const normals = geom.attributes.normal;
+    assert.ok(normals && normals.count > 0, 'Has 3D vertex normals for organic lighting');
+
+    let maxZ = 0;
+    for (let i = 0; i < geom.attributes.position.count; i++) {
+      maxZ = Math.max(maxZ, geom.attributes.position.getZ(i));
+    }
+    assert.ok(maxZ > 14.0, `Volumetric knuckle/joint depth is sculpted (maxZ: ${maxZ}px)`);
   });
 
   it('animates the correct finger on keystroke and smoothly returns to resting pose', () => {

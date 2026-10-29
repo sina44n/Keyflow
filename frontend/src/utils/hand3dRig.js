@@ -264,6 +264,215 @@ export function computeIsolatedSkinWeights(geometry, bones, landmarks) {
 }
 
 /**
+ * Applies anatomical 3D depth sculpting to mesh vertices based on clinical human hand morphology:
+ * - Semi-cylindrical finger cross-sections
+ * - Volumetric knuckle elevations at MCP, PIP, and DIP
+ * - Distal fingernail plateau with dorsal specularity
+ * - Transverse carpal arch on the dorsal palm
+ * - Extensor digitorum tendon relief ridges
+ */
+export function sculptAnatomicalHandDepth(geometry) {
+  const position = geometry.attributes.position;
+
+  const fingerDefinitions = [
+    // Left Hand Fingers
+    {
+      name: 'left-index',
+      chain: [
+        { pt: { x: 316, y: 230 }, z: 12.5, r: 13.5 }, // MCP
+        { pt: { x: 318, y: 202 }, z: 16.0, r: 12.5 }, // PIP
+        { pt: { x: 320, y: 180 }, z: 12.0, r: 10.5 }, // DIP
+        { pt: { x: 321, y: 161 }, z: 4.0,  r: 8.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'left-middle',
+      chain: [
+        { pt: { x: 266, y: 225 }, z: 14.0, r: 14.5 }, // MCP
+        { pt: { x: 268, y: 198 }, z: 18.0, r: 13.5 }, // PIP
+        { pt: { x: 270, y: 175 }, z: 13.0, r: 11.0 }, // DIP
+        { pt: { x: 272, y: 155 }, z: 4.0,  r: 9.0 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'left-ring',
+      chain: [
+        { pt: { x: 210, y: 222 }, z: 13.0, r: 13.5 }, // MCP
+        { pt: { x: 214, y: 195 }, z: 16.5, r: 12.5 }, // PIP
+        { pt: { x: 218, y: 175 }, z: 12.0, r: 10.5 }, // DIP
+        { pt: { x: 221, y: 157 }, z: 4.0,  r: 8.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'left-pinky',
+      chain: [
+        { pt: { x: 154, y: 218 }, z: 10.5, r: 11.5 }, // MCP
+        { pt: { x: 150, y: 192 }, z: 14.0, r: 10.5 }, // PIP
+        { pt: { x: 148, y: 168 }, z: 10.0, r: 9.0 },  // DIP
+        { pt: { x: 147, y: 146 }, z: 4.0,  r: 7.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'left-thumb',
+      chain: [
+        { pt: { x: 330, y: 310 }, z: 8.0,  r: 14.0 }, // Base
+        { pt: { x: 355, y: 280 }, z: 12.0, r: 13.0 }, // Mid
+        { pt: { x: 380, y: 255 }, z: 6.0,  r: 11.0 }, // Tip
+      ],
+      nailSegment: 1,
+    },
+
+    // Right Hand Fingers
+    {
+      name: 'right-index',
+      chain: [
+        { pt: { x: 498, y: 222 }, z: 12.5, r: 13.5 }, // MCP
+        { pt: { x: 496, y: 195 }, z: 16.0, r: 12.5 }, // PIP
+        { pt: { x: 494, y: 170 }, z: 12.0, r: 10.5 }, // DIP
+        { pt: { x: 492, y: 145 }, z: 4.0,  r: 8.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'right-middle',
+      chain: [
+        { pt: { x: 552, y: 220 }, z: 14.0, r: 14.5 }, // MCP
+        { pt: { x: 550, y: 192 }, z: 18.0, r: 13.5 }, // PIP
+        { pt: { x: 548, y: 165 }, z: 13.0, r: 11.0 }, // DIP
+        { pt: { x: 546, y: 140 }, z: 4.0,  r: 9.0 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'right-ring',
+      chain: [
+        { pt: { x: 606, y: 222 }, z: 13.0, r: 13.5 }, // MCP
+        { pt: { x: 604, y: 194 }, z: 16.5, r: 12.5 }, // PIP
+        { pt: { x: 602, y: 168 }, z: 12.0, r: 10.5 }, // DIP
+        { pt: { x: 600, y: 142 }, z: 4.0,  r: 8.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'right-pinky',
+      chain: [
+        { pt: { x: 658, y: 215 }, z: 10.5, r: 11.5 }, // MCP
+        { pt: { x: 662, y: 188 }, z: 14.0, r: 10.5 }, // PIP
+        { pt: { x: 664, y: 162 }, z: 10.0, r: 9.0 },  // DIP
+        { pt: { x: 665, y: 137 }, z: 4.0,  r: 7.5 },  // Tip
+      ],
+      nailSegment: 2,
+    },
+    {
+      name: 'right-thumb',
+      chain: [
+        { pt: { x: 490, y: 310 }, z: 8.0,  r: 14.0 }, // Base
+        { pt: { x: 475, y: 280 }, z: 12.0, r: 13.0 }, // Mid
+        { pt: { x: 460, y: 255 }, z: 6.0,  r: 11.0 }, // Tip
+      ],
+      nailSegment: 1,
+    },
+  ];
+
+  const palms = [
+    { x: 240, y: 275, rx: 78, ry: 65, zMax: 12.0, wristX: 220, wristY: 360 },
+    { x: 570, y: 275, rx: 78, ry: 65, zMax: 12.0, wristX: 590, wristY: 360 },
+  ];
+
+  for (let i = 0; i < position.count; i++) {
+    const vx = position.getX(i);
+    const vy = position.getY(i);
+    const svgX = vx + 450;
+    const svgY = 175 - vy;
+
+    let maxFingerZ = 0;
+
+    for (let f = 0; f < fingerDefinitions.length; f++) {
+      const def = fingerDefinitions[f];
+      const chain = def.chain;
+
+      for (let s = 0; s < chain.length - 1; s++) {
+        const A = chain[s];
+        const B = chain[s + 1];
+
+        const abX = B.pt.x - A.pt.x;
+        const abY = B.pt.y - A.pt.y;
+        const apX = svgX - A.pt.x;
+        const apY = svgY - A.pt.y;
+        const lenSq = abX * abX + abY * abY;
+        if (lenSq === 0) continue;
+
+        let t = (apX * abX + apY * abY) / lenSq;
+        t = Math.max(0, Math.min(1, t));
+
+        const projX = A.pt.x + t * abX;
+        const projY = A.pt.y + t * abY;
+        const dist = Math.hypot(svgX - projX, svgY - projY);
+
+        const r = A.r + t * (B.r - A.r);
+        if (dist < r) {
+          const cross = Math.sqrt(Math.max(0, 1 - (dist / r) * (dist / r)));
+          const centerZ = A.z + t * (B.z - A.z);
+          let localZ = centerZ * cross;
+
+          // Fingernail plateau on distal segment
+          if (s === def.nailSegment && t > 0.45 && t < 0.95 && dist < 0.65 * r) {
+            const nailT = (t - 0.45) / 0.50;
+            const nailArch = Math.sin(nailT * Math.PI);
+            localZ += 1.5 * nailArch * (1 - dist / (0.65 * r));
+          }
+
+          if (localZ > maxFingerZ) {
+            maxFingerZ = localZ;
+          }
+        }
+      }
+    }
+
+    // Check dorsal palm arch
+    let maxPalmZ = 0;
+    for (let p = 0; p < palms.length; p++) {
+      const palm = palms[p];
+      const dx = (svgX - palm.x) / palm.rx;
+      const dy = (svgY - palm.y) / palm.ry;
+      const distSq = dx * dx + dy * dy;
+      if (distSq < 1.0) {
+        let pz = palm.zMax * Math.sqrt(1.0 - distSq);
+
+        // Subtle extensor tendon ridges
+        if (svgY < 330 && svgY > 230) {
+          const tendonDist = Math.abs(dx * palm.rx) % 22;
+          if (tendonDist < 5.0) {
+            pz += 1.2 * (1 - tendonDist / 5.0);
+          }
+        }
+        if (pz > maxPalmZ) maxPalmZ = pz;
+      }
+
+      // Wrist region
+      if (svgY >= 330 && svgY <= 380) {
+        const wDistX = Math.abs(svgX - palm.wristX);
+        if (wDistX < 45) {
+          const wArch = Math.sqrt(Math.max(0, 1 - (wDistX / 45) ** 2));
+          const wFade = 1 - (svgY - 330) / 50;
+          const wz = 6.0 * wArch * wFade;
+          if (wz > maxPalmZ) maxPalmZ = wz;
+        }
+      }
+    }
+
+    const vz = Math.max(maxFingerZ, maxPalmZ, 0);
+    position.setZ(i, vz);
+  }
+
+  position.needsUpdate = true;
+}
+
+/**
  * Creates the complete rigged 3D SkinnedMesh with 32-bone skeletal hierarchy.
  */
 export function createHandRigMesh(texture = null) {
@@ -334,16 +543,25 @@ export function createHandRigMesh(texture = null) {
   const geometry = new THREE.PlaneGeometry(meshWidth, meshHeight, 80, 48);
   geometry.translate(-11, -103, 0);
 
+  // Apply anatomical 3D depth sculpting (volumetric knuckles, curved fingers, fingernails, palm arch)
+  sculptAnatomicalHandDepth(geometry);
+
   // Compute strictly isolated skin weights (no cross-finger deformation)
   computeIsolatedSkinWeights(geometry, bones, HAND_LANDMARKS);
 
-  // High-fidelity skin material
-  const material = new THREE.MeshBasicMaterial({
+  // Compute realistic 3D vertex normals for PBR skin lighting
+  geometry.computeVertexNormals();
+
+  // High-fidelity PBR skin material
+  const material = new THREE.MeshStandardMaterial({
     map: texture,
+    roughness: 0.58,
+    metalness: 0.04,
     transparent: true,
     opacity: 0.98,
     side: THREE.DoubleSide,
     depthWrite: false,
+    alphaTest: 0.01,
   });
 
   const skeleton = new THREE.Skeleton(bones);

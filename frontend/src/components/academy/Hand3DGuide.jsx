@@ -68,13 +68,25 @@ export function Hand3DGuide({
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // Subtle atmospheric lighting
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.15);
-    scene.add(ambientLight);
+    // Studio lighting rig tailored for PBR human skin rendering
+    // 1. Warm Key Light (top-right frontal) providing natural diffuse illumination and knuckle highlights
+    const keyLight = new THREE.DirectionalLight(0xFFF5EB, 1.35);
+    keyLight.position.set(70, 160, 320);
+    scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0xFF1744, 0.85);
-    rimLight.position.set(0, 200, 300);
+    // 2. Soft Cool Fill Light (left ambient fill) to soften deep shadows
+    const fillLight = new THREE.DirectionalLight(0xDEE7F8, 0.55);
+    fillLight.position.set(-130, 80, 220);
+    scene.add(fillLight);
+
+    // 3. Biological Red Rim Light simulating dermal subsurface light transmission along finger contours
+    const rimLight = new THREE.DirectionalLight(0xFF2244, 0.85);
+    rimLight.position.set(0, 260, 100);
     scene.add(rimLight);
+
+    // 4. Soft Ambient Base Light preventing shadow clipping against dark UI
+    const ambientLight = new THREE.AmbientLight(0xF4ECE6, 0.75);
+    scene.add(ambientLight);
 
     // Texture loader with cached high-resolution hands asset
     const textureLoader = new THREE.TextureLoader();
