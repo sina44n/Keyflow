@@ -1,0 +1,20 @@
+KEYFLOW — Verify your email address
+=====================================
+
+Welcome to KEYFLOW!
+
+Email verification is required to complete your registration and activate your personal workstation, 4,200-lesson curriculum, and telemetry analytics.
+
+To verify your email address, click the following link or copy it into your browser:
+{{action_url}}
+
+If your registration requires a verification code:
+{{otp_code}}
+
+Security notice:
+This link is valid for a limited time. If you did not create a KEYFLOW account, you can safely ignore this email — no account will be activated without verification.
+
+---
+KEYFLOW — Precision Touch Typing
+Less looking. More flowing.
+Secured by Clerk Identity Infrastructure

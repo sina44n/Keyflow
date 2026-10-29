@@ -14,9 +14,10 @@
  * - Full integration with real Knox token Django backend and PostgreSQL
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation, useParams } from 'react-router-dom';
 import { SignIn, SignUp } from '@clerk/react';
+import { useSignIn } from '@clerk/react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../i18n/I18nContext';
 import { authAPI } from '../utils/api';
@@ -51,6 +52,295 @@ export const clerkAppearance = {
     identityPreviewText: 'text-gray-900',
     identityPreviewEditButton: 'text-[#F95700]',
   },
+};
+
+/**
+ * Dedicated Clerk Password Reset Component
+ * Implements official Clerk useSignIn password reset flow:
+ * 1. Validates email and dispatches real Clerk reset email with code.
+ * 2. Displays generic confirmation message to prevent user enumeration.
+ * 3. Verifies code and completes password change atomically.
+ */
+export const ClerkPasswordReset = ({ destination, onBackToLogin }) => {
+  const { isLoaded, signIn, setActive } = useSignIn();
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [password2, setPassword2] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword2, setShowPassword2] = useState(false);
+  const [step, setStep] = useState('request'); // 'request' | 'reset'
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const navigate = useNavigate();
+
+  const handleRequestReset = async (e) => {
+    e.preventDefault();
+    if (!email.trim() || isSubmitting) return;
+    setErrorMessage('');
+    setSuccessMessage('');
+    setIsSubmitting(true);
+
+    try {
+      if (!isLoaded || !signIn) {
+        setErrorMessage('Authentication service is still initializing. Please wait a moment.');
+        return;
+      }
+
+      await signIn.create({
+        strategy: 'reset_password_email_code',
+        identifier: email.trim(),
+      });
+
+      setSuccessMessage('If that email exists in our system, password reset instructions have been sent.');
+      setStep('reset');
+    } catch (err) {
+      const clerkErr = err.errors?.[0];
+      if (clerkErr?.code === 'form_identifier_not_found') {
+        // Prevent account enumeration by showing the same generic confirmation message
+        setSuccessMessage('If that email exists in our system, password reset instructions have been sent.');
+        setStep('reset');
+      } else {
+        setErrorMessage(
+          clerkErr?.longMessage ||
+          clerkErr?.message ||
+          'Unable to send password reset email. Please verify your address and try again.'
+        );
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCompleteReset = async (e) => {
+    e.preventDefault();
+    if (isSubmitting) return;
+    if (!code.trim()) {
+      setErrorMessage('Please enter the verification code sent to your email.');
+      return;
+    }
+    if (password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters long.');
+      return;
+    }
+    if (password !== password2) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
+
+    setErrorMessage('');
+    setSuccessMessage('');
+    setIsSubmitting(true);
+
+    try {
+      if (!isLoaded || !signIn) {
+        setErrorMessage('Authentication service is still initializing. Please try again.');
+        return;
+      }
+
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code: code.trim(),
+        password,
+      });
+
+      if (result.status === 'complete') {
+        setSuccessMessage('Password reset successfully! Redirecting...');
+        await setActive({ session: result.createdSessionId });
+        setTimeout(() => {
+          navigate(destination || '/workstation', { replace: true });
+        }, 1200);
+      } else {
+        setErrorMessage('Additional verification is required. Please check your email or sign in directly.');
+      }
+    } catch (err) {
+      const clerkErr = err.errors?.[0];
+      setErrorMessage(
+        clerkErr?.longMessage ||
+        clerkErr?.message ||
+        'The verification code is invalid or has expired. Please request a new reset code.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="w-full">
+      <div className="text-center mb-6">
+        <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight">
+          {step === 'request' ? 'Reset Password' : 'Set New Password'}
+        </h1>
+        <p className="text-xs text-gray-500 mt-1">
+          {step === 'request'
+            ? 'Enter your registered email address to receive password reset instructions.'
+            : 'Enter the code sent to your email and choose your new password.'}
+        </p>
+      </div>
+
+      {errorMessage && (
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in duration-150">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-700 animate-in fade-in duration-150">
+          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
+          <span>{successMessage}</span>
+        </div>
+      )}
+
+      {step === 'request' ? (
+        <form onSubmit={handleRequestReset} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1.5">
+              Email Address
+            </label>
+            <input
+              type="email"
+              required
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@example.com"
+              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-[#F95700] focus:ring-1 focus:ring-[#F95700] transition-all"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting || !email.trim()}
+            className="w-full py-3 px-4 rounded-xl font-bold text-white text-sm tracking-wide bg-[#F95700] hover:bg-[#e04e00] transition-all shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Sending Instructions...</span>
+              </>
+            ) : (
+              <span>Send Reset Instructions</span>
+            )}
+          </button>
+
+          <div className="text-center pt-2">
+            <Link
+              to="/login"
+              onClick={onBackToLogin}
+              className="text-xs font-bold text-[#F95700] hover:underline"
+            >
+              Back to Sign In
+            </Link>
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={handleCompleteReset} className="space-y-3.5">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              Reset Code
+            </label>
+            <input
+              type="text"
+              required
+              autoFocus
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="6-digit verification code"
+              className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-300 rounded-xl text-sm font-mono tracking-widest text-gray-900 focus:outline-none focus:border-[#F95700] focus:ring-1 focus:ring-[#F95700] transition-all"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={8}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Minimum 8 characters"
+                className="w-full px-3.5 py-2.5 pr-10 bg-gray-50 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-[#F95700] focus:ring-1 focus:ring-[#F95700] transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-gray-700 mb-1">
+              Confirm New Password
+            </label>
+            <div className="relative">
+              <input
+                type={showPassword2 ? 'text' : 'password'}
+                required
+                minLength={8}
+                value={password2}
+                onChange={(e) => setPassword2(e.target.value)}
+                placeholder="Confirm new password"
+                className="w-full px-3.5 py-2.5 pr-10 bg-gray-50 border border-gray-300 rounded-xl text-sm text-gray-900 focus:outline-none focus:border-[#F95700] focus:ring-1 focus:ring-[#F95700] transition-all"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword2(!showPassword2)}
+                tabIndex={-1}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+              >
+                {showPassword2 ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={isSubmitting || !code.trim() || password.length < 8}
+            className="w-full py-3 px-4 rounded-xl font-bold text-white text-sm tracking-wide bg-[#F95700] hover:bg-[#e04e00] transition-all shadow-md shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Updating Password...</span>
+              </>
+            ) : (
+              <span>Set New Password & Sign In</span>
+            )}
+          </button>
+
+          <div className="flex items-center justify-between pt-2 text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                setStep('request');
+                setErrorMessage('');
+                setCode('');
+              }}
+              className="text-gray-500 hover:text-gray-800 cursor-pointer"
+            >
+              ← Try another email
+            </button>
+            <Link
+              to="/login"
+              onClick={onBackToLogin}
+              className="font-bold text-[#F95700] hover:underline"
+            >
+              Back to Sign In
+            </Link>
+          </div>
+        </form>
+      )}
+    </div>
+  );
 };
 
 export const AuthPage = ({ mode = 'login' }) => {
@@ -88,8 +378,6 @@ export const AuthPage = ({ mode = 'login' }) => {
     }
     return '';
   });
-
-  const googleBtnContainerRef = useRef(null);
 
   const isLogin = mode === 'login';
   const isRegister = mode === 'register';
@@ -135,71 +423,6 @@ export const AuthPage = ({ mode = 'login' }) => {
       isMounted = false;
     };
   }, [isReset, resetToken]);
-
-  // -------------------------------------------------------------------------
-  // Google Identity Services (GIS) Initialization
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    if (!isLogin && !isRegister) return;
-
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ? String(import.meta.env.VITE_GOOGLE_CLIENT_ID).trim() : '';
-    const hasClientId = Boolean(clientId);
-
-    if (typeof window !== 'undefined' && window.console?.info) {
-      console.info('[KEYFLOW Auth Diagnostic] Google Client ID present:', hasClientId);
-    }
-
-    if (!hasClientId) return;
-
-    const initGIS = () => {
-      if (typeof window !== 'undefined' && window.google?.accounts?.id) {
-        try {
-          window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: async (response) => {
-              if (!response?.credential) return;
-              setIsGoogleLoading(true);
-              setErrorMessage('');
-              try {
-                await loginWithGoogle(response.credential);
-                navigate(destination, { replace: true });
-              } catch (err) {
-                setErrorMessage(err.response?.data?.error || 'Google authentication failed.');
-              } finally {
-                setIsGoogleLoading(false);
-              }
-            },
-            auto_select: false,
-            cancel_on_tap_outside: true,
-          });
-
-          if (googleBtnContainerRef.current) {
-            googleBtnContainerRef.current.innerHTML = '';
-            window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
-              theme: 'outline',
-              size: 'large',
-              width: 360,
-              text: 'continue_with',
-              shape: 'rectangular',
-              logo_alignment: 'center',
-            });
-          }
-        } catch {}
-      }
-    };
-
-    if (window.google?.accounts?.id) {
-      initGIS();
-    } else {
-      const interval = setInterval(() => {
-        if (window.google?.accounts?.id) {
-          clearInterval(interval);
-          initGIS();
-        }
-      }, 200);
-      return () => clearInterval(interval);
-    }
-  }, [isLogin, isRegister, loginWithGoogle, navigate, destination]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -289,47 +512,17 @@ export const AuthPage = ({ mode = 'login' }) => {
     setErrorMessage('');
     setIsGoogleLoading(true);
     try {
-      const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID ? String(import.meta.env.VITE_GOOGLE_CLIENT_ID).trim() : '';
-      if (!clientId) {
-        setErrorMessage(
-          'Google Sign-In is not configured: VITE_GOOGLE_CLIENT_ID environment variable is missing in the frontend build.'
-        );
-        setIsGoogleLoading(false);
+      if (isClerkConfigured) {
+        await loginWithGoogle({ destination });
         return;
       }
 
-      if (typeof window === 'undefined' || !window.google?.accounts?.id) {
-        const gisScript = typeof document !== 'undefined' ? document.querySelector('script[src*="accounts.google.com/gsi/client"]') : null;
-        if (!gisScript) {
-          setErrorMessage(
-            'Google Identity Services script is missing from index.html. Please ensure Google Identity script is loaded.'
-          );
-        } else {
-          setErrorMessage(
-            'Google Identity Services is still loading or was blocked by browser shields/ad-blocker. Please refresh the page or check privacy extensions.'
-          );
-        }
-        setIsGoogleLoading(false);
-        return;
-      }
-
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed()) {
-          const reason = typeof notification.getNotDisplayedReason === 'function' ? notification.getNotDisplayedReason() : 'unknown';
-          if (reason === 'suppressed_by_user') {
-            setErrorMessage('Google prompt was closed or suppressed by the user.');
-          } else if (reason === 'opt_out_or_no_session') {
-            setErrorMessage('No active Google session found. Please sign in to Google in your browser first.');
-          } else {
-            setErrorMessage(`Google Sign-In prompt could not be displayed (${reason}). Please check third-party cookie and pop-up settings.`);
-          }
-          setIsGoogleLoading(false);
-        } else if (notification.isSkippedMoment()) {
-          setIsGoogleLoading(false);
-        }
-      });
+      setErrorMessage(
+        'Clerk authentication is not configured. Please add VITE_CLERK_PUBLISHABLE_KEY to frontend/.env.local (or your environment) to activate Google Sign-In.'
+      );
     } catch (err) {
       setErrorMessage(err.message || 'Google authentication could not be completed.');
+    } finally {
       setIsGoogleLoading(false);
     }
   };
@@ -411,11 +604,9 @@ export const AuthPage = ({ mode = 'login' }) => {
                   />
                 )}
                 {(isForgot || isReset) && (
-                  <SignIn
-                    routing="path"
-                    path="/forgot-password"
-                    signUpUrl="/register"
-                    appearance={clerkAppearance}
+                  <ClerkPasswordReset
+                    destination={destination}
+                    onBackToLogin={() => navigate('/login')}
                   />
                 )}
               </div>
@@ -428,7 +619,7 @@ export const AuthPage = ({ mode = 'login' }) => {
                     <span>Clerk Setup Required</span>
                   </p>
                   <p className="mt-1 text-[11px] leading-relaxed text-amber-800">
-                    To activate live Clerk sign-in and Google OAuth, add <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-amber-900">VITE_CLERK_PUBLISHABLE_KEY</code> in <code className="font-mono">frontend/.env</code>.
+                    To activate live Clerk sign-in and Google OAuth, add <code className="bg-amber-100 px-1 py-0.5 rounded font-mono text-amber-900">VITE_CLERK_PUBLISHABLE_KEY</code> in <code className="font-mono">frontend/.env.local</code>.
                   </p>
                 </div>
 
@@ -467,10 +658,7 @@ export const AuthPage = ({ mode = 'login' }) => {
               {/* Continue with Google (Login and Register modes) */}
               {(isLogin || isRegister) && (
                 <>
-                  <div
-                    ref={googleBtnContainerRef}
-                    className="w-full flex items-center justify-center min-h-[44px] overflow-hidden rounded-xl"
-                  >
+                  <div className="w-full flex items-center justify-center min-h-[44px] overflow-hidden rounded-xl">
                     <button
                       type="button"
                       onClick={handleGoogleSignIn}

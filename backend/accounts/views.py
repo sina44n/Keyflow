@@ -496,6 +496,7 @@ class ClerkSyncView(APIView):
 
         display_name = data.get('display_name') or data.get('name')
         avatar_url = data.get('avatar_url') or data.get('picture')
+        email = data.get('email')
 
         updated_profile = False
         if display_name and display_name.strip():
@@ -506,6 +507,17 @@ class ClerkSyncView(APIView):
             updated_profile = True
         if updated_profile:
             profile.save()
+
+        # Update placeholder email with real verified email when available and no conflict exists
+        if email and isinstance(email, str):
+            clean_email = email.strip().lower()
+            if '@' in clean_email:
+                if user.email.endswith('@clerk.keyflow.local') or not user.email:
+                    conflict = User.objects.filter(email__iexact=clean_email).exclude(pk=user.pk).exists()
+                    if not conflict:
+                        user.email = clean_email
+                        user.is_email_verified = True
+                        user.save(update_fields=['email', 'is_email_verified'])
 
         user.refresh_from_db()
         return Response({

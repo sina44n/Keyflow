@@ -104,11 +104,19 @@ In your production deployment:
 
 ## 6. Email Verification & Password Recovery
 
-### Email Verification
+### Email Verification Configuration
 1. In Clerk Dashboard → **User & Authentication** → **Email, Phone, Username**:
    - Ensure **Email address** is set to **Required**.
    - Verification strategy: **Email verification code** or **Email verification link**.
    - Password: **Required** (minimum 8 characters).
+
+2. **Custom Branded Email Template**:
+   - In Clerk Dashboard → **Configure** → **Email, SMS, Templates** → **Email templates**.
+   - Select **Verification link** or **Verification code**.
+   - Set Subject: `Verify your KEYFLOW email address`
+   - Copy the HTML from `templates/email/clerk_verification_email.html` into the Clerk template editor.
+   - For plaintext, use `templates/email/clerk_verification_email.txt`.
+   - **Cross-device verification**: Clerk supports verifying on a different device or browser than the sign-up session. In Clerk Dashboard → **Configure** → **Email**, ensure cross-device link verification is enabled so mobile email clients can open and confirm the verification link cleanly.
 
 ### Password Recovery
 - Clerk manages password recovery natively. When a user clicks "Forgot password" on the `/login` screen or navigates to `/forgot-password`, Clerk sends a secure verification code/link to the user's email.

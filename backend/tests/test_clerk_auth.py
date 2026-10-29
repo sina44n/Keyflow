@@ -203,6 +203,48 @@ class ClerkAuthenticationTests(TestCase):
         self.assertEqual(res.data["user"]["profile"]["display_name"], "Synced Name")
         self.assertEqual(res.data["user"]["profile"]["avatar_url"], "https://images.example.com/avatar.png")
 
+    def test_get_clerk_domain_from_publishable_key(self):
+        """Verifies base64 domain extraction from Clerk publishable keys."""
+        from accounts.authentication import get_clerk_domain_from_publishable_key
+
+        domain = get_clerk_domain_from_publishable_key("pk_test_dG91Y2hpbmctY2F0ZmlzaC02MS5jbGVyay5hY2NvdW50cy5kZXYk")
+        self.assertEqual(domain, "touching-catfish-61.clerk.accounts.dev")
+
+        # Invalid formats return None safely
+        self.assertIsNone(get_clerk_domain_from_publishable_key(None))
+        self.assertIsNone(get_clerk_domain_from_publishable_key(""))
+        self.assertIsNone(get_clerk_domain_from_publishable_key("invalid_key_format"))
+
+    def test_clerk_sync_updates_placeholder_email(self):
+        """ClerkSyncView safely updates a user's placeholder email to verified real email."""
+        token = make_test_clerk_token(
+            sub="user_placeholder_sync_123",
+            email=None,
+            name="Sync Typist",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        # Initial auth creates placeholder email
+        me_res = self.client.get("/api/auth/me/")
+        self.assertEqual(me_res.status_code, status.HTTP_200_OK)
+        user = User.objects.get(clerk_id="user_placeholder_sync_123")
+        self.assertTrue(user.email.endswith("@clerk.keyflow.local"))
+
+        # Sync with verified email
+        sync_res = self.client.post(
+            "/api/auth/clerk-sync/",
+            {
+                "email": "verified.typist@keyflow.app",
+                "display_name": "Updated Typist Name",
+            },
+            format="json",
+        )
+        self.assertEqual(sync_res.status_code, status.HTTP_200_OK)
+        user.refresh_from_db()
+        self.assertEqual(user.email, "verified.typist@keyflow.app")
+        self.assertTrue(user.is_email_verified)
+        self.assertEqual(user.profile.display_name, "Updated Typist Name")
+
 
 @override_settings(CLERK_TEST_PUBLIC_KEY=TEST_PUBLIC_KEY)
 class CompetitionOwnershipSecurityTests(TestCase):
@@ -286,6 +328,8 @@ class CompetitionOwnershipSecurityTests(TestCase):
         self.assertEqual(self.participant_alice.status, "completed")
         self.assertEqual(float(self.participant_alice.net_wpm), 95.5)
 
+
+
     def test_duplicate_submission_is_idempotent(self):
         """Submitting a score for an already completed participant returns existing results without re-updating."""
         self.participant_alice.status = "completed"
@@ -304,3 +348,5 @@ class CompetitionOwnershipSecurityTests(TestCase):
         self.participant_alice.refresh_from_db()
         # Remains 95.5, not 200.0
         self.assertEqual(float(self.participant_alice.net_wpm), 95.5)
+
+

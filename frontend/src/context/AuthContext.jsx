@@ -194,7 +194,33 @@ const ClerkAuthBridge = ({ children }) => {
             await applyUserSession(meRes.data);
           }
         } catch {
-          // Unsynchronized
+          // If the backend is temporarily offline or unreachable, build a graceful fallback
+          // user from clerkUser so the authenticated user isn't immediately ejected into a redirect loop
+          if (isMounted && clerkUser) {
+            const fallbackUser = {
+              id: clerkUser.id,
+              email: clerkUser.primaryEmailAddress?.emailAddress || '',
+              username:
+                clerkUser.username ||
+                (clerkUser.primaryEmailAddress?.emailAddress
+                  ? clerkUser.primaryEmailAddress.emailAddress.split('@')[0]
+                  : 'typist'),
+              clerk_id: clerkUser.id,
+              is_email_verified: Boolean(
+                clerkUser.primaryEmailAddress?.verification?.status === 'verified'
+              ),
+              profile: {
+                display_name:
+                  clerkUser.fullName || clerkUser.firstName || clerkUser.username || 'Typist',
+                avatar_url: clerkUser.imageUrl || '',
+              },
+              preferences: {},
+              isOfflineFallback: true,
+            };
+            syncedClerkIdRef.current = clerkUser.id;
+            setDjangoUser(fallbackUser);
+            await applyUserSession(fallbackUser);
+          }
         }
       } finally {
         if (isMounted) {
@@ -208,7 +234,7 @@ const ClerkAuthBridge = ({ children }) => {
     return () => {
       isMounted = false;
     };
-  }, [isLoaded, isSignedIn, clerkUser, getToken, djangoUser]);
+  }, [isLoaded, isSignedIn, clerkUser?.id, getToken]);
 
   const logout = useCallback(async () => {
     try {
@@ -255,7 +281,14 @@ const ClerkAuthBridge = ({ children }) => {
     register: async () => {
       clerk.openSignUp();
     },
-    loginWithGoogle: async () => {
+    loginWithGoogle: async (options = {}) => {
+      if (clerk?.authenticateWithRedirect) {
+        return clerk.authenticateWithRedirect({
+          strategy: 'oauth_google',
+          redirectUrl: '/sso-callback',
+          redirectUrlComplete: options?.destination || '/workstation',
+        });
+      }
       clerk.openSignIn();
     },
   };

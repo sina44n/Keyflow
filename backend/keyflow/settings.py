@@ -244,6 +244,19 @@ CSRF_TRUSTED_ORIGINS = config(
 FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:5173')
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
 
+# Ensure configured FRONTEND_URL and Vercel domains are trusted by CORS and CSRF
+_cors_list = [origin.strip() for origin in CORS_ALLOWED_ORIGINS if origin.strip()]
+if FRONTEND_URL and FRONTEND_URL.strip() not in _cors_list:
+    _cors_list.append(FRONTEND_URL.strip())
+CORS_ALLOWED_ORIGINS = _cors_list
+
+_csrf_list = [origin.strip() for origin in CSRF_TRUSTED_ORIGINS if origin.strip()]
+if FRONTEND_URL and FRONTEND_URL.strip() not in _csrf_list:
+    _csrf_list.append(FRONTEND_URL.strip())
+if 'https://*.vercel.app' not in _csrf_list:
+    _csrf_list.append('https://*.vercel.app')
+CSRF_TRUSTED_ORIGINS = _csrf_list
+
 # Clerk Authentication Settings
 CLERK_SECRET_KEY = config('CLERK_SECRET_KEY', default='')
 CLERK_PUBLISHABLE_KEY = config('CLERK_PUBLISHABLE_KEY', default='')
@@ -288,8 +301,9 @@ DJANGO_REST_MULTITOKENAUTH_RESET_TOKEN_EXPIRY_TIME = config(
 # Production Security Settings (applied when DEBUG=False)
 # ---------------------------------------------------------------------------
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+    SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SESSION_COOKIE_SECURE = True

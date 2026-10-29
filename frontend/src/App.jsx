@@ -23,6 +23,7 @@ import { ThemesPage } from './pages/ThemesPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
 import { ClerkProvider } from '@clerk/react';
+import { AuthenticateWithRedirectCallback } from '@clerk/react';
 import { Footer } from './components/common/Footer';
 
 const CLERK_PUBLISHABLE_KEY =
@@ -65,11 +66,41 @@ function App() {
                 <Routes>
                   {/* Public Pages */}
                   <Route path="/" element={<LandingPage />} />
+                    <Route path="/login/*" element={<AuthPage mode="login" />} />
                     <Route path="/login" element={<AuthPage mode="login" />} />
+                    <Route path="/register/*" element={<AuthPage mode="register" />} />
                     <Route path="/register" element={<AuthPage mode="register" />} />
+                    <Route path="/forgot-password/*" element={<AuthPage mode="forgot" />} />
                     <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
+                    <Route path="/reset-password/*" element={<AuthPage mode="reset" />} />
                     <Route path="/reset-password" element={<AuthPage mode="reset" />} />
                     <Route path="/reset-password/:token" element={<AuthPage mode="reset" />} />
+                    <Route
+                      path="/sso-callback/*"
+                      element={
+                        isClerkConfigured ? (
+                          <AuthenticateWithRedirectCallback
+                            signInForceRedirectUrl="/workstation"
+                            signUpForceRedirectUrl="/workstation"
+                          />
+                        ) : (
+                          <Navigate to="/login" replace />
+                        )
+                      }
+                    />
+                    <Route
+                      path="/sso-callback"
+                      element={
+                        isClerkConfigured ? (
+                          <AuthenticateWithRedirectCallback
+                            signInForceRedirectUrl="/workstation"
+                            signUpForceRedirectUrl="/workstation"
+                          />
+                        ) : (
+                          <Navigate to="/login" replace />
+                        )
+                      }
+                    />
                     <Route path="/telemetry" element={<TelemetryPage />} />
                     <Route path="/analytics" element={<Navigate to="/telemetry" replace />} />
                     <Route path="/themes" element={<ThemesPage />} />

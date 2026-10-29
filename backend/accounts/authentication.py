@@ -1,3 +1,4 @@
+
 """
 KEYFLOW Clerk JWT Authentication Backend for Django REST Framework
 ==================================================================
@@ -13,6 +14,7 @@ Supports:
 
 import json
 import logging
+import base64
 import urllib.request
 import urllib.error
 from django.conf import settings
@@ -27,6 +29,28 @@ logger = logging.getLogger(__name__)
 
 # Global PyJWKClient instance cache
 _jwk_clients = {}
+
+
+def get_clerk_domain_from_publishable_key(pk):
+    """
+    Clerk publishable keys (pk_test_..., pk_live_...) encode the frontend API
+    domain in base64. Extracts the domain (e.g. 'verb-noun-00.clerk.accounts.dev').
+    """
+    if not pk or not isinstance(pk, str):
+        return None
+    clean_pk = pk.strip()
+    if not clean_pk.startswith(('pk_test_', 'pk_live_')):
+        return None
+    try:
+        parts = clean_pk.split('_', 2)
+        if len(parts) < 3:
+            return None
+        encoded = parts[2]
+        padded = encoded + '=' * (-len(encoded) % 4)
+        domain = base64.b64decode(padded).decode('utf-8').rstrip('$').strip()
+        return domain if '.' in domain else None
+    except Exception:
+        return None
 
 
 def _get_jwk_client(jwks_url):
@@ -247,6 +271,14 @@ class ClerkAuthentication(BaseAuthentication):
         jwks_url = getattr(settings, 'CLERK_JWKS_URL', '').strip()
         issuer = getattr(settings, 'CLERK_ISSUER', '').strip()
 
+        # If not set, check if CLERK_PUBLISHABLE_KEY can derive issuer and JWKS URL
+        if not jwks_url and not issuer:
+            pk = getattr(settings, 'CLERK_PUBLISHABLE_KEY', '').strip()
+            derived_domain = get_clerk_domain_from_publishable_key(pk)
+            if derived_domain:
+                issuer = f"https://{derived_domain}"
+                jwks_url = f"https://{derived_domain}/.well-known/jwks.json"
+
         if not jwks_url and issuer:
             jwks_url = f"{issuer.rstrip('/')}/.well-known/jwks.json"
 
@@ -275,7 +307,7 @@ class ClerkAuthentication(BaseAuthentication):
         # If no verification method is configured:
         raise AuthenticationFailed(
             "Clerk authentication is not configured on this server. "
-            "Set CLERK_PEM_PUBLIC_KEY, CLERK_JWKS_URL, or CLERK_ISSUER in your environment."
+            "Set CLERK_PEM_PUBLIC_KEY, CLERK_JWKS_URL, CLERK_ISSUER, or CLERK_PUBLISHABLE_KEY in your environment."
         )
 
     def authenticate_header(self, request):

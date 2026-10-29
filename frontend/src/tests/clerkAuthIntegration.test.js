@@ -100,4 +100,95 @@ describe('KEYFLOW — Clerk Authentication Frontend Architecture & Contracts', (
       'AuthPage.jsx must inspect isClerkConfigured to render Clerk UI or setup guide'
     );
   });
+
+  it('App.jsx provides wildcard subrouting for Clerk verification and callback routes', () => {
+    const appPath = path.resolve(__dirname, '../App.jsx');
+    const appContent = fs.readFileSync(appPath, 'utf-8');
+
+    assert.ok(appContent.includes('path="/login/*"'), 'App.jsx must provide wildcard route for /login/*');
+    assert.ok(appContent.includes('path="/register/*"'), 'App.jsx must provide wildcard route for /register/*');
+    assert.ok(appContent.includes('path="/forgot-password/*"'), 'App.jsx must provide wildcard route for /forgot-password/*');
+    assert.ok(appContent.includes('path="/sso-callback/*"'), 'App.jsx must provide wildcard route for /sso-callback/*');
+  });
+
+  it('AuthPage.jsx integrates dedicated ClerkPasswordReset with generic email delivery messaging', () => {
+    const authPagePath = path.resolve(__dirname, '../pages/AuthPage.jsx');
+    const authPageContent = fs.readFileSync(authPagePath, 'utf-8');
+
+    assert.ok(
+      authPageContent.includes('export const ClerkPasswordReset'),
+      'AuthPage.jsx must export ClerkPasswordReset component'
+    );
+    assert.ok(
+      authPageContent.includes("strategy: 'reset_password_email_code'"),
+      'ClerkPasswordReset must invoke Clerk reset_password_email_code strategy'
+    );
+    assert.ok(
+      authPageContent.includes('If that email exists in our system, password reset instructions have been sent'),
+      'ClerkPasswordReset must display generic confirmation message'
+    );
+    assert.ok(
+      authPageContent.includes('attemptFirstFactor'),
+      'ClerkPasswordReset must verify code and set password with attemptFirstFactor'
+    );
+  });
+
+  it('AuthContext.jsx supports Clerk Google OAuth redirect and graceful offline fallback', () => {
+    const authContextPath = path.resolve(__dirname, '../context/AuthContext.jsx');
+    const authContextContent = fs.readFileSync(authContextPath, 'utf-8');
+
+    assert.ok(
+      authContextContent.includes("strategy: 'oauth_google'"),
+      'AuthContext.jsx must invoke Clerk oauth_google strategy'
+    );
+    assert.ok(
+      authContextContent.includes('redirectUrl: \'/sso-callback\''),
+      'AuthContext.jsx must configure redirectUrl to /sso-callback'
+    );
+    assert.ok(
+      authContextContent.includes('isOfflineFallback'),
+      'AuthContext.jsx must provide resilient offline fallback user object'
+    );
+  });
+
+  it('api.js getApiBaseUrl correctly handles production, local dev, and trailing slashes', async () => {
+    const { getApiBaseUrl } = await import('../utils/api.js');
+
+    // 1. Explicit full production URL with /api suffix
+    assert.strictEqual(getApiBaseUrl('https://api.keyflow.app/api'), 'https://api.keyflow.app/api');
+
+    // 2. Production URL without /api suffix -> automatically appends /api
+    assert.strictEqual(getApiBaseUrl('https://api.keyflow.app'), 'https://api.keyflow.app/api');
+
+    // 3. Trailing slash normalization
+    assert.strictEqual(getApiBaseUrl('https://api.keyflow.app/'), 'https://api.keyflow.app/api');
+    assert.strictEqual(getApiBaseUrl('https://api.keyflow.app/api/'), 'https://api.keyflow.app/api');
+
+    // 4. Empty string -> returns default browser proxy endpoint (/api) or backend fallback
+    const emptyResult = getApiBaseUrl('');
+    assert.ok(emptyResult === '/api' || emptyResult === 'http://127.0.0.1:8000/api');
+  });
+
+  it('index.html does not load conflicting legacy Google Identity Services (GIS) scripts', () => {
+    const indexPath = path.resolve(__dirname, '../../index.html');
+    const indexContent = fs.readFileSync(indexPath, 'utf-8');
+
+    assert.ok(
+      !indexContent.includes('accounts.google.com/gsi/client'),
+      'index.html must not include legacy GIS client script to avoid Clerk OAuth conflict'
+    );
+  });
+
+  it('templates/email/clerk_verification_email.html exists and meets KEYFLOW branding & security standards', () => {
+    const templatePath = path.resolve(__dirname, '../../../templates/email/clerk_verification_email.html');
+    assert.ok(fs.existsSync(templatePath), 'clerk_verification_email.html must exist in templates/email');
+
+    const templateContent = fs.readFileSync(templatePath, 'utf-8');
+    assert.ok(templateContent.includes('Verify your KEYFLOW email address'), 'Template must include expected subject');
+    assert.ok(templateContent.includes('Verify Email Address'), 'Template must include primary action button text');
+    assert.ok(templateContent.includes('{{action_url}}'), 'Template must include Clerk action_url variable');
+    assert.ok(templateContent.includes('{{otp_code}}'), 'Template must include Clerk otp_code variable');
+    assert.ok(templateContent.includes('#F95700'), 'Template must feature KEYFLOW brand accent color');
+    assert.ok(templateContent.includes('Security notice'), 'Template must include security advisory');
+  });
 });

@@ -6,20 +6,33 @@ from django.http import JsonResponse
 
 
 def api_health(request):
-    """Health check endpoint for deployment monitoring."""
+    """Health check endpoint for deployment monitoring and uptime probes."""
+    db_status = 'ok'
+    try:
+        from django.db import connection
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT 1;')
+    except Exception as exc:
+        db_status = f'unavailable: {type(exc).__name__}'
+
+    is_healthy = db_status == 'ok'
     return JsonResponse({
-        'status': 'ok',
+        'status': 'ok' if is_healthy else 'degraded',
+        'database': db_status,
         'service': 'KEYFLOW API',
         'version': '1.0.0',
-    })
+    }, status=200 if is_healthy else 503)
 
 
 urlpatterns = [
     # Admin panel
     path('admin/', admin.site.urls),
 
-    # API Health Check
+    # API Health Checks (supports root, prefixed, and Kubernetes/cloud probes)
     path('api/', api_health, name='api_health'),
+    path('api/health/', api_health, name='api_health_alt'),
+    path('health/', api_health, name='health_check'),
+    path('healthz/', api_health, name='healthz_check'),
 
     # Authentication & User Accounts
     path('api/auth/', include('accounts.urls')),
