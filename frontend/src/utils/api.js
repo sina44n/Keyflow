@@ -127,6 +127,21 @@ export const practiceAPI = {
   getPassage: (id) => api.get(`/practice/passages/${id}/`),
   recordSession: (data) => api.post('/practice/sessions/', data),
   getHistory: () => api.get('/practice/history/'),
+  getCompetitions: (params) => api.get('/practice/competitions/', { params }),
+  createCompetition: (data) => api.post('/practice/competitions/', data),
+  getCompetition: (code) => api.get(`/practice/competitions/${code}/`),
+  joinCompetition: (code, data) => api.post(`/practice/competitions/${code}/join/`, data),
+  submitCompetition: (code, data) => api.post(`/practice/competitions/${code}/submit/`, data),
+  getMyCompetitions: () => api.get('/practice/competitions/my/'),
+};
+
+export const competitionAPI = {
+  list: (params) => api.get('/practice/competitions/', { params }),
+  create: (data) => api.post('/practice/competitions/', data),
+  get: (code) => api.get(`/practice/competitions/${code}/`),
+  join: (code, data) => api.post(`/practice/competitions/${code}/join/`, data),
+  submit: (code, data) => api.post(`/practice/competitions/${code}/submit/`, data),
+  my: () => api.get('/practice/competitions/my/'),
 };
 
 // ---------------------------------------------------------------------------

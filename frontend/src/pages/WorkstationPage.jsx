@@ -4,22 +4,31 @@ import {
   RotateCcw,
   Gauge,
   Target,
-  Keyboard,
-  HandMetal,
   Sparkles,
   Clock,
-  FileText,
-  Hash,
   ArrowRight,
   BookOpen,
+  Trophy,
+  Eye,
+  Minimize2,
 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { KeyboardGuide } from '../components/academy/KeyboardGuide';
 import { getGuidePreferences, saveGuidePreferences } from '../utils/lessonProgress';
 import { getCharacterFeedback, countCorrectChars } from '../utils/typingFeedback';
-import { SoundSelector } from '../components/common/SoundSelector';
 import { useKeyboardSound } from '../context/SoundContext';
 import { useI18n } from '../i18n/I18nContext';
+import { practiceAPI, profileAPI, competitionAPI } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
+import { recordTelemetrySession } from '../utils/telemetryStorage';
+
+// New Workstation modular components
+import { WorkstationToolbar } from '../components/workstation/WorkstationToolbar';
+import { CustomTypingStudio } from '../components/workstation/CustomTypingStudio';
+import { SavedTextsModal } from '../components/workstation/SavedTextsModal';
+import { PracticeHistoryModal } from '../components/workstation/PracticeHistoryModal';
+import { ShortcutsModal } from '../components/workstation/ShortcutsModal';
+import { CompetitionModal } from '../components/workstation/CompetitionModal';
 
 const PRACTICE_PASSAGES = [
   {
@@ -60,29 +69,86 @@ const PRACTICE_PASSAGES = [
   },
 ];
 
-const MODES = [
-  { id: 'timed', label: 'Time', icon: Clock },
-  { id: 'words', label: 'Words', icon: Hash },
-  { id: 'passage', label: 'Passage', icon: FileText },
-];
-
 const TIME_OPTIONS = [15, 30, 60, 120];
 const WORD_OPTIONS = [10, 25, 50, 100];
 
 export const WorkstationPage = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { user } = useAuth();
 
   // Mode settings
-  const [mode, setMode] = useState('timed'); // 'timed' | 'words' | 'passage'
+  const [mode, setMode] = useState('timed'); // 'timed' | 'words' | 'passage' | 'accuracy'
   const [timeLimit, setTimeLimit] = useState(30);
   const [wordLimit, setWordLimit] = useState(25);
   const [selectedPassageIndex, setSelectedPassageIndex] = useState(0);
+
+  // Custom text state
+  const [customPrompt, setCustomPrompt] = useState(null);
+
+  // Competition state
+  const [activeCompetition, setActiveCompetition] = useState(null);
+  const [competitionParticipantId, setCompetitionParticipantId] = useState(null);
+
+  // Modals state
+  const [customStudioOpen, setCustomStudioOpen] = useState(false);
+  const [savedTextsOpen, setSavedTextsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [competitionsOpen, setCompetitionsOpen] = useState(false);
+
+  // Focus Mode (distraction-free)
+  const [focusMode, setFocusMode] = useState(false);
 
   // Guide toggles (independent)
   const [keyboardGuideOn, setKeyboardGuideOn] = useState(() => getGuidePreferences().keyboardGuide);
   const [handGuideOn, setHandGuideOn] = useState(() => getGuidePreferences().handGuide);
   const { playClick } = useKeyboardSound();
+
+  // Hydrate user workstation preferences from backend if authenticated
+  useEffect(() => {
+    if (user?.preferences) {
+      const p = user.preferences;
+      if (p.preferred_duration && TIME_OPTIONS.includes(p.preferred_duration)) {
+        setTimeLimit(p.preferred_duration);
+      }
+      if (p.preferred_word_count && WORD_OPTIONS.includes(p.preferred_word_count)) {
+        setWordLimit(p.preferred_word_count);
+      }
+      if (p.preferred_mode && ['timed', 'words', 'passage', 'accuracy'].includes(p.preferred_mode)) {
+        setMode(p.preferred_mode);
+      }
+      if (p.keyboard_visual_enabled !== undefined) {
+        setKeyboardGuideOn(Boolean(p.keyboard_visual_enabled));
+      }
+      if (p.hand_guide_enabled !== undefined) {
+        setHandGuideOn(Boolean(p.hand_guide_enabled));
+      }
+    }
+  }, [user]);
+
+  // Synchronous guide toggles with persistence & account sync
+  const toggleKeyboardGuide = () => {
+    setKeyboardGuideOn((prev) => {
+      const next = !prev;
+      saveGuidePreferences(next, handGuideOn);
+      if (user?.id) {
+        profileAPI.updatePreferences({ keyboard_visual_enabled: next }).catch(() => {});
+      }
+      return next;
+    });
+  };
+
+  const toggleHandGuide = () => {
+    setHandGuideOn((prev) => {
+      const next = !prev;
+      saveGuidePreferences(keyboardGuideOn, next);
+      if (user?.id) {
+        profileAPI.updatePreferences({ hand_guide_enabled: next }).catch(() => {});
+      }
+      return next;
+    });
+  };
 
   // Typing session state
   const [typed, setTyped] = useState('');
@@ -99,6 +165,12 @@ export const WorkstationPage = () => {
 
   // Determine current active text
   const currentTargetText = useMemo(() => {
+    if (activeCompetition?.challengeText) {
+      return activeCompetition.challengeText;
+    }
+    if (customPrompt) {
+      return customPrompt;
+    }
     if (mode === 'passage') {
       return PRACTICE_PASSAGES[selectedPassageIndex].text;
     }
@@ -106,34 +178,18 @@ export const WorkstationPage = () => {
       const allWords = PRACTICE_PASSAGES.flatMap((p) => p.text.split(' '));
       return allWords.slice(0, wordLimit).join(' ');
     }
+    if (mode === 'accuracy') {
+      return 'Precision and cadence define velocity. Never rush the stroke; allow your rhythm to guide each finger accurately.';
+    }
     // timed mode default
     return PRACTICE_PASSAGES[selectedPassageIndex].text;
-  }, [mode, wordLimit, selectedPassageIndex]);
+  }, [mode, wordLimit, selectedPassageIndex, customPrompt, activeCompetition]);
 
   // Next expected character for guide highlight
   const currentTargetChar = useMemo(() => {
     if (!currentTargetText || typed.length >= currentTargetText.length) return null;
     return currentTargetText[typed.length];
   }, [typed, currentTargetText]);
-
-  // Synchronous guide toggles with persistence
-  const toggleKeyboardGuide = () => {
-    setKeyboardGuideOn((prev) => {
-      const next = !prev;
-      saveGuidePreferences(next, handGuideOn);
-      return next;
-    });
-  };
-
-  const toggleHandGuide = () => {
-    setHandGuideOn((prev) => {
-      const next = !prev;
-      saveGuidePreferences(keyboardGuideOn, next);
-      return next;
-    });
-  };
-
-
 
   // Live metrics calculations
   const correctChars = useMemo(() => {
@@ -142,9 +198,10 @@ export const WorkstationPage = () => {
 
   const elapsedMinutes = Math.max((elapsedSeconds || 1) / 60, 0.016);
   const liveWpm = startTime ? Math.max(0, Math.round(correctChars / 5 / elapsedMinutes)) : 0;
-  const liveAccuracy = typed.length > 0
-    ? Math.max(0, Math.min(100, Math.round((correctChars / Math.max(correctChars + mistakes, 1)) * 100)))
-    : 100;
+  const liveAccuracy =
+    typed.length > 0
+      ? Math.max(0, Math.min(100, Math.round((correctChars / Math.max(correctChars + mistakes, 1)) * 100)))
+      : 100;
 
   // Complete session handler
   const handleCompleteSession = useCallback(
@@ -172,34 +229,58 @@ export const WorkstationPage = () => {
         mistakes,
         totalChars: typed.length,
         tier,
+        isCompetition: Boolean(activeCompetition),
+        competitionCode: activeCompetition?.competition?.code || null,
+        accuracyTargetPassed: mode === 'accuracy' ? accuracy >= 98 : null,
       };
 
       setSessionResults(results);
 
-      // Async backend sync
-      try {
-        fetch('/api/practice/sessions/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            session_type: mode,
+      // Record in scientific telemetry engine
+      recordTelemetrySession({
+        userId: user?.id || null,
+        wpm: netWpm,
+        accuracy,
+        durationSeconds: duration,
+        totalKeystrokes: typed.length,
+        correctKeystrokes: correctChars,
+        incorrectKeystrokes: mistakes,
+        status: accuracy >= 70 ? 'passed' : 'failed',
+        sessionType: activeCompetition ? 'competition' : customPrompt ? 'custom' : mode,
+        typedText: typed,
+      });
+
+      // Async backend sync via practiceAPI
+      practiceAPI
+        .recordSession({
+          session_type: activeCompetition ? 'competition' : customPrompt ? 'custom' : mode,
+          duration_seconds: duration,
+          total_chars: typed.length,
+          correct_chars: correctChars,
+          incorrect_chars: mistakes,
+          gross_wpm: grossWpm,
+          net_wpm: netWpm,
+          accuracy: accuracy,
+          error_count: mistakes,
+        })
+        .catch(() => {});
+
+      // If active competition, submit genuine result to competition lobby
+      if (activeCompetition && competitionParticipantId) {
+        competitionAPI
+          .submit(activeCompetition.competition.code, {
+            participant_id: competitionParticipantId,
+            net_wpm: netWpm,
+            gross_wpm: grossWpm,
+            accuracy: accuracy,
             duration_seconds: duration,
-            total_chars: typed.length,
             correct_chars: correctChars,
             incorrect_chars: mistakes,
-            gross_wpm: grossWpm,
-            net_wpm: netWpm,
-            accuracy: accuracy,
-            error_count: mistakes,
-          }),
-        }).catch(() => {
-          /* guest or offline */
-        });
-      } catch {
-        /* ignore */
+          })
+          .catch(() => {});
       }
     },
-    [typed, mistakes, correctChars, mode]
+    [typed, mistakes, correctChars, mode, user, activeCompetition, competitionParticipantId, customPrompt]
   );
 
   // Key input handler
@@ -227,7 +308,7 @@ export const WorkstationPage = () => {
 
     setTyped(val);
 
-    // End condition for word / passage mode
+    // End condition for word / passage / custom / accuracy mode
     if (val.length >= currentTargetText.length) {
       const dur = Math.max(1, Math.round((Date.now() - (startTime || Date.now())) / 1000));
       handleCompleteSession(dur);
@@ -250,6 +331,40 @@ export const WorkstationPage = () => {
     }, 40);
   }, [timeLimit]);
 
+  // Apply custom text from studio
+  const handleApplyCustomText = ({ prompt, mode: nextMode, timeLimit: nextTime, wordLimit: nextWords }) => {
+    setActiveCompetition(null);
+    setCustomPrompt(prompt);
+    if (nextMode) setMode(nextMode);
+    if (nextTime) setTimeLimit(nextTime);
+    if (nextWords) setWordLimit(nextWords);
+    handleReset();
+  };
+
+  // Start Competition Test
+  const handleStartCompetitionTest = ({ competition, participantId, challengeText, challengeType, targetLimit }) => {
+    setCustomPrompt(null);
+    setActiveCompetition({ competition, participantId, challengeText });
+    setCompetitionParticipantId(participantId);
+    setMode(challengeType === 'timed' ? 'timed' : 'words');
+    if (challengeType === 'timed') {
+      setTimeLimit(targetLimit);
+    } else {
+      setWordLimit(targetLimit);
+    }
+    handleReset();
+  };
+
+  // Mode change handler clears custom/competition overrides when selecting standard modes
+  const handleModeChange = (newMode) => {
+    setCustomPrompt(null);
+    setActiveCompetition(null);
+    setMode(newMode);
+    if (user?.id) {
+      profileAPI.updatePreferences({ preferred_mode: newMode }).catch(() => {});
+    }
+  };
+
   // Timed countdown effect
   useEffect(() => {
     if (startTime && !isCompleted) {
@@ -269,16 +384,52 @@ export const WorkstationPage = () => {
     return () => clearInterval(timerRef.current);
   }, [startTime, isCompleted, mode, timeLimit, handleCompleteSession]);
 
-  // Hotkey: Tab + Enter or Escape to reset
+  // Global Keyboard Shortcuts (Alt+C, Alt+F, Alt+H, Alt+S, Alt+K, Esc)
   useEffect(() => {
     const handleKeyDown = (e) => {
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl &&
+        (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable);
+
+      // Allow Esc everywhere to exit focus mode or reset test
       if (e.key === 'Escape') {
-        handleReset();
+        if (focusMode) {
+          setFocusMode(false);
+        } else {
+          handleReset();
+        }
+        return;
+      }
+
+      // Ignore other shortcuts when user is typing in a search or editor input
+      if (isInput && activeEl !== inputRef.current) {
+        return;
+      }
+
+      if (e.altKey) {
+        const key = e.key.toLowerCase();
+        if (key === 'c') {
+          e.preventDefault();
+          setCustomStudioOpen((v) => !v);
+        } else if (key === 'f') {
+          e.preventDefault();
+          setFocusMode((v) => !v);
+        } else if (key === 'h') {
+          e.preventDefault();
+          setHistoryOpen((v) => !v);
+        } else if (key === 's') {
+          e.preventDefault();
+          setSavedTextsOpen((v) => !v);
+        } else if (key === 'k') {
+          e.preventDefault();
+          setShortcutsOpen((v) => !v);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleReset]);
+  }, [handleReset, focusMode]);
 
   // Focus on mount or mode change
   useEffect(() => {
@@ -286,177 +437,114 @@ export const WorkstationPage = () => {
   }, [mode, timeLimit, wordLimit, selectedPassageIndex, handleReset]);
 
   return (
-    <div className="container-app py-8 sm:py-12 space-y-6">
-      {/* Top Banner & Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[var(--border)]">
-        <div>
-          <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[11px] font-mono text-[var(--accent)]">
-            <Sparkles className="w-3 h-3" />
-            <span>{t('hero.latency')}</span>
+    <div className="container-app py-6 sm:py-10 space-y-5">
+      {/* Top Banner & Header (Hidden in Focus Mode) */}
+      {!focusMode && (
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-[var(--border)] transition-all">
+          <div>
+            <div className="inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-[11px] font-mono text-[var(--accent)]">
+              <Sparkles className="w-3 h-3" />
+              <span>{t('hero.latency') || 'Zero Latency Precision'}</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] mt-1 tracking-tight">
+              {t('nav.workstation') || 'Workstation'}
+            </h1>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] mt-1 tracking-tight">
-            {t('nav.workstation')}
-          </h1>
-        </div>
 
-        {/* Action button to Academy */}
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            icon={BookOpen}
-            onClick={() => navigate('/academy')}
-          >
-            {t('hero.exploreAcademy')}
-          </Button>
-        </div>
-      </div>
-
-      {/* Mode and Parameter Selector Toolbar */}
-      <div className="card-panel p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-4">
-        {/* Left: Mode Selection (Time, Words, Passage) */}
-        <div className="flex items-center gap-1.5 p-1 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-          {MODES.map((m) => {
-            const Icon = m.icon;
-            const isSelected = mode === m.id;
-            const localizedLabel =
-              m.id === 'timed'
-                ? t('workstation.mode.timed')
-                : m.id === 'words'
-                ? t('workstation.mode.words')
-                : t('workstation.mode.passage');
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => setMode(m.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-                <span>{localizedLabel}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Middle: Mode Options */}
-        <div className="flex items-center gap-2">
-          {mode === 'timed' && (
-            <div className="flex items-center gap-1 bg-[var(--bg-elevated)] p-1 rounded-lg border border-[var(--border)]">
-              {TIME_OPTIONS.map((timeVal) => (
-                <button
-                  key={timeVal}
-                  type="button"
-                  onClick={() => setTimeLimit(timeVal)}
-                  className={`px-2.5 py-1 rounded text-xs font-mono cursor-pointer transition-colors ${
-                    timeLimit === timeVal
-                      ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {t('workstation.seconds', { count: timeVal })}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {mode === 'words' && (
-            <div className="flex items-center gap-1 bg-[var(--bg-elevated)] p-1 rounded-lg border border-[var(--border)]">
-              {WORD_OPTIONS.map((w) => (
-                <button
-                  key={w}
-                  type="button"
-                  onClick={() => setWordLimit(w)}
-                  className={`px-2.5 py-1 rounded text-xs font-mono cursor-pointer transition-colors ${
-                    wordLimit === w
-                      ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold'
-                      : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                  }`}
-                >
-                  {t('workstation.wordCount', { count: w })}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {mode === 'passage' && (
-            <select
-              value={selectedPassageIndex}
-              onChange={(e) => setSelectedPassageIndex(parseInt(e.target.value, 10))}
-              className="px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-xs font-mono text-[var(--text-primary)] cursor-pointer focus:outline-none focus:border-[var(--accent)]"
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              icon={BookOpen}
+              onClick={() => navigate('/academy')}
             >
-              {PRACTICE_PASSAGES.map((p, idx) => (
-                <option key={p.id} value={idx}>
-                  {p.title} ({p.category})
-                </option>
-              ))}
-            </select>
-          )}
+              {t('hero.exploreAcademy') || 'Academy'}
+            </Button>
+          </div>
         </div>
+      )}
 
-        {/* Right: Independent Guide Controls and Sound */}
-        <div className="flex items-center gap-2">
-          {/* Keyboard Guide Toggle */}
+      {/* Focus Mode floating banner */}
+      {focusMode && (
+        <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 text-xs font-mono animate-in fade-in duration-150">
+          <div className="flex items-center gap-2 text-[var(--text-secondary)]">
+            <Eye className="w-4 h-4 text-[var(--accent)]" />
+            <span>Focus Mode Active • Distraction-free typing</span>
+          </div>
           <button
             type="button"
-            onClick={toggleKeyboardGuide}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-              keyboardGuideOn
-                ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] shadow-xs'
-                : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-            }`}
-            title="Keyboard Guide: Visual keyboard highlighting next key"
-            aria-pressed={keyboardGuideOn}
+            onClick={() => setFocusMode(false)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--accent)] text-[var(--accent-fg)] font-bold hover:bg-[var(--accent-hover)] transition-colors cursor-pointer"
           >
-            <Keyboard className="w-3.5 h-3.5" />
-            <span>{keyboardGuideOn ? t('workstation.kbGuideOn') : t('workstation.kbGuideOff')}</span>
+            <Minimize2 className="w-3.5 h-3.5" />
+            <span>Exit Focus (Esc)</span>
           </button>
-
-          {/* Hand Guide Toggle */}
-          <button
-            type="button"
-            onClick={toggleHandGuide}
-            className={`px-3 py-1.5 rounded-lg border text-xs font-mono font-medium flex items-center gap-1.5 transition-all cursor-pointer ${
-              handGuideOn
-                ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] shadow-xs'
-                : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-            }`}
-            title="Hand Guide: Anatomical illustration highlighting recommended finger"
-            aria-pressed={handGuideOn}
-          >
-            <HandMetal className="w-3.5 h-3.5" />
-            <span>{handGuideOn ? t('workstation.handGuideOn') : t('workstation.handGuideOff')}</span>
-          </button>
-
-          {/* Sound Selector Popover */}
-          <SoundSelector variant="toolbar" />
-
-          {/* Reset */}
-          <Button variant="outline" size="sm" icon={RotateCcw} onClick={handleReset}>
-            {t('workstation.restart')}
-          </Button>
         </div>
-      </div>
+      )}
 
-      {/* Main Workstation Layout — Symmetrical Centered Composition */}
+      {/* Workstation Feature Toolbar (Hidden in Focus Mode) */}
+      {!focusMode && (
+        <WorkstationToolbar
+          mode={mode}
+          setMode={handleModeChange}
+          timeLimit={timeLimit}
+          setTimeLimit={(val) => {
+            setTimeLimit(val);
+            if (user?.id) profileAPI.updatePreferences({ preferred_duration: val }).catch(() => {});
+          }}
+          wordLimit={wordLimit}
+          setWordLimit={(val) => {
+            setWordLimit(val);
+            if (user?.id) profileAPI.updatePreferences({ preferred_word_count: val }).catch(() => {});
+          }}
+          selectedPassageIndex={selectedPassageIndex}
+          setSelectedPassageIndex={setSelectedPassageIndex}
+          passages={PRACTICE_PASSAGES}
+          customActive={Boolean(customPrompt)}
+          customTitle="Custom Drill"
+          activeCompetition={activeCompetition?.competition}
+          keyboardGuideOn={keyboardGuideOn}
+          toggleKeyboardGuide={toggleKeyboardGuide}
+          handGuideOn={handGuideOn}
+          toggleHandGuide={toggleHandGuide}
+          focusMode={focusMode}
+          toggleFocusMode={() => setFocusMode((v) => !v)}
+          onOpenCustomStudio={() => setCustomStudioOpen(true)}
+          onOpenSavedTexts={() => setSavedTextsOpen(true)}
+          onOpenHistory={() => setHistoryOpen(true)}
+          onOpenShortcuts={() => setShortcutsOpen(true)}
+          onOpenCompetitions={() => setCompetitionsOpen(true)}
+          onResetTest={handleReset}
+          t={t}
+        />
+      )}
+
+      {/* Main Workstation Layout — Centered Symmetrical Composition */}
       <div className="w-full max-w-[820px] mx-auto space-y-6">
         {/* Live Telemetry Bar */}
-        <div className="flex items-center justify-between px-2 text-xs font-mono text-[var(--text-muted)]">
-          <div className="flex items-center gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-2 text-xs font-mono text-[var(--text-muted)]">
+          <div className="flex items-center gap-4 sm:gap-6">
             <div className="flex items-center gap-1.5">
               <Gauge className="w-4 h-4 text-[var(--accent)]" />
-              <span className="text-[11px] uppercase">{t('workstation.liveWpm')}</span>
+              <span className="text-[11px] uppercase">{t('workstation.liveWpm') || 'Live WPM'}</span>
               <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveWpm}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <Target className="w-4 h-4 text-[var(--ui-success)]" />
-              <span className="text-[11px] uppercase">{t('workstation.accuracy')}</span>
+              <span className="text-[11px] uppercase">{t('workstation.accuracy') || 'Accuracy'}</span>
               <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveAccuracy}%</span>
             </div>
+            {mode === 'accuracy' && (
+              <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                98%+ Goal
+              </span>
+            )}
+            {activeCompetition && (
+              <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                <Trophy className="w-3 h-3" />
+                <span>Room {activeCompetition.competition.code}</span>
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -475,13 +563,11 @@ export const WorkstationPage = () => {
           </div>
         </div>
 
-        {/* Typing Area Box */}
+        {/* Existing Non-Negotiable Typing Area Box — 100% Preserved Appearance & Logic */}
         <div
           onClick={() => inputRef.current && inputRef.current.focus()}
-          className={`p-6 sm:p-8 rounded-2xl border transition-all cursor-text min-h-[160px] relative select-none leading-relaxed font-mono text-lg sm:text-2xl whitespace-pre-wrap ${
-            isCompleted
-              ? 'opacity-85 border-[var(--border)]'
-              : 'border-[var(--accent)] shadow-sm'
+          className={`p-4 sm:p-8 rounded-2xl border transition-all cursor-text min-h-[160px] relative select-none leading-relaxed font-mono text-base sm:text-2xl whitespace-pre-wrap break-words ${
+            isCompleted ? 'opacity-85 border-[var(--border)]' : 'border-[var(--accent)] shadow-sm'
           }`}
           style={{ background: 'var(--bg-surface)' }}
         >
@@ -520,7 +606,7 @@ export const WorkstationPage = () => {
 
         {/* Session Complete Results Card */}
         {isCompleted && sessionResults && (
-          <div className="card-panel p-6 space-y-5 animate-in fade-in duration-200 border-2 border-[var(--accent)]">
+          <div className="card-panel p-6 space-y-5 animate-in fade-in duration-200 border-2 border-[var(--accent)] font-mono">
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-2xl bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center font-extrabold text-xl font-mono shadow-md">
@@ -529,21 +615,37 @@ export const WorkstationPage = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h2 className="text-xl font-bold text-[var(--text-primary)]">
-                      {sessionResults.tier} {t('workstation.summary')}
+                      {sessionResults.tier} {t('workstation.summary') || 'Summary'}
                     </h2>
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--accent)]">
-                      {sessionResults.netWpm} {t('common.wpm')}
+                      {sessionResults.netWpm} {t('common.wpm') || 'WPM'}
                     </span>
                   </div>
                   <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                    Completed {mode} test in {sessionResults.duration} {t('common.seconds')} with {sessionResults.accuracy}% {t('common.accuracy').toLowerCase()}.
+                    Completed {activeCompetition ? 'competition' : customPrompt ? 'custom' : mode} test in{' '}
+                    {sessionResults.duration}s with {sessionResults.accuracy}% accuracy.
+                    {sessionResults.accuracyTargetPassed !== null && (
+                      <span className="ml-1 font-bold text-emerald-400">
+                        {sessionResults.accuracyTargetPassed ? '• 98%+ Goal Met!' : '• Goal 98% not reached.'}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
+                {activeCompetition && (
+                  <Button
+                    variant="outline"
+                    size="md"
+                    icon={Trophy}
+                    onClick={() => setCompetitionsOpen(true)}
+                  >
+                    View Room Leaderboard
+                  </Button>
+                )}
                 <Button variant="secondary" size="md" icon={RotateCcw} onClick={handleReset}>
-                  {t('workstation.tryAgain')}
+                  {t('workstation.tryAgain') || 'Try Again'}
                 </Button>
                 <Button
                   variant="primary"
@@ -551,7 +653,7 @@ export const WorkstationPage = () => {
                   icon={ArrowRight}
                   onClick={() => navigate('/academy')}
                 >
-                  {t('nav.academy')}
+                  {t('nav.academy') || 'Academy'}
                 </Button>
               </div>
             </div>
@@ -559,25 +661,33 @@ export const WorkstationPage = () => {
             {/* Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">{t('workstation.netWpm')}</div>
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">
+                  {t('workstation.netWpm') || 'Net Speed'}
+                </div>
                 <div className="text-2xl font-extrabold font-mono text-[var(--accent)]">
-                  {sessionResults.netWpm} <span className="text-xs text-[var(--text-muted)]">{t('common.wpm')}</span>
+                  {sessionResults.netWpm} <span className="text-xs text-[var(--text-muted)]">WPM</span>
                 </div>
               </div>
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">{t('common.accuracy')}</div>
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">
+                  {t('common.accuracy') || 'Accuracy'}
+                </div>
                 <div className="text-2xl font-extrabold font-mono text-[var(--ui-success)]">
                   {sessionResults.accuracy}%
                 </div>
               </div>
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">{t('workstation.rawWpm')}</div>
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">
+                  {t('workstation.rawWpm') || 'Raw Speed'}
+                </div>
                 <div className="text-2xl font-extrabold font-mono text-[var(--text-primary)]">
-                  {sessionResults.grossWpm} <span className="text-xs text-[var(--text-muted)]">{t('common.wpm')}</span>
+                  {sessionResults.grossWpm} <span className="text-xs text-[var(--text-muted)]">WPM</span>
                 </div>
               </div>
               <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">{t('workstation.mistakes')}</div>
+                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">
+                  {t('workstation.mistakes') || 'Mistakes'}
+                </div>
                 <div className="text-2xl font-extrabold font-mono text-[var(--ui-error)]">
                   {sessionResults.mistakes}
                 </div>
@@ -586,8 +696,8 @@ export const WorkstationPage = () => {
           </div>
         )}
 
-        {/* Precision Virtual Keyboard + Realistic Hand Overlay (Centered) */}
-        {(keyboardGuideOn || handGuideOn) && (
+        {/* Precision Virtual Keyboard + Realistic Hand Overlay (Hidden in Focus Mode) */}
+        {!focusMode && (keyboardGuideOn || handGuideOn) && (
           <div className="w-full flex flex-col items-center pt-2">
             <KeyboardGuide
               targetChar={currentTargetChar}
@@ -598,6 +708,63 @@ export const WorkstationPage = () => {
           </div>
         )}
       </div>
+
+      {/* Modals & Overlays */}
+      <CustomTypingStudio
+        isOpen={customStudioOpen}
+        onClose={() => {
+          setCustomStudioOpen(false);
+          if (inputRef.current) inputRef.current.focus();
+        }}
+        onApplyCustomText={handleApplyCustomText}
+        userId={user?.id}
+      />
+
+      <SavedTextsModal
+        isOpen={savedTextsOpen}
+        onClose={() => {
+          setSavedTextsOpen(false);
+          if (inputRef.current) inputRef.current.focus();
+        }}
+        onApplyText={(textToApply, count) => {
+          handleApplyCustomText({
+            prompt: textToApply,
+            mode: 'passage',
+            wordLimit: count,
+            timeLimit: 30,
+          });
+        }}
+        onOpenCustomStudio={() => setCustomStudioOpen(true)}
+        userId={user?.id}
+      />
+
+      <PracticeHistoryModal
+        isOpen={historyOpen}
+        onClose={() => {
+          setHistoryOpen(false);
+          if (inputRef.current) inputRef.current.focus();
+        }}
+        userId={user?.id}
+      />
+
+      <ShortcutsModal
+        isOpen={shortcutsOpen}
+        onClose={() => {
+          setShortcutsOpen(false);
+          if (inputRef.current) inputRef.current.focus();
+        }}
+      />
+
+      <CompetitionModal
+        isOpen={competitionsOpen}
+        onClose={() => {
+          setCompetitionsOpen(false);
+          if (inputRef.current) inputRef.current.focus();
+        }}
+        onStartCompetitionTest={handleStartCompetitionTest}
+        user={user}
+        activeCompetition={activeCompetition?.competition}
+      />
     </div>
   );
 };

@@ -126,6 +126,8 @@ export function loadRawTelemetrySessions(explicitUserId = null) {
   }
 }
 
+export const getRawTelemetrySessions = loadRawTelemetrySessions;
+
 export function saveRawTelemetrySessions(sessions, explicitUserId = null) {
   try {
     if (typeof localStorage === 'undefined') return;
