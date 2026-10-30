@@ -13,12 +13,20 @@ import { KeyNinjaGame } from './games/KeyNinjaGame';
 import { WordRunnerGame } from './games/WordRunnerGame';
 import { TypingMemoryGame } from './games/TypingMemoryGame';
 import { BossBattleGame } from './games/BossBattleGame';
+import { NitroRacingGame } from './games/NitroRacingGame';
+import {
+  fetchArcadeStats,
+  toggleGameLike,
+  recordGamePlaySession,
+  getCachedArcadeStats,
+} from '../../utils/arcadeStatsService';
 
 export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedded = false }) => {
   const { t } = useI18n();
   const [selectedGameId, setSelectedGameId] = useState(initialGameId);
   const [activeCategory, setActiveCategory] = useState('all');
   const [records, setRecords] = useState(getArcadeRecords);
+  const [stats, setStats] = useState(getCachedArcadeStats);
   const [soundOn, setSoundOn] = useState(true);
   const [isLaunching, setIsLaunching] = useState(false);
 
@@ -41,10 +49,41 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
     return () => window.removeEventListener('keyflow-arcade-record-updated', handleRecordUpdate);
   }, []);
 
+  // Sync real-time arcade stats (likes, unique plays)
+  useEffect(() => {
+    let mounted = true;
+    fetchArcadeStats().then((data) => {
+      if (mounted && data) setStats(data);
+    });
+
+    const handleStatsUpdate = (e) => {
+      if (e.detail) {
+        setStats(e.detail);
+      }
+    };
+    window.addEventListener('keyflow-arcade-stats-updated', handleStatsUpdate);
+    return () => {
+      mounted = false;
+      window.removeEventListener('keyflow-arcade-stats-updated', handleStatsUpdate);
+    };
+  }, []);
+
+  // Handle like toggle with optimistic state
+  const handleToggleLike = async (gameId) => {
+    const updated = await toggleGameLike(gameId);
+    setStats((prev) => ({
+      ...prev,
+      [gameId]: updated,
+    }));
+  };
+
   // When a game is chosen, launch reliably with double-click protection and scroll
   const handlePlayGame = (gameId) => {
     if (isLaunching) return;
     setIsLaunching(true);
+
+    // Record unique play session idempotently
+    recordGamePlaySession(gameId);
 
     if (isEmbedded) {
       navigate(`/arcade/${gameId}`);
@@ -75,7 +114,7 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
   // Filter games
   const filteredGames = ARCADE_GAMES.filter((game) => {
     if (activeCategory === 'all') return true;
-    if (activeCategory === 'reaction') return ['cascade', 'sprint', 'ninja'].includes(game.id);
+    if (activeCategory === 'reaction') return ['cascade', 'sprint', 'ninja', 'nitro'].includes(game.id);
     if (activeCategory === 'precision') return ['hunter', 'memory'].includes(game.id);
     if (activeCategory === 'action') return ['runner', 'boss'].includes(game.id);
     return true;
@@ -127,6 +166,12 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
             )}
             {selectedGameId === 'boss' && (
               <BossBattleGame
+                onExit={handleExitGame}
+                soundEnabled={soundOn}
+              />
+            )}
+            {selectedGameId === 'nitro' && (
+              <NitroRacingGame
                 onExit={handleExitGame}
                 soundEnabled={soundOn}
               />
@@ -192,27 +237,29 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
             </div>
           </div>
 
-          {/* 7 Game Cards Responsive Grid (3 cols desktop, 2 cols tablet, 1 col mobile) */}
+          {/* 8 Game Cards Responsive Grid (3 cols desktop, 2 cols tablet, 1 col mobile) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             {filteredGames.map((game) => (
               <ArcadeGameCard
                 key={game.id}
                 game={game}
                 record={records[game.id]}
+                stats={stats[game.id]}
                 onPlay={handlePlayGame}
+                onToggleLike={handleToggleLike}
               />
             ))}
           </div>
 
           {/* Bottom Overview Stat Band */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-5 rounded-2xl bg-[var(--bg-elevated)]/60 border border-[var(--border)] text-center text-xs font-mono">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 sm:p-5 rounded-2xl bg-[var(--bg-elevated)]/60 border border-[var(--border)] text-center text-xs font-mono">
             <div className="space-y-1">
               <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">{t('arcade.totalGames')}</span>
               <span className="text-base font-bold text-[var(--text-primary)]">{t('arcade.modesCount')}</span>
             </div>
             <div className="space-y-1">
               <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Difficulty Engine</span>
-              <span className="text-base font-bold text-orange-400">6 Progressive Tiers</span>
+              <span className="text-base font-bold text-orange-400">8 Progressive Tiers</span>
             </div>
             <div className="space-y-1">
               <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Audio Engine</span>

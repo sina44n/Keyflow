@@ -4,7 +4,7 @@
  * Defines configuration, metadata, difficulty tiers, and dictionary pools
  * for all seven authentic typing arcade games.
  */
-import { Flame, Zap, Target, Swords, Footprints, Brain, ShieldAlert } from 'lucide-react';
+import { Flame, Zap, Target, Swords, Footprints, Brain, ShieldAlert, Gauge } from 'lucide-react';
 import { ARCADE_VOCABULARY } from '../utils/arcadeVocabulary.js';
 
 export const ARCADE_GAMES = [
@@ -169,6 +169,34 @@ export const ARCADE_GAMES = [
     ],
     features: ['Real-time battlefield soldier combat', '4 distinct enemy soldier classes', 'Titanic boss charge encounters', 'Multi-wave progressive warfare'],
   },
+  {
+    id: 'nitro',
+    title: 'Nitro Type Pro',
+    subtitle: 'High-octane multi-lane drag racing',
+    category: 'reaction',
+    categoryLabel: 'Velocity Racing',
+    badge: 'Championship Trial',
+    icon: Gauge,
+    color: '#EF4444',
+    image: '/arcade/nitro_racing.jpg',
+    description:
+      'High-velocity 4-lane drag racing showdown. Accelerate your supercar by typing racing passages with surgical cadence, deploy nitro bursts, and outpace fierce AI competitors across iconic world circuits.',
+    difficulty: 'Progressive (Rookie → Legendary)',
+    defaultMetricLabel: 'Top Velocity',
+    defaultMetricUnit: 'WPM',
+    instructions: [
+      'Type the highlighted racing passage with raw speed and precision to surge ahead.',
+      'Sustain continuous typing streaks to charge and ignite your high-velocity Nitro Boost.',
+      'Outpace Xavier, Thomas, and Joshua across 4 asphalt speedway lanes to claim 1st place.',
+      'Earn podium points and cash rewards to unlock high-performance supercars and championship tracks.',
+    ],
+    features: [
+      'Real-time 60 FPS drag racing physics',
+      '4-lane competitive AI opponents',
+      'Dynamic typing speedometer & tachometer',
+      'Nitro boost exhaust ignition',
+    ],
+  },
 ];
 
 /**
@@ -245,8 +273,8 @@ export const ARCADE_WORDS = {
  * Filter categories for the arcade hub
  */
 export const ARCADE_CATEGORIES = [
-  { id: 'all', label: 'All Games (7)' },
-  { id: 'reaction', label: 'Reaction & Speed (3)' },
+  { id: 'all', label: 'All Games (8)' },
+  { id: 'reaction', label: 'Reaction & Speed (4)' },
   { id: 'precision', label: 'Precision & Recall (2)' },
   { id: 'action', label: 'Action & Combat (2)' },
 ];

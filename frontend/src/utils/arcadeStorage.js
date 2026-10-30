@@ -53,6 +53,7 @@ const DEFAULT_RECORDS = {
   runner: { maxDistance: 0, bestScore: 0, obstaclesCleared: 0, highestTier: 1, gamesPlayed: 0 },
   memory: { deepestRound: 0, bestScore: 0, perfectRecalls: 0, highestTier: 1, gamesPlayed: 0 },
   boss: { bossDefeated: false, bestScore: 0, highestWave: 1, highestTier: 1, soldiersDefeated: 0, fastestDefeatSeconds: null, gamesPlayed: 0 },
+  nitro: { bestWpm: 0, bestAccuracy: 0, racesWon: 0, highestTier: 1, topPlacement: 4, totalDistance: 0, gamesPlayed: 0 },
 };
 
 export const getArcadeRecords = () => {
@@ -181,6 +182,23 @@ export const saveArcadeRecord = (gameId, attemptData = {}) => {
           updated.fastestDefeatSeconds = gamePrev.fastestDefeatSeconds
             ? Math.min(gamePrev.fastestDefeatSeconds, attemptData.durationSeconds)
             : attemptData.durationSeconds;
+        }
+        break;
+      }
+      case 'nitro': {
+        const wpm = Number(attemptData.wpm || attemptData.score || 0);
+        const acc = Number(attemptData.accuracy || 0);
+        const dist = Number(attemptData.distance || attemptData.totalDistance || 0);
+        const placement = Number(attemptData.placement || 4);
+        if (wpm > (gamePrev.bestWpm || 0)) {
+          updated.bestWpm = wpm;
+          isNewBest = true;
+        }
+        updated.bestAccuracy = Math.max(gamePrev.bestAccuracy || 0, acc);
+        updated.totalDistance = (gamePrev.totalDistance || 0) + dist;
+        updated.topPlacement = Math.min(gamePrev.topPlacement || 4, placement);
+        if (placement === 1) {
+          updated.racesWon = (gamePrev.racesWon || 0) + 1;
         }
         break;
       }

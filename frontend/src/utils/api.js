@@ -169,6 +169,10 @@ export const competitionAPI = {
 export const gamesAPI = {
   recordSession: (data) => api.post('/games/record/', data),
   getRecords: () => api.get('/games/records/'),
+  getStats: (guestId) => api.get('/games/stats/', { params: guestId ? { guest_id: guestId } : {} }),
+  toggleLike: (gameId, guestId) => api.post(`/games/${gameId}/like/`, { guest_id: guestId }),
+  recordPlay: (gameId, sessionId, guestId) =>
+    api.post(`/games/${gameId}/play/`, { sessionId, guest_id: guestId }),
 };
 
 // ---------------------------------------------------------------------------

@@ -26,14 +26,14 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-describe('KEYFLOW Arcade — 7 Masterpiece Games Integrity', () => {
-  it('contains exactly seven curated arcade games', () => {
-    assert.equal(ARCADE_GAMES.length, 7);
+describe('KEYFLOW Arcade — Masterpiece Games Integrity', () => {
+  it('contains exactly eight curated arcade games', () => {
+    assert.equal(ARCADE_GAMES.length, 8);
     assert.ok(ARCADE_CATEGORIES.length >= 4, 'categories must be defined');
   });
 
   it('contains all required game identities with unique IDs', () => {
-    const expectedIds = ['cascade', 'sprint', 'hunter', 'ninja', 'runner', 'memory', 'boss'];
+    const expectedIds = ['cascade', 'sprint', 'hunter', 'ninja', 'runner', 'memory', 'boss', 'nitro'];
     const actualIds = ARCADE_GAMES.map((g) => g.id);
     assert.deepEqual(actualIds, expectedIds);
   });
