@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { HandGuide } from './HandGuide';
 import { Hand3DGuide } from './Hand3DGuide';
 
@@ -50,13 +50,31 @@ export function KeyboardGuide({
     return { targetKeyId: targetChar.toLowerCase(), needsShift: false };
   }, [targetChar]);
 
-  // Determine key ID from last keystroke
-  const lastPressedKeyId = useMemo(() => {
-    if (!lastKeystroke) return null;
+  // Track active pressed key with physical mechanical spring recovery
+  const [activePressedKeyId, setActivePressedKeyId] = useState(null);
+
+  useEffect(() => {
+    if (!lastKeystroke) {
+      setActivePressedKeyId(null);
+      return;
+    }
     const raw = typeof lastKeystroke === 'string' ? lastKeystroke : lastKeystroke.key;
-    if (raw === ' ') return 'space';
-    if (raw && SHIFT_MAP[raw]) return SHIFT_MAP[raw];
-    return raw ? raw.toLowerCase() : null;
+    const resolvedId =
+      raw === ' '
+        ? 'space'
+        : raw && SHIFT_MAP[raw]
+          ? SHIFT_MAP[raw]
+          : raw
+            ? raw.toLowerCase()
+            : null;
+
+    if (resolvedId) {
+      setActivePressedKeyId(resolvedId);
+      const timer = setTimeout(() => {
+        setActivePressedKeyId((curr) => (curr === resolvedId ? null : curr));
+      }, 125);
+      return () => clearTimeout(timer);
+    }
   }, [lastKeystroke]);
 
   // If both keyboard and hand guide are disabled, render nothing
@@ -140,6 +158,11 @@ export function KeyboardGuide({
           <filter id="keyContactShadow" x="-10%" y="-10%" width="120%" height="135%">
             <feDropShadow dx="0" dy="2.8" stdDeviation="1.6" floodColor="#06090F" floodOpacity="0.65" />
           </filter>
+
+          {/* Compressed Contact Shadow Under Depressed Keycap */}
+          <filter id="keyContactShadowPressed" x="-10%" y="-10%" width="120%" height="135%">
+            <feDropShadow dx="0" dy="1.1" stdDeviation="0.9" floodColor="#06090F" floodOpacity="0.80" />
+          </filter>
         </defs>
 
         {/* ── CNC ALUMINUM CHAMFERED CHASSIS (Matches Physical Reference) ── */}
@@ -198,6 +221,35 @@ export function KeyboardGuide({
               stroke="#262F3D"
               strokeWidth="1"
             />
+
+            {/* CNC Hardware Hex Bolts (Four Chamfered Corner Fasteners) */}
+            {[
+              { cx: 34, cy: 19 },
+              { cx: 866, cy: 19 },
+              { cx: 34, cy: 265 },
+              { cx: 866, cy: 265 },
+            ].map((bolt, bIdx) => (
+              <g key={`bolt-${bIdx}`} opacity="0.60">
+                <circle cx={bolt.cx} cy={bolt.cy} r="3.0" fill="#525E6F" stroke="#3A4350" strokeWidth="0.6" />
+                <circle cx={bolt.cx} cy={bolt.cy} r="1.6" fill="#2E3744" />
+                <circle cx={bolt.cx - 0.5} cy={bolt.cy - 0.5} r="0.7" fill="rgba(255,255,255,0.45)" />
+              </g>
+            ))}
+
+            {/* Redragon K617 Fizz subtle CNC aluminum engraving */}
+            <text
+              x="866"
+              y="288"
+              textAnchor="end"
+              fill="#64748B"
+              fontSize="7.5"
+              fontFamily="Inter, ui-monospace, monospace"
+              fontWeight="700"
+              letterSpacing="0.10em"
+              opacity="0.70"
+            >
+              K617 FIZZ • 60% MECHANICAL
+            </text>
           </g>
         )}
 
@@ -228,12 +280,12 @@ export function KeyboardGuide({
             const isTarget = k.id === targetKeyId;
             const isShiftActive =
               (k.id === 'shift-left' || k.id === 'shift-right') && needsShift;
-            const isPressed = k.id === lastPressedKeyId;
+            const isPressed = k.id === activePressedKeyId;
             const isHighlighted = isTarget || isShiftActive;
             const isBlackKey = k.color === 'black';
 
             // Real physical mechanical switch downstroke displacement on keystroke
-            const dy = isPressed ? 2.4 : (isHighlighted ? 0.6 : 0);
+            const dy = isPressed ? 2.6 : (isHighlighted ? 0.6 : 0);
 
             // Shading and fills
             let skirtFill;
@@ -272,9 +324,10 @@ export function KeyboardGuide({
             return (
               <g
                 key={k.id}
-                className="transition-transform duration-75 select-none"
+                className="select-none"
                 style={{
                   transform: `translate3d(0, ${dy}px, 0)`,
+                  transition: 'transform 80ms cubic-bezier(0.2, 0.9, 0.3, 1.25)',
                 }}
               >
                 {/* 3D Extruded Keycap Skirt (Side Walls & Contact Shadow) */}
@@ -286,7 +339,13 @@ export function KeyboardGuide({
                   rx="4.5"
                   ry="4.5"
                   fill={skirtFill}
-                  filter={isHighlighted ? 'none' : 'url(#keyContactShadow)'}
+                  filter={
+                    isHighlighted
+                      ? 'none'
+                      : isPressed
+                        ? 'url(#keyContactShadowPressed)'
+                        : 'url(#keyContactShadow)'
+                  }
                 />
 
                 {/* 3D Cradled Keycap Top Dish (Typing Surface) */}
@@ -301,6 +360,23 @@ export function KeyboardGuide({
                   stroke={dishStroke}
                   strokeWidth={strokeWidth}
                   filter={filterEffect}
+                />
+
+                {/* Specular edge highlight along top rim catching ambient studio light */}
+                <line
+                  x1={k.x + 4.5}
+                  y1={k.y + 1.8}
+                  x2={k.x + k.w - 4.5}
+                  y2={k.y + 1.8}
+                  stroke={
+                    isHighlighted
+                      ? 'rgba(255, 255, 255, 0.70)'
+                      : isBlackKey
+                        ? 'rgba(255, 255, 255, 0.20)'
+                        : 'rgba(255, 255, 255, 0.85)'
+                  }
+                  strokeWidth="0.8"
+                  strokeLinecap="round"
                 />
 
                 {/* ── KEYCAP LEGENDS (Exact Match to Physical Reference) ── */}
@@ -361,16 +437,26 @@ export function KeyboardGuide({
                   </g>
                 )}
 
-                {/* Tactile Homing Bars on 'F' and 'J' Keycaps */}
+                {/* Tactile Homing Bars on 'F' and 'J' Keycaps (Physical 3D Molded Relief) */}
                 {k.hasBump && (
-                  <rect
-                    x={k.cx - 7}
-                    y={k.y + k.h - 8.5}
-                    width="14"
-                    height="2.2"
-                    rx="1.1"
-                    fill={isHighlighted ? '#FFFFFF' : '#94A3B8'}
-                  />
+                  <g>
+                    <rect
+                      x={k.cx - 7}
+                      y={k.y + k.h - 8.0}
+                      width="14"
+                      height="2.2"
+                      rx="1.1"
+                      fill={isHighlighted ? 'rgba(0,0,0,0.30)' : 'rgba(0,0,0,0.18)'}
+                    />
+                    <rect
+                      x={k.cx - 7}
+                      y={k.y + k.h - 8.8}
+                      width="14"
+                      height="2.0"
+                      rx="1.0"
+                      fill={isHighlighted ? '#FFFFFF' : '#94A3B8'}
+                    />
+                  </g>
                 )}
               </g>
             );

@@ -227,21 +227,26 @@ export function computeIsolatedSkinWeights(geometry, bones, landmarks) {
     const fingerBoneNames = FINGER_BONE_MAP[bestFinger];
     const candidateBones = [];
 
-    // Add finger bones
-    fingerBoneNames.forEach((bName) => {
-      const bInfo = boneWorldPos[bName];
-      const d = Math.hypot(vx - bInfo.pos.x, vy - bInfo.pos.y);
-      candidateBones.push({ name: bName, idx: bInfo.idx, dist: d });
-    });
-
-    // Add palm bone
-    const dPalm = Math.hypot(vx - palmBone.pos.x, vy - palmBone.pos.y);
-    candidateBones.push({ name: 'palm' + prefix, idx: palmBone.idx, dist: dPalm });
-
-    // Add wrist bone if in lower hand region or fewer than 4 bones
-    if (candidateBones.length < 4 || vy < -60) {
+    // Strictly separate palm/wrist region from finger region to prevent palm stretching
+    if (vy < -65) {
+      // Vertex is in the palm or wrist body - zero finger movement allowed
+      const dPalm = Math.hypot(vx - palmBone.pos.x, vy - palmBone.pos.y);
       const dWrist = Math.hypot(vx - wristBone.pos.x, vy - wristBone.pos.y);
-      candidateBones.push({ name: 'wrist' + prefix, idx: wristBone.idx, dist: dWrist });
+      candidateBones.push({ name: 'palm' + prefix, idx: palmBone.idx, dist: Math.max(dPalm, 2) });
+      candidateBones.push({ name: 'wrist' + prefix, idx: wristBone.idx, dist: Math.max(dWrist, 2) });
+    } else {
+      // Vertex is on the finger or knuckle transition zone
+      fingerBoneNames.forEach((bName) => {
+        const bInfo = boneWorldPos[bName];
+        const d = Math.hypot(vx - bInfo.pos.x, vy - bInfo.pos.y);
+        candidateBones.push({ name: bName, idx: bInfo.idx, dist: Math.max(d, 2) });
+      });
+
+      // Knuckle transition zone (-65 <= vy <= -45): subtle blend into palm
+      if (vy <= -45) {
+        const dPalm = Math.hypot(vx - palmBone.pos.x, vy - palmBone.pos.y);
+        candidateBones.push({ name: 'palm' + prefix, idx: palmBone.idx, dist: Math.max(dPalm * 1.5, 6) });
+      }
     }
 
     // Sort candidate bones by distance and keep top 4
@@ -250,7 +255,7 @@ export function computeIsolatedSkinWeights(geometry, bones, landmarks) {
     while (top4.length < 4) top4.push(top4[0]);
 
     // Compute smooth inverse-distance weights with power 2.5
-    const rawWeights = top4.map((c) => 1 / Math.pow(Math.max(c.dist, 4), 2.5));
+    const rawWeights = top4.map((c) => 1 / Math.pow(Math.max(c.dist, 3), 2.5));
     const sumW = rawWeights.reduce((acc, w) => acc + w, 0);
 
     top4.forEach((c, slot) => {
@@ -673,6 +678,7 @@ export function createHandAnimationController(boneMap) {
       strike = strike * motionScale;
 
       const isThumb = finger.includes('thumb');
+      const isHomeKey = Math.hypot(anim.reachX, anim.reachY) < 12;
 
       anim.bones.forEach((bone, idx) => {
         const rest = restTransforms[bone.name];
@@ -680,37 +686,60 @@ export function createHandAnimationController(boneMap) {
 
         if (isThumb) {
           // Thumbs (2 bones: proximal, distal)
+          // Press downward onto spacebar with visible key strike
           if (idx === 0) {
-            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.40);
-            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.40);
-            bone.position.z = rest.pos.z - strike * 8.0;
-            bone.rotation.x = rest.rot.x - strike * 0.14;
+            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.15);
+            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.15 - 3.5);
+            bone.position.z = rest.pos.z - strike * 7.5;
+            bone.rotation.x = rest.rot.x - strike * 0.16;
           } else {
-            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.60);
-            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.60);
-            bone.position.z = rest.pos.z - strike * 6.0;
-            bone.rotation.x = rest.rot.x - strike * 0.10;
+            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.25);
+            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.25 - 2.5);
+            bone.position.z = rest.pos.z - strike * 5.0;
+            bone.rotation.x = rest.rot.x - strike * 0.12;
+          }
+        } else if (isHomeKey) {
+          // Home row downstroke: authentic physical keycap compression
+          // Visible downward motion in Y, joint flexion in rotation.x, depression in Z
+          if (idx === 0) {
+            // MCP Proximal
+            bone.position.y = rest.pos.y - strike * 4.0;
+            bone.position.z = rest.pos.z - strike * 8.0;
+            bone.rotation.x = rest.rot.x - strike * 0.22;
+          } else if (idx === 1) {
+            // PIP Intermediate
+            bone.position.y = rest.pos.y - strike * 3.0;
+            bone.position.z = rest.pos.z - strike * 5.0;
+            bone.rotation.x = rest.rot.x - strike * 0.16;
+          } else if (idx === 2) {
+            // DIP Distal (Fingertip)
+            bone.position.y = rest.pos.y - strike * 2.0;
+            bone.position.z = rest.pos.z - strike * 3.0;
+            bone.rotation.x = rest.rot.x - strike * 0.12;
           }
         } else {
-          // Fingers (3 bones: proximal MCP, intermediate PIP, distal DIP)
+          // Reach key: smooth natural reach toward target keycap + keycap downstroke
+          // Controlled reach scaling ensures zero texture stretching while cleanly indicating the target key
+          const reachScaleX = 0.40;
+          const reachScaleY = 0.42;
+
           if (idx === 0) {
             // Proximal bone (MCP)
-            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.28);
-            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.28);
-            bone.position.z = rest.pos.z - strike * 8.0; // Keycap depression depth
+            bone.position.x = rest.pos.x + strike * (anim.reachX * reachScaleX * 0.28);
+            bone.position.y = rest.pos.y + strike * (anim.reachY * reachScaleY * 0.28 - 3.0);
+            bone.position.z = rest.pos.z - strike * 7.0;
             bone.rotation.x = rest.rot.x - strike * 0.20;
-            // Subtle lateral reach tilt
             bone.rotation.z = rest.rot.z - strike * (anim.reachX / 280);
           } else if (idx === 1) {
             // Intermediate bone (PIP)
-            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.44);
-            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.44);
-            bone.position.z = rest.pos.z - strike * 4.0;
+            bone.position.x = rest.pos.x + strike * (anim.reachX * reachScaleX * 0.44);
+            bone.position.y = rest.pos.y + strike * (anim.reachY * reachScaleY * 0.44 - 2.0);
+            bone.position.z = rest.pos.z - strike * 4.5;
             bone.rotation.x = rest.rot.x - strike * 0.16;
           } else if (idx === 2) {
             // Distal bone (DIP - fingertip)
-            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.28);
-            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.28);
+            bone.position.x = rest.pos.x + strike * (anim.reachX * reachScaleX * 0.28);
+            bone.position.y = rest.pos.y + strike * (anim.reachY * reachScaleY * 0.28 - 1.5);
             bone.position.z = rest.pos.z - strike * 3.0;
             bone.rotation.x = rest.rot.x - strike * 0.12;
           }
