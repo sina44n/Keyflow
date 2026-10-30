@@ -48,6 +48,9 @@ const NitroRacingGame = React.lazy(() =>
 const WarriorFightingGame = React.lazy(() =>
   import('./games/WarriorFightingGame').then((m) => ({ default: m.WarriorFightingGame }))
 );
+const StickmanFightGame = React.lazy(() =>
+  import('./games/StickmanFightGame').then((m) => ({ default: m.StickmanFightGame }))
+);
 
 export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedded = false }) => {
   const { t } = useI18n();
@@ -164,7 +167,7 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
     if (activeCategory === 'all') return true;
     if (activeCategory === 'reaction') return ['cascade', 'sprint', 'ninja', 'nitro'].includes(game.id);
     if (activeCategory === 'precision') return ['hunter', 'memory'].includes(game.id);
-    if (activeCategory === 'action') return ['runner', 'boss', 'warrior'].includes(game.id);
+    if (activeCategory === 'action') return ['runner', 'boss', 'warrior', 'stickman'].includes(game.id);
     return true;
   });
 
@@ -235,6 +238,12 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
               )}
               {(selectedGameId === 'warrior' || selectedGameId === 'warrior-fighting') && (
                 <WarriorFightingGame
+                  onExit={handleExitGame}
+                  soundEnabled={soundOn}
+                />
+              )}
+              {(selectedGameId === 'stickman' || selectedGameId === 'stickman-fight') && (
+                <StickmanFightGame
                   onExit={handleExitGame}
                   soundEnabled={soundOn}
                 />

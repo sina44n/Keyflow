@@ -225,6 +225,33 @@ export const ARCADE_GAMES = [
       '5 progressive waves culminating in Dark Commander Boss battle',
     ],
   },
+  {
+    id: 'stickman',
+    title: 'STICKMAN FIGHT',
+    subtitle: 'Typing-powered 3D stickman warrior combat',
+    category: 'action',
+    categoryLabel: 'Stickman Combat',
+    badge: 'Typing Combat Trial',
+    icon: Swords,
+    color: '#EF4444',
+    image: '/arcade/stickman_fight.jpg',
+    description:
+      'High-octane typing-powered 3D stickman warrior battle. Type martial strike phrases, defensive parries, and acrobatic dodges to command your crimson energy stickman across waves of shadow legions.',
+    difficulty: 'Dynamic (Wave 1 → 5 Boss)',
+    defaultMetricLabel: 'Best Score',
+    defaultMetricUnit: 'pts',
+    instructions: [
+      'Type the displayed combat commands with speed and accuracy to strike, dodge, and parry.',
+      'Chain unbroken typing streaks to charge your Flow Energy and unlock devastating combos.',
+      'Defeat waves of shadow warriors and vanquish the Infernal Commander Boss in Wave 5.',
+    ],
+    features: [
+      '100% typing-controlled 3D martial arts & sword combat',
+      'Authentic Reference Image B Crimson Stickman with floating energy blade shards',
+      'Real-time swept blade hitboxes, blocks, and parry mechanics',
+      'Cinematic 3D Red Cursed Forest battlefield with progressive difficulty',
+    ],
+  },
 ];
 
 /**
@@ -301,10 +328,10 @@ export const ARCADE_WORDS = {
  * Filter categories for the arcade hub
  */
 export const ARCADE_CATEGORIES = [
-  { id: 'all', label: 'All Games (9)' },
+  { id: 'all', label: 'All Games (10)' },
   { id: 'reaction', label: 'Reaction & Speed (4)' },
   { id: 'precision', label: 'Precision & Recall (2)' },
-  { id: 'action', label: 'Action & Combat (3)' },
+  { id: 'action', label: 'Action & Combat (4)' },
 ];
 
 export const getGameById = (gameId) => {

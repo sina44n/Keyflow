@@ -21,6 +21,7 @@ export const DEFAULT_COMMUNITY_STATS = {
   boss: { likes: 3750, plays: 284100, hasLiked: false },
   nitro: { likes: 4200, plays: 312000, hasLiked: false },
   warrior: { likes: 3890, plays: 265400, hasLiked: false },
+  stickman: { likes: 4560, plays: 289100, hasLiked: false },
 };
 
 /**
