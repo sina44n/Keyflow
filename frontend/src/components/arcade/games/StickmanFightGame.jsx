@@ -1,5 +1,12 @@
+/**
+ * StickmanFightGame.jsx
+ * KEYFLOW ARCADE — STICKMAN FIGHT (2D)
+ * Authentic 2D Stickman Warrior Combat powered by Continuous Paragraph Typing.
+ * Pure HTML5 Canvas 2D engine with forward kinematics skeletal animation,
+ * swept blade hitboxes, multi-layer parallax Red Forest, and Web Audio API synthesizer.
+ */
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import * as THREE from 'three';
 import {
   Shield,
   Swords,
@@ -11,285 +18,245 @@ import {
   Zap,
   Volume2,
   VolumeX,
-  HelpCircle,
+  Sparkles,
   Flame,
   CheckCircle,
-  Sliders,
-  Sparkles,
-  Target,
+  Pause,
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
-import { GlobalGameSettingsModal } from '../performance/GlobalGameSettingsModal';
 
-import { Stickman3DAudio } from '../stickman3d/Stickman3DAudio';
-import { Stickman3DEnvironment } from '../stickman3d/Stickman3DEnvironment';
-import { Stickman3DPlayer } from '../stickman3d/Stickman3DPlayer';
-import { Stickman3DCamera } from '../stickman3d/Stickman3DCamera';
-import { Stickman3DEnemies } from '../stickman3d/Stickman3DEnemies';
-import { Stickman3DCombatSystem } from '../stickman3d/Stickman3DCombatSystem';
-import { StickmanTypingEngine } from '../stickman3d/StickmanTypingEngine';
+import { StickmanParagraphManager } from '../stickman2d/StickmanParagraphManager';
+import { Stickman2DAudio } from '../stickman2d/Stickman2DAudio';
+import { Stickman2DCharacter } from '../stickman2d/Stickman2DCharacter';
+import { Stickman2DEnvironment } from '../stickman2d/Stickman2DEnvironment';
+import { Stickman2DCombat } from '../stickman2d/Stickman2DCombat';
+import { Stickman2DEnemies } from '../stickman2d/Stickman2DEnemies';
 
-export const StickmanFightGame = ({ onExit, soundEnabled = true }) => {
-  // Game states: 'ready' | 'playing' | 'wave_cleared' | 'paused' | 'gameover' | 'victory'
-  const [gameState, setGameState] = useState('ready');
-  const [soundOn, setSoundOn] = useState(soundEnabled);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
-  const [showControlsModal, setShowControlsModal] = useState(false);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  // HUD & Telemetry
-  const [wave, setWave] = useState(1);
-  const [playerHp, setPlayerHp] = useState(100);
-  const [flowEnergy, setFlowEnergy] = useState(0);
+export function StickmanFightGame({ onBack, onComplete, initialWave = 1 }) {
+  // Game state
+  const [gameState, setGameState] = useState('ready'); // 'ready' | 'playing' | 'paused' | 'wave_cleared' | 'game_over' | 'victory'
+  const [currentWave, setCurrentWave] = useState(initialWave);
   const [score, setScore] = useState(0);
+  const [playerHp, setPlayerHp] = useState(150);
+  const [maxPlayerHp, setMaxPlayerHp] = useState(150);
+  const [bossHp, setBossHp] = useState(null);
+  const [maxBossHp, setMaxBossHp] = useState(null);
   const [enemiesRemaining, setEnemiesRemaining] = useState(1);
-  const [bossHp, setBossHp] = useState(null); // null or { current, max }
+  const [isMuted, setIsMuted] = useState(false);
+  const [showExitDialog, setShowExitDialog] = useState(false);
 
-  // Real-time Typing Deck
-  const [activeWord, setActiveWord] = useState('');
-  const [typedPart, setTypedPart] = useState('');
-  const [untypedPart, setUntypedPart] = useState('');
-  const [commandCategory, setCommandCategory] = useState('attacks');
-  const [inputErrorShake, setInputErrorShake] = useState(false);
+  // Typing telemetry state
+  const [typingStats, setTypingStats] = useState({
+    wpm: 0,
+    grossWpm: 0,
+    accuracy: 100,
+    combo: 0,
+    maxCombo: 0,
+    flowMultiplier: 1.0,
+    progressPercent: 0,
+    currentIndex: 0,
+    passageLength: 0,
+  });
 
-  // Floating enemy overhead word in 2D perspective screen space
-  const [enemyWordPos, setEnemyWordPos] = useState(null);
+  const [currentPassage, setCurrentPassage] = useState('');
+  const [charStatuses, setCharStatuses] = useState([]);
 
-  // Real typing metrics
-  const [wpm, setWpm] = useState(0);
-  const [accuracy, setAccuracy] = useState(100);
-  const [combo, setCombo] = useState(0);
-  const [comboMultiplier, setComboMultiplier] = useState(1.0);
-  const [highScore, setHighScore] = useState(0);
-
-  // Final summary stats
-  const [finalReport, setFinalReport] = useState(null);
-
-  // Three.js and Engine refs
+  // Canvas and Engine Refs
+  const canvasRef = useRef(null);
   const containerRef = useRef(null);
-  const rendererRef = useRef(null);
-  const sceneRef = useRef(null);
-  const cameraRef = useRef(null);
-  const cameraControllerRef = useRef(null);
+  const animFrameRef = useRef(null);
+  const lastTimeRef = useRef(null);
+
+  // Game Engine Instances
   const audioRef = useRef(null);
+  const paragraphMgrRef = useRef(null);
   const envRef = useRef(null);
   const playerRef = useRef(null);
-  const enemiesRef = useRef(null);
   const combatRef = useRef(null);
-  const typingRef = useRef(null);
-  const animFrameRef = useRef(null);
-  const lastTimeRef = useRef(0);
+  const enemiesRef = useRef(null);
 
-  // Load high score
+  // Audio initialization
   useEffect(() => {
-    const record = getGameRecord('stickman');
-    if (record && record.highScore) {
-      setHighScore(record.highScore);
-    }
-  }, []);
-
-  // Sync sound
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.setEnabled(soundOn);
-    }
-  }, [soundOn]);
-
-  /**
-   * Initialize Three.js viewport & engine systems
-   */
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const width = container.clientWidth || 960;
-    const height = Math.max(520, Math.min(680, window.innerHeight * 0.72));
-
-    const scene = new THREE.Scene();
-    sceneRef.current = scene;
-
-    const camera = new THREE.PerspectiveCamera(54, width / height, 0.1, 150);
-    cameraRef.current = camera;
-
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      powerPreference: 'high-performance',
-    });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
-
-    container.innerHTML = '';
-    container.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
-
-    const audio = new Stickman3DAudio();
-    audio.setEnabled(soundOn);
+    const audio = new Stickman2DAudio();
+    audio.init();
     audioRef.current = audio;
 
-    const env = new Stickman3DEnvironment(scene, 'red_forest');
+    return () => {
+      audio.dispose();
+    };
+  }, []);
+
+  // Initialize engine systems
+  useEffect(() => {
+    const env = new Stickman2DEnvironment(1000, 560);
     envRef.current = env;
 
-    const player = new Stickman3DPlayer(scene, audio);
-    playerRef.current = player;
-
-    const cameraController = new Stickman3DCamera(camera);
-    cameraControllerRef.current = cameraController;
-
-    const enemies = new Stickman3DEnemies(scene, audio);
-    enemiesRef.current = enemies;
-
-    const combat = new Stickman3DCombatSystem(scene, audio);
+    const combat = new Stickman2DCombat();
     combatRef.current = combat;
 
-    const typing = new StickmanTypingEngine(audio);
-    typingRef.current = typing;
+    const player = new Stickman2DCharacter({
+      type: 'player',
+      x: 200,
+      y: env.groundY,
+      facing: 1,
+      maxHp: 150,
+    });
+    playerRef.current = player;
+    setPlayerHp(player.hp);
+    setMaxPlayerHp(player.maxHp);
 
-    const handleResize = () => {
-      if (!container || !rendererRef.current || !cameraRef.current) return;
-      const newW = container.clientWidth;
-      const newH = Math.max(520, Math.min(680, window.innerHeight * 0.72));
-      cameraRef.current.aspect = newW / newH;
-      cameraRef.current.updateProjectionMatrix();
-      rendererRef.current.setSize(newW, newH);
-    };
-    window.addEventListener('resize', handleResize);
+    const enemies = new Stickman2DEnemies({
+      groundY: env.groundY,
+      onEnemyDefeated: () => {
+        setScore((prev) => prev + 150);
+      },
+      onWaveCleared: (wave) => {
+        setScore((prev) => prev + wave * 500);
+        if (wave >= 5) {
+          handleVictory();
+        } else {
+          setGameState('wave_cleared');
+        }
+      },
+    });
+    enemiesRef.current = enemies;
 
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      if (audioRef.current) audioRef.current.stopAmbientDrone();
-      if (rendererRef.current) rendererRef.current.dispose();
-    };
+    // Paragraph Manager with combat action hooks
+    const paragraphMgr = new StickmanParagraphManager({
+      onCorrectChar: (char, isSpace, word, stats) => {
+        setTypingStats(stats);
+        if (audioRef.current) audioRef.current.playKeypress(true);
+
+        // Player takes a forward martial step
+        if (playerRef.current && playerRef.current.isAlive) {
+          const nearest = enemiesRef.current?.getNearestLivingEnemy(playerRef.current.x);
+          if (nearest) {
+            playerRef.current.facing = nearest.x > playerRef.current.x ? 1 : -1;
+            playerRef.current.vx = playerRef.current.facing * 140;
+          }
+        }
+      },
+      onErrorChar: (typed, expected, stats) => {
+        setTypingStats(stats);
+        if (audioRef.current) audioRef.current.playKeypress(false);
+        // Typo causes brief guard wobble
+        if (playerRef.current && playerRef.current.isAlive) {
+          playerRef.current.animator.play('hit', 2.0);
+        }
+      },
+      onWordComplete: (word, wordIndex, stats) => {
+        setTypingStats(stats);
+        triggerAttack('word_complete', stats);
+      },
+      onPunctuation: (char, stats) => {
+        setTypingStats(stats);
+        triggerAttack('punctuation', stats);
+      },
+      onParagraphComplete: (stats) => {
+        setTypingStats(stats);
+        triggerAttack('blade_storm', stats);
+
+        // Auto stream next paragraph seamlessly without interruption
+        setTimeout(() => {
+          paragraphMgrRef.current?.loadPassageForWave(currentWave);
+          setCurrentPassage(paragraphMgrRef.current?.currentPassage || '');
+          setCharStatuses(paragraphMgrRef.current?.charStatuses || []);
+        }, 350);
+      },
+    });
+
+    paragraphMgrRef.current = paragraphMgr;
+    setCurrentPassage(paragraphMgr.currentPassage);
+    setCharStatuses(paragraphMgr.charStatuses);
   }, []);
 
-  /**
-   * Start New Game / Reset
-   */
-  const handleStartGame = useCallback(() => {
-    if (!playerRef.current || !enemiesRef.current || !envRef.current || !typingRef.current) return;
+  // Attack trigger resolution
+  const triggerAttack = useCallback((attackType, stats) => {
+    const player = playerRef.current;
+    const enemies = enemiesRef.current;
+    const combat = combatRef.current;
+    const audio = audioRef.current;
+    const env = envRef.current;
 
-    setWave(1);
-    setScore(0);
-    setPlayerHp(100);
-    setFlowEnergy(0);
-    setCombo(0);
-    setComboMultiplier(1.0);
-    setBossHp(null);
-    setFinalReport(null);
+    if (!player || !player.isAlive || !enemies || !combat) return;
 
-    envRef.current.buildStage('red_forest');
-    playerRef.current.reset(0, 4);
+    const nearest = enemies.getNearestLivingEnemy(player.x);
+    if (!nearest) return;
 
-    enemiesRef.current.startWave(1);
-    setEnemiesRemaining(enemiesRef.current.getAliveCount());
+    // Orient toward enemy
+    player.facing = nearest.x > player.x ? 1 : -1;
 
-    typingRef.current.reset();
-    typingRef.current.setDifficulty(1);
-    const cmd = typingRef.current.generateCommand({ isComboReady: false });
-    setActiveWord(cmd.text);
-    setTypedPart('');
-    setUntypedPart(cmd.text);
-    setCommandCategory(cmd.category);
+    // Calculate attack motion & animation
+    const wpm = stats.wpm || 30;
+    const animSpeed = Math.min(2.4, Math.max(1.0, wpm / 40));
 
-    setGameState('playing');
-
-    if (audioRef.current && soundOn) {
-      audioRef.current.startAmbientDrone();
-    }
-  }, [soundOn]);
-
-  /**
-   * Advance Wave Progression
-   */
-  const handleAdvanceWave = useCallback((nextWave) => {
-    if (!playerRef.current || !enemiesRef.current || !envRef.current || !typingRef.current) return;
-
-    setWave(nextWave);
-
-    if (nextWave <= 2) {
-      envRef.current.buildStage('red_forest');
-    } else if (nextWave <= 4) {
-      envRef.current.buildStage('dark_battlefield');
+    if (attackType === 'blade_storm') {
+      player.animator.play('bladeStorm', animSpeed);
+      if (audio) audio.playBladeStorm();
+      if (env) env.addShake(14, 0.4);
+    } else if (attackType === 'punctuation') {
+      const isCyclone = Math.random() > 0.5;
+      player.animator.play(isCyclone ? 'cyclone' : 'slash2', animSpeed);
+      if (audio) audio.playSlash(1.2);
+      if (env) env.addShake(6, 0.2);
     } else {
-      envRef.current.buildStage('infernal_arena');
+      const slashAnims = ['slash1', 'slash2', 'kick', 'flurry'];
+      const chosenAnim = slashAnims[Math.floor(Math.random() * slashAnims.length)];
+      player.animator.play(chosenAnim, animSpeed);
+      if (audio) audio.playSlash(1.0);
     }
 
-    playerRef.current.health = Math.min(100, playerRef.current.health + 30);
-    playerRef.current.flowEnergy = 50;
-    playerRef.current.position.set(0, 0, 4);
+    // Dash into range if slightly far
+    const dist = Math.abs(nearest.x - player.x);
+    if (dist > 75) {
+      player.vx = player.facing * 320;
+    }
 
-    enemiesRef.current.startWave(nextWave);
-    setEnemiesRemaining(enemiesRef.current.getAliveCount());
+    // Apply combat damage calculation
+    const calc = combat.calculateDamage(attackType, stats);
+    const hitResult = nearest.takeDamage(calc.damage, calc.isCrit);
 
-    typingRef.current.setDifficulty(nextWave);
-    const cmd = typingRef.current.generateCommand({ isComboReady: true });
-    setActiveWord(cmd.text);
-    setTypedPart('');
-    setUntypedPart(cmd.text);
-    setCommandCategory(cmd.category);
+    if (hitResult.hit) {
+      if (calc.isCrit && audio) audio.playHit(true);
+      else if (audio) audio.playHit(false);
 
-    setGameState('playing');
+      const textType = calc.isFinisher ? 'finisher' : calc.isCrit ? 'crit' : 'normal';
+      const label = calc.isFinisher ? `BLADE STORM! ${calc.damage}` : calc.isCrit ? `CRIT! ${calc.damage}` : `${calc.damage}`;
+      combat.spawnDamageText(nearest.x, nearest.y - 75, label, textType);
+      combat.spawnHitSparks(nearest.x, nearest.y - 50, calc.isCrit, true);
+
+      setScore((prev) => prev + calc.damage * 2);
+
+      if (hitResult.dead) {
+        combat.spawnShadowDeathPuff(nearest.x, nearest.y - 40);
+        if (audio) audio.playClash();
+      }
+    }
   }, []);
 
-  /**
-   * KEYBOARD TYPING INPUT LISTENER
-   * Primary Combat Controller: Typing executes martial attacks, dodges, and parries
-   */
+  // Global keydown typing listener
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (gameState !== 'playing') {
-        if (e.key === 'Escape' && gameState === 'paused') {
-          setGameState('playing');
-        }
-        return;
-      }
-
       if (e.key === 'Escape') {
-        setGameState('paused');
+        if (gameState === 'playing') setGameState('paused');
+        else if (gameState === 'paused') setGameState('playing');
         return;
       }
 
-      const typing = typingRef.current;
-      const player = playerRef.current;
-      const enemies = enemiesRef.current;
-      if (!typing || !player || !enemies) return;
+      if (gameState !== 'playing') return;
 
-      const closestEnemy = enemies.getClosestEnemy(player.position);
-      const res = typing.processKeystroke(e.key);
+      // Prevent spacebar or backspace from scrolling/navigating the page
+      if (e.key === ' ' || e.key === 'Backspace') {
+        e.preventDefault();
+      }
 
-      if (res.status === 'advancing') {
-        setTypedPart(res.typed);
-        setUntypedPart(res.remaining);
-      } else if (res.status === 'completed') {
-        // EXECUTE MARTIAL ACTION IMMEDIATELY!
-        player.executeCombatAction(res.actionKey, closestEnemy);
-
-        // Screen shake on heavy strikes
-        if (res.actionKey === 'cleave' || res.actionKey === 'bladeStorm' || res.actionKey === 'cyclone') {
-          cameraControllerRef.current?.addShake(0.35);
+      if (paragraphMgrRef.current) {
+        const res = paragraphMgrRef.current.handleKeyDown(e);
+        if (res) {
+          setCharStatuses([...paragraphMgrRef.current.charStatuses]);
         }
-
-        // Generate next combat prompt
-        const nextCmd = typing.generateCommand({
-          targetId: closestEnemy?.id,
-          isComboReady: typing.comboCount >= 3,
-          isDefensiveEmergency: closestEnemy?.aiState === 'windup',
-        });
-
-        setActiveWord(nextCmd.text);
-        setTypedPart('');
-        setUntypedPart(nextCmd.text);
-        setCommandCategory(nextCmd.category);
-      } else if (res.status === 'error') {
-        // Shake typing box on error
-        setInputErrorShake(true);
-        setTimeout(() => setInputErrorShake(false), 250);
       }
     };
 
@@ -297,586 +264,577 @@ export const StickmanFightGame = ({ onExit, soundEnabled = true }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState]);
 
-  /**
-   * Main Render & Game Loop
-   */
+  // Main 60 FPS Canvas Game Loop
   useEffect(() => {
-    let animId = null;
+    let animationFrameId;
 
-    const gameLoop = (currentTime) => {
-      animId = requestAnimationFrame(gameLoop);
-      animFrameRef.current = animId;
+    const render = (time) => {
+      if (!lastTimeRef.current) lastTimeRef.current = time;
+      const dt = Math.min(0.1, (time - lastTimeRef.current) / 1000);
+      lastTimeRef.current = time;
 
-      if (!lastTimeRef.current) lastTimeRef.current = currentTime;
-      const rawDelta = (currentTime - lastTimeRef.current) / 1000;
-      lastTimeRef.current = currentTime;
-      const delta = Math.min(rawDelta, 0.05);
+      const canvas = canvasRef.current;
+      if (canvas && envRef.current && playerRef.current && enemiesRef.current && combatRef.current) {
+        const ctx = canvas.getContext('2d');
+        const env = envRef.current;
+        const player = playerRef.current;
+        const enemies = enemiesRef.current;
+        const combat = combatRef.current;
+        const audio = audioRef.current;
 
-      const player = playerRef.current;
-      const enemies = enemiesRef.current;
-      const cameraController = cameraControllerRef.current;
-      const combat = combatRef.current;
-      const typing = typingRef.current;
-      const env = envRef.current;
-      const renderer = rendererRef.current;
-      const scene = sceneRef.current;
-      const camera = cameraRef.current;
-
-      if (!player || !enemies || !cameraController || !combat || !typing || !renderer || !scene || !camera) return;
-
-      if (gameState === 'playing') {
-        // 1. Update Player
-        player.update(delta, env);
-
-        // 2. Update Group Enemies
-        enemies.update(delta, player.position, env);
-
-        // 3. Update Dynamic Action Camera
-        cameraController.update(delta, player.position, enemies.enemies);
-
-        // 4. Update Combat Collisions & Damage
-        combat.checkPlayerAttacks(player, enemies.enemies, typing.getComboMultiplier());
-        combat.checkEnemyAttacks(enemies.enemies, player);
-        combat.update(delta);
-
-        // 5. Update Typing Timers
-        typing.update(delta);
-
-        // 6. Update Environment
-        if (env) env.update(delta);
-
-        // 7. Project Closest Enemy to Screen for Floating Word
-        const closest = enemies.getClosestEnemy(player.position);
-        if (closest && closest.isAlive) {
-          const worldPos = closest.position.clone();
-          worldPos.y += 2.5 * closest.scale;
-          worldPos.project(camera);
-
-          const canvas = renderer.domElement;
-          const sx = (worldPos.x * 0.5 + 0.5) * canvas.clientWidth;
-          const sy = (-worldPos.y * 0.5 + 0.5) * canvas.clientHeight;
-          setEnemyWordPos({ x: sx, y: sy });
-        } else {
-          setEnemyWordPos(null);
+        // Resize check
+        if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+          canvas.width = canvas.clientWidth;
+          canvas.height = canvas.clientHeight;
+          env.resize(canvas.width, canvas.height);
+          player.y = env.groundY;
         }
 
-        // 8. Sync HUD & Metrics
-        setPlayerHp(Math.round(player.health));
-        setFlowEnergy(Math.round(player.flowEnergy));
-        setScore(player.totalScore);
+        // Update physics & entities when playing
+        if (gameState === 'playing') {
+          player.update(dt);
+          enemies.update(dt, player, combat, audio);
+          env.update(dt, player.x);
+          combat.update(dt);
 
-        const metrics = typing.getMetrics();
-        setWpm(metrics.wpm);
-        setAccuracy(metrics.accuracy);
-        setCombo(metrics.combo);
-        setComboMultiplier(metrics.multiplier);
+          // Update HUD states
+          setPlayerHp(player.hp);
+          setEnemiesRemaining(enemies.getLivingCount());
 
-        const aliveCount = enemies.getAliveCount();
-        setEnemiesRemaining(aliveCount);
-
-        const boss = enemies.getBoss();
-        if (boss) {
-          setBossHp({ current: boss.health, max: boss.maxHealth });
-        } else {
-          setBossHp(null);
-        }
-
-        // 9. Check Game Over
-        if (!player.isAlive && player.animEngine.stateTimer >= 1.2) {
-          setGameState('gameover');
-          const report = {
-            ...metrics,
-            score: player.totalScore,
-            wave,
-            enemiesDefeated: player.enemiesDefeated,
-          };
-          setFinalReport(report);
-          if (player.totalScore > highScore) {
-            setHighScore(player.totalScore);
-            saveArcadeRecord('stickman', { highScore: player.totalScore, waveReached: wave });
-          }
-        }
-
-        // 10. Check Wave Cleared / Victory
-        if (aliveCount === 0 && player.isAlive) {
-          if (wave >= 5) {
-            // Victory against final boss!
-            setGameState('victory');
-            player.animEngine.setState('victory', 0, true);
-            const report = {
-              ...metrics,
-              score: player.totalScore,
-              wave: 5,
-              enemiesDefeated: player.enemiesDefeated,
-            };
-            setFinalReport(report);
-            if (player.totalScore > highScore) {
-              setHighScore(player.totalScore);
-              saveArcadeRecord('stickman', { highScore: player.totalScore, waveReached: 5 });
-            }
+          if (enemies.boss && enemies.boss.isAlive) {
+            setBossHp(enemies.boss.hp);
+            setMaxBossHp(enemies.boss.maxHp);
           } else {
-            setGameState('wave_cleared');
-            setTimeout(() => {
-              handleAdvanceWave(wave + 1);
-            }, 2400);
+            setBossHp(null);
+          }
+
+          // Check Player Death
+          if (!player.isAlive && player.animator.currentAnim === 'death' && player.animator.animTime >= 0.75) {
+            handleGameOver();
           }
         }
-      } else if (gameState === 'ready') {
-        // Gentle rotation in ready screen
-        if (player) {
-          player.animEngine.update(delta, { x: 0, z: 0 }, false);
-          cameraController.cameraAngle += delta * 0.25;
-          cameraController.update(delta, player.position, []);
-          if (env) env.update(delta);
+
+        // Render Frame
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        env.render(ctx); // Sky, mountains, trees, ground, spires, embers
+
+        // Render entities transformed by camera
+        ctx.save();
+        let shakeOffsetX = 0;
+        let shakeOffsetY = 0;
+        if (env.shakeIntensity > 0) {
+          shakeOffsetX = (Math.random() * 2 - 1) * env.shakeIntensity;
+          shakeOffsetY = (Math.random() * 2 - 1) * env.shakeIntensity;
         }
+        ctx.translate(-env.cameraX + shakeOffsetX, shakeOffsetY);
+
+        enemies.render(ctx);
+        player.render(ctx);
+        combat.render(ctx);
+
+        ctx.restore();
       }
 
-      renderer.render(scene, camera);
+      animationFrameId = requestAnimationFrame(render);
     };
 
-    animId = requestAnimationFrame(gameLoop);
-    return () => {
-      if (animId) cancelAnimationFrame(animId);
-    };
-  }, [gameState, wave, highScore, handleAdvanceWave]);
+    animationFrameId = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [gameState]);
+
+  // Start / Resume Game
+  const handleStartGame = () => {
+    if (audioRef.current) {
+      audioRef.current.resume();
+      audioRef.current.startAmbient();
+    }
+    enemiesRef.current?.startWave(currentWave, playerRef.current?.x || 200);
+    paragraphMgrRef.current?.reset(currentWave);
+    setCurrentPassage(paragraphMgrRef.current?.currentPassage || '');
+    setCharStatuses(paragraphMgrRef.current?.charStatuses || []);
+    setGameState('playing');
+  };
+
+  // Next Wave
+  const handleNextWave = () => {
+    const nextWave = currentWave + 1;
+    setCurrentWave(nextWave);
+    // Restore 35% health between waves
+    if (playerRef.current) {
+      playerRef.current.hp = Math.min(playerRef.current.maxHp, playerRef.current.hp + 50);
+      setPlayerHp(playerRef.current.hp);
+    }
+    enemiesRef.current?.startWave(nextWave, playerRef.current?.x || 200);
+    paragraphMgrRef.current?.loadPassageForWave(nextWave);
+    setCurrentPassage(paragraphMgrRef.current?.currentPassage || '');
+    setCharStatuses(paragraphMgrRef.current?.charStatuses || []);
+    setGameState('playing');
+  };
+
+  // Game Over
+  const handleGameOver = () => {
+    setGameState('game_over');
+    if (audioRef.current) {
+      audioRef.current.playGameOver();
+      audioRef.current.stopAmbient();
+    }
+    saveScoreRecord();
+  };
+
+  // Victory
+  const handleVictory = () => {
+    setGameState('victory');
+    if (audioRef.current) {
+      audioRef.current.playWaveCleared();
+      audioRef.current.stopAmbient();
+    }
+    saveScoreRecord();
+    if (onComplete) onComplete({ score, wave: currentWave, ...typingStats });
+  };
+
+  // Save record to Keyflow Arcade storage
+  const saveScoreRecord = () => {
+    try {
+      const stats = paragraphMgrRef.current?.getStats() || typingStats;
+      saveArcadeRecord('stickman', {
+        score,
+        wave: currentWave,
+        wpm: stats.wpm,
+        accuracy: stats.accuracy,
+        maxCombo: stats.maxCombo,
+        date: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('Failed to save stickman arcade record:', e);
+    }
+  };
+
+  // Toggle Mute
+  const handleToggleMute = () => {
+    if (audioRef.current) {
+      const muted = audioRef.current.toggleMute();
+      setIsMuted(muted);
+    }
+  };
 
   return (
-    <div className="relative w-full rounded-2xl overflow-hidden bg-zinc-950 border border-zinc-800 shadow-2xl select-none font-sans">
-      {/* Top Header Bar */}
-      <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between px-4 py-3 bg-gradient-to-b from-zinc-950/90 via-zinc-950/60 to-transparent backdrop-blur-xs">
-        <div className="flex items-center gap-3">
+    <div className="relative w-full h-full min-h-[750px] bg-slate-950 text-white flex flex-col select-none overflow-hidden font-sans">
+      {/* TOP HEADER HUD */}
+      <header className="relative z-20 flex items-center justify-between px-6 py-3 bg-slate-900/90 backdrop-blur-md border-b border-red-950/60 shadow-lg">
+        {/* Left: Vitality & Exit */}
+        <div className="flex items-center gap-4">
           <button
-            type="button"
-            onClick={() => setShowExitConfirm(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/60 text-xs font-mono text-zinc-300 hover:text-white transition-all cursor-pointer"
-            aria-label="Exit Game"
+            onClick={() => setShowExitDialog(true)}
+            className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+            title="Exit to Arcade"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">Arcade</span>
+            <ArrowLeft className="w-5 h-5" />
           </button>
 
-          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/50 border border-red-700/60 text-red-400 text-xs font-mono font-bold tracking-wider">
-            <Swords className="w-3.5 h-3.5 text-emerald-400" />
-            <span>STICKMAN FIGHT</span>
+          {/* Player Vitality Bar */}
+          <div className="flex flex-col gap-1 min-w-[200px]">
+            <div className="flex items-center justify-between text-xs font-semibold">
+              <span className="flex items-center gap-1.5 text-red-400">
+                <Flame className="w-4 h-4 text-red-500 fill-red-500" />
+                WARRIOR VITALITY
+              </span>
+              <span className="text-slate-300 font-mono">
+                {playerHp} / {maxPlayerHp}
+              </span>
+            </div>
+            <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden border border-red-900/50">
+              <div
+                className="h-full bg-gradient-to-r from-red-600 via-rose-500 to-emerald-400 transition-all duration-300 rounded-full"
+                style={{ width: `${Math.max(0, (playerHp / maxPlayerHp) * 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Flow Energy Multiplier */}
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">
+            <Zap className="w-4 h-4 fill-emerald-400 text-emerald-400" />
+            <div className="text-xs">
+              <span className="font-bold text-sm">{typingStats.flowMultiplier.toFixed(1)}x</span> FLOW
+            </div>
           </div>
         </div>
 
-        {/* Right side options: Controls, Settings, Sound */}
-        <div className="flex items-center gap-2">
+        {/* Center: Boss HP Bar or Wave Badge */}
+        <div className="flex flex-col items-center">
+          {bossHp !== null ? (
+            <div className="flex flex-col items-center gap-1 min-w-[260px]">
+              <div className="flex items-center gap-2 text-xs font-bold text-amber-400 tracking-wider">
+                <Skull className="w-4 h-4 text-amber-500 animate-pulse" />
+                INFERNAL COMMANDER BOSS
+                <span className="font-mono text-slate-300">({bossHp} HP)</span>
+              </div>
+              <div className="w-full h-3.5 bg-slate-900 rounded-full overflow-hidden border border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-600 via-red-600 to-amber-400 transition-all duration-200"
+                  style={{ width: `${Math.max(0, (bossHp / maxBossHp) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-950/80 border border-red-700/60 shadow-md">
+              <Swords className="w-4 h-4 text-red-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-red-200">
+                WAVE {currentWave} / 5
+              </span>
+              <span className="text-xs text-slate-400">
+                • {enemiesRemaining} {enemiesRemaining === 1 ? 'Foe' : 'Foes'} Remaining
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Live Telemetry Badges & Controls */}
+        <div className="flex items-center gap-3">
+          {/* Live WPM */}
+          <div className="flex flex-col items-end px-3 py-1 bg-slate-800/80 rounded-lg border border-slate-700/60">
+            <span className="text-[10px] text-slate-400 font-semibold uppercase">Cadence</span>
+            <span className="text-sm font-bold font-mono text-emerald-400">{typingStats.wpm} WPM</span>
+          </div>
+
+          {/* Accuracy */}
+          <div className="flex flex-col items-end px-3 py-1 bg-slate-800/80 rounded-lg border border-slate-700/60">
+            <span className="text-[10px] text-slate-400 font-semibold uppercase">Precision</span>
+            <span className="text-sm font-bold font-mono text-cyan-400">{typingStats.accuracy}%</span>
+          </div>
+
+          {/* Score */}
+          <div className="flex flex-col items-end px-3 py-1 bg-slate-800/80 rounded-lg border border-slate-700/60">
+            <span className="text-[10px] text-slate-400 font-semibold uppercase">Score</span>
+            <span className="text-sm font-bold font-mono text-amber-400">{score.toLocaleString()}</span>
+          </div>
+
+          {/* Audio Mute */}
           <button
-            type="button"
-            onClick={() => setShowControlsModal(true)}
-            className="p-1.5 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/60 text-zinc-300 hover:text-white transition-all cursor-pointer"
-            title="Typing Combat Guide"
-            aria-label="Typing Combat Guide"
+            onClick={handleToggleMute}
+            className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition"
+            title={isMuted ? 'Unmute Audio' : 'Mute Audio'}
           >
-            <HelpCircle className="w-4 h-4" />
+            {isMuted ? <VolumeX className="w-5 h-5 text-red-400" /> : <Volume2 className="w-5 h-5 text-emerald-400" />}
           </button>
 
+          {/* Pause */}
           <button
-            type="button"
-            onClick={() => setIsSettingsOpen(true)}
-            className="p-1.5 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/60 text-zinc-300 hover:text-white transition-all cursor-pointer"
-            title="Graphics Settings"
-            aria-label="Graphics Settings"
+            onClick={() => setGameState('paused')}
+            disabled={gameState !== 'playing'}
+            className="p-2 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white disabled:opacity-40 transition"
+            title="Pause Game (Esc)"
           >
-            <Sliders className="w-4 h-4" />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSoundOn((s) => !s)}
-            className="p-1.5 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-700/60 text-zinc-300 hover:text-white transition-all cursor-pointer"
-            title={soundOn ? 'Sound On' : 'Muted'}
-            aria-label="Toggle Sound"
-          >
-            {soundOn ? <Volume2 className="w-4 h-4 text-emerald-400" /> : <VolumeX className="w-4 h-4 text-zinc-500" />}
+            <Pause className="w-5 h-5" />
           </button>
         </div>
+      </header>
+
+      {/* 2D CANVAS VIEWPORT */}
+      <div ref={containerRef} className="relative flex-1 w-full bg-black overflow-hidden">
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full block" />
       </div>
 
-      {/* Main 3D WebGL Canvas Container */}
-      <div
-        ref={containerRef}
-        className="relative w-full h-[540px] sm:h-[620px] overflow-hidden"
-      />
-
-      {/* FLOATING 3D TARGET PROMPT OVER ENEMY */}
-      {gameState === 'playing' && enemyWordPos && (
-        <div
-          className="absolute pointer-events-none -translate-x-1/2 -translate-y-full z-15 pb-2 transition-all duration-75"
-          style={{ left: `${enemyWordPos.x}px`, top: `${enemyWordPos.y}px` }}
-        >
-          <div className="px-3 py-1 rounded-md bg-zinc-950/90 border border-emerald-500/80 text-white font-mono font-bold text-xs tracking-wider shadow-lg flex items-center gap-1.5">
-            <Target className="w-3 h-3 text-emerald-400 animate-pulse" />
-            <span className="text-emerald-400">{typedPart}</span>
-            <span className="text-zinc-300">{untypedPart}</span>
-          </div>
+      {/* BOTTOM CONTINUOUS PARAGRAPH TYPING DECK */}
+      <footer className="relative z-20 px-6 py-4 bg-slate-900/95 border-t border-red-950/70 backdrop-blur-md shadow-2xl flex flex-col gap-2.5">
+        <div className="flex items-center justify-between text-xs text-slate-400">
+          <span className="flex items-center gap-1.5 font-medium text-emerald-400">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+            CONTINUOUS COMBAT PASSAGE — TYPE WITH CADENCE TO STRIKE & ADVANCE
+          </span>
+          <span className="font-mono text-slate-400">
+            {typingStats.progressPercent}% Completed • Combo: <strong className="text-emerald-400">{typingStats.combo}</strong>
+          </span>
         </div>
-      )}
 
-      {/* IN-GAME HUD OVERLAYS */}
-      {gameState === 'playing' && (
-        <>
-          {/* Top-Left: Player Vitals & Flow Energy Gauge */}
-          <div className="absolute top-14 left-4 z-10 w-60 sm:w-72 p-3 rounded-xl bg-zinc-950/80 border border-zinc-800 backdrop-blur-md space-y-2 pointer-events-none shadow-xl">
-            {/* Vitality Bar */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-[10px] font-mono tracking-wider">
-                <span className="text-zinc-400 font-bold uppercase flex items-center gap-1">
-                  <Shield className="w-3 h-3 text-red-400" /> VITALITY
-                </span>
-                <span className={`font-bold ${playerHp < 30 ? 'text-red-400 animate-pulse' : 'text-zinc-200'}`}>
-                  {playerHp} / 100
-                </span>
-              </div>
-              <div className="h-2.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
-                <div
-                  className={`h-full transition-all duration-150 ${
-                    playerHp > 50 ? 'bg-gradient-to-r from-red-600 to-emerald-500' : 'bg-red-600'
-                  }`}
-                  style={{ width: `${Math.max(0, playerHp)}%` }}
-                />
-              </div>
-            </div>
+        {/* Character-by-character Passage Display Deck */}
+        <div className="p-4 bg-slate-950/80 rounded-xl border border-slate-800/80 shadow-inner font-mono text-lg leading-relaxed tracking-wide min-h-[85px] max-h-[110px] overflow-y-auto">
+          {currentPassage.split('').map((char, idx) => {
+            const status = charStatuses[idx] || 'untyped';
+            const isCursor = idx === typingStats.currentIndex;
 
-            {/* Flow Energy Gauge */}
-            <div className="space-y-1">
-              <div className="flex justify-between items-center text-[10px] font-mono tracking-wider">
-                <span className="text-zinc-400 font-bold uppercase flex items-center gap-1">
-                  <Zap className="w-3 h-3 text-emerald-400" /> FLOW ENERGY
-                </span>
-                <span className="text-emerald-400 font-bold">{flowEnergy}%</span>
-              </div>
-              <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden border border-zinc-800">
-                <div
-                  className="h-full bg-gradient-to-r from-emerald-600 to-green-400 transition-all duration-150"
-                  style={{ width: `${Math.max(0, flowEnergy)}%` }}
-                />
-              </div>
-            </div>
-          </div>
+            let charClass = 'text-slate-500'; // untyped
+            if (status === 'correct') {
+              charClass = 'text-emerald-400 font-semibold bg-emerald-950/30';
+            } else if (status === 'incorrect') {
+              charClass = 'text-red-400 bg-red-950/60 underline decoration-red-500';
+            }
 
-          {/* Top-Center: Wave Counter & Boss HP Bar */}
-          <div className="absolute top-14 left-1/2 -translate-x-1/2 z-10 text-center pointer-events-none space-y-2">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-zinc-950/85 border border-zinc-700/80 backdrop-blur-md shadow-lg">
-              <span className="text-[11px] font-mono font-bold text-amber-400 uppercase tracking-widest">
-                {wave === 5 ? '⚠️ FINAL BOSS: INFERNAL COMMANDER' : `WAVE ${wave} OF 5`}
-              </span>
-            </div>
-
-            {bossHp && (
-              <div className="w-72 sm:w-96 p-2.5 rounded-xl bg-zinc-950/90 border border-red-900/60 backdrop-blur-md shadow-2xl space-y-1 animate-in fade-in">
-                <div className="flex justify-between items-center text-[10px] font-mono tracking-wider">
-                  <span className="text-red-400 font-bold flex items-center gap-1">
-                    <Skull className="w-3 h-3 text-red-500" /> INFERNAL COMMANDER TITAN
-                  </span>
-                  <span className="text-zinc-300 font-bold">
-                    {bossHp.current} / {bossHp.max}
-                  </span>
-                </div>
-                <div className="h-3 w-full bg-zinc-900 rounded-full overflow-hidden border border-red-950">
-                  <div
-                    className="h-full bg-gradient-to-r from-red-700 via-rose-600 to-red-500 transition-all duration-150"
-                    style={{ width: `${Math.max(0, (bossHp.current / bossHp.max) * 100)}%` }}
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Top-Right: Score, WPM, and Enemies Badge */}
-          <div className="absolute top-14 right-4 z-10 flex items-center gap-2.5 pointer-events-none">
-            <div className="px-3 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800 backdrop-blur-md text-right shadow-xl">
-              <span className="text-[9px] font-mono text-zinc-400 block uppercase">WPM</span>
-              <span className="text-sm font-mono font-black text-emerald-400">{wpm}</span>
-            </div>
-
-            <div className="px-3 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800 backdrop-blur-md text-right shadow-xl">
-              <span className="text-[9px] font-mono text-zinc-400 block uppercase">ACCURACY</span>
-              <span className="text-sm font-mono font-black text-sky-400">{accuracy}%</span>
-            </div>
-
-            <div className="px-3.5 py-1.5 rounded-xl bg-zinc-950/80 border border-zinc-800 backdrop-blur-md text-right shadow-xl">
-              <span className="text-[9px] font-mono text-zinc-400 block uppercase">SCORE</span>
-              <span className="text-sm font-mono font-black text-amber-400">{score.toLocaleString()}</span>
-            </div>
-          </div>
-
-          {/* PRIMARY COMBAT TYPING DECK (Center-Bottom) */}
-          <div className="absolute inset-x-0 bottom-6 z-15 flex flex-col items-center pointer-events-none space-y-2">
-            {/* Combo Multiplier Pill */}
-            {combo > 1 && (
-              <div className="animate-bounce">
-                <div className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-600 to-orange-600 border border-amber-400 text-white font-mono font-black text-xs tracking-wider shadow-lg flex items-center gap-1.5">
-                  <Flame className="w-3.5 h-3.5 text-yellow-300" />
-                  <span>{combo}x COMBO • {comboMultiplier.toFixed(1)}x DAMAGE</span>
-                </div>
-              </div>
-            )}
-
-            {/* Glowing Combat Word Deck */}
-            <div
-              className={`px-6 py-3.5 rounded-2xl bg-zinc-950/90 border transition-all duration-150 backdrop-blur-md shadow-2xl flex flex-col items-center ${
-                inputErrorShake ? 'border-red-500 translate-x-1 scale-105' : 'border-emerald-500/80 shadow-emerald-950/40'
-              }`}
-            >
-              <div className="text-[10px] font-mono text-zinc-400 uppercase tracking-widest mb-0.5 flex items-center gap-1.5">
-                <Sparkles className="w-3 h-3 text-emerald-400" />
-                <span>TYPE TO EXECUTE {commandCategory.toUpperCase()}</span>
-              </div>
-
-              {/* Large Monospace Word Display with Character Feedback */}
-              <div className="text-2xl sm:text-3xl font-mono font-black tracking-widest">
-                <span className="text-emerald-400 drop-shadow-[0_0_12px_rgba(34,197,94,0.8)]">
-                  {typedPart}
-                </span>
-                <span className="text-zinc-500 underline decoration-emerald-500/60 decoration-2 underline-offset-4">
-                  {untypedPart}
-                </span>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* READY SCREEN / MISSION BRIEFING */}
-      {gameState === 'ready' && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-zinc-950/85 backdrop-blur-md p-6 text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-red-950/60 border border-red-700 text-red-400 font-mono text-xs font-bold tracking-widest uppercase">
-            <Swords className="w-4 h-4 text-emerald-400" /> TYPING-POWERED 3D WARRIOR COMBAT
-          </div>
-
-          <div className="space-y-2 max-w-lg">
-            <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
-              STICKMAN <span className="text-red-500">FIGHT</span>
-            </h1>
-            <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed font-sans">
-              Control your 3D crimson stickman warrior purely through typing! Type combat commands with speed and surgical
-              precision to unleash fluid sword combos, acrobatic dodges, and parries.
-            </p>
-          </div>
-
-          {/* Quick Typing Combat Briefing */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-w-xl w-full text-xs font-mono">
-            <div className="p-2.5 rounded-lg bg-zinc-900/80 border border-zinc-800 text-left">
-              <span className="text-zinc-500 block text-[10px]">ATTACK WORDS</span>
-              <span className="text-emerald-400 font-bold">SLASH / STRIKE</span>
-            </div>
-            <div className="p-2.5 rounded-lg bg-zinc-900/80 border border-zinc-800 text-left">
-              <span className="text-zinc-500 block text-[10px]">HEAVY CLEAVE</span>
-              <span className="text-amber-400 font-bold">CLEAVE / FLURRY</span>
-            </div>
-            <div className="p-2.5 rounded-lg bg-zinc-900/80 border border-zinc-800 text-left">
-              <span className="text-zinc-500 block text-[10px]">DEFENSIVE WORDS</span>
-              <span className="text-sky-400 font-bold">BLOCK / PARRY</span>
-            </div>
-            <div className="p-2.5 rounded-lg bg-zinc-900/80 border border-zinc-800 text-left">
-              <span className="text-zinc-500 block text-[10px]">MOBILITY WORDS</span>
-              <span className="text-purple-400 font-bold">DODGE / LEAP</span>
-            </div>
-          </div>
-
-          <Button
-            onClick={handleStartGame}
-            className="px-8 py-3.5 bg-red-600 hover:bg-red-500 text-white font-mono font-bold tracking-wider rounded-xl shadow-lg shadow-red-900/40 cursor-pointer flex items-center gap-2 text-sm"
-          >
-            <Play className="w-4 h-4 fill-current text-white" />
-            <span>START COMBAT</span>
-          </Button>
-        </div>
-      )}
-
-      {/* WAVE CLEARED BANNER */}
-      {gameState === 'wave_cleared' && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-zinc-950/60 backdrop-blur-xs p-6 text-center animate-in zoom-in-95 duration-300">
-          <div className="p-8 rounded-2xl bg-zinc-950/95 border border-emerald-500/60 shadow-2xl space-y-3 max-w-md">
-            <CheckCircle className="w-12 h-12 text-emerald-400 mx-auto animate-bounce" />
-            <h2 className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">WAVE {wave} CLEARED!</h2>
-            <div className="text-xs font-mono text-zinc-300 space-y-1">
-              <p>Current Speed: <span className="text-emerald-400 font-bold">{wpm} WPM</span> | Accuracy: <span className="text-sky-400 font-bold">{accuracy}%</span></p>
-              <p className="text-zinc-500">Restoring vitality... Summoning next wave.</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* GAME OVER SCREEN */}
-      {gameState === 'gameover' && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-md p-6 text-center space-y-5">
-          <Skull className="w-16 h-16 text-red-500 mx-auto" />
-          <div className="space-y-1">
-            <h2 className="text-3xl sm:text-4xl font-black text-white font-mono tracking-wider">STICKMAN FALLEN</h2>
-            <p className="text-xs text-zinc-400">The shadow legion broke through your guard.</p>
-          </div>
-
-          {finalReport && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-w-lg w-full text-xs font-mono">
-              <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">FINAL SCORE</span>
-                <span className="text-base font-bold text-amber-400">{finalReport.score.toLocaleString()}</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">SPEED</span>
-                <span className="text-base font-bold text-emerald-400">{finalReport.wpm} WPM</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">ACCURACY</span>
-                <span className="text-base font-bold text-sky-400">{finalReport.accuracy}%</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">MAX COMBO</span>
-                <span className="text-base font-bold text-purple-400">{finalReport.maxCombo}x</span>
-              </div>
-            </div>
-          )}
-
-          <Button
-            onClick={handleStartGame}
-            className="px-6 py-3 bg-red-600 hover:bg-red-500 text-white font-mono font-bold tracking-wider rounded-xl shadow-lg shadow-red-900/40 cursor-pointer flex items-center gap-2 text-xs"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>TRY AGAIN</span>
-          </Button>
-        </div>
-      )}
-
-      {/* VICTORY DEBRIEF */}
-      {gameState === 'victory' && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-zinc-950/90 backdrop-blur-md p-6 text-center space-y-5">
-          <Trophy className="w-16 h-16 text-amber-400 mx-auto animate-bounce" />
-          <div className="space-y-1">
-            <h2 className="text-3xl sm:text-4xl font-black text-amber-400 font-mono tracking-wider">SUPREME VICTORY!</h2>
-            <p className="text-xs text-zinc-300">You vanquished the Infernal Commander through legendary typing combat.</p>
-          </div>
-
-          {finalReport && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-w-lg w-full text-xs font-mono">
-              <div className="p-2.5 rounded-lg bg-zinc-900 border border-amber-600/50">
-                <span className="text-zinc-500 block text-[10px]">TOTAL SCORE</span>
-                <span className="text-base font-bold text-amber-400">{finalReport.score.toLocaleString()}</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">PEAK WPM</span>
-                <span className="text-base font-bold text-emerald-400">{finalReport.wpm} WPM</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">ACCURACY</span>
-                <span className="text-base font-bold text-sky-400">{finalReport.accuracy}%</span>
-              </div>
-              <div className="p-2.5 rounded-lg bg-zinc-900 border border-zinc-800">
-                <span className="text-zinc-500 block text-[10px]">ENEMIES DEFEATED</span>
-                <span className="text-base font-bold text-red-400">{finalReport.enemiesDefeated}</span>
-              </div>
-            </div>
-          )}
-
-          <Button
-            onClick={handleStartGame}
-            className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-white font-mono font-bold tracking-wider rounded-xl shadow-lg shadow-amber-900/40 cursor-pointer flex items-center gap-2 text-xs"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>PLAY AGAIN</span>
-          </Button>
-        </div>
-      )}
-
-      {/* PAUSE MENU */}
-      {gameState === 'paused' && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-zinc-950/85 backdrop-blur-md p-6 text-center space-y-4">
-          <h2 className="text-2xl font-black text-white font-mono tracking-wider">COMBAT PAUSED</h2>
-          <div className="flex flex-col gap-2.5 w-52">
-            <Button
-              onClick={() => setGameState('playing')}
-              className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-mono text-xs font-bold rounded-lg cursor-pointer"
-            >
-              RESUME
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowControlsModal(true)}
-              className="w-full py-2.5 border-zinc-700 text-zinc-300 font-mono text-xs font-bold rounded-lg cursor-pointer"
-            >
-              CONTROLS
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowExitConfirm(true)}
-              className="w-full py-2.5 border-zinc-700 text-zinc-400 hover:text-white font-mono text-xs rounded-lg cursor-pointer"
-            >
-              EXIT TO ARCADE
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* CONTROLS GUIDE MODAL */}
-      {showControlsModal && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-zinc-950/85 backdrop-blur-md p-4">
-          <div className="w-full max-w-md p-6 rounded-2xl bg-zinc-900 border border-zinc-700 shadow-2xl space-y-4 text-xs font-mono">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
-              <span className="text-sm font-bold text-white flex items-center gap-1.5">
-                <HelpCircle className="w-4 h-4 text-emerald-400" /> STICKMAN FIGHT CONTROLS GUIDE
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowControlsModal(false)}
-                className="text-zinc-400 hover:text-white text-base cursor-pointer font-sans"
+            return (
+              <span
+                key={idx}
+                className={`relative transition-colors duration-75 ${charClass} ${
+                  isCursor ? 'ring-2 ring-emerald-400 rounded-sm bg-emerald-900/40 text-white animate-pulse' : ''
+                }`}
               >
-                ✕
-              </button>
+                {char}
+              </span>
+            );
+          })}
+        </div>
+
+        {/* Subtle Passage Progress Bar */}
+        <div className="w-full h-1 bg-slate-800 rounded-full overflow-hidden">
+          <div
+            className="h-full bg-emerald-500 transition-all duration-150"
+            style={{ width: `${typingStats.progressPercent}%` }}
+          />
+        </div>
+      </footer>
+
+      {/* OVERLAY: READY MODAL */}
+      {gameState === 'ready' && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-6">
+          <div className="max-w-xl w-full bg-slate-900/95 border border-red-700/60 rounded-2xl p-8 shadow-2xl flex flex-col items-center text-center">
+            {/* Crimson Stickman Emblem */}
+            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-600 to-rose-700 flex items-center justify-center shadow-[0_0_25px_rgba(220,38,38,0.6)] mb-4 border-2 border-emerald-400">
+              <Swords className="w-8 h-8 text-white" />
             </div>
 
-            <div className="space-y-2 text-zinc-300">
-              <p className="text-zinc-400 leading-relaxed font-sans pb-1">
-                Your keyboard is your martial weapon! Correctly and quickly type the displayed words to trigger actions.
-              </p>
-              <div className="flex justify-between py-1 border-b border-zinc-800/60">
-                <span className="text-zinc-500">Attack Commands</span>
-                <span className="text-emerald-400 font-bold">Type: SLASH, STRIKE, CUT, JAB</span>
+            <h1 className="text-3xl font-extrabold tracking-wider text-white mb-2 uppercase">
+              STICKMAN FIGHT
+            </h1>
+            <p className="text-sm text-red-300 font-medium tracking-wide mb-6">
+              AUTHENTIC 2D STICKMAN WARRIOR COMBAT • CONTINUOUS PARAGRAPH TYPING
+            </p>
+
+            {/* Instruction Highlights */}
+            <div className="w-full bg-slate-950/70 border border-slate-800 rounded-xl p-4 mb-6 text-left space-y-2.5 text-xs text-slate-300">
+              <div className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Continuous Paragraph Typing:</strong> Type displayed martial battle passages to continuously command your crimson stickman warrior.
+                </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-800/60">
-                <span className="text-zinc-500">Heavy Cleaves</span>
-                <span className="text-amber-400 font-bold">Type: CLEAVE, FLURRY, CYCLONE</span>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Typing Cadence & Attacks:</strong> Typing words triggers sword slashes, martial kicks, and flurry combos. Higher WPM grants massive damage multipliers!
+                </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-800/60">
-                <span className="text-zinc-500">Defensive Wards</span>
-                <span className="text-sky-400 font-bold">Type: BLOCK, PARRY, DEFLECT</span>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Flow Multiplier:</strong> Maintain unbroken typing streaks to charge your spirit meter up to 4.0x damage.
+                </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-800/60">
-                <span className="text-zinc-500">Acrobatic Dodges</span>
-                <span className="text-purple-400 font-bold">Type: DODGE, ROLL, LEAP, DASH</span>
+              <div className="flex items-start gap-2.5">
+                <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Paragraph Finisher:</strong> Completing each paragraph triggers an explosive aerial <em>Blade Storm</em>, instantly cycling to the next passage!
+                </span>
               </div>
-              <div className="flex justify-between py-1 border-b border-zinc-800/60">
-                <span className="text-zinc-500">Pause Combat</span>
-                <span className="text-zinc-200">Escape Key</span>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex items-center gap-4 w-full">
+              <Button
+                variant="secondary"
+                onClick={() => setShowExitDialog(true)}
+                className="flex-1 py-3 border-slate-700 text-slate-300 hover:bg-slate-800"
+              >
+                Back to Arcade
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleStartGame}
+                className="flex-1 py-3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold shadow-lg shadow-red-900/40"
+              >
+                <Play className="w-5 h-5 mr-2" /> Start Battle
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OVERLAY: WAVE CLEARED */}
+      {gameState === 'wave_cleared' && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-6 animate-fadeIn">
+          <div className="max-w-md w-full bg-slate-900/95 border border-emerald-500/50 rounded-2xl p-8 shadow-2xl flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-full bg-emerald-600/30 border-2 border-emerald-400 flex items-center justify-center mb-4">
+              <Trophy className="w-8 h-8 text-emerald-400" />
+            </div>
+
+            <h2 className="text-2xl font-black text-white uppercase tracking-wider mb-1">
+              WAVE {currentWave} CLEARED!
+            </h2>
+            <p className="text-sm text-emerald-300 mb-6 font-medium">
+              Shadows Banished • Warrior Health Restored (+50 HP)
+            </p>
+
+            <div className="w-full grid grid-cols-2 gap-3 mb-6 font-mono text-xs">
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                <div className="text-slate-400">Current WPM</div>
+                <div className="text-lg font-bold text-emerald-400">{typingStats.wpm}</div>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                <div className="text-slate-400">Total Score</div>
+                <div className="text-lg font-bold text-amber-400">{score.toLocaleString()}</div>
               </div>
             </div>
 
             <Button
-              onClick={() => setShowControlsModal(false)}
-              className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-mono text-xs rounded-lg cursor-pointer"
+              variant="primary"
+              onClick={handleNextWave}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow-lg shadow-emerald-950"
             >
-              READY TO FIGHT
+              Enter Wave {currentWave + 1}
             </Button>
           </div>
         </div>
       )}
 
-      {/* Global Performance Settings Modal */}
-      <GlobalGameSettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-      />
+      {/* OVERLAY: PAUSE MODAL */}
+      {gameState === 'paused' && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-6">
+          <div className="max-w-sm w-full bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl flex flex-col items-center text-center">
+            <h2 className="text-xl font-bold text-white mb-6 uppercase tracking-wider">Battle Paused</h2>
+            <div className="flex flex-col gap-3 w-full">
+              <Button
+                variant="primary"
+                onClick={() => setGameState('playing')}
+                className="w-full py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold"
+              >
+                Resume
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={handleStartGame}
+                className="w-full py-2.5 border-slate-700 text-slate-300 hover:bg-slate-800"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" /> Restart Battle
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => setShowExitDialog(true)}
+                className="w-full py-2.5 border-slate-700 text-slate-400 hover:text-white"
+              >
+                Exit to Arcade
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
-      {/* Exit Dialog */}
-      <ArcadeExitDialog
-        isOpen={showExitConfirm}
-        onConfirm={onExit}
-        onCancel={() => setShowExitConfirm(false)}
-        title="Leave Stickman Fight?"
-        message="Your active combat wave and Flow combo streak will not be saved. Are you sure you wish to return to the Arcade?"
-      />
+      {/* OVERLAY: GAME OVER MODAL */}
+      {gameState === 'game_over' && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-6">
+          <div className="max-w-md w-full bg-slate-900 border border-red-700/80 rounded-2xl p-8 shadow-2xl flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-full bg-red-950/80 border-2 border-red-500 flex items-center justify-center mb-4">
+              <Skull className="w-8 h-8 text-red-500" />
+            </div>
+
+            <h2 className="text-2xl font-black text-red-500 uppercase tracking-wider mb-1">
+              WARRIOR FALLEN
+            </h2>
+            <p className="text-xs text-slate-400 mb-6">
+              Defeated on Wave {currentWave} by the Shadow Legion
+            </p>
+
+            <div className="w-full grid grid-cols-2 gap-3 mb-6 font-mono text-xs">
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                <div className="text-slate-400">Final Score</div>
+                <div className="text-lg font-bold text-amber-400">{score.toLocaleString()}</div>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                <div className="text-slate-400">Typing Speed</div>
+                <div className="text-lg font-bold text-emerald-400">{typingStats.wpm} WPM</div>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                <div className="text-slate-400">Accuracy</div>
+                <div className="text-lg font-bold text-cyan-400">{typingStats.accuracy}%</div>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                <div className="text-slate-400">Max Combo</div>
+                <div className="text-lg font-bold text-rose-400">{typingStats.maxCombo}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 w-full">
+              <Button
+                variant="secondary"
+                onClick={() => setShowExitDialog(true)}
+                className="flex-1 py-3 border-slate-700 text-slate-300"
+              >
+                Exit
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleStartGame}
+                className="flex-1 py-3 bg-red-600 hover:bg-red-500 text-white font-bold"
+              >
+                <RotateCcw className="w-4 h-4 mr-2" /> Try Again
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* OVERLAY: VICTORY MODAL */}
+      {gameState === 'victory' && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-6">
+          <div className="max-w-md w-full bg-slate-900 border border-amber-500/80 rounded-2xl p-8 shadow-2xl flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center mb-4">
+              <Trophy className="w-8 h-8 text-amber-400" />
+            </div>
+
+            <h2 className="text-2xl font-black text-amber-400 uppercase tracking-wider mb-1">
+              GRAND VICTORY!
+            </h2>
+            <p className="text-xs text-amber-200/80 mb-6 font-medium">
+              The Infernal Commander is vanquished! The Crimson Flame reigns supreme!
+            </p>
+
+            <div className="w-full grid grid-cols-2 gap-3 mb-6 font-mono text-xs">
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                <div className="text-slate-400">Grand Score</div>
+                <div className="text-lg font-bold text-amber-400">{score.toLocaleString()}</div>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                <div className="text-slate-400">Final WPM</div>
+                <div className="text-lg font-bold text-emerald-400">{typingStats.wpm} WPM</div>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                <div className="text-slate-400">Accuracy</div>
+                <div className="text-lg font-bold text-cyan-400">{typingStats.accuracy}%</div>
+              </div>
+              <div className="bg-slate-950 p-3 rounded-lg border border-slate-800">
+                <div className="text-slate-400">Max Combo</div>
+                <div className="text-lg font-bold text-rose-400">{typingStats.maxCombo}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 w-full">
+              <Button
+                variant="secondary"
+                onClick={() => setShowExitDialog(true)}
+                className="flex-1 py-3 border-slate-700 text-slate-300"
+              >
+                Arcade Hub
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleStartGame}
+                className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black"
+              >
+                Play Again
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exit Confirmation Dialog */}
+      {showExitDialog && (
+        <ArcadeExitDialog
+          onConfirm={() => {
+            saveScoreRecord();
+            if (onBack) onBack();
+          }}
+          onCancel={() => setShowExitDialog(false)}
+        />
+      )}
     </div>
   );
-};
+}
+
+export default StickmanFightGame;
