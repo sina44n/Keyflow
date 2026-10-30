@@ -1,36 +1,67 @@
 import * as THREE from 'three';
+import { NitroEffectController } from './Racing3DNitroEffects';
 
 /**
  * Creates high-detail procedural 3D Supercars using Three.js geometries and PBR materials.
- * Full 3D articulation: independent wheel rotation, dynamic headlights, glowing underglow,
- * animated nitro exhaust flames, and 3D floating driver/position HUD billboards.
+ * Full 3D articulation:
+ * - 5 Supercar aerodynamic profiles (Apex GT, Cyber Phantom, Viper Venom, Shadow Specter, Solar Flare)
+ * - Independent 4-wheel rotation with custom alloy finishes (Chrome, Gold, Bronze, Stealth)
+ * - Dynamic dual projector headlights & glowing underglow
+ * - 6 distinct nitro visual effect systems (Fire, Star, Electric, Plasma, Cosmic, Neon)
+ * - Floating 3D Driver & Position Billboard badge (#1 YOU 120 WPM)
+ * - Safe, polymorphic update loop with strict forward +X kinematics (never backward)
  */
 export const create3DVehicle = ({
-  vehicleConfig,
+  vehicleConfig = {},
   isPlayer = false,
   driverName = 'Driver',
   lane = 0,
   initialX = 0,
 }) => {
   const carGroup = new THREE.Group();
-  carGroup.name = `car_${vehicleConfig.id}_${driverName}`;
+  const vehicleId = vehicleConfig.id || 'apex-gt';
+  carGroup.name = `car_${vehicleId}_${driverName}`;
 
   // Palette resolution
-  const primaryColor = new THREE.Color(vehicleConfig.color || (isPlayer ? '#EF4444' : '#38BDF8'));
-  const secondaryColor = new THREE.Color(vehicleConfig.secondaryColor || '#0F172A');
-  const glowColor = new THREE.Color(vehicleConfig.glowColor || primaryColor);
+  const primaryColorHex = vehicleConfig.color || (isPlayer ? '#EF4444' : '#38BDF8');
+  const secondaryColorHex = vehicleConfig.secondaryColor || '#0F172A';
+  const glowColorHex = vehicleConfig.glowColor || primaryColorHex;
+  const wheelFinish = vehicleConfig.wheelFinish || 'chrome';
+  const nitroStyle = vehicleConfig.nitroStyle || (isPlayer ? 'fire' : 'star');
+
+  const primaryColor = new THREE.Color(primaryColorHex);
+  const secondaryColor = new THREE.Color(secondaryColorHex);
+  const glowColor = new THREE.Color(glowColorHex);
+
+  // Wheel finish colors
+  let rimColorHex = 0xd1d5db;
+  let rimMetalness = 0.92;
+  let rimRoughness = 0.15;
+  if (wheelFinish === 'gold') {
+    rimColorHex = 0xf59e0b;
+    rimMetalness = 0.9;
+    rimRoughness = 0.2;
+  } else if (wheelFinish === 'bronze') {
+    rimColorHex = 0xb45309;
+    rimMetalness = 0.85;
+    rimRoughness = 0.25;
+  } else if (wheelFinish === 'stealth') {
+    rimColorHex = 0x1e293b;
+    rimMetalness = 0.7;
+    rimRoughness = 0.35;
+  }
 
   // PBR Materials
   const bodyPaintMaterial = new THREE.MeshStandardMaterial({
     color: primaryColor,
-    metalness: 0.85,
-    roughness: 0.22,
+    metalness: 0.88,
+    roughness: 0.2,
   });
 
   const carbonAccentMaterial = new THREE.MeshStandardMaterial({
     color: secondaryColor,
-    metalness: 0.4,
-    roughness: 0.5,
+    metalness: 0.45,
+    roughness: 0.48,
   });
 
   const glassMaterial = new THREE.MeshStandardMaterial({
@@ -48,9 +79,9 @@ export const create3DVehicle = ({
   });
 
   const wheelAlloyMaterial = new THREE.MeshStandardMaterial({
-    color: 0xd1d5db,
-    metalness: 0.9,
-    roughness: 0.2,
+    color: rimColorHex,
+    metalness: rimMetalness,
+    roughness: rimRoughness,
   });
 
   const brakeCaliperMaterial = new THREE.MeshStandardMaterial({
@@ -74,62 +105,131 @@ export const create3DVehicle = ({
   // ==========================================
   // 1. AERODYNAMIC MAIN CHASSIS MONOCOQUE
   // ==========================================
-  // Base Dimensions: Length = 4.4, Width = 1.9, Height = 0.85
   const bodyGroup = new THREE.Group();
 
-  // Lower chassis wedge
-  const lowerChassisGeo = new THREE.BoxGeometry(4.4, 0.45, 1.9);
-  const lowerChassis = new THREE.Mesh(lowerChassisGeo, bodyPaintMaterial);
+  // Lower chassis monocoque wedge
+  const lowerChassis = new THREE.Mesh(
+    new THREE.BoxGeometry(4.4, 0.42, 1.9),
+    bodyPaintMaterial
+  );
   lowerChassis.position.set(0, 0.42, 0);
   lowerChassis.castShadow = true;
   lowerChassis.receiveShadow = true;
   bodyGroup.add(lowerChassis);
 
-  // Sculpted hood with sloping nose (forward +X)
-  const hoodGeo = new THREE.BufferGeometry();
-  // Triangular sloping wedge for front hood
-  const hoodLength = 1.8;
-  const hoodWidth = 1.85;
-  const hoodMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(hoodLength, 0.28, hoodWidth),
-    bodyPaintMaterial
-  );
-  hoodMesh.position.set(1.15, 0.58, 0);
-  hoodMesh.rotation.z = -0.06;
-  hoodMesh.castShadow = true;
-  bodyGroup.add(hoodMesh);
-
-  // Front aerodynamic splitter & intake
-  const splitter = new THREE.Mesh(
-    new THREE.BoxGeometry(0.7, 0.08, 2.05),
+  // Aerodynamic Splitter & Underbody Diffuser
+  const frontSplitter = new THREE.Mesh(
+    new THREE.BoxGeometry(0.75, 0.08, 2.05),
     carbonAccentMaterial
   );
-  splitter.position.set(2.1, 0.24, 0);
-  bodyGroup.add(splitter);
+  frontSplitter.position.set(2.1, 0.23, 0);
+  bodyGroup.add(frontSplitter);
 
-  // Cockpit Greenhouse (Curved Cabin & Windshield)
-  const cabinLength = 1.9;
-  const cabinWidth = 1.45;
-  const cabinHeight = 0.58;
+  const rearDiffuser = new THREE.Mesh(
+    new THREE.BoxGeometry(0.65, 0.12, 1.8),
+    carbonAccentMaterial
+  );
+  rearDiffuser.position.set(-2.1, 0.25, 0);
+  bodyGroup.add(rearDiffuser);
+
+  // Cabin Greenhouse
   const cabinMesh = new THREE.Mesh(
-    new THREE.BoxGeometry(cabinLength, cabinHeight, cabinWidth),
+    new THREE.BoxGeometry(1.9, 0.58, 1.45),
     glassMaterial
   );
   cabinMesh.position.set(-0.35, 0.88, 0);
   cabinMesh.castShadow = true;
   bodyGroup.add(cabinMesh);
 
-  // Roof cap
-  const roofMesh = new THREE.Mesh(
+  const roofCap = new THREE.Mesh(
     new THREE.BoxGeometry(1.4, 0.08, 1.35),
     bodyPaintMaterial
   );
-  roofMesh.position.set(-0.38, 1.18, 0);
-  bodyGroup.add(roofMesh);
+  roofCap.position.set(-0.38, 1.18, 0);
+  bodyGroup.add(roofCap);
 
-  // Model-specific aerodynamic additions
-  if (vehicleConfig.id === 'apex-gt' || !isPlayer) {
-    // Dual hood stripes
+  // Model-specific aerodynamic contours
+  if (vehicleId === 'cyber-phantom') {
+    // Sharp angular cyberpunk wedge hood
+    const cyberHood = new THREE.Mesh(
+      new THREE.BoxGeometry(1.95, 0.24, 1.8),
+      bodyPaintMaterial
+    );
+    cyberHood.position.set(1.2, 0.56, 0);
+    cyberHood.rotation.z = -0.12;
+    bodyGroup.add(cyberHood);
+
+    // Angular roof fin
+    const dorsalFin = new THREE.Mesh(
+      new THREE.BoxGeometry(0.8, 0.35, 0.06),
+      carbonAccentMaterial
+    );
+    dorsalFin.position.set(-0.5, 1.35, 0);
+    bodyGroup.add(dorsalFin);
+  } else if (vehicleId === 'viper-venom') {
+    // Aggressive hood scoop
+    const scoop = new THREE.Mesh(
+      new THREE.BoxGeometry(0.7, 0.14, 0.6),
+      carbonAccentMaterial
+    );
+    scoop.position.set(0.9, 0.72, 0);
+    bodyGroup.add(scoop);
+
+    // Flared front hood
+    const venomHood = new THREE.Mesh(
+      new THREE.BoxGeometry(1.85, 0.26, 1.85),
+      bodyPaintMaterial
+    );
+    venomHood.position.set(1.15, 0.58, 0);
+    venomHood.rotation.z = -0.07;
+    bodyGroup.add(venomHood);
+  } else if (vehicleId === 'shadow-specter') {
+    // Ultra-low stealth sloping canopy
+    const stealthHood = new THREE.Mesh(
+      new THREE.BoxGeometry(2.0, 0.2, 1.82),
+      bodyPaintMaterial
+    );
+    stealthHood.position.set(1.2, 0.54, 0);
+    stealthHood.rotation.z = -0.09;
+    bodyGroup.add(stealthHood);
+
+    // Matte carbon side skirts
+    [-0.96, 0.96].forEach((z) => {
+      const skirt = new THREE.Mesh(
+        new THREE.BoxGeometry(2.2, 0.08, 0.12),
+        carbonAccentMaterial
+      );
+      skirt.position.set(0, 0.24, z);
+      bodyGroup.add(skirt);
+    });
+  } else if (vehicleId === 'solar-flare') {
+    // Hypercar teardrop roof channel
+    const tearDrop = new THREE.Mesh(
+      new THREE.BoxGeometry(1.6, 0.12, 0.7),
+      carbonAccentMaterial
+    );
+    tearDrop.position.set(-0.35, 1.22, 0);
+    bodyGroup.add(tearDrop);
+
+    const solarHood = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 0.26, 1.8),
+      bodyPaintMaterial
+    );
+    solarHood.position.set(1.15, 0.57, 0);
+    solarHood.rotation.z = -0.06;
+    bodyGroup.add(solarHood);
+  } else {
+    // Apex GT / Default
+    const apexHood = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 0.28, 1.85),
+      bodyPaintMaterial
+    );
+    apexHood.position.set(1.15, 0.58, 0);
+    apexHood.rotation.z = -0.06;
+    apexHood.castShadow = true;
+    bodyGroup.add(apexHood);
+
+    // Dual carbon hood racing stripes
     const stripeMesh = new THREE.Mesh(
       new THREE.BoxGeometry(1.6, 0.02, 0.35),
       carbonAccentMaterial
@@ -149,190 +249,142 @@ export const create3DVehicle = ({
   wingBlade.castShadow = true;
   wingGroup.add(wingBlade);
 
-  // Wing uprights / mounts
-  [-0.65, 0.65].forEach((zOffset) => {
-    const upright = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 0.42, 0.05),
+  [-0.6, 0.6].forEach((z) => {
+    const wingPillar = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.42, 0.06),
       carbonAccentMaterial
     );
-    upright.position.set(-1.95, 0.84, zOffset);
-    wingGroup.add(upright);
+    wingPillar.position.set(-1.95, 0.84, z);
+    wingGroup.add(wingPillar);
   });
   bodyGroup.add(wingGroup);
 
-  // Rear Diffuser
-  const diffuser = new THREE.Mesh(
-    new THREE.BoxGeometry(0.5, 0.15, 1.7),
-    carbonAccentMaterial
-  );
-  diffuser.position.set(-2.15, 0.28, 0);
-  bodyGroup.add(diffuser);
-
-  // Side mirrors
-  [-0.85, 0.85].forEach((zOffset) => {
+  // Aerodynamic side mirrors
+  [-0.85, 0.85].forEach((z) => {
     const mirror = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.1, 0.22),
+      new THREE.BoxGeometry(0.2, 0.1, 0.22),
       carbonAccentMaterial
     );
-    mirror.position.set(0.45, 0.85, zOffset);
+    mirror.position.set(0.45, 0.82, z);
     bodyGroup.add(mirror);
+  });
+
+  // Dual Headlights & Taillights
+  [-0.7, 0.7].forEach((z) => {
+    const headlamp = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.12, 0.35),
+      headlightMaterial
+    );
+    headlamp.position.set(2.18, 0.5, z);
+    bodyGroup.add(headlamp);
+
+    const taillamp = new THREE.Mesh(
+      new THREE.BoxGeometry(0.12, 0.1, 0.42),
+      taillightMaterial
+    );
+    taillamp.position.set(-2.18, 0.52, z);
+    bodyGroup.add(taillamp);
   });
 
   carGroup.add(bodyGroup);
 
   // ==========================================
-  // 2. LIGHTING & OPTICAL EFFECTS
-  // ==========================================
-  // Front Twin Xenon Headlights
-  [-0.65, 0.65].forEach((zOffset) => {
-    const headlight = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 0.12, 0.35),
-      headlightMaterial
-    );
-    headlight.position.set(2.18, 0.48, zOffset);
-    carGroup.add(headlight);
-  });
-
-  // Active forward road illumination spotlights
-  const headlightBeam = new THREE.SpotLight(0xffffff, 4.5, 45, Math.PI / 6, 0.45, 1.2);
-  headlightBeam.position.set(2.2, 0.5, 0);
-  const beamTarget = new THREE.Object3D();
-  beamTarget.position.set(25, 0, 0);
-  carGroup.add(beamTarget);
-  headlightBeam.target = beamTarget;
-  carGroup.add(headlightBeam);
-
-  // Rear LED Taillight Bar
-  const taillight = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, 0.1, 1.6),
-    taillightMaterial
-  );
-  taillight.position.set(-2.21, 0.56, 0);
-  carGroup.add(taillight);
-
-  // Chassis Underglow (Colored ground reflection)
-  const underglowLight = new THREE.PointLight(glowColor, isPlayer ? 3.5 : 2.0, 6.0, 1.5);
-  underglowLight.position.set(0, 0.2, 0);
-  carGroup.add(underglowLight);
-
-  // ==========================================
-  // 3. ARTICULATED WHEELS & ALLOY RIMS
+  // 2. 4 ROTATING WHEELS WITH HIGH-DETAIL RIMS
   // ==========================================
   const wheels = [];
-  const wheelRadius = 0.38;
-  const wheelWidth = 0.32;
   const wheelPositions = [
-    { x: 1.35, z: 0.98, isFront: true }, // Front-Right
-    { x: 1.35, z: -0.98, isFront: true }, // Front-Left
-    { x: -1.35, z: 0.98, isFront: false }, // Rear-Right
-    { x: -1.35, z: -0.98, isFront: false }, // Rear-Left
+    { x: 1.35, y: 0.38, z: 0.98 },
+    { x: 1.35, y: 0.38, z: -0.98 },
+    { x: -1.35, y: 0.38, z: 0.98 },
+    { x: -1.35, y: 0.38, z: -0.98 },
   ];
 
   wheelPositions.forEach((pos) => {
     const wheelAssembly = new THREE.Group();
-    wheelAssembly.position.set(pos.x, wheelRadius, pos.z);
+    wheelAssembly.position.set(pos.x, pos.y, pos.z);
 
-    // Rubber Tire (Cylinder aligned along Z-axis)
-    const tireGeo = new THREE.CylinderGeometry(
-      wheelRadius,
-      wheelRadius,
-      wheelWidth,
-      24
+    const tireMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.38, 0.38, 0.32, 24),
+      wheelRubberMaterial
     );
-    tireGeo.rotateX(Math.PI / 2); // Rotate cylinder so flat faces point along Z
-    const tireMesh = new THREE.Mesh(tireGeo, wheelRubberMaterial);
+    tireMesh.rotation.x = Math.PI / 2;
     tireMesh.castShadow = true;
     wheelAssembly.add(tireMesh);
 
-    // Multi-spoke alloy rim
-    const rimGeo = new THREE.CylinderGeometry(
-      wheelRadius * 0.65,
-      wheelRadius * 0.65,
-      wheelWidth * 1.02,
-      16
+    const rimMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.26, 0.26, 0.33, 16),
+      wheelAlloyMaterial
     );
-    rimGeo.rotateX(Math.PI / 2);
-    const rimMesh = new THREE.Mesh(rimGeo, wheelAlloyMaterial);
+    rimMesh.rotation.x = Math.PI / 2;
     wheelAssembly.add(rimMesh);
 
-    // Visible brake disc inside
-    const discGeo = new THREE.CylinderGeometry(
-      wheelRadius * 0.5,
-      wheelRadius * 0.5,
-      wheelWidth * 0.4,
-      16
-    );
-    discGeo.rotateX(Math.PI / 2);
-    const discMesh = new THREE.Mesh(discGeo, wheelAlloyMaterial);
-    wheelAssembly.add(discMesh);
+    // Rim spokes for visible rolling animation
+    for (let s = 0; s < 5; s++) {
+      const spoke = new THREE.Mesh(
+        new THREE.BoxGeometry(0.04, 0.22, 0.34),
+        wheelAlloyMaterial
+      );
+      spoke.rotation.z = (s * Math.PI) / 2.5;
+      wheelAssembly.add(spoke);
+    }
 
-    // Brake caliper
-    const caliperMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.16, wheelWidth * 0.45),
+    const caliper = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.18, 0.08),
       brakeCaliperMaterial
     );
-    caliperMesh.position.set(0, wheelRadius * 0.28, 0);
-    wheelAssembly.add(caliperMesh);
+    caliper.position.set(0, 0.12, pos.z > 0 ? -0.14 : 0.14);
+    wheelAssembly.add(caliper);
 
     carGroup.add(wheelAssembly);
     wheels.push(wheelAssembly);
   });
 
   // ==========================================
-  // 4. ANIMATED 3D NITRO EXHAUST FLAME JETS
+  // 3. DYNAMIC LIGHTING & UNDERGLOW
   // ==========================================
-  const exhaustFlames = [];
-  [-0.45, 0.45].forEach((zOffset) => {
-    const flameGroup = new THREE.Group();
-    flameGroup.position.set(-2.25, 0.35, zOffset);
+  const headlightBeam = new THREE.SpotLight(0xffffff, isPlayer ? 1.8 : 0.9, 50, Math.PI / 6, 0.4, 1.2);
+  headlightBeam.position.set(2.4, 0.6, 0);
+  headlightBeam.target.position.set(16, 0, 0);
+  carGroup.add(headlightBeam);
+  carGroup.add(headlightBeam.target);
 
-    // Titanium exhaust pipe ring
-    const pipe = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.09, 0.09, 0.18, 12),
-      carbonAccentMaterial
-    );
-    pipe.rotation.z = Math.PI / 2;
-    flameGroup.add(pipe);
+  const underglowLight = new THREE.PointLight(glowColor, isPlayer ? 2.8 : 1.4, 5.5, 1.8);
+  underglowLight.position.set(0, 0.15, 0);
+  carGroup.add(underglowLight);
 
-    // Inner White-Blue Core Flame Jet
-    const innerFlameGeo = new THREE.ConeGeometry(0.14, 1.2, 12);
-    innerFlameGeo.rotateZ(Math.PI / 2); // Points backwards along -X
-    const innerFlameMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
+  // Underglow Ground Quad Glow Mesh
+  const underglowQuad = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.2, 2.0),
+    new THREE.MeshBasicMaterial({
+      color: glowColor,
       transparent: true,
-      opacity: 0.9,
-    });
-    const innerFlame = new THREE.Mesh(innerFlameGeo, innerFlameMat);
-    innerFlame.position.set(-0.6, 0, 0);
-    flameGroup.add(innerFlame);
-
-    // Outer Cyan/Orange Nitro Plume
-    const outerFlameGeo = new THREE.ConeGeometry(0.24, 1.8, 12);
-    outerFlameGeo.rotateZ(Math.PI / 2);
-    const outerFlameMat = new THREE.MeshBasicMaterial({
-      color: isPlayer ? 0x06b6d4 : 0xef4444,
-      transparent: true,
-      opacity: 0.7,
+      opacity: 0.45,
       blending: THREE.AdditiveBlending,
-    });
-    const outerFlame = new THREE.Mesh(outerFlameGeo, outerFlameMat);
-    outerFlame.position.set(-0.9, 0, 0);
-    flameGroup.add(outerFlame);
+    })
+  );
+  underglowQuad.rotation.x = -Math.PI / 2;
+  underglowQuad.position.set(0, 0.04, 0);
+  carGroup.add(underglowQuad);
 
-    flameGroup.visible = false;
-    carGroup.add(flameGroup);
-    exhaustFlames.push({ group: flameGroup, inner: innerFlame, outer: outerFlame });
+  // ==========================================
+  // 4. NITRO EFFECT CONTROLLER (6 STYLES)
+  // ==========================================
+  const nitroController = new NitroEffectController({
+    scene: carGroup,
+    parentGroup: carGroup,
+    style: nitroStyle,
+    isPlayer,
   });
 
   // ==========================================
-  // 5. 3D FLOATING DRIVER/POSITION BILLBOARD
+  // 5. 3D FLOATING DRIVER / POSITION BILLBOARD BADGE
   // ==========================================
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 64;
-  const ctx = canvas.getContext('2d');
+  const badgeCanvas = document.createElement('canvas');
+  badgeCanvas.width = 512;
+  badgeCanvas.height = 128;
+  const badgeCtx = badgeCanvas.getContext('2d');
 
-  const billboardTexture = new THREE.CanvasTexture(canvas);
+  const billboardTexture = new THREE.CanvasTexture(badgeCanvas);
   billboardTexture.minFilter = THREE.LinearFilter;
   const billboardMaterial = new THREE.SpriteMaterial({
     map: billboardTexture,
@@ -340,25 +392,26 @@ export const create3DVehicle = ({
     depthTest: false,
   });
   const billboardSprite = new THREE.Sprite(billboardMaterial);
-  billboardSprite.scale.set(3.4, 0.85, 1);
-  billboardSprite.position.set(0, 2.2, 0);
+  billboardSprite.scale.set(4.2, 1.05, 1);
+  billboardSprite.position.set(0, 2.4, 0);
   carGroup.add(billboardSprite);
 
   // Position vehicle initially
   const laneZ = (lane - 1.5) * 6.0;
   carGroup.position.set(initialX, 0, laneZ);
 
-  // Return vehicle controller
-  return {
+  // Controller Object
+  const vehicleController = {
     group: carGroup,
     wheels,
-    exhaustFlames,
     headlightBeam,
     underglowLight,
+    underglowQuad,
     billboardSprite,
-    billboardCanvas: canvas,
-    billboardCtx: ctx,
+    billboardCanvas: badgeCanvas,
+    billboardCtx: badgeCtx,
     billboardTexture,
+    nitroController,
     isPlayer,
     driverName,
     lane,
@@ -367,69 +420,150 @@ export const create3DVehicle = ({
     targetSpeed: 0,
     distance: initialX,
     placement: 1,
+    nitroStyle,
+    lastDrawnPlacement: null,
+    lastDrawnSpeed: null,
+
+    // Safe badge updater object (prevents undefined access)
+    badge: {
+      update(placement, speed) {
+        vehicleController.updateBadge(placement, speed);
+      },
+    },
+
+    updateBadge(placement = 1, liveSpeed = 0) {
+      const roundedSpeed = Math.round(liveSpeed);
+      if (this.lastDrawnPlacement === placement && this.lastDrawnSpeed === roundedSpeed) {
+        return;
+      }
+      this.lastDrawnPlacement = placement;
+      this.lastDrawnSpeed = roundedSpeed;
+      this.placement = placement;
+
+      const ctx = this.billboardCtx;
+      ctx.clearRect(0, 0, 512, 128);
+
+      // Pill Background with glowing gradient
+      ctx.save();
+      ctx.shadowColor = this.isPlayer ? 'rgba(239, 68, 68, 0.7)' : 'rgba(56, 189, 248, 0.5)';
+      ctx.shadowBlur = 12;
+
+      ctx.fillStyle = this.isPlayer
+        ? 'rgba(185, 28, 28, 0.95)'
+        : 'rgba(15, 23, 42, 0.92)';
+      ctx.beginPath();
+      ctx.roundRect(16, 16, 480, 96, 24);
+      ctx.fill();
+
+      // Border
+      ctx.strokeStyle = this.isPlayer ? '#FCA5A5' : 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.restore();
+
+      // Position badge circle
+      ctx.fillStyle = this.isPlayer ? '#FFFFFF' : '#38BDF8';
+      ctx.beginPath();
+      ctx.arc(68, 64, 34, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = this.isPlayer ? '#B91C1C' : '#0F172A';
+      ctx.font = '900 32px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`#${placement}`, 68, 64);
+
+      // Driver Name
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 30px monospace';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const displayName = this.driverName.toUpperCase();
+      ctx.fillText(displayName, 124, 52);
+
+      // Live Speed indicator
+      ctx.fillStyle = this.isPlayer ? '#FDE047' : '#94A3B8';
+      ctx.font = '600 22px monospace';
+      const speedLabel = this.isPlayer
+        ? `${roundedSpeed} WPM • ACTIVE`
+        : `${Math.round(roundedSpeed * 1.8)} MPH`;
+      ctx.fillText(speedLabel, 124, 86);
+
+      this.billboardTexture.needsUpdate = true;
+    },
+
+    setNitroStyle(newStyle) {
+      this.nitroStyle = newStyle;
+      this.nitroController.setStyle(newStyle);
+    },
 
     /**
-     * Updates vehicle 3D transforms, wheel spin, exhaust flames, and driver badge every frame.
+     * Polymorphic update method:
+     * Accepts either object { speed, dt, isNitro, placement, currentWpm, nitroStyle }
+     * or positional arguments (dt, isNitro, ...) or (speed, dt, isNitro, ...)
      */
-    update({ speed = 0, dt = 0.016, isNitro = false, placement = 1, currentWpm = 0 }) {
-      this.currentSpeed = THREE.MathUtils.lerp(this.currentSpeed, speed, 0.12);
+    update(arg1, arg2, arg3, arg4, arg5) {
+      let speed = this.targetSpeed || 0;
+      let dt = 0.016;
+      let isNitro = false;
+      let placement = this.placement || 1;
+      let currentWpm = 0;
 
-      // 1. Advance position along +X (LEFT TO RIGHT racing)
+      if (typeof arg1 === 'object' && arg1 !== null) {
+        speed = arg1.speed ?? this.targetSpeed ?? 0;
+        dt = arg1.dt ?? 0.016;
+        isNitro = arg1.isNitro ?? false;
+        placement = arg1.placement ?? this.placement ?? 1;
+        currentWpm = arg1.currentWpm ?? 0;
+        if (arg1.nitroStyle && arg1.nitroStyle !== this.nitroStyle) {
+          this.setNitroStyle(arg1.nitroStyle);
+        }
+      } else if (typeof arg1 === 'number') {
+        if (arg1 <= 0.1) {
+          // Passed dt as first param: update(dt, isNitro, ...)
+          dt = arg1;
+          isNitro = !!arg2;
+          speed = this.targetSpeed || 0;
+        } else {
+          // Passed speed as first param: update(speed, dt, isNitro, placement, currentWpm)
+          speed = arg1;
+          dt = typeof arg2 === 'number' ? arg2 : 0.016;
+          isNitro = !!arg3;
+          placement = typeof arg4 === 'number' ? arg4 : this.placement;
+          currentWpm = typeof arg5 === 'number' ? arg5 : 0;
+        }
+      }
+
+      // Smooth acceleration lerp (strictly non-negative forward speed)
+      const targetSpeedClamp = Math.max(0, speed);
+      this.currentSpeed = THREE.MathUtils.lerp(this.currentSpeed, targetSpeedClamp, 0.14);
+
+      // Strict forward advancement along +X axis (NEVER moves backward!)
       carGroup.position.x = this.distance;
       carGroup.position.z = THREE.MathUtils.lerp(carGroup.position.z, this.laneZ, 0.1);
 
-      // Subtle suspension body roll on acceleration
-      bodyGroup.rotation.z = -THREE.MathUtils.clamp((this.currentSpeed / 80) * 0.02, 0, 0.04);
-      bodyGroup.position.y = (Math.sin(Date.now() * 0.025) * 0.008) * (this.currentSpeed > 5 ? 1 : 0);
+      // Dynamic suspension roll
+      bodyGroup.rotation.z = -THREE.MathUtils.clamp((this.currentSpeed / 80) * 0.02, 0, 0.035);
+      bodyGroup.position.y = Math.sin(Date.now() * 0.025) * 0.008 * (this.currentSpeed > 3 ? 1 : 0);
 
-      // 2. Rotate all 4 wheels around axle (Z-axis in Three.js coordinate system)
-      const wheelAngularSpeed = (this.currentSpeed * 2.8) * dt;
+      // 4 wheels rolling animation (positive rotation around Z-axis matching +X forward travel)
+      const wheelRotationStep = this.currentSpeed * 2.8 * dt;
       wheels.forEach((w) => {
         w.children.forEach((c) => {
-          c.rotation.z += wheelAngularSpeed;
+          c.rotation.z -= wheelRotationStep;
         });
       });
 
-      // 3. Update Animated Exhaust Flames
-      const showFlames = (this.isPlayer && (currentWpm > 40 || isNitro)) || (!this.isPlayer && this.currentSpeed > 35);
-      exhaustFlames.forEach((flame) => {
-        flame.group.visible = showFlames;
-        if (showFlames) {
-          const flameFlicker = 0.8 + Math.random() * 0.45;
-          const nitroScale = isNitro ? 1.85 : 1.0;
-          flame.inner.scale.set(flameFlicker * nitroScale, flameFlicker * nitroScale, flameFlicker);
-          flame.outer.scale.set(flameFlicker * 1.2 * nitroScale, flameFlicker * 1.2 * nitroScale, flameFlicker);
-        }
-      });
+      // Update Nitro Visual Effects
+      this.nitroController.update(dt, isNitro, this.currentSpeed);
 
-      // 4. Update 3D Floating Position Billboard
-      if (this.placement !== placement || !this._badgeInit) {
-        this.placement = placement;
-        this._badgeInit = true;
-
-        const bCtx = this.billboardCtx;
-        bCtx.clearRect(0, 0, 256, 64);
-
-        // Rounded pill background
-        bCtx.fillStyle = this.isPlayer ? 'rgba(239, 68, 68, 0.92)' : 'rgba(15, 23, 42, 0.88)';
-        bCtx.beginPath();
-        bCtx.roundRect(8, 8, 240, 48, 12);
-        bCtx.fill();
-
-        // Border
-        bCtx.strokeStyle = this.isPlayer ? '#FCA5A5' : 'rgba(255, 255, 255, 0.3)';
-        bCtx.lineWidth = 3;
-        bCtx.stroke();
-
-        // Position & Driver text
-        bCtx.fillStyle = '#FFFFFF';
-        bCtx.font = 'bold 24px monospace';
-        bCtx.textAlign = 'center';
-        bCtx.textBaseline = 'middle';
-        bCtx.fillText(`#${placement} ${this.driverName}`, 128, 32);
-
-        this.billboardTexture.needsUpdate = true;
+      // Underglow intensity boost on nitro
+      if (underglowLight) {
+        underglowLight.intensity = isNitro ? 4.5 : (this.isPlayer ? 2.8 : 1.4);
       }
+
+      // Live 3D Driver badge update
+      this.updateBadge(placement, this.isPlayer ? currentWpm : this.currentSpeed);
     },
 
     dispose() {
@@ -441,6 +575,12 @@ export const create3DVehicle = ({
         }
       });
       billboardTexture.dispose();
+      nitroController.dispose();
     },
   };
+
+  // Initial badge render
+  vehicleController.updateBadge(1, 0);
+
+  return vehicleController;
 };

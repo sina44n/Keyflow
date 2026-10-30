@@ -5,8 +5,11 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from .models import GameSession, GameLike, GamePlaySession
-from .serializers import GameSessionSerializer
+import random
+import string
+from django.utils import timezone
+from .models import GameSession, GameLike, GamePlaySession, MultiplayerRoom, RoomParticipant
+from .serializers import GameSessionSerializer, MultiplayerRoomSerializer, RoomParticipantSerializer
 
 # High-quality baseline seed metrics providing vibrant community engagement
 # Real user interactions additively increment these counts
@@ -378,3 +381,286 @@ class ArcadeSummaryView(APIView):
                 rec['topPlacement'] = min(rec.get('topPlacement', 4), placement)
 
         return Response(records, status=status.HTTP_200_OK)
+
+
+# ============================================================================
+# MULTIPLAYER RACING ROOMS & LIVE SYNCHRONIZATION VIEWS
+# ============================================================================
+
+def _generate_room_code():
+    chars = string.ascii_uppercase + string.digits
+    return 'ROOM-' + ''.join(random.choice(chars) for _ in range(4))
+
+
+class MultiplayerRoomListCreateView(APIView):
+    """
+    GET /api/games/racing/rooms/ - List public active racing rooms.
+    POST /api/games/racing/rooms/ - Create a new multiplayer racing room.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = []
+
+    def get(self, request):
+        rooms = MultiplayerRoom.objects.filter(
+            status__in=['waiting', 'countdown', 'racing']
+        ).prefetch_related('participants')[:20]
+        serializer = MultiplayerRoomSerializer(rooms, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        user = request.user if request.user and request.user.is_authenticated else None
+        data = request.data or {}
+
+        host_name = data.get('displayName') or (user.username if user else 'Host Racer')
+        room_name = data.get('roomName') or f"{host_name}'s Grand Prix"
+        track = data.get('track') or 'speedway'
+        tier = int(data.get('tier') or 1)
+        target_dist = int(data.get('targetDistance') or 1000)
+
+        # Generate unique code
+        code = _generate_room_code()
+        while MultiplayerRoom.objects.filter(code=code).exists():
+            code = _generate_room_code()
+
+        room = MultiplayerRoom.objects.create(
+            code=code,
+            name=room_name,
+            track=track,
+            tier=tier,
+            target_distance=target_dist,
+            host=user,
+            host_name=host_name,
+            max_players=4,
+            status='waiting',
+        )
+
+        # Create host participant in Lane 0
+        participant = RoomParticipant.objects.create(
+            room=room,
+            user=user,
+            guest_id=data.get('guestId') or '',
+            display_name=host_name,
+            vehicle_id=data.get('vehicleId') or 'apex-gt',
+            primary_color=data.get('color') or '#EF4444',
+            nitro_style=data.get('nitroStyle') or 'fire',
+            wheel_finish=data.get('wheelFinish') or 'chrome',
+            lane=0,
+            is_ready=True,
+        )
+
+        serializer = MultiplayerRoomSerializer(room)
+        return Response({
+            'room': serializer.data,
+            'participant': RoomParticipantSerializer(participant).data,
+        }, status=status.HTTP_201_CREATED)
+
+
+class MultiplayerRoomDetailView(APIView):
+    """
+    GET /api/games/racing/rooms/<code/ - Retrieve room state.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = []
+
+    def get(self, request, code):
+        code = code.upper().strip()
+        try:
+            room = MultiplayerRoom.objects.prefetch_related('participants').get(code=code)
+        except MultiplayerRoom.DoesNotExist:
+            return Response({'error': 'Room not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = MultiplayerRoomSerializer(room)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class MultiplayerRoomJoinView(APIView):
+    """
+    POST /api/games/racing/rooms/<code/join/ - Join a multiplayer room.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = []
+
+    def post(self, request, code):
+        code = code.upper().strip()
+        try:
+            room = MultiplayerRoom.objects.prefetch_related('participants').get(code=code)
+        except MultiplayerRoom.DoesNotExist:
+            return Response({'error': 'Room not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        if room.status in ['racing', 'finished']:
+            return Response({'error': 'Race already started or concluded'}, status=status.HTTP_400_BAD_REQUEST)
+
+        participants = list(room.participants.all())
+        if len(participants) >= room.max_players:
+            return Response({'error': 'Room is full (max 4 racers)'}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user if request.user and request.user.is_authenticated else None
+        data = request.data or {}
+        display_name = data.get('displayName') or (user.username if user else f'Racer {len(participants) + 1}')
+        guest_id = data.get('guestId') or ''
+
+        # Check if already joined
+        existing = next((p for p in participants if (user and p.user == user) or (guest_id and p.guest_id == guest_id)), None)
+        if existing:
+            # Update configuration
+            existing.display_name = display_name
+            existing.vehicle_id = data.get('vehicleId') or existing.vehicle_id
+            existing.primary_color = data.get('color') or existing.primary_color
+            existing.nitro_style = data.get('nitroStyle') or existing.nitro_style
+            existing.wheel_finish = data.get('wheelFinish') or existing.wheel_finish
+            existing.save()
+            return Response({
+                'room': MultiplayerRoomSerializer(room).data,
+                'participant': RoomParticipantSerializer(existing).data,
+            }, status=status.HTTP_200_OK)
+
+        # Find next available lane from [0, 1, 2, 3]
+        taken_lanes = {p.lane for p in participants}
+        available_lanes = [l for l in range(4) if l not in taken_lanes]
+        assigned_lane = available_lanes[0] if available_lanes else len(participants)
+
+        participant = RoomParticipant.objects.create(
+            room=room,
+            user=user,
+            guest_id=guest_id,
+            display_name=display_name,
+            vehicle_id=data.get('vehicleId') or 'cyber-phantom',
+            primary_color=data.get('color') or '#06B6D4',
+            nitro_style=data.get('nitroStyle') or 'electric',
+            wheel_finish=data.get('wheelFinish') or 'chrome',
+            lane=assigned_lane,
+            is_ready=False,
+        )
+
+        return Response({
+            'room': MultiplayerRoomSerializer(room).data,
+            'participant': RoomParticipantSerializer(participant).data,
+        }, status=status.HTTP_200_OK)
+
+
+class MultiplayerRoomReadyView(APIView):
+    """
+    POST /api/games/racing/rooms/<code/ready/ - Toggle ready or start countdown.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = []
+
+    def post(self, request, code):
+        code = code.upper().strip()
+        try:
+            room = MultiplayerRoom.objects.prefetch_related('participants').get(code=code)
+        except MultiplayerRoom.DoesNotExist:
+            return Response({'error': 'Room not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data or {}
+        participant_id = data.get('participantId')
+        force_start = bool(data.get('forceStart', False))
+
+        if participant_id:
+            try:
+                p = RoomParticipant.objects.get(id=participant_id, room=room)
+                p.is_ready = not p.is_ready if 'ready' not in data else bool(data['ready'])
+                p.save(update_fields=['is_ready'])
+            except RoomParticipant.DoesNotExist:
+                pass
+
+        participants = list(RoomParticipant.objects.filter(room=room))
+        all_ready = len(participants) >= 1 and all(p.is_ready for p in participants)
+
+        if (all_ready or force_start) and room.status == 'waiting':
+            room.status = 'countdown'
+            room.countdown_started_at = timezone.now()
+            room.save()
+
+        return Response({
+            'room': MultiplayerRoomSerializer(room).data,
+            'allReady': all_ready,
+        }, status=status.HTTP_200_OK)
+
+
+class MultiplayerRoomSyncView(APIView):
+    """
+    POST /api/games/racing/rooms/<code/sync/ - Live telemetry sync every 100-250ms.
+    Updates current participant's position and returns full grid status.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = []
+
+    def post(self, request, code):
+        code = code.upper().strip()
+        try:
+            room = MultiplayerRoom.objects.prefetch_related('participants').get(code=code)
+        except MultiplayerRoom.DoesNotExist:
+            return Response({'error': 'Room not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        data = request.data or {}
+        participant_id = data.get('participantId')
+
+        # Check countdown transition to racing
+        now = timezone.now()
+        if room.status == 'countdown' and room.countdown_started_at:
+            elapsed = (now - room.countdown_started_at).total_seconds()
+            if elapsed >= 3.2:
+                room.status = 'racing'
+                room.race_started_at = now
+                room.save()
+
+        # Update telemetry of sending participant
+        if participant_id:
+            try:
+                p = RoomParticipant.objects.get(id=participant_id, room=room)
+                p.distance = float(data.get('distance', p.distance))
+                p.speed = float(data.get('speed', p.speed))
+                p.wpm = int(data.get('wpm', p.wpm))
+                p.accuracy = float(data.get('accuracy', p.accuracy))
+                p.placement = int(data.get('placement', p.placement))
+                if data.get('isFinished'):
+                    p.is_finished = True
+                    p.finish_time = float(data.get('finishTime', 0))
+                p.last_heartbeat = now
+                p.save(update_fields=['distance', 'speed', 'wpm', 'accuracy', 'placement', 'is_finished', 'finish_time', 'last_heartbeat'])
+            except RoomParticipant.DoesNotExist:
+                pass
+
+        # Sort all participants by distance descending to calculate authoritative placements
+        all_participants = list(RoomParticipant.objects.filter(room=room).order_by('-distance'))
+        for idx, participant in enumerate(all_participants):
+            participant.placement = idx + 1
+
+        # Check if all participants finished
+        if room.status == 'racing' and all(p.is_finished for p in all_participants):
+            room.status = 'finished'
+            room.save()
+
+        serializer = MultiplayerRoomSerializer(room)
+        return Response({
+            'room': serializer.data,
+            'participants': RoomParticipantSerializer(all_participants, many=True).data,
+            'serverTime': now.isoformat(),
+        }, status=status.HTTP_200_OK)
+
+
+class MultiplayerRoomLeaveView(APIView):
+    """
+    POST /api/games/racing/rooms/<code/leave/ - Leave a room.
+    """
+    permission_classes = [AllowAny]
+    throttle_classes = []
+
+    def post(self, request, code):
+        code = code.upper().strip()
+        try:
+            room = MultiplayerRoom.objects.get(code=code)
+        except MultiplayerRoom.DoesNotExist:
+            return Response({'status': 'ok'}, status=status.HTTP_200_OK)
+
+        data = request.data or {}
+        participant_id = data.get('participantId')
+        if participant_id:
+            room.participants.filter(id=participant_id).delete()
+
+        if room.participants.count() == 0:
+            room.delete()
+
+        return Response({'status': 'left'}, status=status.HTTP_200_OK)
+

@@ -14,6 +14,11 @@ export const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const location = useLocation();
 
+  // Instant bypass for dev_preview and automated testing
+  if (typeof window !== 'undefined' && (window.__KEYFLOW_DEV_BYPASS_AUTH__ || location.search.includes('dev_preview=true'))) {
+    return children;
+  }
+
   // Still checking token validity — show loading
   if (isLoading) {
     return (
@@ -28,9 +33,6 @@ export const ProtectedRoute = ({ children }) => {
 
   // Not authenticated — redirect to login, preserving full destination path with query parameters
   if (!isAuthenticated) {
-    if (typeof window !== 'undefined' && (window.__KEYFLOW_DEV_BYPASS_AUTH__ || location.search.includes('dev_preview=true'))) {
-      return children;
-    }
     const fullPath = location.pathname + (location.search || '');
     return <Navigate to="/login" state={{ from: fullPath }} replace />;
   }

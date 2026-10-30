@@ -75,6 +75,10 @@ export class Racing3DAudio {
     }
   }
 
+  updateLive(wpm = 0, isNitro = false, speed = 0) {
+    this.updateEngineRpm(wpm, isNitro);
+  }
+
   updateEngineRpm(wpm = 0, isNitro = false) {
     if (this.isMuted || !this.ctx || !this.engineOsc) return;
     try {

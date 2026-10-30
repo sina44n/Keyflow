@@ -20,6 +20,10 @@ import {
   Infinity as InfinityIcon,
   Timer,
   Sliders,
+  Palette,
+  Users,
+  Check,
+  Disc,
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { useI18n } from '../../../i18n/I18nContext';
@@ -30,7 +34,6 @@ import {
   RENDERING_TECH,
   WebGLFallbackManager,
   GameLifecycleManager,
-  getWebGLGraphicsConfig,
 } from '../../../utils/performance/GlobalGameManager';
 import { GlobalGameSettingsModal } from '../performance/GlobalGameSettingsModal';
 import {
@@ -48,8 +51,11 @@ import { create3DVehicle } from '../racing3d/Racing3DVehicle';
 import { create3DEnvironment } from '../racing3d/Racing3DEnvironment';
 import { Racing3DCamera } from '../racing3d/Racing3DCamera';
 import { Racing3DAudio } from '../racing3d/Racing3DAudio';
+import { NITRO_STYLES } from '../racing3d/Racing3DNitroEffects';
+import { Racing3DGarageTurntable } from '../racing3d/Racing3DGarageTurntable';
+import { Racing3DMultiplayerLobby } from '../racing3d/Racing3DMultiplayerLobby';
 
-// Game Modes supported
+// Racing Game Modes
 const RACING_MODES = [
   {
     id: 'grand-prix',
@@ -74,9 +80,34 @@ const RACING_MODES = [
   },
 ];
 
-/**
- * Format seconds as mm:ss.ms
- */
+// Presets for Garage Customization
+const BODY_COLOR_PALETTE = [
+  { name: 'Apex Crimson', hex: '#EF4444' },
+  { name: 'Cyber Cyan', hex: '#06B6D4' },
+  { name: 'Racing Gold', hex: '#EAB308' },
+  { name: 'Electric Violet', hex: '#A855F7' },
+  { name: 'Acid Green', hex: '#10B981' },
+  { name: 'Obsidian Stealth', hex: '#1E293B' },
+  { name: 'Solar Flame', hex: '#F97316' },
+  { name: 'Pure Pearl', hex: '#F8FAFC' },
+];
+
+const WHEEL_FINISHES = [
+  { id: 'chrome', name: 'Chrome Mirror', color: '#E2E8F0' },
+  { id: 'gold', name: 'Forged Gold', color: '#F59E0B' },
+  { id: 'bronze', name: 'Racing Bronze', color: '#B45309' },
+  { id: 'stealth', name: 'Stealth Black', color: '#1E293B' },
+];
+
+const UNDERGLOW_PALETTE = [
+  { name: 'Crimson', hex: '#EF4444' },
+  { name: 'Cyan Neon', hex: '#06B6D4' },
+  { name: 'Purple Ray', hex: '#A855F7' },
+  { name: 'Acid Lime', hex: '#10B981' },
+  { name: 'Solar Amber', hex: '#F59E0B' },
+  { name: 'Ice White', hex: '#FFFFFF' },
+];
+
 const formatLapTime = (seconds) => {
   if (!seconds || isNaN(seconds)) return '00:00.00';
   const mins = Math.floor(seconds / 60);
@@ -91,9 +122,44 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
   // Load existing records
   const personalBest = useMemo(() => getGameRecord('nitro'), []);
 
-  // Garage Selection State
-  const [selectedMode, setSelectedMode] = useState('grand-prix'); // 'grand-prix' | 'time-attack' | 'endless'
-  const [selectedVehicleId, setSelectedVehicleId] = useState('apex-gt');
+  // Customization & Driver Profile State (persisted in localStorage)
+  const [customVehicle, setCustomVehicle] = useState(() => {
+    try {
+      const saved = localStorage.getItem('keyflow_nitro_custom_vehicle');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      selectedVehicleId: 'apex-gt',
+      primaryColor: '#EF4444',
+      secondaryColor: '#1F2937',
+      wheelFinish: 'chrome',
+      glowColor: '#EF4444',
+      nitroStyle: 'fire',
+    };
+  });
+
+  const [driverName, setDriverName] = useState(() => {
+    return localStorage.getItem('keyflow_racing_driver_name') || 'ApexRacer';
+  });
+
+  // Save changes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('keyflow_nitro_custom_vehicle', JSON.stringify(customVehicle));
+    } catch (e) {}
+  }, [customVehicle]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('keyflow_racing_driver_name', driverName);
+    } catch (e) {}
+  }, [driverName]);
+
+  // Screen Tabs: 'modes' | 'garage' | 'multiplayer'
+  const [hubTab, setHubTab] = useState('modes');
+
+  // Racing Game Setup
+  const [selectedMode, setSelectedMode] = useState('grand-prix');
   const [selectedEnvId, setSelectedEnvId] = useState('speedway');
   const [selectedTier, setSelectedTier] = useState(() => {
     return calculateRacingTier({
@@ -102,6 +168,9 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
       racesCompleted: personalBest?.gamesPlayed || 0,
     });
   });
+
+  // Multiplayer Room State
+  const [multiplayerContext, setMultiplayerContext] = useState(null);
 
   // Lifecycle state: 'garage' | 'countdown' | 'racing' | 'gameover'
   const [gameState, setGameState] = useState('garage');
@@ -114,8 +183,8 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
 
   // Active configurations
   const vehicle = useMemo(() => {
-    return RACING_VEHICLES.find((v) => v.id === selectedVehicleId) || RACING_VEHICLES[0];
-  }, [selectedVehicleId]);
+    return RACING_VEHICLES.find((v) => v.id === customVehicle.selectedVehicleId) || RACING_VEHICLES[0];
+  }, [customVehicle.selectedVehicleId]);
 
   const environment = useMemo(() => {
     return RACING_ENVIRONMENTS.find((e) => e.id === selectedEnvId) || RACING_ENVIRONMENTS[0];
@@ -127,10 +196,13 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
 
   // Target race distance
   const targetDistance = useMemo(() => {
+    if (multiplayerContext?.room?.target_distance) {
+      return multiplayerContext.room.target_distance;
+    }
     if (selectedMode === 'time-attack') return 1200;
-    if (selectedMode === 'endless') return 100000; // Effectively infinite
-    return tierConfig.trackDistance * 1.5; // ~1200m - 2700m
-  }, [selectedMode, tierConfig.trackDistance]);
+    if (selectedMode === 'endless') return 100000;
+    return tierConfig.trackDistance * 1.5;
+  }, [selectedMode, tierConfig.trackDistance, multiplayerContext]);
 
   // Live Performance & Telemetry
   const [liveWpm, setLiveWpm] = useState(0);
@@ -142,6 +214,8 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
   const [nitroBurstsUsed, setNitroBurstsUsed] = useState(0);
   const [currentPlacement, setCurrentPlacement] = useState(1);
   const [hasTypingError, setHasTypingError] = useState(false);
+  const [comboStreak, setComboStreak] = useState(0);
+  const [totalDistanceCovered, setTotalDistanceCovered] = useState(0);
 
   // Continuous Passage Viewport Window state
   const [viewportData, setViewportData] = useState({
@@ -151,16 +225,18 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     totalCharsTyped: 0,
   });
 
-  // Competitor distances for mini-progress bar
-  const [miniProgress, setMiniProgress] = useState({
-    player: 0,
-    xavier: 0,
-    thomas: 0,
-    joshua: 0,
-  });
-
   // Final Results
   const [finalResults, setFinalResults] = useState(null);
+
+  // Mutable refs to decouple 60 FPS Three.js render loop from React state re-renders
+  const gameStateRef = useRef(gameState);
+  gameStateRef.current = gameState;
+
+  const isNitroActiveRef = useRef(isNitroActive);
+  isNitroActiveRef.current = isNitroActive;
+
+  const customVehicleRef = useRef(customVehicle);
+  customVehicleRef.current = customVehicle;
 
   // 3D Scene Refs
   const mountRef = useRef(null);
@@ -176,6 +252,10 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     animFrame: null,
     raceStartTime: 0,
     lastFrameTime: 0,
+    lastKeystrokeTime: 0,
+    playerSpeed: 0,
+    comboStreak: 0,
+    lastSyncTime: 0,
     isFinished: false,
   });
 
@@ -184,14 +264,28 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
 
   // Focus input helper
   const focusInput = useCallback(() => {
-    if (gameState === 'racing' && inputRef.current) {
+    if ((gameState === 'racing' || gameState === 'countdown') && inputRef.current) {
       inputRef.current.focus();
     }
   }, [gameState]);
 
-  // Start Race Sequence
+  // Nitro Trigger Function (Tab Key or On-Screen Button)
+  const triggerNitroBoost = useCallback(() => {
+    if (isNitroActive || nitroMeter < 25) return;
+
+    setIsNitroActive(true);
+    setNitroMeter((prev) => Math.max(0, prev - 35));
+    setNitroBurstsUsed((b) => b + 1);
+    threeRef.current.audio?.playNitro();
+
+    if (nitroTimeoutRef.current) clearTimeout(nitroTimeoutRef.current);
+    nitroTimeoutRef.current = setTimeout(() => {
+      setIsNitroActive(false);
+    }, 3200);
+  }, [isNitroActive, nitroMeter]);
+
+  // Start Race Sequence (Pre-warms 3D scene on starting grid)
   const handleStartRace = useCallback(() => {
-    // 1. Initialize continuous passage stream
     const stream = new PassageStreamQueue({
       tier: selectedTier,
       initialPassagesCount: 4,
@@ -199,19 +293,23 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
 
     threeRef.current.streamQueue = stream;
     threeRef.current.isFinished = false;
+    threeRef.current.playerSpeed = 0;
+    threeRef.current.comboStreak = 0;
+    threeRef.current.lastKeystrokeTime = performance.now();
+    threeRef.current.lastSyncTime = 0;
 
-    // Initial viewport text slice
     setViewportData(stream.getViewportWindow(30, 85));
-
     setLiveWpm(0);
     setPeakWpm(0);
     setLiveAccuracy(100);
     setElapsedTime(0);
-    setNitroMeter(20);
+    setNitroMeter(30);
     setIsNitroActive(false);
     setNitroBurstsUsed(0);
     setCurrentPlacement(1);
     setHasTypingError(false);
+    setComboStreak(0);
+    setTotalDistanceCovered(0);
     setFinalResults(null);
 
     setGameState('countdown');
@@ -219,45 +317,37 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     threeRef.current.audio?.playCountdown(3);
   }, [selectedTier]);
 
-  // Countdown sequence
-  useEffect(() => {
-    if (gameState !== 'countdown') return;
+  // Start Race from Multiplayer Lobby
+  const handleStartMultiplayerRace = useCallback(
+    ({ room, participant, participants }) => {
+      setMultiplayerContext({ room, participant, participants });
+      handleStartRace();
+    },
+    [handleStartRace]
+  );
 
-    if (countdown > 0) {
+  // Synchronized countdown timer (scene is already mounted)
+  useEffect(() => {
+    if (countdown > 0 && gameState === 'countdown') {
       const timer = setTimeout(() => {
         const next = countdown - 1;
         setCountdown(next);
-        threeRef.current.audio?.playCountdown(next);
+        if (next === 0) {
+          threeRef.current.audio?.playCountdown(0);
+          threeRef.current.raceStartTime = performance.now();
+          threeRef.current.lastFrameTime = performance.now();
+          threeRef.current.lastKeystrokeTime = performance.now();
+          setGameState('racing');
+          focusInput();
+        } else {
+          threeRef.current.audio?.playCountdown(next);
+        }
       }, 1000);
       return () => clearTimeout(timer);
-    } else {
-      // GO!
-      const timer = setTimeout(() => {
-        setGameState('racing');
-        threeRef.current.raceStartTime = performance.now();
-        threeRef.current.lastFrameTime = performance.now();
-        threeRef.current.audio?.startEngine();
-      }, 550);
-      return () => clearTimeout(timer);
     }
-  }, [gameState, countdown]);
+  }, [countdown, gameState, focusInput]);
 
-  // Nitro Trigger
-  const triggerNitroBoost = useCallback(() => {
-    if (isNitroActive || nitroMeter < 30 || gameState !== 'racing') return;
-
-    setIsNitroActive(true);
-    setNitroBurstsUsed((prev) => prev + 1);
-    setNitroMeter(0);
-    threeRef.current.audio?.playNitro();
-
-    if (nitroTimeoutRef.current) clearTimeout(nitroTimeoutRef.current);
-    nitroTimeoutRef.current = setTimeout(() => {
-      setIsNitroActive(false);
-    }, 2800);
-  }, [isNitroActive, nitroMeter, gameState]);
-
-  // Handle continuous typing input
+  // Continuous typing input handler with progressive impulse acceleration
   const handleKeyDown = useCallback(
     (e) => {
       if (gameState !== 'racing') return;
@@ -265,12 +355,12 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
       const stream = threeRef.current.streamQueue;
       if (!stream) return;
 
-      const expectedChar = stream.getCurrentChar();
-
-      // Spacebar triggers Nitro if charged and space is not the target character
-      if (e.key === ' ' && expectedChar !== ' ' && nitroMeter >= 50) {
+      // Tab key triggers Nitro boost (prevents default focus shift)
+      if (e.key === 'Tab' || e.code === 'Tab') {
         e.preventDefault();
-        triggerNitroBoost();
+        if (nitroMeter >= 25 && !isNitroActive) {
+          triggerNitroBoost();
+        }
         return;
       }
 
@@ -288,24 +378,43 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
 
       e.preventDefault();
       const elapsed = Math.max(0.1, (performance.now() - threeRef.current.raceStartTime) / 1000);
-
       const strokeResult = stream.handleKeystroke(e.key, elapsed);
 
       if (strokeResult.isCorrect) {
         setHasTypingError(false);
         threeRef.current.audio?.playKeystroke();
 
-        // Increment nitro meter on accurate streaks
-        setNitroMeter((prev) => Math.min(100, prev + 2.6));
+        // 1. Progressive Impulse Acceleration
+        threeRef.current.comboStreak = (threeRef.current.comboStreak || 0) + 1;
+        const streak = threeRef.current.comboStreak;
+        setComboStreak(streak);
 
-        // Auto-surge when nitro reaches 100%
-        if (nitroMeter + 2.6 >= 100) {
-          triggerNitroBoost();
-        }
+        const streakBonus = 1 + Math.min(0.5, Math.floor(streak / 10) * 0.1);
+        const impulse = 4.2 * (vehicle.acceleration / 80) * streakBonus;
+        const maxVelocity = (vehicle.topSpeed / 80) * 42 * (isNitroActive ? 1.45 : 1.0);
+
+        threeRef.current.playerSpeed = Math.min(
+          maxVelocity,
+          Math.max(10, (threeRef.current.playerSpeed || 8) + impulse)
+        );
+        threeRef.current.lastKeystrokeTime = performance.now();
+
+        // 2. Nitro Charging on accurate typing
+        const charge = streak >= 20 ? 3.8 : 2.5;
+        setNitroMeter((prev) => {
+          const next = Math.min(100, prev + charge);
+          if (next >= 100 && !isNitroActive) {
+            triggerNitroBoost();
+          }
+          return next;
+        });
       } else {
         setHasTypingError(true);
-        // Penalty on mistakes
-        setNitroMeter((prev) => Math.max(0, prev - 6));
+        // Typo Penalty: 15% deceleration penalty (never backward! floor 7 m/s)
+        threeRef.current.comboStreak = 0;
+        setComboStreak(0);
+        threeRef.current.playerSpeed = Math.max(7.0, (threeRef.current.playerSpeed || 8) * 0.85);
+        setNitroMeter((prev) => Math.max(0, prev - 5));
       }
 
       setLiveWpm(strokeResult.liveWpm);
@@ -313,250 +422,29 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
       setLiveAccuracy(strokeResult.accuracy);
       threeRef.current.audio?.updateEngineRpm(strokeResult.liveWpm, isNitroActive);
 
-      // Update sliding viewport window without resetting or interrupting
       setViewportData(stream.getViewportWindow(30, 85));
     },
-    [gameState, nitroMeter, isNitroActive, triggerNitroBoost]
+    [gameState, nitroMeter, isNitroActive, vehicle, triggerNitroBoost]
   );
 
-  // Global window keyboard listener ensuring 100% reliable continuous typing input
   useEffect(() => {
-    if (gameState !== 'racing') return;
+    if (gameState !== 'racing' && gameState !== 'countdown') return;
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [gameState, handleKeyDown]);
 
+  const isRaceActive = gameState === 'racing' || gameState === 'countdown';
+
   // ==========================================
-  // THREE.JS 3D SCENE & 60 FPS RENDER LOOP + CANVAS 2D FALLBACK
+  // 3D SCENE & 60 FPS RENDER LOOP
+  // Mounts during both 'countdown' and 'racing' to prevent any viewport resizing!
   // ==========================================
   useEffect(() => {
-    if (gameState !== 'racing' || !mountRef.current) return;
+    if (!isRaceActive || !mountRef.current) return;
 
     const container = mountRef.current;
     const width = container.clientWidth || 960;
-    const height = 400;
-
-    // Start 2D Fallback renderer if WebGL is unavailable or requested
-    const start2DFallbackLoop = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      canvas.className = 'w-full h-full block rounded-2xl shadow-inner';
-      container.innerHTML = '';
-      container.appendChild(canvas);
-
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return () => {};
-
-      const audio = new Racing3DAudio();
-      audio.init();
-      audio.setMuted(!soundEnabled);
-      audio.startEngine();
-
-      const cars = [
-        { id: 'player', name: 'YOU', isPlayer: true, color: vehicle.color || '#EF4444', lane: 2, distance: 0, speed: 0, targetSpeed: 8 },
-        { id: 'xavier', name: 'Xavier', isPlayer: false, color: '#A855F7', lane: 0, distance: 0, speed: 0, targetSpeed: 8 },
-        { id: 'thomas', name: 'Thomas', isPlayer: false, color: '#38BDF8', lane: 1, distance: 0, speed: 0, targetSpeed: 8 },
-        { id: 'joshua', name: 'Joshua', isPlayer: false, color: '#FACC15', lane: 3, distance: 0, speed: 0, targetSpeed: 8 },
-      ];
-
-      let animId;
-      const loop = (timestamp) => {
-        if (!threeRef.current.lastFrameTime) threeRef.current.lastFrameTime = timestamp;
-        const dt = Math.min(0.08, (timestamp - threeRef.current.lastFrameTime) / 1000);
-        threeRef.current.lastFrameTime = timestamp;
-
-        const elapsed = Math.max(0.1, (timestamp - threeRef.current.raceStartTime) / 1000);
-        setElapsedTime(elapsed);
-
-        if (selectedMode === 'time-attack' && elapsed >= 60 && !threeRef.current.isFinished) {
-          threeRef.current.isFinished = true;
-        }
-
-        const stream = threeRef.current.streamQueue;
-        const streamMetrics = stream ? stream.getProgress() : { totalCorrect: 0, totalErrors: 0 };
-        const words = streamMetrics.totalCorrect / 5;
-        const currentWpmVal = Math.round((words / (elapsed / 60))) || 0;
-        const totalStrokes = streamMetrics.totalCorrect + streamMetrics.totalErrors;
-        const accVal = totalStrokes > 0 ? Math.round((streamMetrics.totalCorrect / totalStrokes) * 100) : 100;
-
-        const baseMps = (currentWpmVal / 60) * 17.5;
-        const vehicleBonus = (vehicle.topSpeed - 80) * 0.006;
-        const accBonus = (vehicle.acceleration - 80) * 0.005;
-        const nitroMultiplier = isNitroActive ? 1.48 : 1.0;
-        const targetPlayerMps = Math.max(8.0, baseMps * (1 + vehicleBonus + accBonus) * nitroMultiplier);
-
-        cars[0].targetSpeed = targetPlayerMps;
-        cars[0].speed += (cars[0].targetSpeed - cars[0].speed) * Math.min(1.0, dt * 4.0);
-        cars[0].distance += cars[0].speed * dt;
-
-        for (let i = 1; i < 4; i++) {
-          const competitor = AI_COMPETITORS[i - 1];
-          const aiTargetMps = computeAiProgress({
-            tier: selectedTier,
-            competitor,
-            elapsedSeconds: elapsed,
-            playerDistance: cars[0].distance,
-            targetDistance,
-          });
-          cars[i].targetSpeed = aiTargetMps;
-          cars[i].speed += (cars[i].targetSpeed - cars[i].speed) * Math.min(1.0, dt * 3.5);
-          cars[i].distance += cars[i].speed * dt;
-        }
-
-        audio.updateLive(currentWpmVal, isNitroActive, cars[0].speed);
-
-        const sorted = [...cars].sort((a, b) => b.distance - a.distance);
-        const playerRank = sorted.findIndex((c) => c.isPlayer) + 1;
-        setPlayerPlacement(playerRank);
-        setLiveWpm(currentWpmVal);
-        setAccuracy(accVal);
-        setTotalDistanceCovered(cars[0].distance);
-
-        const totalDist = cars[0].distance;
-        const isTargetReached = totalDist >= targetDistance;
-        const isTimeAttackDone = selectedMode === 'time-attack' && elapsed >= 60;
-
-        if ((isTargetReached || isTimeAttackDone) && !threeRef.current.isFinished) {
-          threeRef.current.isFinished = true;
-          audio.playFinishFanfare();
-
-          const finalRank = playerRank;
-          const isWinner = finalRank === 1;
-
-          saveArcadeRecord('nitro', {
-            wpm: currentWpmVal,
-            accuracy: accVal,
-            won: isWinner,
-            tier: selectedTier,
-            placement: finalRank,
-            distance: totalDist,
-          });
-
-          setRaceResult({
-            isWinner,
-            placement: finalRank,
-            finalWpm: currentWpmVal,
-            peakWpm: Math.max(peakWpm, currentWpmVal),
-            accuracy: accVal,
-            elapsedTime: elapsed,
-            totalDistance: totalDist,
-            nitroBurstsUsed,
-            tierName: tierConfig.name,
-            rewardCoins: finalRank === 1 ? tierConfig.rewardCoins : Math.round(tierConfig.rewardCoins * 0.45),
-            standings: sorted.map((r, idx) => ({
-              id: r.name,
-              name: r.name,
-              placement: idx + 1,
-              distance: Math.round(r.distance),
-            })),
-          });
-
-          setTimeout(() => {
-            setGameState('gameover');
-          }, 1500);
-        }
-
-        // Draw 2D canvas race scene
-        ctx.fillStyle = '#0b0f19';
-        ctx.fillRect(0, 0, width, height);
-
-        const laneHeight = height / 4;
-        for (let l = 0; l < 4; l++) {
-          const y = l * laneHeight;
-          ctx.fillStyle = l % 2 === 0 ? '#1e293b' : '#141e2e';
-          ctx.fillRect(0, y, width, laneHeight);
-
-          if (l > 0) {
-            ctx.strokeStyle = '#334155';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([24, 16]);
-            ctx.lineDashOffset = -(cars[0].distance * 6) % 40;
-            ctx.beginPath();
-            ctx.moveTo(0, y);
-            ctx.lineTo(width, y);
-            ctx.stroke();
-            ctx.setLineDash([]);
-          }
-        }
-
-        // Checkered finish line
-        const finishScreenX = ((targetDistance - cars[0].distance) * 2.5) + (width * 0.45);
-        if (finishScreenX > 0 && finishScreenX < width + 100) {
-          ctx.fillStyle = '#f8fafc';
-          ctx.fillRect(finishScreenX, 0, 10, height);
-          ctx.fillStyle = '#000000';
-          for (let y = 0; y < height; y += 16) {
-            ctx.fillRect(finishScreenX, y, 5, 8);
-            ctx.fillRect(finishScreenX + 5, y + 8, 5, 8);
-          }
-        }
-
-        // Draw cars Left to Right
-        for (const car of cars) {
-          const laneY = car.lane * laneHeight + laneHeight / 2;
-          const screenX = car.isPlayer
-            ? width * 0.38
-            : width * 0.38 + (car.distance - cars[0].distance) * 2.8;
-
-          if (screenX > -120 && screenX < width + 120) {
-            if (car.speed > 4) {
-              const flameLength = Math.min(32, car.speed * 1.1 * (isNitroActive && car.isPlayer ? 1.8 : 1.0));
-              const grad = ctx.createLinearGradient(screenX - 38 - flameLength, laneY, screenX - 38, laneY);
-              grad.addColorStop(0, 'rgba(56, 189, 248, 0)');
-              grad.addColorStop(1, isNitroActive && car.isPlayer ? 'rgba(56, 189, 248, 0.9)' : 'rgba(249, 115, 22, 0.85)');
-              ctx.fillStyle = grad;
-              ctx.beginPath();
-              ctx.ellipse(screenX - 42, laneY, flameLength, 4, 0, 0, Math.PI * 2);
-              ctx.fill();
-            }
-
-            const beamGrad = ctx.createLinearGradient(screenX + 32, laneY, screenX + 90, laneY);
-            beamGrad.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-            beamGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-            ctx.fillStyle = beamGrad;
-            ctx.beginPath();
-            ctx.moveTo(screenX + 32, laneY - 6);
-            ctx.lineTo(screenX + 90, laneY - 16);
-            ctx.lineTo(screenX + 90, laneY + 16);
-            ctx.lineTo(screenX + 32, laneY + 6);
-            ctx.closePath();
-            ctx.fill();
-
-            ctx.fillStyle = car.color;
-            ctx.beginPath();
-            ctx.roundRect(screenX - 34, laneY - 12, 68, 24, [4, 10, 10, 4]);
-            ctx.fill();
-
-            ctx.fillStyle = '#0f172a';
-            ctx.beginPath();
-            ctx.roundRect(screenX - 8, laneY - 8, 24, 16, 3);
-            ctx.fill();
-
-            ctx.fillStyle = '#020617';
-            ctx.fillRect(screenX - 36, laneY - 15, 5, 30);
-
-            ctx.fillStyle = car.isPlayer ? '#EF4444' : '#94a3b8';
-            ctx.font = 'bold 10px monospace';
-            ctx.textAlign = 'center';
-            ctx.fillText(`${car.name} (${Math.round(car.speed * 2.23)} mph)`, screenX, laneY - 18);
-          }
-        }
-
-        animId = requestAnimationFrame(loop);
-      };
-
-      animId = requestAnimationFrame(loop);
-
-      return () => {
-        cancelAnimationFrame(animId);
-        audio.cleanup();
-      };
-    };
-
-    if (is2DFallback) {
-      return start2DFallbackLoop();
-    }
+    const height = container.clientHeight || 440;
 
     // 1. Scene, Camera & WebGL Renderer
     const graphicsConfig = GlobalGameManager.getGraphicsConfig(RENDERING_TECH.THREEJS_WEBGL);
@@ -572,131 +460,129 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
       });
       renderer.setSize(width, height);
       renderer.setPixelRatio(graphicsConfig.pixelRatio);
-      if (graphicsConfig.shadows !== 'disabled') {
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type =
-          graphicsConfig.shadows === 'high' ? THREE.PCFSoftShadowMap : THREE.BasicShadowMap;
-      } else {
-        renderer.shadowMap.enabled = false;
-      }
+      renderer.shadowMap.enabled = graphicsConfig.shadows !== 'disabled';
     } catch (err) {
-      console.warn('[NitroRacingGame] WebGLRenderer init failed, switching to 2D canvas fallback:', err);
+      console.warn('[NitroRacingGame] WebGLRenderer init failed, fallback:', err);
       setIs2DFallback(true);
-      return start2DFallbackLoop();
+      return () => {};
     }
 
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
 
-    // Bind context loss handler
-    const cleanupContextLoss = WebGLFallbackManager.attachContextLossHandlers(
-      renderer.domElement,
-      () => {
-        setIs2DFallback(true);
-      }
-    );
-
-    // 2. Audio Engine
+    // Audio Engine
     const audio = new Racing3DAudio();
     audio.init();
     audio.setMuted(!soundEnabled);
     audio.startEngine();
+    threeRef.current.audio = audio;
 
-    // 3. Build 3D Environment
+    // 3D Environment along +X
     const env = create3DEnvironment({
       scene,
       envConfig: environment,
       targetDistance,
     });
 
-    // 4. Build 4 Procedural 3D Supercars (Lanes 0 to 3, Left to Right)
+    // Determine Driver & Lane Configurations
+    const isMultiplayer = !!multiplayerContext?.room;
+    const selfLane = isMultiplayer ? (multiplayerContext.participant?.lane ?? 0) : 2;
+
+    // Build Player Supercar with user customization
     const playerVehicle = create3DVehicle({
-      vehicleConfig: vehicle,
+      vehicleConfig: {
+        id: customVehicle.selectedVehicleId,
+        color: customVehicle.primaryColor,
+        secondaryColor: customVehicle.secondaryColor,
+        glowColor: customVehicle.glowColor,
+        wheelFinish: customVehicle.wheelFinish,
+        nitroStyle: customVehicle.nitroStyle,
+      },
       isPlayer: true,
-      driverName: 'YOU',
-      lane: 2, // 3rd lane from top
+      driverName: driverName || 'YOU',
+      lane: selfLane,
       initialX: 0,
     });
     scene.add(playerVehicle.group);
 
-    const xavierVehicle = create3DVehicle({
-      vehicleConfig: { id: 'xavier-gt', color: '#A855F7', secondaryColor: '#1F2937' },
-      isPlayer: false,
-      driverName: 'Xavier',
-      lane: 0,
-      initialX: 0,
-    });
-    scene.add(xavierVehicle.group);
+    // Build Competitors (AI or Multiplayer Peers)
+    const competitors = {};
+    if (isMultiplayer) {
+      const peers = (multiplayerContext.participants || []).filter(
+        (p) => p.id !== multiplayerContext.participant?.id
+      );
+      peers.forEach((peer) => {
+        const peerCar = create3DVehicle({
+          vehicleConfig: {
+            id: peer.vehicle_id || 'cyber-phantom',
+            color: peer.primary_color || '#38BDF8',
+            secondaryColor: '#0F172A',
+            wheelFinish: peer.wheel_finish || 'chrome',
+            nitroStyle: peer.nitro_style || 'electric',
+          },
+          isPlayer: false,
+          driverName: peer.display_name || `Racer ${peer.lane + 1}`,
+          lane: peer.lane,
+          initialX: 0,
+        });
+        scene.add(peerCar.group);
+        competitors[`lane_${peer.lane}`] = peerCar;
+      });
+    } else {
+      // 3 AI Competitors in remaining lanes
+      const aiConfigs = [
+        { key: 'xavier', lane: 0, name: 'Xavier', color: '#A855F7', id: 'cyber-phantom' },
+        { key: 'thomas', lane: 1, name: 'Thomas', color: '#38BDF8', id: 'viper-venom' },
+        { key: 'joshua', lane: 3, name: 'Joshua', color: '#FACC15', id: 'solar-flare' },
+      ];
+      aiConfigs.forEach((cfg) => {
+        const aiCar = create3DVehicle({
+          vehicleConfig: { id: cfg.id, color: cfg.color, secondaryColor: '#18181B' },
+          isPlayer: false,
+          driverName: cfg.name,
+          lane: cfg.lane,
+          initialX: 0,
+        });
+        scene.add(aiCar.group);
+        competitors[cfg.key] = aiCar;
+      });
+    }
 
-    const thomasVehicle = create3DVehicle({
-      vehicleConfig: { id: 'thomas-gt', color: '#38BDF8', secondaryColor: '#0F172A' },
-      isPlayer: false,
-      driverName: 'Thomas',
-      lane: 1,
-      initialX: 0,
-    });
-    scene.add(thomasVehicle.group);
+    const allVehicles = { player: playerVehicle, ...competitors };
 
-    const joshuaVehicle = create3DVehicle({
-      vehicleConfig: { id: 'joshua-gt', color: '#FACC15', secondaryColor: '#18181B' },
-      isPlayer: false,
-      driverName: 'Joshua',
-      lane: 3,
-      initialX: 0,
-    });
-    scene.add(joshuaVehicle.group);
-
-    const vehicles = {
-      player: playerVehicle,
-      xavier: xavierVehicle,
-      thomas: thomasVehicle,
-      joshua: joshuaVehicle,
-    };
-
-    // Store in ref
     threeRef.current.scene = scene;
     threeRef.current.camera = camera;
     threeRef.current.cameraController = cameraController;
     threeRef.current.renderer = renderer;
     threeRef.current.env = env;
-    threeRef.current.vehicles = vehicles;
-    threeRef.current.audio = audio;
+    threeRef.current.vehicles = allVehicles;
 
-    // Handle Window Resize
+    // Window Resize Handler
     const handleResize = () => {
-      if (!mountRef.current || !renderer || !cameraController) return;
-      const newWidth = mountRef.current.clientWidth || 960;
-      renderer.setSize(newWidth, height);
-      cameraController.setAspect(newWidth / height);
+      if (!container || !renderer || !cameraController) return;
+      const newWidth = container.clientWidth;
+      const newHeight = container.clientHeight || 440;
+      renderer.setSize(newWidth, newHeight);
+      cameraController.setAspect(newWidth / newHeight);
     };
     window.addEventListener('resize', handleResize);
 
-    // Tab backgrounding safety handlers
-    const handleTabHidden = () => {
-      if (audio) audio.setMuted(true);
-    };
-    const handleTabRestored = () => {
-      if (audio && soundEnabled) audio.setMuted(false);
-      if (threeRef.current) {
-        threeRef.current.lastFrameTime = performance.now();
-      }
-    };
-    window.addEventListener('keyflow-tab-hidden', handleTabHidden);
-    window.addEventListener('keyflow-tab-restored', handleTabRestored);
-
-    // ==========================================
-    // 60 FPS SIMULATION & RENDER LOOP
-    // ==========================================
+    // 60 FPS Simulation Loop
     let animId;
     const renderLoop = (timestamp) => {
       if (!threeRef.current.lastFrameTime) threeRef.current.lastFrameTime = timestamp;
       const dt = Math.min(0.08, (timestamp - threeRef.current.lastFrameTime) / 1000);
       threeRef.current.lastFrameTime = timestamp;
 
-      const elapsed = Math.max(0.1, (timestamp - threeRef.current.raceStartTime) / 1000);
-      setElapsedTime(elapsed);
+      const isRacing = gameStateRef.current === 'racing';
+      const isNitro = isNitroActiveRef.current;
 
-      // Check Time Attack mode timer (60s limit)
+      const elapsed = Math.max(0.1, (timestamp - threeRef.current.raceStartTime) / 1000);
+      if (isRacing) {
+        setElapsedTime(elapsed);
+      }
+
+      // Check Time Attack limit
       if (selectedMode === 'time-attack' && elapsed >= 60 && !threeRef.current.isFinished) {
         threeRef.current.isFinished = true;
       }
@@ -704,82 +590,143 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
       const stream = threeRef.current.streamQueue;
       const streamMetrics = stream ? stream.getProgress() : { totalCorrect: 0, totalErrors: 0 };
       const words = streamMetrics.totalCorrect / 5;
-      const currentWpmVal = Math.round((words / (elapsed / 60))) || 0;
+      const currentWpmVal = Math.round(words / (elapsed / 60)) || 0;
       const totalStrokes = streamMetrics.totalCorrect + streamMetrics.totalErrors;
       const accVal = totalStrokes > 0 ? Math.round((streamMetrics.totalCorrect / totalStrokes) * 100) : 100;
 
-      // 1. Calculate Player Velocity from Continuous Typing
-      const baseMps = (currentWpmVal / 60) * 17.5; // ~1 WPM = ~0.29 m/s
-      const vehicleBonus = (vehicle.topSpeed - 80) * 0.006;
-      const accBonus = (vehicle.acceleration - 80) * 0.005;
-      const nitroMultiplier = isNitroActive ? 1.48 : 1.0;
-      const targetPlayerMps = Math.max(8.0, baseMps * (1 + vehicleBonus + accBonus) * nitroMultiplier);
+      // 1. Aerodynamic Drag & Momentum when idling
+      if (isRacing) {
+        const idleTime = (performance.now() - (threeRef.current.lastKeystrokeTime || performance.now())) / 1000;
+        if (idleTime > 1.2) {
+          const idleDecay = Math.pow(0.97, dt * 60);
+          threeRef.current.playerSpeed = Math.max(7.0, (threeRef.current.playerSpeed || 8) * idleDecay);
+        }
 
-      // Smooth vehicle momentum lerp
-      playerVehicle.targetSpeed = targetPlayerMps;
-      playerVehicle.distance += playerVehicle.targetSpeed * dt;
+        const vehicleBonus = (vehicle.topSpeed - 80) * 0.006;
+        const accBonus = (vehicle.acceleration - 80) * 0.005;
+        const nitroMultiplier = isNitro ? 1.48 : 1.0;
+        const cadenceFloor = Math.max(
+          7.0,
+          (currentWpmVal / 60) * 17.5 * (1 + vehicleBonus + accBonus) * nitroMultiplier
+        );
+        const finalSpeed = Math.max(cadenceFloor, (threeRef.current.playerSpeed || 7) * nitroMultiplier);
 
-      // 2. Advance AI Racers along +X
-      for (let i = 0; i < 3; i++) {
-        const competitor = AI_COMPETITORS[i];
-        const vKey = i === 0 ? 'xavier' : i === 1 ? 'thomas' : 'joshua';
-        const aiTargetMps = computeAiProgress({
-          tier: selectedTier,
-          competitor,
-          elapsedSeconds: elapsed,
-          playerDistance: playerVehicle.distance,
-          targetDistance,
-        });
-        vehicles[vKey].targetSpeed = aiTargetMps;
-        vehicles[vKey].distance += vehicles[vKey].targetSpeed * dt;
+        playerVehicle.targetSpeed = finalSpeed;
+        playerVehicle.distance += playerVehicle.targetSpeed * dt;
+      } else {
+        // Countdown state: cars idling on starting grid
+        playerVehicle.targetSpeed = 0;
       }
 
-      // 3. Update Audio Pitch mapped to live WPM & velocity
-      audio.updateLive(currentWpmVal, isNitroActive, playerVehicle.speed);
+      // 2. Advance AI Competitors along +X
+      if (!isMultiplayer && isRacing) {
+        AI_COMPETITORS.forEach((competitor, idx) => {
+          const vKey = idx === 0 ? 'xavier' : idx === 1 ? 'thomas' : 'joshua';
+          if (competitors[vKey]) {
+            const aiTargetMps = computeAiProgress({
+              aiRacer: competitor,
+              tierConfig,
+              playerWpm: currentWpmVal,
+              elapsedSeconds: elapsed,
+              currentProgress: (competitors[vKey].distance / targetDistance) * 100,
+              targetDistance,
+            });
+            competitors[vKey].targetSpeed = aiTargetMps;
+            competitors[vKey].distance += competitors[vKey].targetSpeed * dt;
+          }
+        });
+      }
 
-      // 4. Update 3D Visual Kinematics (Wheels, Flames, Underglow, Positions)
-      Object.values(vehicles).forEach((v) => {
-        v.update(dt, isNitroActive && v.isPlayer, dt > 0.001);
+      // 3. Sync Multiplayer Telemetry
+      if (isMultiplayer && isRacing) {
+        const nowMs = performance.now();
+        if (nowMs - (threeRef.current.lastSyncTime || 0) > 180) {
+          threeRef.current.lastSyncTime = nowMs;
+          fetch(`/api/games/racing/rooms/${multiplayerContext.room.code}/sync/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              participantId: multiplayerContext.participant?.id,
+              distance: playerVehicle.distance,
+              speed: playerVehicle.currentSpeed,
+              wpm: currentWpmVal,
+              accuracy: accVal,
+              placement: currentPlacement,
+              isFinished: threeRef.current.isFinished,
+              finishTime: elapsed,
+            }),
+          })
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+              if (data?.participants) {
+                data.participants.forEach((peer) => {
+                  if (peer.id !== multiplayerContext.participant?.id) {
+                    const peerCar = competitors[`lane_${peer.lane}`];
+                    if (peerCar) {
+                      peerCar.distance = peer.distance;
+                      peerCar.targetSpeed = peer.speed;
+                    }
+                  }
+                });
+              }
+            })
+            .catch(() => {});
+        }
+      }
+
+      // 4. Update Audio Engine
+      audio.updateLive(currentWpmVal, isNitro, playerVehicle.currentSpeed);
+
+      // 5. Update Follow Camera
+      cameraController.update({
+        playerX: playerVehicle.distance,
+        speed: playerVehicle.currentSpeed,
+        isNitro,
+        dt,
+        isFinished: threeRef.current.isFinished,
       });
 
-      // 5. Update Procedural Environment along +X
+      // 6. Update Environment
       env.update(playerVehicle.distance);
 
-      // 6. Update Follow Camera
-      cameraController.update(playerVehicle.group.position, isNitroActive, dt);
-
-      // 7. Update Live Telemetry State
+      // 7. Calculate Live Placements & Update Billboard Badges
       const racerList = [
-        { driverName: 'YOU', distance: playerVehicle.distance, isPlayer: true },
-        { driverName: 'Xavier', distance: vehicles.xavier.distance, isPlayer: false },
-        { driverName: 'Thomas', distance: vehicles.thomas.distance, isPlayer: false },
-        { driverName: 'Joshua', distance: vehicles.joshua.distance, isPlayer: false },
+        { driverName: driverName || 'YOU', distance: playerVehicle.distance, isPlayer: true, vehicle: playerVehicle },
+        ...Object.entries(competitors).map(([k, v]) => ({
+          driverName: v.driverName,
+          distance: v.distance,
+          isPlayer: false,
+          vehicle: v,
+        })),
       ].sort((a, b) => b.distance - a.distance);
 
       racerList.forEach((r, idx) => {
-        r.placement = idx + 1;
-        if (r.isPlayer) {
-          playerVehicle.badge.update(r.placement, playerVehicle.speed);
-        } else {
-          const vKey = r.driverName.toLowerCase();
-          if (vehicles[vKey]) {
-            vehicles[vKey].badge.update(r.placement, vehicles[vKey].speed);
-          }
-        }
+        const rank = idx + 1;
+        r.vehicle.update({
+          speed: r.vehicle.targetSpeed,
+          dt,
+          isNitro: isNitro && r.isPlayer,
+          placement: rank,
+          currentWpm: r.isPlayer ? currentWpmVal : Math.round(r.vehicle.targetSpeed * 3.4),
+          nitroStyle: customVehicleRef.current.nitroStyle,
+        });
       });
 
       const playerRank = racerList.find((r) => r.isPlayer)?.placement || 1;
-      setPlayerPlacement(playerRank);
+      setCurrentPlacement(playerRank);
       setLiveWpm(currentWpmVal);
-      setAccuracy(accVal);
+      setLiveAccuracy(accVal);
       setTotalDistanceCovered(playerVehicle.distance);
 
-      // 8. Check Race Finish Condition
+      // 8. Render Frame
+      renderer.render(scene, camera);
+
+      // 9. Finish Race Condition
       const totalDist = playerVehicle.distance;
       const isTargetReached = totalDist >= targetDistance;
       const isTimeAttackDone = selectedMode === 'time-attack' && elapsed >= 60;
 
-      if ((isTargetReached || isTimeAttackDone) && !threeRef.current.isFinished) {
+      if ((isTargetReached || isTimeAttackDone) && !threeRef.current.isFinished && isRacing) {
         threeRef.current.isFinished = true;
         audio.playFinishFanfare();
 
@@ -795,32 +742,28 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
           distance: totalDist,
         });
 
-        setRaceResult({
+        setFinalResults({
           isWinner,
           placement: finalRank,
           finalWpm: currentWpmVal,
           peakWpm: Math.max(peakWpm, currentWpmVal),
           accuracy: accVal,
           elapsedTime: elapsed,
-          totalDistance: totalDist,
+          totalDistance: Math.round(totalDist),
           nitroBurstsUsed,
           tierName: tierConfig.name,
           rewardCoins: finalRank === 1 ? tierConfig.rewardCoins : Math.round(tierConfig.rewardCoins * 0.45),
-          standings: racerList.map((r) => ({
+          standings: racerList.map((r, idx) => ({
             id: r.driverName,
             name: r.driverName,
-            placement: r.placement,
+            placement: idx + 1,
             distance: Math.round(r.distance),
           })),
         });
 
-        setTimeout(() => {
-          setGameState('gameover');
-        }, 1500);
+        setGameState('gameover');
+        return;
       }
-
-      // Render 3D Scene
-      renderer.render(scene, camera);
 
       animId = requestAnimationFrame(renderLoop);
     };
@@ -830,40 +773,38 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
-      window.removeEventListener('keyflow-tab-hidden', handleTabHidden);
-      window.removeEventListener('keyflow-tab-restored', handleTabRestored);
-      cleanupContextLoss();
       audio.cleanup();
+      playerVehicle.dispose();
+      Object.values(competitors).forEach((c) => c.dispose());
       env.dispose();
-      Object.values(vehicles).forEach((v) => v.dispose());
-      GameLifecycleManager.disposeThreeScene(scene, renderer);
+      renderer.dispose();
     };
   }, [
-    gameState,
-    vehicle,
+    isRaceActive,
+    is2DFallback,
+    selectedMode,
+    selectedTier,
+    targetDistance,
+    selectedEnvId,
     environment,
     tierConfig,
-    targetDistance,
-    selectedMode,
-    isNitroActive,
-    peakWpm,
-    selectedTier,
+    vehicle,
+    driverName,
+    multiplayerContext,
     soundEnabled,
-    nitroBurstsUsed,
-    is2DFallback,
   ]);
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-4" onClick={focusInput}>
-      {/* 1. Header Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm">
+      {/* 1. TOP HEADER & HUD BAR */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-md">
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
             size="sm"
             icon={ArrowLeft}
             onClick={() => {
-              if (gameState === 'racing') {
+              if (gameState === 'racing' || gameState === 'countdown') {
                 setShowExitConfirm(true);
               } else {
                 onExit();
@@ -876,7 +817,7 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
             <div className="flex items-center gap-2">
               <Car className="w-5 h-5 text-red-500" />
               <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
-                Nitro Type Pro 3D
+                Nitro Racing Pro 3D
               </h2>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-red-500/15 text-red-400 border border-red-500/30">
                 Tier {selectedTier}: {tierConfig.name}
@@ -886,7 +827,7 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
               </span>
             </div>
             <p className="text-[11px] font-mono text-[var(--text-muted)]">
-              {environment.name} • 3D WebGL Left-to-Right Speedway
+              {environment.name} • Left-to-Right (+X) Kinetic Speedway
             </p>
           </div>
         </div>
@@ -907,7 +848,7 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
           >
             Settings
           </Button>
-          {gameState === 'racing' && (
+          {(gameState === 'racing' || gameState === 'countdown') && (
             <Button
               variant="outline"
               size="sm"
@@ -921,410 +862,505 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
         </div>
       </div>
 
-      {/* 2D Fallback Notice Banner */}
-      {is2DFallback && (
-        <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono text-xs animate-in fade-in">
-          <div className="flex items-center gap-2">
-            <Zap className="w-4 h-4 text-amber-400" />
-            <span><strong>High-Performance 2D Canvas Mode:</strong> WebGL hardware acceleration unavailable.</span>
-          </div>
-          <span className="text-[10px] text-amber-400/90 hidden sm:inline">Continuous Typing Kinematics & AI Opponents Preserved</span>
-        </div>
-      )}
-
-      {/* 2. CHAMPIONSHIP GARAGE & VEHICLE TUNING SCREEN */}
+      {/* 2. PRE-RACE HUB SCREEN (Modes, Garage, Multiplayer) */}
       {gameState === 'garage' && (
-        <div className="p-5 sm:p-7 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xl space-y-7 animate-in fade-in duration-200">
-          <div className="text-center max-w-xl mx-auto space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-red-500/15 text-red-400 border border-red-500/30">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>3D SPEEDWAY GARAGE</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
-              Tune Your Supercar. Rule the 3D Strip.
-            </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
-              Continuous typing propels your 3D vehicle from left to right on WebGL asphalt against Xavier, Thomas, and Joshua.
-            </p>
-          </div>
-
-          {/* Game Mode Selector (3 Modes) */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Select Race Mode
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              {RACING_MODES.map((mode) => {
-                const Icon = mode.icon;
-                const isSelected = mode.id === selectedMode;
-                return (
-                  <button
-                    key={mode.id}
-                    type="button"
-                    onClick={() => setSelectedMode(mode.id)}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-red-500 bg-red-500/10 shadow-lg ring-1 ring-red-500/50'
-                        : 'border-[var(--border)] bg-[var(--bg-elevated)]/60 hover:border-red-500/40'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <Icon className="w-4 h-4 text-red-400" />
-                        <span className="text-xs font-bold text-[var(--text-primary)]">{mode.name}</span>
-                      </div>
-                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border)]">
-                        {mode.badge}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
-                      {mode.desc}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Supercar Selector (5 Models) */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Select 3D Supercar ({RACING_VEHICLES.length} Models)
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
-              {RACING_VEHICLES.map((v) => {
-                const isSelected = v.id === selectedVehicleId;
-                return (
-                  <button
-                    key={v.id}
-                    type="button"
-                    onClick={() => setSelectedVehicleId(v.id)}
-                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer relative overflow-hidden group ${
-                      isSelected
-                        ? 'border-red-500 bg-red-500/10 shadow-lg ring-1 ring-red-500/50'
-                        : 'border-[var(--border)] bg-[var(--bg-elevated)]/60 hover:border-red-500/50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-[var(--text-primary)] group-hover:text-red-400 transition-colors">
-                        {v.name}
-                      </span>
-                      <div
-                        className="w-3.5 h-3.5 rounded-full shadow-xs"
-                        style={{ backgroundColor: v.color }}
-                      />
-                    </div>
-                    <span className="text-[10px] font-mono text-[var(--text-muted)] block mb-2.5">
-                      {v.class}
-                    </span>
-
-                    <div className="space-y-1.5 text-[9px] font-mono text-[var(--text-secondary)]">
-                      <div>
-                        <div className="flex justify-between">
-                          <span>Top Speed</span>
-                          <span>{v.topSpeed}</span>
-                        </div>
-                        <div className="h-1 rounded-full bg-[var(--border)] overflow-hidden mt-0.5">
-                          <div className="h-full bg-cyan-400" style={{ width: `${v.topSpeed}%` }} />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between">
-                          <span>Acceleration</span>
-                          <span>{v.acceleration}</span>
-                        </div>
-                        <div className="h-1 rounded-full bg-[var(--border)] overflow-hidden mt-0.5">
-                          <div className="h-full bg-emerald-400" style={{ width: `${v.acceleration}%` }} />
-                        </div>
-                      </div>
-                      <div>
-                        <div className="flex justify-between">
-                          <span>Nitro</span>
-                          <span>{v.nitroBoost}</span>
-                        </div>
-                        <div className="h-1 rounded-full bg-[var(--border)] overflow-hidden mt-0.5">
-                          <div className="h-full bg-amber-400" style={{ width: `${v.nitroBoost}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Environment & Circuit Selector (4 Themes) */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Select 3D Environment & Circuit
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {RACING_ENVIRONMENTS.map((env) => {
-                const isSelected = env.id === selectedEnvId;
-                return (
-                  <button
-                    key={env.id}
-                    type="button"
-                    onClick={() => setSelectedEnvId(env.id)}
-                    className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-cyan-500 bg-cyan-500/10 shadow-md ring-1 ring-cyan-500/50'
-                        : 'border-[var(--border)] bg-[var(--bg-elevated)]/60 hover:border-cyan-500/40'
-                    }`}
-                  >
-                    <div
-                      className="h-1.5 w-full rounded-full mb-2"
-                      style={{ background: `linear-gradient(to right, ${env.skyGradient[1]}, ${env.accentColor})` }}
-                    />
-                    <div className="text-xs font-bold text-[var(--text-primary)]">{env.name}</div>
-                    <div className="text-[10px] font-mono text-[var(--text-muted)]">{env.theme}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Difficulty Tier Selector (8 Tiers) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                Championship Division (Difficulty Tier)
-              </h3>
-              <span className="text-xs font-mono text-orange-400">
-                Pace: {tierConfig.minWpm}–{tierConfig.maxWpm} WPM • AI Target: {tierConfig.aiBaseWpm} WPM
-              </span>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
-              {RACING_TIERS.map((tItem) => {
-                const isSelected = tItem.tier === selectedTier;
-                return (
-                  <button
-                    key={tItem.tier}
-                    type="button"
-                    onClick={() => setSelectedTier(tItem.tier)}
-                    className={`py-2 px-1 text-center rounded-lg border font-mono text-xs transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-orange-500 bg-orange-500/20 text-orange-300 font-bold shadow-xs'
-                        : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                    }`}
-                  >
-                    <div className="text-[10px] opacity-70">Tier {tItem.tier}</div>
-                    <div className="truncate font-semibold">{tItem.name}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Launch Button */}
-          <div className="pt-2 text-center">
-            <Button
-              variant="primary"
-              size="lg"
-              icon={Play}
-              onClick={handleStartRace}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 shadow-xl hover:shadow-red-600/25 transition-all text-sm sm:text-base cursor-pointer"
-            >
-              LAUNCH INTO 3D SPEEDWAY (SPACE / ENTER)
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* 3. 3-2-1 COUNTDOWN OVERLAY */}
-      {gameState === 'countdown' && (
-        <div className="p-12 sm:p-16 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl flex flex-col items-center justify-center space-y-6 text-center animate-in zoom-in-95 duration-150">
-          <div className="text-xs font-mono uppercase tracking-widest text-red-400">
-            Grid Position Ready • Revving Engines
-          </div>
-          <div className="w-28 h-28 sm:w-36 sm:h-36 rounded-full bg-red-500/10 border-2 border-red-500 flex items-center justify-center shadow-2xl animate-pulse">
-            <span className="text-5xl sm:text-7xl font-extrabold text-red-500 font-mono">
-              {countdown > 0 ? countdown : 'GO!'}
-            </span>
-          </div>
-          <p className="text-xs font-mono text-[var(--text-secondary)]">
-            Keep your fingers on the home row. Type continuously to drive!
-          </p>
-        </div>
-      )}
-
-      {/* 4. ACTIVE 3D RACING VIEWPORT */}
-      {gameState === 'racing' && (
-        <div className="space-y-3">
-          {/* Telemetry HUD Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 p-3 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] font-mono text-center shadow-md">
-            {/* Position */}
-            <div className="p-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)]">
-              <span className="text-[10px] uppercase text-[var(--text-muted)] block">Position</span>
-              <div className="flex items-center justify-center gap-1 mt-0.5">
-                <Trophy
-                  className={`w-4 h-4 ${
-                    currentPlacement === 1 ? 'text-amber-400' : currentPlacement === 2 ? 'text-slate-300' : 'text-amber-600'
-                  }`}
-                />
-                <span className="text-lg font-extrabold text-[var(--text-primary)]">
-                  #{currentPlacement}
-                </span>
-                <span className="text-[10px] text-[var(--text-muted)]">/ 4</span>
-              </div>
-            </div>
-
-            {/* Speedometer */}
-            <div className="p-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)]">
-              <span className="text-[10px] uppercase text-[var(--text-muted)] block">Speedometer</span>
-              <div className="flex items-center justify-center gap-1 mt-0.5">
-                <Gauge className="w-4 h-4 text-cyan-400" />
-                <span className="text-lg font-extrabold text-cyan-400">
-                  {liveWpm}
-                </span>
-                <span className="text-[10px] text-[var(--text-muted)]">WPM</span>
-              </div>
-            </div>
-
-            {/* Accuracy */}
-            <div className="p-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)]">
-              <span className="text-[10px] uppercase text-[var(--text-muted)] block">Accuracy</span>
-              <div className="flex items-center justify-center gap-1 mt-0.5">
-                <Shield className="w-4 h-4 text-emerald-400" />
-                <span className="text-lg font-extrabold text-emerald-400">
-                  {liveAccuracy}%
-                </span>
-              </div>
-            </div>
-
-            {/* Lap Stopwatch Timer */}
-            <div className="p-2 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)]">
-              <span className="text-[10px] uppercase text-[var(--text-muted)] block">
-                {selectedMode === 'time-attack' ? 'Time Remaining' : 'Lap Time'}
-              </span>
-              <div className="flex items-center justify-center gap-1 mt-0.5">
-                <Clock className="w-4 h-4 text-amber-400" />
-                <span className="text-base font-bold text-[var(--text-primary)]">
-                  {selectedMode === 'time-attack' ? `${Math.max(0, 60 - Math.floor(elapsedTime))}s` : formatLapTime(elapsedTime)}
-                </span>
-              </div>
-            </div>
-
-            {/* Nitro Boost Surge Meter */}
-            <div
-              className={`p-2 rounded-lg border transition-all cursor-pointer ${
-                isNitroActive
-                  ? 'bg-red-500/20 border-red-500 animate-pulse'
-                  : nitroMeter >= 50
-                  ? 'bg-amber-500/10 border-amber-500/40 hover:bg-amber-500/20'
-                  : 'bg-[var(--bg-elevated)] border-[var(--border)]'
+        <div className="space-y-4">
+          {/* Navigation Pill Tabs */}
+          <div className="flex items-center justify-center p-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] max-w-md mx-auto">
+            <button
+              type="button"
+              onClick={() => setHubTab('modes')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                hubTab === 'modes'
+                  ? 'bg-red-600 text-white shadow-md'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
-              onClick={triggerNitroBoost}
-              title="Click or press Space when charged to trigger Nitro"
             >
-              <div className="flex items-center justify-between text-[10px] uppercase">
-                <span className={isNitroActive ? 'text-red-400 font-bold' : 'text-[var(--text-muted)]'}>
-                  {isNitroActive ? 'NITRO ENGAGED!' : 'Nitro Surge'}
+              <Flag className="w-3.5 h-3.5" /> Circuit Modes
+            </button>
+            <button
+              type="button"
+              onClick={() => setHubTab('garage')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                hubTab === 'garage'
+                  ? 'bg-red-600 text-white shadow-md'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <Palette className="w-3.5 h-3.5" /> 3D Garage
+            </button>
+            <button
+              type="button"
+              onClick={() => setHubTab('multiplayer')}
+              className={`flex-1 py-2 px-3 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                hubTab === 'multiplayer'
+                  ? 'bg-red-600 text-white shadow-md'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" /> Multiplayer
+            </button>
+          </div>
+
+          {/* TAB 1: CIRCUIT MODES & LAUNCH */}
+          {hubTab === 'modes' && (
+            <div className="p-5 sm:p-7 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xl space-y-7 animate-in fade-in duration-200">
+              <div className="text-center max-w-xl mx-auto space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-red-500/15 text-red-400 border border-red-500/30">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>AAA 3D TYPING SPEEDWAY</span>
+                </div>
+                <h1 className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight">
+                  Kinetic Velocity. True 3D Drag Strip.
+                </h1>
+                <p className="text-xs sm:text-sm text-[var(--text-secondary)]">
+                  Progressive acceleration transforms every keystroke into forward momentum (+X). Hit Tab for high-octane nitro bursts!
+                </p>
+              </div>
+
+              {/* Game Modes */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Select Race Mode
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                  {RACING_MODES.map((mode) => {
+                    const Icon = mode.icon;
+                    const isSelected = mode.id === selectedMode;
+                    return (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => setSelectedMode(mode.id)}
+                        className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-red-500 bg-red-500/10 shadow-lg ring-1 ring-red-500/50'
+                            : 'border-[var(--border)] bg-[var(--bg-elevated)]/60 hover:border-red-500/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <Icon className="w-4 h-4 text-red-400" />
+                            <span className="text-xs font-bold text-[var(--text-primary)]">{mode.name}</span>
+                          </div>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[var(--bg-main)] text-[var(--text-muted)] border border-[var(--border)]">
+                            {mode.badge}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                          {mode.desc}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Circuit Environments */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Select 3D Environment & Circuit
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {RACING_ENVIRONMENTS.map((env) => {
+                    const isSelected = env.id === selectedEnvId;
+                    return (
+                      <button
+                        key={env.id}
+                        type="button"
+                        onClick={() => setSelectedEnvId(env.id)}
+                        className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-cyan-500 bg-cyan-500/10 shadow-md ring-1 ring-cyan-500/50'
+                            : 'border-[var(--border)] bg-[var(--bg-elevated)]/60 hover:border-cyan-500/40'
+                        }`}
+                      >
+                        <div
+                          className="h-1.5 w-full rounded-full mb-2"
+                          style={{ background: `linear-gradient(to right, ${env.skyGradient[1]}, ${env.accentColor})` }}
+                        />
+                        <div className="text-xs font-bold text-[var(--text-primary)]">{env.name}</div>
+                        <div className="text-[10px] font-mono text-[var(--text-muted)]">{env.theme}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Difficulty Tiers */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                    Championship Division (Difficulty Tier)
+                  </h3>
+                  <span className="text-xs font-mono text-orange-400">
+                    Pace: {tierConfig.minWpm}–{tierConfig.maxWpm} WPM • AI Target: {tierConfig.aiBaseWpm} WPM
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2">
+                  {RACING_TIERS.map((tItem) => {
+                    const isSelected = tItem.tier === selectedTier;
+                    return (
+                      <button
+                        key={tItem.tier}
+                        type="button"
+                        onClick={() => setSelectedTier(tItem.tier)}
+                        className={`py-2 px-1 text-center rounded-lg border font-mono text-xs transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-orange-500 bg-orange-500/20 text-orange-300 font-bold shadow-xs'
+                            : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                        }`}
+                      >
+                        <div className="text-[10px] opacity-70">Tier {tItem.tier}</div>
+                        <div className="truncate font-semibold">{tItem.name}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Launch Button */}
+              <div className="pt-2 text-center">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  icon={Play}
+                  onClick={handleStartRace}
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 shadow-xl hover:shadow-red-600/25 transition-all text-sm sm:text-base cursor-pointer"
+                >
+                  ENTER 3D STARTING GRID (SPACE / ENTER)
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: 3D SHOWROOM GARAGE & CUSTOMIZATION */}
+          {hubTab === 'garage' && (
+            <div className="p-5 sm:p-7 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-xl space-y-7 animate-in fade-in">
+              <div className="text-center max-w-xl mx-auto space-y-1">
+                <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)]">
+                  Vehicle Showroom & Paint Studio
+                </h2>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Customize your supercar livery, wheel alloys, neon underglow, and nitro visual style with live 3D turntable preview.
+                </p>
+              </div>
+
+              {/* 3D Turntable Preview */}
+              <Racing3DGarageTurntable
+                vehicleId={customVehicle.selectedVehicleId}
+                primaryColor={customVehicle.primaryColor}
+                secondaryColor={customVehicle.secondaryColor}
+                wheelFinish={customVehicle.wheelFinish}
+                glowColor={customVehicle.glowColor}
+                nitroStyle={customVehicle.nitroStyle}
+                driverName={driverName}
+              />
+
+              {/* Driver Identity Editor */}
+              <div className="p-4 rounded-xl bg-[var(--bg-elevated)]/60 border border-[var(--border)] flex flex-col sm:flex-row items-center gap-3">
+                <div className="flex-1 w-full space-y-1">
+                  <label className="text-xs font-mono font-bold text-[var(--text-muted)] uppercase">
+                    Racing Display Name (Floating 3D Billboard)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={16}
+                    value={driverName}
+                    onChange={(e) => setDriverName(e.target.value.toUpperCase())}
+                    className="w-full px-3.5 py-2 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-sm font-mono font-bold text-[var(--text-primary)] focus:outline-none focus:border-red-500 uppercase"
+                  />
+                </div>
+                <div className="text-xs font-mono text-zinc-400">
+                  Renders floating above your car in all 3D races and multiplayer rooms.
+                </div>
+              </div>
+
+              {/* Supercar Selector (5 Models) */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Select 3D Supercar ({RACING_VEHICLES.length} Models)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                  {RACING_VEHICLES.map((v) => {
+                    const isSelected = v.id === customVehicle.selectedVehicleId;
+                    return (
+                      <button
+                        key={v.id}
+                        type="button"
+                        onClick={() => setCustomVehicle((prev) => ({ ...prev, selectedVehicleId: v.id }))}
+                        className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-red-500 bg-red-500/10 shadow-lg ring-1 ring-red-500/50'
+                            : 'border-[var(--border)] bg-[var(--bg-elevated)]/60 hover:border-red-500/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-xs font-bold text-[var(--text-primary)]">{v.name}</span>
+                          <span className="text-[9px] font-mono px-1 rounded bg-black/40 text-zinc-400">
+                            {v.class}
+                          </span>
+                        </div>
+                        <div className="space-y-1 text-[9px] font-mono text-[var(--text-secondary)]">
+                          <div className="flex justify-between">
+                            <span>Top Speed</span>
+                            <span className="text-cyan-400">{v.topSpeed}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Acceleration</span>
+                            <span className="text-emerald-400">{v.acceleration}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Nitro</span>
+                            <span className="text-amber-400">{v.nitroBoost}</span>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Paint & Visual Styling Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {/* 1. Body Paint Swatches */}
+                <div className="space-y-2.5 p-4 rounded-xl bg-[var(--bg-elevated)]/40 border border-[var(--border)]">
+                  <span className="text-xs font-mono font-bold uppercase text-[var(--text-muted)] block">
+                    Body Paint Livery
+                  </span>
+                  <div className="grid grid-cols-4 gap-2">
+                    {BODY_COLOR_PALETTE.map((c) => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        onClick={() => setCustomVehicle((prev) => ({ ...prev, primaryColor: c.hex }))}
+                        className={`h-9 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer ${
+                          customVehicle.primaryColor === c.hex
+                            ? 'border-white scale-105 shadow-md'
+                            : 'border-transparent hover:border-white/40'
+                        }`}
+                        style={{ backgroundColor: c.hex }}
+                        title={c.name}
+                      >
+                        {customVehicle.primaryColor === c.hex && <Check className="w-4 h-4 text-white drop-shadow" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. Wheel Rim Finishes */}
+                <div className="space-y-2.5 p-4 rounded-xl bg-[var(--bg-elevated)]/40 border border-[var(--border)]">
+                  <span className="text-xs font-mono font-bold uppercase text-[var(--text-muted)] block">
+                    Alloy Rim Finish
+                  </span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {WHEEL_FINISHES.map((w) => (
+                      <button
+                        key={w.id}
+                        type="button"
+                        onClick={() => setCustomVehicle((prev) => ({ ...prev, wheelFinish: w.id }))}
+                        className={`p-2.5 rounded-lg border text-left font-mono text-xs transition-all cursor-pointer flex items-center gap-2 ${
+                          customVehicle.wheelFinish === w.id
+                            ? 'border-red-500 bg-red-500/15 text-[var(--text-primary)] font-bold'
+                            : 'border-[var(--border)] bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+                        }`}
+                      >
+                        <div className="w-3.5 h-3.5 rounded-full border border-white/20" style={{ backgroundColor: w.color }} />
+                        <span className="truncate">{w.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 3. Underglow Neon */}
+                <div className="space-y-2.5 p-4 rounded-xl bg-[var(--bg-elevated)]/40 border border-[var(--border)]">
+                  <span className="text-xs font-mono font-bold uppercase text-[var(--text-muted)] block">
+                    Underglow Neon
+                  </span>
+                  <div className="grid grid-cols-6 gap-2">
+                    {UNDERGLOW_PALETTE.map((u) => (
+                      <button
+                        key={u.hex}
+                        type="button"
+                        onClick={() => setCustomVehicle((prev) => ({ ...prev, glowColor: u.hex }))}
+                        className={`h-9 rounded-lg border-2 flex items-center justify-center transition-all cursor-pointer ${
+                          customVehicle.glowColor === u.hex
+                            ? 'border-white scale-105 shadow-md'
+                            : 'border-transparent hover:border-white/40'
+                        }`}
+                        style={{ backgroundColor: u.hex }}
+                        title={u.name}
+                      >
+                        {customVehicle.glowColor === u.hex && <Check className="w-4 h-4 text-white drop-shadow" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 6 Distinct Nitro Visual Styles */}
+              <div className="space-y-3">
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
+                  Customizable Nitro Visual System (6 Styles)
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {NITRO_STYLES.map((style) => {
+                    const isSelected = customVehicle.nitroStyle === style.id;
+                    return (
+                      <button
+                        key={style.id}
+                        type="button"
+                        onClick={() => setCustomVehicle((prev) => ({ ...prev, nitroStyle: style.id }))}
+                        className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? 'border-red-500 bg-red-500/10 shadow-lg ring-1 ring-red-500/50'
+                            : 'border-[var(--border)] bg-[var(--bg-elevated)]/60 hover:border-red-500/40'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <Flame className="w-4 h-4" style={{ color: style.color }} />
+                            <span className="text-xs font-bold text-[var(--text-primary)]">{style.name}</span>
+                          </div>
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/40 text-zinc-300">
+                            {style.badge}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                          {style.description}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: REAL MULTIPLAYER ROOMS & LOBBY */}
+          {hubTab === 'multiplayer' && (
+            <Racing3DMultiplayerLobby
+              customVehicle={customVehicle}
+              driverName={driverName}
+              onStartMultiplayerRace={handleStartMultiplayerRace}
+              onBackToGarage={() => setHubTab('modes')}
+            />
+          )}
+        </div>
+      )}
+
+      {/* 3. ACTIVE 3D RACING VIEWPORT & HEADS-UP DISPLAY */}
+      {(gameState === 'racing' || gameState === 'countdown') && (
+        <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] shadow-2xl bg-black animate-in fade-in duration-150">
+          {/* Stable Aspect-Ratio 3D Mount Stage */}
+          <div ref={mountRef} className="w-full h-[400px] sm:h-[460px] cursor-text" />
+
+          {/* Hidden continuous typing input anchor */}
+          <input
+            ref={inputRef}
+            type="text"
+            autoFocus
+            value=""
+            onChange={() => {}}
+            onKeyDown={handleKeyDown}
+            className="absolute top-0 left-0 w-px h-px opacity-0 pointer-events-none"
+            aria-label="3D Racing Continuous Typing Input"
+          />
+
+          {/* COUNTDOWN OVERLAY ON TOP OF 3D STARTING GRID */}
+          {gameState === 'countdown' && (
+            <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px] flex flex-col items-center justify-center space-y-4 text-center z-30 animate-in fade-in">
+              <span className="text-xs font-mono uppercase tracking-widest text-red-400 font-bold">
+                GRID READY • REVVING ENGINES
+              </span>
+              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full bg-red-500/20 border-2 border-red-500 flex items-center justify-center shadow-2xl animate-pulse">
+                <span className="text-5xl sm:text-6xl font-black text-red-500 font-mono">
+                  {countdown > 0 ? countdown : 'GO!'}
                 </span>
-                <Flame className={`w-3 h-3 ${nitroMeter >= 50 ? 'text-amber-400' : 'text-[var(--text-muted)]'}`} />
               </div>
-              <div className="h-2 rounded-full bg-[var(--border)] overflow-hidden mt-1.5">
-                <div
-                  className={`h-full transition-all duration-150 ${
-                    isNitroActive ? 'bg-red-500 shadow-md shadow-red-500' : 'bg-gradient-to-r from-amber-500 to-red-500'
-                  }`}
-                  style={{ width: `${nitroMeter}%` }}
-                />
-              </div>
+              <p className="text-xs font-mono text-zinc-300">
+                Continuous typing propels your vehicle along +X!
+              </p>
             </div>
+          )}
+
+          {/* Top Live Telemetry HUD Bar */}
+          <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 pointer-events-none z-20">
+            {/* Live Placement Pill */}
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/75 border border-white/10 backdrop-blur-md shadow-lg">
+              <span className="text-xs font-mono text-zinc-400">POS</span>
+              <span className="text-lg font-black text-white font-mono">
+                #{currentPlacement}
+              </span>
+              <span className="text-xs font-mono text-zinc-400">/ 4</span>
+            </div>
+
+            {/* Live Velocity & Accuracy Badges */}
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/75 border border-white/10 backdrop-blur-md shadow-lg">
+                <Gauge className="w-4 h-4 text-cyan-400" />
+                <span className="text-sm font-mono font-bold text-cyan-400">{liveWpm}</span>
+                <span className="text-[10px] font-mono text-zinc-400">WPM</span>
+              </div>
+
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/75 border border-white/10 backdrop-blur-md shadow-lg">
+                <Award className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm font-mono font-bold text-emerald-400">{liveAccuracy}%</span>
+              </div>
+
+              {comboStreak > 5 && (
+                <div className="hidden sm:flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold animate-pulse">
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>{comboStreak} STREAK</span>
+                </div>
+              )}
+            </div>
+
+            {/* Nitro Boost Button / Trigger */}
+            <button
+              type="button"
+              onClick={triggerNitroBoost}
+              disabled={nitroMeter < 25 || isNitroActive}
+              className={`pointer-events-auto px-3.5 py-1.5 rounded-xl font-mono text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-lg ${
+                isNitroActive
+                  ? 'bg-cyan-500 text-white animate-pulse shadow-cyan-500/50'
+                  : nitroMeter >= 25
+                  ? 'bg-amber-500 hover:bg-amber-600 text-black shadow-amber-500/30'
+                  : 'bg-black/60 text-zinc-500 border border-white/10'
+              }`}
+            >
+              <Flame className="w-3.5 h-3.5" />
+              <span>{isNitroActive ? 'NITRO ENGAGED' : 'NITRO (TAB)'}</span>
+              <span className="text-[10px] opacity-80">{Math.round(nitroMeter)}%</span>
+            </button>
           </div>
 
-          {/* Three.js 3D WebGL Speedway Canvas Viewport (LEFT TO RIGHT RACING) */}
-          <div className="rounded-2xl overflow-hidden border border-[var(--border)] shadow-2xl bg-black relative">
-            <div
-              ref={mountRef}
-              className="w-full h-[400px] block cursor-pointer"
-              onClick={focusInput}
-            />
-
-            {/* Mini-Track Progress Bar Overlay at bottom */}
-            <div className="absolute bottom-2 left-4 right-4 py-1.5 px-3 rounded-lg bg-black/80 backdrop-blur-xs border border-white/10 flex items-center gap-3 text-[10px] font-mono text-white/80">
-              <span className="shrink-0 flex items-center gap-1 text-red-400 font-bold">
-                <Flag className="w-3 h-3" /> TRACK PROGRESS
+          {/* Bottom HUD: Continuous Passage Stream Sliding Window */}
+          <div className="absolute bottom-3 left-3 right-3 p-4 rounded-xl bg-black/85 border border-white/10 backdrop-blur-md z-20">
+            <div className="flex items-center justify-between text-xs font-mono text-zinc-400 mb-2 pb-1 border-b border-white/10">
+              <span className="text-[11px] font-bold text-red-400 uppercase tracking-wide">
+                CONTINUOUS PASSAGE STREAM • TYPING FOCUS ACTIVE
               </span>
-              <div className="flex-1 h-2 rounded-full bg-white/15 relative overflow-hidden">
-                <div
-                  className="absolute top-0 bottom-0 w-2 rounded-full bg-purple-400 transition-all duration-75"
-                  style={{ left: `${Math.min(98, miniProgress.xavier)}%` }}
-                  title="Xavier"
-                />
-                <div
-                  className="absolute top-0 bottom-0 w-2 rounded-full bg-cyan-400 transition-all duration-75"
-                  style={{ left: `${Math.min(98, miniProgress.thomas)}%` }}
-                  title="Thomas"
-                />
-                <div
-                  className="absolute top-0 bottom-0 w-3 rounded-full bg-red-500 shadow-sm shadow-red-500 ring-1 ring-white transition-all duration-75 z-10"
-                  style={{ left: `${Math.min(98, miniProgress.player)}%` }}
-                  title="YOU"
-                />
-                <div
-                  className="absolute top-0 bottom-0 w-2 rounded-full bg-yellow-400 transition-all duration-75"
-                  style={{ left: `${Math.min(98, miniProgress.joshua)}%` }}
-                  title="Joshua"
-                />
-              </div>
-              <span className="shrink-0 font-bold text-white">
-                {Math.round(miniProgress.player)}%
-              </span>
-            </div>
-          </div>
-
-          {/* Continuous Unlimited Typing Passage Viewport */}
-          <div
-            className={`p-4 sm:p-5 rounded-2xl border transition-all shadow-xl bg-[var(--bg-surface)] ${
-              hasTypingError
-                ? 'border-red-500 ring-2 ring-red-500/20'
-                : 'border-[var(--border)] focus-within:border-[var(--accent)]'
-            }`}
-          >
-            {/* Hidden Input ensuring uninterrupted keystroke capture */}
-            <input
-              ref={inputRef}
-              type="text"
-              autoFocus
-              value=""
-              onChange={() => {}}
-              onKeyDown={handleKeyDown}
-              className="absolute top-0 left-0 w-px h-px opacity-0 pointer-events-none"
-              aria-label="3D Racing Continuous Typing Input"
-            />
-
-            <div className="flex items-center justify-between text-xs font-mono text-[var(--text-muted)] mb-2.5 pb-2 border-b border-[var(--border)]">
-              <span>CONTINUOUS PASSAGE STREAM • TYPING FOCUS ACTIVE</span>
-              <span>
-                {viewportData.globalCursor} characters typed
-              </span>
+              <span>{viewportData.globalCursor} chars typed</span>
             </div>
 
-            {/* Sliding Window Character Highlighting */}
-            <div className="text-base sm:text-xl font-mono leading-relaxed select-none tracking-wide">
+            <div className="text-base sm:text-xl font-mono leading-relaxed select-none tracking-wide text-zinc-400">
               {viewportData.windowText.split('').map((char, index) => {
                 const isTyped = index < viewportData.relativeCursor;
                 const isCurrent = index === viewportData.relativeCursor;
 
-                let charClass = 'text-[var(--text-muted)]/40';
+                let charClass = 'text-zinc-600';
                 if (isTyped) {
                   charClass = 'text-emerald-400 font-bold';
                 } else if (isCurrent) {
                   charClass = hasTypingError
                     ? 'bg-red-500 text-white rounded-xs px-0.5 animate-pulse'
-                    : 'bg-[var(--accent)] text-[var(--accent-fg)] rounded-xs px-0.5 shadow-xs';
+                    : 'bg-red-500 text-white rounded-xs px-0.5 shadow-sm';
                 }
 
                 return (
-                  <span
-                    key={index}
-                    data-current={isCurrent ? 'true' : undefined}
-                    data-char={char}
-                    className={`transition-colors duration-75 ${charClass}`}
-                  >
-                    {char === ' ' && isCurrent ? '␣' : char}
+                  <span key={index} className={charClass}>
+                    {char === ' ' ? ' ' : char}
                   </span>
                 );
               })}
@@ -1333,19 +1369,16 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
         </div>
       )}
 
-      {/* 5. RACE RESULTS & STANDINGS PODIUM */}
+      {/* 4. GAME OVER & RACE RESULTS PODIUM */}
       {gameState === 'gameover' && finalResults && (
-        <div className="p-6 sm:p-8 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl space-y-6 text-center animate-in zoom-in-95 duration-200">
-          <div className="max-w-md mx-auto space-y-3">
-            <div className="w-20 h-20 rounded-2xl mx-auto flex items-center justify-center shadow-xl border bg-gradient-to-br from-amber-500/20 to-red-500/20 border-amber-500/40">
-              <Trophy className={`w-10 h-10 ${finalResults.placement === 1 ? 'text-amber-400' : 'text-slate-300'}`} />
-            </div>
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-[var(--text-primary)]">
-              {finalResults.placement === 1 ? '1ST PLACE — VICTORY!' : `#${finalResults.placement} PODIUM FINISH`}
-            </h1>
-            <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-mono">
-              {tierConfig.label} • {environment.name} • {RACING_MODES.find((m) => m.id === selectedMode)?.name}
-            </p>
+        <div className="p-6 sm:p-8 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl text-center space-y-6 animate-in zoom-in-95 duration-200">
+          <div className="space-y-1">
+            <span className="text-xs font-mono font-bold text-amber-400 uppercase tracking-widest">
+              CHECKERED FLAG • RACE CONCLUDED
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[var(--text-primary)]">
+              {finalResults.isWinner ? 'Victory Podium Finish!' : `Placed #${finalResults.placement}`}
+            </h2>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto font-mono text-center">
@@ -1381,7 +1414,7 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
                   <span className={`font-bold ${idx === 0 ? 'text-amber-400' : 'text-[var(--text-muted)]'}`}>
                     #{idx + 1}
                   </span>
-                  <span className={s.id === 'YOU' ? 'font-bold text-red-400' : 'text-[var(--text-primary)]'}>
+                  <span className={s.id === (driverName || 'YOU') ? 'font-bold text-red-400' : 'text-[var(--text-primary)]'}>
                     {s.name}
                   </span>
                 </span>

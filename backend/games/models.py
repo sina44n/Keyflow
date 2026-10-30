@@ -111,3 +111,86 @@ class GamePlaySession(models.Model):
 
     def __str__(self):
         return f'Play {self.game_id} ({self.session_id[:8]})'
+
+
+class MultiplayerRoom(models.Model):
+    """Real Multiplayer Racing Room for synchronous competitive typing."""
+    STATUS_CHOICES = [
+        ('waiting', 'Waiting for Racers'),
+        ('countdown', 'Starting Countdown'),
+        ('racing', 'Race in Progress'),
+        ('finished', 'Race Concluded'),
+    ]
+
+    code = models.CharField(max_length=16, unique=True, db_index=True)
+    name = models.CharField(max_length=64, default='Speedway Grand Prix')
+    track = models.CharField(max_length=32, default='speedway')
+    tier = models.PositiveSmallIntegerField(default=1)
+    target_distance = models.PositiveIntegerField(default=1000)
+    host = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='hosted_racing_rooms'
+    )
+    host_name = models.CharField(max_length=64, default='Host')
+    max_players = models.PositiveSmallIntegerField(default=4)
+    status = models.CharField(max_length=16, choices=STATUS_CHOICES, default='waiting')
+    countdown_started_at = models.DateTimeField(null=True, blank=True)
+    race_started_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'racing_multiplayer_rooms'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.code} — {self.name} ({self.status})'
+
+
+class RoomParticipant(models.Model):
+    """Active participant in a multiplayer racing room."""
+    room = models.ForeignKey(
+        MultiplayerRoom,
+        on_delete=models.CASCADE,
+        related_name='participants'
+    )
+    user = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='racing_participations'
+    )
+    guest_id = models.CharField(max_length=64, blank=True, null=True, db_index=True)
+    display_name = models.CharField(max_length=50, default='Racer')
+    vehicle_id = models.CharField(max_length=32, default='apex-gt')
+    primary_color = models.CharField(max_length=32, default='#EF4444')
+    nitro_style = models.CharField(max_length=32, default='fire')
+    wheel_finish = models.CharField(max_length=32, default='chrome')
+    lane = models.PositiveSmallIntegerField(default=0)
+    is_ready = models.BooleanField(default=False)
+    distance = models.FloatField(default=0.0)
+    speed = models.FloatField(default=0.0)
+    wpm = models.PositiveIntegerField(default=0)
+    accuracy = models.FloatField(default=100.0)
+    placement = models.PositiveSmallIntegerField(default=1)
+    is_finished = models.BooleanField(default=False)
+    finish_time = models.FloatField(null=True, blank=True)
+    last_heartbeat = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'racing_room_participants'
+        ordering = ['lane']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['room', 'lane'],
+                name='unique_room_lane'
+            )
+        ]
+
+    def __str__(self):
+        return f'{self.display_name} in {self.room.code} (Lane {self.lane})'
+
