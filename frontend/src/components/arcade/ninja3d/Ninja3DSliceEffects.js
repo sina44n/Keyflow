@@ -181,3 +181,4 @@ export class Ninja3DSliceEffects {
     this.sparkMaterials.forEach((m) => m.dispose());
   }
 }
+

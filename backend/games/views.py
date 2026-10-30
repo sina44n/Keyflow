@@ -58,6 +58,20 @@ class GameStatsView(APIView):
             .values_list('game_id', 'total')
         )
 
+        # Aggregate unique players per game (registered users + guests)
+        user_players = dict(
+            GamePlaySession.objects.filter(user__isnull=False)
+            .values('game_id')
+            .annotate(total=Count('user', distinct=True))
+            .values_list('game_id', 'total')
+        )
+        guest_players = dict(
+            GamePlaySession.objects.filter(user__isnull=True, guest_id__isnull=False)
+            .values('game_id')
+            .annotate(total=Count('guest_id', distinct=True))
+            .values_list('game_id', 'total')
+        )
+
         # Determine which games the current user or guest has liked
         user_liked_set = set()
         if user:
@@ -77,10 +91,14 @@ class GameStatsView(APIView):
             total_likes = base['likes'] + real_likes.get(g_id, 0)
             total_plays = base['plays'] + real_plays.get(g_id, 0)
 
+            db_unique = user_players.get(g_id, 0) + guest_players.get(g_id, 0)
+            total_players = db_unique if db_unique > 0 else max(1, int(total_plays * 0.14))
+
             response_data[g_id] = {
                 'gameId': g_id,
                 'likes': total_likes,
                 'plays': total_plays,
+                'players': total_players,
                 'hasLiked': g_id in user_liked_set,
             }
 

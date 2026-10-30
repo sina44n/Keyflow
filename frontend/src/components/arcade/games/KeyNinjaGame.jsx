@@ -51,6 +51,10 @@ const SWIFT_WORDS = [
   'split', 'slice', 'fury', 'blaze', 'burst', 'sharp', 'speed',
 ];
 
+const BEGINNER_WORDS = [
+  'cat', 'sun', 'run', 'fly', 'sky', 'star', 'glow', 'neo', 'zen', 'fox', 'gem', 'key', 'ice', 'arc', 'zap',
+];
+
 export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
   const { t } = useI18n();
   const [gameState, setGameState] = useState('ready'); // ready, countdown, playing, paused, gameover
@@ -117,6 +121,8 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
   // Keep live refs for 60fps render loop
   const gameStateRef = useRef(gameState);
   gameStateRef.current = gameState;
+  const slicesRef = useRef(slices);
+  slicesRef.current = slices;
 
   const soundEnabledRef = useRef(soundEnabled);
   soundEnabledRef.current = soundEnabled;
@@ -262,24 +268,52 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
       if (isPlaying) {
         const config = ninjaConfigRef.current;
 
-        // 1. Airborne Word Spawning with 3D Parabolic Trajectories
-        if (time - lastLaunchRef.current > config.spawnInterval * 1000) {
+        // 1. Progressive Difficulty & Airborne Word Spawning (High-arc dramatic parabolic jumps)
+        const currentSlices = slicesRef.current || 0;
+        let maxAirborne = 1;
+        let spawnIntervalSec = 3.2;
+
+        if (currentSlices < 6) {
+          // Stage 1 (0-5 slices): Gentle beginner phase, strictly 1 word airborne
+          maxAirborne = 1;
+          spawnIntervalSec = 3.2;
+        } else if (currentSlices < 16) {
+          // Stage 2 (6-15 slices): 2 simultaneous airborne targets
+          maxAirborne = 2;
+          spawnIntervalSec = 2.4;
+        } else if (currentSlices < 31) {
+          // Stage 3 (16-30 slices): 2-3 simultaneous airborne targets
+          maxAirborne = 3;
+          spawnIntervalSec = 2.0;
+        } else {
+          // Stage 4 (31+ slices): 3-4 simultaneous airborne targets
+          maxAirborne = 4;
+          spawnIntervalSec = 1.6;
+        }
+
+        if (time - lastLaunchRef.current > spawnIntervalSec * 1000) {
           lastLaunchRef.current = time;
 
           const currentWords = threeRef.current.words;
           const activeUncutWords = currentWords.filter((w) => !w.isSliced);
 
-          if (activeUncutWords.length < (config.maxAirborne || 4)) {
-            // Pick next non-repetitive word
-            const drawnText = wordDeckRef.current.draw(activeUncutWords.map((w) => w.text));
+          if (activeUncutWords.length < maxAirborne) {
+            let drawnText;
+            if (currentSlices < 6) {
+              const available = BEGINNER_WORDS.filter((w) => !activeUncutWords.some((aw) => aw.text === w));
+              drawnText = (available.length > 0 ? available : BEGINNER_WORDS)[
+                Math.floor(Math.random() * (available.length > 0 ? available.length : BEGINNER_WORDS.length))
+              ];
+            } else {
+              drawnText = wordDeckRef.current.draw(activeUncutWords.map((w) => w.text));
+            }
 
-            // Parabolic Launch Kinematics (High-arc dramatic parabolic jumps)
-            const startX = (Math.random() - 0.5) * 11.5;
+            // High-arc dramatic parabolic jumps reaching Y ≈ +5.5 to +6.5 near Torii gate
+            const startX = (Math.random() - 0.5) * 10.5;
             const startY = -6.8;
-            // Angle trajectory toward the central Torii gate arena
-            const vx = -startX * (0.22 + Math.random() * 0.12);
-            const vy = 17.5 + Math.random() * 3.5;
-            const vz = (Math.random() - 0.5) * 1.5;
+            const vx = -startX * (0.18 + Math.random() * 0.12);
+            const vy = 19.5 + Math.random() * 2.5;
+            const vz = (Math.random() - 0.5) * 1.2;
 
             const wordObj = new Ninja3DWordObject({
               id: nextIdRef.current++,
@@ -289,7 +323,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
               vx,
               vy,
               vz,
-              gravity: 16.5,
+              gravity: 14.0,
             });
 
             scene.scene.add(wordObj.group);
@@ -397,6 +431,33 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
     }
 
     if (gameState !== 'playing') return;
+
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      if (threeRef.current.activeWordId) {
+        const words = threeRef.current.words || [];
+        const currentBuf = threeRef.current.typedBuffer || '';
+        const target = words.find((w) => w.id === threeRef.current.activeWordId);
+
+        if (currentBuf.length > 1) {
+          const nextBuf = currentBuf.slice(0, -1);
+          threeRef.current.typedBuffer = nextBuf;
+          if (target) {
+            target.setTypedCount(nextBuf.length);
+            setActiveWordMeta({ text: target.text, typed: nextBuf.length });
+          }
+        } else {
+          if (target) {
+            target.setTargeted(false);
+            target.setTypedCount(0);
+          }
+          threeRef.current.activeWordId = null;
+          threeRef.current.typedBuffer = '';
+          setActiveWordMeta(null);
+        }
+      }
+      return;
+    }
 
     if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault();

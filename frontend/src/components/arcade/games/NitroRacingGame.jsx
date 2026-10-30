@@ -216,6 +216,8 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
   const [hasTypingError, setHasTypingError] = useState(false);
   const [comboStreak, setComboStreak] = useState(0);
   const [totalDistanceCovered, setTotalDistanceCovered] = useState(0);
+  const [eliminationWarning, setEliminationWarning] = useState(null);
+  const [eliminatedReason, setEliminatedReason] = useState(null);
 
   // Continuous Passage Viewport Window state
   const [viewportData, setViewportData] = useState({
@@ -311,6 +313,12 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     setComboStreak(0);
     setTotalDistanceCovered(0);
     setFinalResults(null);
+    if (threeRef.current) {
+      threeRef.current.slowCadenceElapsed = 0;
+      threeRef.current.lastWarnUpdate = 0;
+    }
+    setEliminatedReason(null);
+    setEliminationWarning(null);
 
     setGameState('countdown');
     setCountdown(3);
@@ -613,6 +621,64 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
 
         playerVehicle.targetSpeed = finalSpeed;
         playerVehicle.distance += playerVehicle.targetSpeed * dt;
+
+        // 1.1 Championship Division Minimum Speed & Fair Elimination System
+        // Grants a 6-second initial reading/warmup period before tracking cadence
+        if (elapsed > 6.0 && tierConfig.eliminationGraceSeconds) {
+          const minWpm = tierConfig.minWpm || 15;
+          if (currentWpmVal < minWpm) {
+            threeRef.current.slowCadenceElapsed = (threeRef.current.slowCadenceElapsed || 0) + dt;
+            const remaining = Math.max(0, tierConfig.eliminationGraceSeconds - threeRef.current.slowCadenceElapsed);
+
+            if (!threeRef.current.lastWarnUpdate || now - threeRef.current.lastWarnUpdate > 250) {
+              threeRef.current.lastWarnUpdate = now;
+              setEliminationWarning({
+                remaining: Math.ceil(remaining),
+                minWpm,
+                liveWpm: currentWpmVal,
+                division: tierConfig.name,
+              });
+            }
+
+            if (threeRef.current.slowCadenceElapsed >= tierConfig.eliminationGraceSeconds) {
+              // Fair Elimination triggered
+              setEliminationWarning(null);
+              const elimResults = {
+                isWinner: false,
+                isEliminated: true,
+                placement: 4,
+                finalWpm: currentWpmVal,
+                accuracy: accVal,
+                totalDistance: Math.round(playerVehicle.distance),
+                rewardCoins: 25,
+                standings: [
+                  ...Object.entries(competitors).map(([, v]) => ({
+                    id: v.driverName,
+                    name: v.driverName,
+                    distance: v.distance,
+                    wpm: Math.round((v.currentSpeed / 16.5) * 60),
+                  })),
+                  { id: driverName || 'YOU', name: driverName || 'YOU', distance: playerVehicle.distance, wpm: currentWpmVal },
+                ].sort((a, b) => b.distance - a.distance),
+              };
+              setFinalResults(elimResults);
+              setEliminatedReason({
+                division: tierConfig.name,
+                minWpm,
+                graceSeconds: tierConfig.eliminationGraceSeconds,
+                finalWpm: currentWpmVal,
+              });
+              setGameState('gameover');
+              return;
+            }
+          } else {
+            // Speed restored above division threshold! Reset timer and clear warning
+            if (threeRef.current.slowCadenceElapsed > 0) {
+              threeRef.current.slowCadenceElapsed = 0;
+              setEliminationWarning(null);
+            }
+          }
+        }
       } else {
         // Countdown state: cars idling on starting grid
         playerVehicle.targetSpeed = 0;
@@ -1340,6 +1406,16 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
             </button>
           </div>
 
+          {/* ELIMINATION PACE WARNING HUD BANNER */}
+          {eliminationWarning && (
+            <div className="absolute top-16 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-red-600/95 border-2 border-red-400 text-white font-mono text-xs font-black shadow-2xl flex items-center gap-2 animate-bounce z-30">
+              <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0" />
+              <span>
+                PACE BELOW {eliminationWarning.division.toUpperCase()} MINIMUM ({eliminationWarning.liveWpm}/{eliminationWarning.minWpm} WPM) • RECOVER IN {eliminationWarning.remaining}s OR BE ELIMINATED!
+              </span>
+            </div>
+          )}
+
           {/* Bottom HUD: Continuous Passage Stream Floating Window */}
           <div className="absolute bottom-3 sm:bottom-4 left-3 right-3 sm:left-6 sm:right-6 max-w-4xl mx-auto p-3 sm:p-4 rounded-2xl bg-black/80 border border-white/15 backdrop-blur-md shadow-2xl z-20">
             <div className="flex items-center justify-between text-xs font-mono text-zinc-400 mb-2 pb-1 border-b border-white/10">
@@ -1385,6 +1461,18 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
               {finalResults.isWinner ? 'Victory Podium Finish!' : `Placed #${finalResults.placement}`}
             </h2>
           </div>
+
+          {eliminatedReason && (
+            <div className="p-4 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 max-w-xl mx-auto space-y-1.5 font-mono text-xs shadow-lg animate-in fade-in duration-200">
+              <div className="font-bold text-sm flex items-center justify-center gap-2">
+                <span>⚠️</span>
+                <span>ELIMINATED — PACE BELOW DIVISION MINIMUM</span>
+              </div>
+              <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                Pace in the <strong className="text-amber-100">{eliminatedReason.division}</strong> division must stay at or above <strong className="text-amber-100">{eliminatedReason.minWpm} WPM</strong>. Rolling speed dropped to <strong className="text-amber-100">{eliminatedReason.finalWpm} WPM</strong> for {eliminatedReason.graceSeconds}s.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto font-mono text-center">
             <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">

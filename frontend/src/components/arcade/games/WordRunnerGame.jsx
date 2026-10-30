@@ -1,14 +1,31 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Footprints, RotateCcw, Play, Pause, ArrowLeft, Trophy, Shield, AlertTriangle, Flame } from 'lucide-react';
+import {
+  Footprints,
+  RotateCcw,
+  Play,
+  Pause,
+  ArrowLeft,
+  Trophy,
+  Shield,
+  Flame,
+  Zap,
+  Sparkles,
+} from 'lucide-react';
 import { Button } from '../../common/Button';
-import { calculateAccuracy, playArcadeSound } from '../../../utils/arcadeEngine';
+import { calculateAccuracy } from '../../../utils/arcadeEngine';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getWordRunnerConfig } from '../../../utils/arcadeDifficulty';
 import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
 import { useI18n } from '../../../i18n/I18nContext';
 
-const TRACK_LENGTH = 1000; // 1,000 meters to finish line
+import { Runner3DScene } from '../runner3d/Runner3DScene';
+import { Runner3DPlayer } from '../runner3d/Runner3DPlayer';
+import { Runner3DTrack } from '../runner3d/Runner3DTrack';
+import { Runner3DObstacles } from '../runner3d/Runner3DObstacles';
+import { runnerAudio } from '../runner3d/Runner3DAudio';
+
+const TRACK_LENGTH = 1000; // 1,000 meters to victory
 
 export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
   const { t } = useI18n();
@@ -16,32 +33,41 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
   const [countdown, setCountdown] = useState(3);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
-  // Anti-repetition word deck initialized with Tier 1 pool
-  const wordDeckRef = useRef(
-    new ArcadeWordDeck({ gameId: 'runner', pool: getVocabularyPool('runner', 1) })
-  );
-
-  const [distance, setDistance] = useState(0); // 0 to 1,000 meters
+  // Gameplay Metrics
+  const [distance, setDistance] = useState(0); // 0 to 1,000m
   const [lives, setLives] = useState(3);
   const [score, setScore] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [maxCombo, setMaxCombo] = useState(0);
   const [obstaclesCleared, setObstaclesCleared] = useState(0);
   const [stumbles, setStumbles] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [tierUpToast, setTierUpToast] = useState(null);
-
-  // Active obstacle approaching
-  const [activeObstacle, setActiveObstacle] = useState(null); // { id, word, type: 'barrier' | 'spike' | 'laser', distance }
-  const [typedBuffer, setTypedBuffer] = useState('');
-  const [isJumping, setIsJumping] = useState(false);
-  const [jumpProgress, setJumpProgress] = useState(0);
-
   const [totalStrokes, setTotalStrokes] = useState(0);
   const [correctStrokes, setCorrectStrokes] = useState(0);
   const [personalBestNotice, setPersonalBestNotice] = useState(false);
 
+  // Active Target Obstacle HUD state
+  const [activeObstacle, setActiveObstacle] = useState(null); // { id, word, type, typedCount }
+
+  // Audio mute sync
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
+  useEffect(() => {
+    runnerAudio.setMuted(!soundEnabled);
+  }, [soundEnabled]);
+
+  // Mount & Engine Refs
+  const mountRef = useRef(null);
   const inputRef = useRef(null);
   const timerIntervalRef = useRef(null);
+  const nextSpawnDistanceRef = useRef(30);
+
   const personalBest = getGameRecord('runner');
+
+  // Word deck
+  const wordDeckRef = useRef(
+    new ArcadeWordDeck({ gameId: 'runner', pool: getVocabularyPool('runner', 1) })
+  );
 
   // Dynamic progressive difficulty
   const difficultyInfo = useMemo(() => {
@@ -49,559 +75,646 @@ export const WordRunnerGame = ({ onExit, soundEnabled = true }) => {
       activeSeconds: elapsedSeconds,
       completedCount: obstaclesCleared,
       score,
-      currentStreak: Math.max(0, obstaclesCleared - stumbles),
+      currentStreak: combo,
       errorCount: stumbles,
       mode: 'runner',
     });
-  }, [elapsedSeconds, obstaclesCleared, score, stumbles]);
+  }, [elapsedSeconds, obstaclesCleared, score, combo, stumbles]);
 
   const runnerConfig = useMemo(() => {
     return getWordRunnerConfig(difficultyInfo.tier, distance);
   }, [difficultyInfo.tier, distance]);
 
-  const prevTierRef = useRef(1);
-  useEffect(() => {
-    if (difficultyInfo.tier > prevTierRef.current) {
-      setTierUpToast(`CYBER SPRINT ACCELERATED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
-      playArcadeSound('combo', soundEnabled);
-      // Dynamically switch deck pool to elevated difficulty tier
-      wordDeckRef.current.setPool(getVocabularyPool('runner', difficultyInfo.tier));
-      const t = setTimeout(() => setTierUpToast(null), 3000);
-      prevTierRef.current = difficultyInfo.tier;
-      return () => clearTimeout(t);
+  // Three.js Engine Lifecycle Container Ref
+  const threeRef = useRef({
+    scene: null,
+    player: null,
+    track: null,
+    obstacles: null,
+    typedBuffer: '',
+    playerZ: 0,
+    speed: 16.0,
+    animId: null,
+  });
+
+  const gameStateRef = useRef(gameState);
+  gameStateRef.current = gameState;
+
+  // Focus invisible input
+  const focusInput = useCallback(() => {
+    if (inputRef.current) {
+      inputRef.current.focus({ preventScroll: true });
     }
-    prevTierRef.current = difficultyInfo.tier;
-  }, [difficultyInfo.tier, difficultyInfo.tierName, soundEnabled]);
+  }, []);
 
-  // Generate next obstacle using dynamic spacing & wordDeck
-  const spawnNextObstacle = useCallback((currentDist) => {
-    const distToSpawn = Math.min(TRACK_LENGTH, currentDist + runnerConfig.obstacleSpacing);
-    const types = ['barrier', 'laser', 'spikes'];
-    return {
-      id: Math.random(),
-      word: wordDeckRef.current.draw(),
-      type: types[Math.floor(Math.random() * types.length)],
-      targetDistance: distToSpawn,
+  // Countdown timer
+  const startCountdown = useCallback(() => {
+    runnerAudio.init();
+    setGameState('countdown');
+    setCountdown(3);
+  }, []);
+
+  useEffect(() => {
+    if (countdown > 0 && gameState === 'countdown') {
+      const timer = setTimeout(() => {
+        setCountdown((c) => c - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (countdown === 0 && gameState === 'countdown') {
+      setGameState('playing');
+      focusInput();
+    }
+  }, [countdown, gameState, focusInput]);
+
+  // Elapsed game timer
+  useEffect(() => {
+    if (gameState === 'playing') {
+      timerIntervalRef.current = setInterval(() => {
+        setElapsedSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    }
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [runnerConfig.obstacleSpacing]);
+  }, [gameState]);
 
+  // Reset Game
   const resetGame = useCallback(() => {
     setGameState('ready');
     setDistance(0);
     setLives(3);
     setScore(0);
+    setCombo(0);
+    setMaxCombo(0);
     setObstaclesCleared(0);
     setStumbles(0);
     setElapsedSeconds(0);
     setTotalStrokes(0);
     setCorrectStrokes(0);
-    setTypedBuffer('');
-    setIsJumping(false);
-    setJumpProgress(0);
+    setActiveObstacle(null);
     setPersonalBestNotice(false);
-    setTierUpToast(null);
-    wordDeckRef.current?.resetRun();
-    setActiveObstacle(spawnNextObstacle(0));
-  }, [spawnNextObstacle]);
+    nextSpawnDistanceRef.current = 30;
 
-  const startCountdown = () => {
-    resetGame();
-    setGameState('countdown');
-    setCountdown(3);
-  };
-
-  // Countdown
-  useEffect(() => {
-    if (gameState !== 'countdown') return;
-    if (countdown > 0) {
-      const t = setTimeout(() => setCountdown((c) => c - 1), 800);
-      return () => clearTimeout(t);
+    if (threeRef.current.player) {
+      threeRef.current.playerZ = 0;
+      threeRef.current.player.group.position.set(0, 0, 0);
+      threeRef.current.player.lane = 0;
+      threeRef.current.player.currentLaneX = 0;
+      threeRef.current.player.state = 'running';
     }
-    const t = setTimeout(() => setGameState('playing'), 0);
-    return () => clearTimeout(t);
-  }, [gameState, countdown]);
-
-  // Elapsed timer during active play
-  useEffect(() => {
-    if (gameState !== 'playing') {
-      clearInterval(timerIntervalRef.current);
-      return;
+    if (threeRef.current.obstacles) {
+      threeRef.current.obstacles.dispose();
     }
-    timerIntervalRef.current = setInterval(() => {
-      setElapsedSeconds((s) => s + 1);
-    }, 1000);
-    return () => clearInterval(timerIntervalRef.current);
-  }, [gameState]);
+    threeRef.current.typedBuffer = '';
+  }, []);
 
-  // Runner Movement & Collision Loop
+  // Handle Game Over or Victory Records
   useEffect(() => {
-    if (gameState !== 'playing') return;
+    if (gameState === 'gameover' || gameState === 'victory') {
+      const accuracy = calculateAccuracy(correctStrokes, totalStrokes);
+      const isWinner = gameState === 'victory';
+      const result = saveArcadeRecord('runner', {
+        maxDistance: Math.round(distance),
+        score,
+        accuracy,
+        obstaclesCleared,
+        stumbles,
+        durationSeconds: elapsedSeconds,
+        tier: difficultyInfo.tier,
+        isVictory: isWinner,
+      });
 
-    let animId;
+      if (result.isNewBest) {
+        setPersonalBestNotice(true);
+      }
+    }
+  }, [gameState, distance, score, correctStrokes, totalStrokes, obstaclesCleared, stumbles, elapsedSeconds, difficultyInfo.tier]);
+
+  // =========================================================================
+  // 3D WEBGL ENGINE INITIALIZATION & 60 FPS RENDER LOOP
+  // =========================================================================
+  useEffect(() => {
+    const container = mountRef.current;
+    if (!container) return;
+
+    const scene = new Runner3DScene(container);
+    const track = new Runner3DTrack(scene.scene);
+    const player = new Runner3DPlayer();
+    const obstacles = new Runner3DObstacles(scene.scene);
+
+    scene.scene.add(player.group);
+
+    threeRef.current.scene = scene;
+    threeRef.current.track = track;
+    threeRef.current.player = player;
+    threeRef.current.obstacles = obstacles;
+    threeRef.current.playerZ = 0;
+    threeRef.current.speed = 16.0;
+    threeRef.current.typedBuffer = '';
+
     let lastTime = performance.now();
 
     const loop = (time) => {
       const dt = Math.min((time - lastTime) / 1000, 0.05);
       lastTime = time;
 
-      // Speed scaled dynamically by progressive difficulty tier & course distance
-      const speed = runnerConfig.runnerSpeed;
-      const nextDist = distance + speed * dt;
+      const isPlaying = gameStateRef.current === 'playing';
 
-      // Check for finish line
-      if (nextDist >= TRACK_LENGTH) {
-        setDistance(TRACK_LENGTH);
-        setGameState('victory');
-        playArcadeSound('victory', soundEnabled);
+      if (isPlaying) {
+        // Forward progression
+        const speed = 15.0 + Math.min(12.0, (threeRef.current.playerZ / 100) * 1.5);
+        player.speed = speed;
+        threeRef.current.playerZ += speed * dt;
+        player.group.position.z = threeRef.current.playerZ;
+
+        setDistance(Math.min(TRACK_LENGTH, threeRef.current.playerZ));
+
+        // Victory condition: 1,000 meters reached!
+        if (threeRef.current.playerZ >= TRACK_LENGTH) {
+          setGameState('victory');
+        }
+
+        // 1. Procedural Obstacle Spawning ahead of runner
+        if (threeRef.current.playerZ + 55 > nextSpawnDistanceRef.current) {
+          const spawnZ = nextSpawnDistanceRef.current;
+          const types = ['jump', 'slide', 'hack', 'crystal'];
+          const type = types[Math.floor(Math.random() * types.length)];
+          const lane = Math.floor(Math.random() * 3) - 1; // -1, 0, or 1
+
+          const word = wordDeckRef.current.draw();
+          obstacles.spawnObstacle({
+            word,
+            type,
+            lane,
+            z: spawnZ,
+          });
+
+          // Next obstacle spacing
+          const spacing = Math.max(22, 38 - Math.floor(threeRef.current.playerZ / 120) * 3);
+          nextSpawnDistanceRef.current += spacing;
+        }
+
+        // 2. Active Approaching Obstacle Detection & Collision Check
+        const upcoming = obstacles.obstacles.filter((o) => !o.cleared && o.z > threeRef.current.playerZ - 2);
+        upcoming.sort((a, b) => a.z - b.z);
+        const activeObs = upcoming[0] || null;
+
+        if (activeObs) {
+          setActiveObstacle({
+            id: activeObs.id,
+            word: activeObs.word,
+            type: activeObs.type,
+            typedCount: activeObs.typedCount,
+          });
+
+          // Proximity collision detection (within 1.2 meters)
+          const distToObs = activeObs.z - threeRef.current.playerZ;
+          if (distToObs <= 1.2 && distToObs >= -0.8 && !activeObs.hit && !activeObs.cleared) {
+            // Check if player took required move or is in matching lane
+            const isSameLane = activeObs.lane === player.lane;
+            const isSafeJump = activeObs.type === 'jump' && player.state === 'jumping';
+            const isSafeSlide = activeObs.type === 'slide' && player.state === 'sliding';
+            const isCrystal = activeObs.type === 'crystal';
+
+            if (isCrystal) {
+              // Collected bonus crystal!
+              activeObs.cleared = true;
+              obstacles.clearObstacle(activeObs);
+              runnerAudio.playCrystal();
+              setScore((s) => s + 350);
+              setCombo((c) => c + 1);
+            } else if (!isSameLane || isSafeJump || isSafeSlide) {
+              // Dodged or vaulted safely!
+              activeObs.cleared = true;
+              obstacles.clearObstacle(activeObs);
+              setObstaclesCleared((c) => c + 1);
+              setScore((s) => s + 200);
+            } else {
+              // Collision impact!
+              activeObs.hit = true;
+              activeObs.cleared = true;
+              obstacles.clearObstacle(activeObs);
+
+              player.stumble();
+              scene.triggerShake(0.5);
+              runnerAudio.playStumble();
+
+              setStumbles((s) => s + 1);
+              setCombo(0);
+              threeRef.current.typedBuffer = '';
+
+              setLives((prev) => {
+                const next = Math.max(0, prev - 1);
+                if (next <= 0) {
+                  setGameState('gameover');
+                }
+                return next;
+              });
+            }
+          }
+        } else {
+          setActiveObstacle(null);
+        }
+
+        // 3. Update 3D Track & Obstacles
+        track.update(threeRef.current.playerZ);
+        obstacles.update(threeRef.current.playerZ, dt);
+        player.update(dt);
+        scene.updateCamera(player.group.position, dt);
+      }
+
+      scene.render();
+      threeRef.current.animId = requestAnimationFrame(loop);
+    };
+
+    threeRef.current.animId = requestAnimationFrame(loop);
+
+    const handleResize = () => {
+      scene.handleResize();
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(threeRef.current.animId);
+      scene.dispose();
+      track.dispose();
+      player.dispose();
+      obstacles.dispose();
+    };
+  }, []);
+
+  // Keyboard typing handler
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (showExitConfirm) {
+        if (e.key === 'Escape') setShowExitConfirm(false);
         return;
       }
 
-      setDistance(nextDist);
-
-      // Check collision with active obstacle if player hasn't jumped
-      if (activeObstacle && nextDist >= activeObstacle.targetDistance) {
-        // Collided!
-        playArcadeSound('damage', soundEnabled);
-        setLives((l) => {
-          const rem = l - 1;
-          if (rem <= 0) setGameState('gameover');
-          return Math.max(0, rem);
-        });
-        setStumbles((s) => s + 1);
-        setTypedBuffer('');
-        // Spawn next obstacle
-        setActiveObstacle(spawnNextObstacle(nextDist));
-      }
-
-      // Jump animation decay
-      if (isJumping) {
-        setJumpProgress((jp) => {
-          const nextJp = jp + dt * 2.5;
-          if (nextJp >= 1) {
-            setIsJumping(false);
-            return 0;
-          }
-          return nextJp;
-        });
-      }
-
-      animId = requestAnimationFrame(loop);
-    };
-
-    animId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animId);
-  }, [gameState, distance, activeObstacle, isJumping, spawnNextObstacle, runnerConfig.runnerSpeed, soundEnabled]);
-
-  // Focus input
-  useEffect(() => {
-    if (gameState === 'playing' && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [gameState]);
-
-  // Save game record on gameover / victory
-  useEffect(() => {
-    if (gameState === 'gameover' || gameState === 'victory') {
-      const finalDist = Math.round(distance);
-      const result = saveArcadeRecord('runner', {
-        distance: finalDist,
-        score,
-        obstaclesCleared,
-        highestTier: difficultyInfo.tier,
-      });
-      if (result.isNewBest) {
-        const t = setTimeout(() => setPersonalBestNotice(true), 0);
-        return () => clearTimeout(t);
-      }
-    }
-  }, [gameState, distance, score, obstaclesCleared, difficultyInfo.tier]);
-
-  const handleAttemptExit = () => {
-    if (gameState === 'playing' || gameState === 'paused') {
-      setShowExitConfirm(true);
-    } else {
-      onExit();
-    }
-  };
-
-  // Handle typing to clear upcoming obstacle
-  const handleKeyDown = (e) => {
-    if (showExitConfirm) {
       if (e.key === 'Escape') {
-        setShowExitConfirm(false);
+        if (gameState === 'playing') setGameState('paused');
+        else if (gameState === 'paused') setGameState('playing');
+        return;
       }
-      return;
-    }
 
-    if (e.key === 'Escape') {
-      if (gameState === 'playing') setGameState('paused');
-      else if (gameState === 'paused') setGameState('playing');
-      return;
-    }
-
-    if (gameState !== 'playing') return;
-
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
-      e.preventDefault();
-      const char = e.key.toLowerCase();
-      setTotalStrokes((s) => s + 1);
-
-      if (!activeObstacle) return;
-
-      const expectedChar = activeObstacle.word[typedBuffer.length]?.toLowerCase();
-      if (char === expectedChar) {
-        setCorrectStrokes((s) => s + 1);
-        playArcadeSound('blaster', soundEnabled);
-        const nextBuf = typedBuffer + char;
-        setTypedBuffer(nextBuf);
-
-        // Word completed! Trigger JUMP over obstacle!
-        if (nextBuf.length === activeObstacle.word.length) {
-          playArcadeSound('jump', soundEnabled);
-          setIsJumping(true);
-          setJumpProgress(0);
-
-          const pts = activeObstacle.word.length * 20;
-          setScore((sc) => sc + pts);
-          setObstaclesCleared((oc) => oc + 1);
-
-          // Clear obstacle and schedule next
-          setActiveObstacle(spawnNextObstacle(distance + 15));
-          setTypedBuffer('');
+      if (gameState === 'ready' || gameState === 'gameover' || gameState === 'victory') {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          startCountdown();
+          return;
         }
-      } else {
-        // Typing mistake while running
-        playArcadeSound('damage', soundEnabled);
       }
-    }
-  };
+
+      if (gameState !== 'playing') return;
+
+      const player = threeRef.current.player;
+      const obstacles = threeRef.current.obstacles;
+      if (!player || !obstacles) return;
+
+      // 1. Lane Switch Navigation (ArrowLeft / ArrowRight / A / D)
+      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+        e.preventDefault();
+        player.lane = Math.max(-1, player.lane - 1);
+        return;
+      }
+      if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        player.lane = Math.min(1, player.lane + 1);
+        return;
+      }
+
+      // 2. Typing characters toward active approaching obstacle
+      if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        const char = e.key.toLowerCase();
+        setTotalStrokes((s) => s + 1);
+
+        // Find closest approaching active obstacle
+        const upcoming = obstacles.obstacles.filter((o) => !o.cleared && o.z > threeRef.current.playerZ - 2);
+        upcoming.sort((a, b) => a.z - b.z);
+        const targetObs = upcoming[0];
+
+        if (!targetObs) return;
+
+        const currentBuf = threeRef.current.typedBuffer || '';
+        const expectedChar = targetObs.word[currentBuf.length]?.toLowerCase();
+
+        if (char === expectedChar) {
+          setCorrectStrokes((s) => s + 1);
+          runnerAudio.playKeystroke();
+
+          const nextBuf = currentBuf + char;
+          threeRef.current.typedBuffer = nextBuf;
+          obstacles.setTypedCount(targetObs, nextBuf.length);
+
+          setActiveObstacle({
+            id: targetObs.id,
+            word: targetObs.word,
+            type: targetObs.type,
+            typedCount: nextBuf.length,
+          });
+
+          // Word completely typed! Trigger corresponding 3D acrobatic action
+          if (nextBuf.length === targetObs.word.length) {
+            threeRef.current.typedBuffer = '';
+            targetObs.cleared = true;
+            obstacles.clearObstacle(targetObs);
+
+            // Execute parkour move
+            if (targetObs.type === 'jump') {
+              player.jump();
+              runnerAudio.playJump();
+            } else if (targetObs.type === 'slide') {
+              player.slide();
+              runnerAudio.playSlide();
+            } else if (targetObs.type === 'hack') {
+              player.hack();
+              runnerAudio.playBreach();
+            } else {
+              runnerAudio.playCrystal();
+            }
+
+            setObstaclesCleared((c) => c + 1);
+            setCombo((c) => {
+              const next = c + 1;
+              setMaxCombo((mc) => Math.max(mc, next));
+              return next;
+            });
+            setScore((s) => s + 250 + combo * 25);
+          }
+        } else {
+          // Typo: reset current word buffer and break combo
+          threeRef.current.typedBuffer = '';
+          obstacles.setTypedCount(targetObs, 0);
+          setCombo(0);
+        }
+      }
+    },
+    [gameState, showExitConfirm, startCountdown, combo]
+  );
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   const accuracy = calculateAccuracy(correctStrokes, totalStrokes);
-  const distanceToObstacle = activeObstacle
-    ? Math.max(0, Math.round(activeObstacle.targetDistance - distance))
-    : 0;
-
-  // Jump arc calculation: 0 -> 1 -> 0 height
-  const jumpHeight = isJumping ? Math.sin(jumpProgress * Math.PI) * 75 : 0;
 
   return (
     <div
-      className="card-panel p-4 sm:p-6 space-y-4 max-w-4xl mx-auto border border-[var(--border)] shadow-2xl relative select-none"
-      onClick={() => inputRef.current?.focus()}
+      className="relative min-h-[580px] w-full rounded-2xl bg-neutral-950 border border-[var(--border)] overflow-hidden flex flex-col justify-between select-none shadow-2xl"
+      onClick={focusInput}
     >
       <input
         ref={inputRef}
         type="text"
-        className="opacity-0 absolute w-0 h-0 pointer-events-none"
-        onKeyDown={handleKeyDown}
-        aria-label="Word Runner typing input"
+        className="opacity-0 absolute pointer-events-none"
+        aria-hidden="true"
       />
 
-      {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
-            {t('nav.arcade')}
-          </Button>
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-              <Footprints className="w-5 h-5 text-purple-400" />
-              {t('arcade.runner.title')}
-            </h2>
-            <span className="text-[11px] font-mono text-[var(--text-muted)]">
-              Side-Scrolling Cyber Parkour • {difficultyInfo.tierName} (Tier {difficultyInfo.tier})
-            </span>
+      {/* 3D WebGL Canvas Viewport */}
+      <div ref={mountRef} className="absolute inset-0 w-full h-full cursor-pointer" />
+
+      {/* TOP HUD: Progress, Lives, Combo, Score */}
+      <div className="relative z-10 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent pointer-events-none">
+        {/* Left: Distance & Shields */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-mono font-bold text-white shadow-lg">
+            <Footprints className="w-4 h-4 text-purple-400" />
+            <span>{Math.round(distance)}m / {TRACK_LENGTH}m</span>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          {gameState === 'playing' ? (
-            <Button variant="outline" size="xs" icon={Pause} onClick={() => setGameState('paused')}>
-              {t('common.pause')}
-            </Button>
-          ) : gameState === 'paused' ? (
-            <Button variant="primary" size="xs" icon={Play} onClick={() => setGameState('playing')}>
-              {t('common.resume')}
-            </Button>
-          ) : null}
-          <Button variant="ghost" size="xs" icon={RotateCcw} onClick={startCountdown}>
-            {t('common.restart')}
-          </Button>
-        </div>
-      </div>
-
-      {/* Dynamic Tier Escalation Toast Banner */}
-      {tierUpToast && (
-        <div className="px-3 py-2 rounded-lg bg-purple-950/80 border border-purple-500/50 text-purple-300 font-mono text-xs flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-          <span className="flex items-center gap-2 font-bold">
-            <Flame className="w-4 h-4 text-purple-400 animate-pulse" />
-            {tierUpToast}
-          </span>
-          <span className="text-[10px] text-purple-400 uppercase">Hurdle Velocity & Spacing Scaled</span>
-        </div>
-      )}
-
-      {/* HUD Metrics Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Distance</span>
-          <span className="text-base font-bold text-purple-400">
-            {Math.round(distance)}m <span className="text-[10px] text-[var(--text-muted)]">/ 1,000m</span>
-          </span>
-        </div>
-
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.health')}</span>
-          <div className="flex items-center gap-1 mt-0.5">
-            {[...Array(3)].map((_, i) => (
+          <div className="flex items-center gap-1">
+            {[0, 1, 2].map((i) => (
               <Shield
                 key={i}
-                className={`w-3.5 h-3.5 ${
-                  i < lives ? 'text-purple-400 fill-purple-400/30' : 'text-neutral-600'
+                className={`w-5 h-5 transition-all ${
+                  i < lives
+                    ? 'text-cyan-400 fill-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]'
+                    : 'text-neutral-700'
                 }`}
               />
             ))}
           </div>
         </div>
 
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.score')}</span>
-          <span className="text-base font-bold text-[var(--text-primary)]">{score}</span>
-        </div>
-
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">Hurdles Cleared</span>
-          <span className="text-base font-bold text-emerald-400">{obstaclesCleared}</span>
-        </div>
-
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.accuracy')}</span>
-          <span className="text-base font-bold text-[var(--ui-success)]">{accuracy}%</span>
-        </div>
-
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.time')}</span>
-          <span className="text-base font-bold text-[var(--text-secondary)]">{elapsedSeconds}s</span>
-        </div>
-      </div>
-
-      {/* Parkour Track Arena */}
-      <div className="relative w-full rounded-xl border border-[var(--border)] bg-[#070913] overflow-hidden shadow-inner h-[280px] flex flex-col justify-end">
-        {/* Parallax Cyber City Skyline Background */}
-        <div
-          className="absolute inset-0 opacity-20 pointer-events-none"
-          style={{
-            backgroundImage:
-              'linear-gradient(to top, rgba(168,85,247,0.3) 0%, transparent 60%)',
-          }}
-        />
-
-        {/* Distance Progress Bar at Top */}
-        <div className="absolute top-3 left-4 right-4 z-20">
-          <div className="flex justify-between text-[10px] font-mono text-[var(--text-muted)] mb-1">
-            <span>START (0m)</span>
-            <span>CYBER FREEWAY TRACK</span>
-            <span>FINISH LINE (1000m)</span>
-          </div>
-          <div className="h-1.5 bg-neutral-800 rounded-full overflow-hidden border border-neutral-700">
-            <div
-              className="h-full bg-gradient-to-r from-purple-500 to-cyan-400 transition-all duration-75"
-              style={{ width: `${(distance / TRACK_LENGTH) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* The Animated Ground / Neon Track */}
-        <div className="relative w-full h-16 border-t-2 border-purple-500 bg-purple-950/30 flex items-center overflow-hidden">
-          {/* Moving keyboard keycap stripes on ground */}
-          <div
-            className="absolute inset-0 opacity-30 flex items-center gap-6"
-            style={{
-              transform: `translateX(-${(distance * 8) % 40}px)`,
-            }}
-          >
-            {[...Array(30)].map((_, i) => (
-              <span key={i} className="w-8 h-8 rounded bg-purple-500/20 border border-purple-500/40 shrink-0" />
-            ))}
-          </div>
-        </div>
-
-        {/* Animated Cybernetic Runner Character */}
-        <div
-          className="absolute left-16 z-20 transition-all"
-          style={{
-            bottom: `${64 + jumpHeight}px`,
-          }}
-        >
-          <div className="relative flex flex-col items-center">
-            {/* Runner Avatar Icon */}
-            <div
-              className={`w-11 h-11 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-[0_0_15px_rgba(168,85,247,0.8)] border border-purple-300 ${
-                isJumping ? 'scale-110 rotate-[-15deg]' : 'animate-bounce'
+        {/* Center: Live Action Indicator */}
+        {activeObstacle && (
+          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-xs font-mono text-white shadow-lg">
+            <span className="text-[10px] text-neutral-400 uppercase">Incoming:</span>
+            <span
+              className={`font-bold px-2 py-0.5 rounded-md ${
+                activeObstacle.type === 'jump'
+                  ? 'bg-sky-500/20 text-sky-400 border border-sky-500/40'
+                  : activeObstacle.type === 'slide'
+                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                  : activeObstacle.type === 'hack'
+                  ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                  : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
               }`}
             >
-              <Footprints className="w-6 h-6" />
-            </div>
-            {/* Speed motion trail */}
-            <div className="w-12 h-1 bg-gradient-to-r from-transparent to-purple-400 rounded-full blur-[1px] mt-1" />
-          </div>
-        </div>
-
-        {/* Upcoming Obstacle with Target Word */}
-        {activeObstacle && (
-          <div
-            className="absolute z-20 flex flex-col items-center"
-            style={{
-              bottom: '64px',
-              left: `${Math.min(650, 150 + distanceToObstacle * 10)}px`,
-              transition: 'left 50ms linear',
-            }}
-          >
-            {/* Target Word Floating Pill */}
-            <div className="px-3 py-1 rounded-lg bg-[var(--bg-elevated)] border-2 border-purple-500 font-mono text-xs font-black shadow-lg mb-2 text-white ring-2 ring-purple-500/40">
-              <span className="text-emerald-400 bg-emerald-950/60 rounded px-0.5">
-                {activeObstacle.word.slice(0, typedBuffer.length)}
-              </span>
-              <span>{activeObstacle.word.slice(typedBuffer.length)}</span>
-            </div>
-
-            {/* Obstacle Physical Barrier */}
-            <div className="w-8 h-14 rounded-t-md bg-rose-600/90 border-2 border-rose-400 flex items-center justify-center text-white text-[10px] font-bold shadow-[0_0_12px_rgba(244,63,94,0.6)]">
-              <AlertTriangle className="w-4 h-4 text-white animate-pulse" />
-            </div>
-          </div>
-        )}
-
-        {/* Overlay States */}
-        {gameState === 'ready' && (
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-xs z-30 flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-purple-400 flex items-center justify-center shadow-lg">
-              <Footprints className="w-8 h-8" />
-            </div>
-            <div className="space-y-1 max-w-sm">
-              <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.runner.title')}</h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {t('arcade.runner.desc')}
-              </p>
-            </div>
-            <Button variant="primary" size="lg" icon={Play} onClick={startCountdown}>
-              {t('common.play')}
-            </Button>
-          </div>
-        )}
-
-        {gameState === 'countdown' && (
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-xs z-30 flex items-center justify-center">
-            <span className="text-6xl font-black font-mono text-purple-400 animate-pulse">
-              {countdown}
+              {activeObstacle.type.toUpperCase()}
             </span>
           </div>
         )}
 
-        {gameState === 'paused' && (
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-xs z-30 flex flex-col items-center justify-center space-y-4">
-            <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.hud.pause')}</h3>
-            <div className="flex gap-3">
-              <Button variant="primary" size="sm" icon={Play} onClick={() => setGameState('playing')}>
-                {t('common.resume')}
-              </Button>
-              <Button variant="outline" size="sm" icon={RotateCcw} onClick={startCountdown}>
-                {t('common.restart')}
-              </Button>
+        {/* Right: Score & Exit */}
+        <div className="flex items-center gap-3">
+          <div className="px-3.5 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-mono font-bold text-white shadow-lg">
+            <span className="text-amber-400 mr-1.5">★</span>
+            <span>{score.toLocaleString()}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowExitConfirm(true);
+            }}
+            className="p-2 rounded-xl bg-black/60 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/10 transition-colors pointer-events-auto cursor-pointer"
+            title="Exit Game"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* BOTTOM HUD: Typing Target Stream & Word Input Bar */}
+      <div className="relative z-10 p-4 sm:p-6 flex flex-col items-center justify-end space-y-3 bg-gradient-to-t from-black/85 via-black/45 to-transparent pointer-events-none">
+        {/* Active Target Word Floating Display */}
+        {activeObstacle ? (
+          <div className="flex flex-col items-center space-y-1.5">
+            <div className="px-5 py-2.5 rounded-2xl bg-black/85 backdrop-blur-md border border-purple-500/40 shadow-2xl flex items-center gap-3">
+              <span className="text-xs font-mono uppercase tracking-wider text-purple-300">
+                Type To {activeObstacle.type}:
+              </span>
+              <div className="font-mono text-xl sm:text-2xl font-black tracking-widest">
+                <span className="text-emerald-400">
+                  {activeObstacle.word.slice(0, activeObstacle.typedCount)}
+                </span>
+                <span className="text-amber-300 underline decoration-2">
+                  {activeObstacle.word[activeObstacle.typedCount] || ''}
+                </span>
+                <span className="text-neutral-400">
+                  {activeObstacle.word.slice(activeObstacle.typedCount + 1)}
+                </span>
+              </div>
+            </div>
+            <div className="text-[11px] font-mono text-neutral-400 flex items-center gap-3">
+              <span>Lane: <strong className="text-white">A/D or Arrows</strong></span>
+              <span>•</span>
+              <span>Combo: <strong className="text-amber-400">{combo}x</strong></span>
             </div>
           </div>
-        )}
-
-        {gameState === 'gameover' && (
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-2xl font-black text-[var(--text-primary)]">{t('arcade.hud.gameOver')}</h3>
-              <p className="text-xs text-[var(--text-secondary)]">{t('workstation.summary')}</p>
-            </div>
-
-            {personalBestNotice && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold">
-                <Trophy className="w-3.5 h-3.5" /> {t('arcade.hud.newBest')}
-              </div>
-            )}
-
-            <div className="grid grid-cols-3 gap-3 bg-[var(--bg-elevated)] p-4 rounded-xl border border-[var(--border)] text-xs font-mono w-full max-w-sm">
-              <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">Distance Covered</span>
-                <span className="text-lg font-bold text-purple-400">{Math.round(distance)}m</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">Hurdles Cleared</span>
-                <span className="text-lg font-bold text-emerald-400">{obstaclesCleared}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">Total Score</span>
-                <span className="text-lg font-bold text-[var(--accent)]">{score}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown}>
-                {t('arcade.hud.playAgain')}
-              </Button>
-              <Button variant="outline" size="md" onClick={onExit}>
-                {t('arcade.hud.returnToHub')}
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {gameState === 'victory' && (
-          <div className="absolute inset-0 bg-black/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
-              <Trophy className="w-6 h-6" />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-2xl font-black text-emerald-400">{t('arcade.hud.victory')}</h3>
-              <p className="text-xs text-[var(--text-secondary)]">{t('arcade.hud.missionComplete')}</p>
-            </div>
-
-            <div className="grid grid-cols-3 gap-3 bg-[var(--bg-elevated)] p-4 rounded-xl border border-[var(--border)] text-xs font-mono w-full max-w-sm">
-              <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">Final Score</span>
-                <span className="text-lg font-bold text-[var(--accent)]">{score + 500}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">Accuracy</span>
-                <span className="text-lg font-bold text-[var(--ui-success)]">{accuracy}%</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">Hurdles Cleared</span>
-                <span className="text-lg font-bold text-emerald-400">{obstaclesCleared}</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown}>
-                {t('arcade.hud.playAgain')}
-              </Button>
-              <Button variant="outline" size="md" onClick={onExit}>
-                {t('arcade.hud.returnToHub')}
-              </Button>
-            </div>
+        ) : (
+          <div className="px-4 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-mono text-neutral-400">
+            Scanning neon highway for upcoming cyber barriers...
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between text-xs text-[var(--text-muted)] font-mono px-1">
-        <span>Type word to jump obstacle before collision</span>
-        <span>Stumbles: {stumbles} • Personal Best: {personalBest?.maxDistance || 0}m</span>
-      </div>
+      {/* READY SCREEN */}
+      {gameState === 'ready' && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-6 text-center space-y-5 animate-in fade-in duration-200">
+          <div className="w-16 h-16 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400 shadow-xl">
+            <Footprints className="w-8 h-8" />
+          </div>
 
-      {/* Exit Run Confirmation Dialog */}
+          <div className="space-y-1 max-w-md">
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              WORD RUNNER 3D
+            </h2>
+            <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed">
+              Sprint across the neon cyber highway. Type action words floating above obstacles to leap barriers, duck under laser grids, and breach firewalls!
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-left font-mono text-[11px] max-w-lg w-full">
+            <div className="p-2.5 rounded-xl bg-neutral-900/80 border border-white/10">
+              <span className="text-sky-400 font-bold block">JUMP</span>
+              <span className="text-neutral-400">Low electric hurdle</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-neutral-900/80 border border-white/10">
+              <span className="text-amber-400 font-bold block">SLIDE</span>
+              <span className="text-neutral-400">High laser grid</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-neutral-900/80 border border-white/10">
+              <span className="text-rose-400 font-bold block">HACK</span>
+              <span className="text-neutral-400">Firewall gate</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-neutral-900/80 border border-white/10">
+              <span className="text-emerald-400 font-bold block">BOOST</span>
+              <span className="text-neutral-400">Energy crystal</span>
+            </div>
+          </div>
+
+          <Button
+            variant="primary"
+            size="lg"
+            icon={Play}
+            onClick={startCountdown}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold px-8 shadow-xl"
+          >
+            Start Cyber Sprint
+          </Button>
+        </div>
+      )}
+
+      {/* COUNTDOWN OVERLAY */}
+      {gameState === 'countdown' && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-xs">
+          <span className="text-7xl sm:text-8xl font-black font-mono text-purple-400 animate-ping">
+            {countdown}
+          </span>
+        </div>
+      )}
+
+      {/* PAUSE OVERLAY */}
+      {gameState === 'paused' && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-6 space-y-4">
+          <h3 className="text-2xl font-bold text-white">Sprint Paused</h3>
+          <div className="flex gap-3">
+            <Button variant="primary" size="md" icon={Play} onClick={() => setGameState('playing')}>
+              Resume
+            </Button>
+            <Button variant="outline" size="md" icon={RotateCcw} onClick={resetGame}>
+              Restart
+            </Button>
+            <Button variant="outline" size="md" icon={ArrowLeft} onClick={onExit}>
+              Exit
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* GAME OVER & VICTORY OVERLAY */}
+      {(gameState === 'gameover' || gameState === 'victory') && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-6 text-center space-y-5 animate-in zoom-in-95 duration-200">
+          <div className="space-y-1">
+            <span className="text-xs font-mono font-bold uppercase tracking-widest text-amber-400">
+              {gameState === 'victory' ? 'VICTORY • 1,000M COMPLETED' : 'CIRCUIT OVER • SHIELDS DEPLETED'}
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+              {gameState === 'victory' ? 'Neon Champion!' : 'Sprint Concluded'}
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-xl mx-auto font-mono text-center w-full">
+            <div className="p-3 rounded-xl bg-neutral-900 border border-white/10">
+              <span className="text-[10px] text-neutral-400 uppercase block">Distance</span>
+              <span className="text-2xl font-extrabold text-purple-400">{Math.round(distance)}m</span>
+            </div>
+            <div className="p-3 rounded-xl bg-neutral-900 border border-white/10">
+              <span className="text-[10px] text-neutral-400 uppercase block">Score</span>
+              <span className="text-2xl font-extrabold text-amber-400">{score.toLocaleString()}</span>
+            </div>
+            <div className="p-3 rounded-xl bg-neutral-900 border border-white/10">
+              <span className="text-[10px] text-neutral-400 uppercase block">Cleared</span>
+              <span className="text-2xl font-extrabold text-emerald-400">{obstaclesCleared}</span>
+            </div>
+            <div className="p-3 rounded-xl bg-neutral-900 border border-white/10">
+              <span className="text-[10px] text-neutral-400 uppercase block">Accuracy</span>
+              <span className="text-2xl font-extrabold text-cyan-400">{accuracy}%</span>
+            </div>
+          </div>
+
+          {personalBestNotice && (
+            <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono text-xs">
+              🏆 New Personal Best Recorded!
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            <Button
+              variant="primary"
+              size="md"
+              icon={RotateCcw}
+              onClick={resetGame}
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold"
+            >
+              Play Again
+            </Button>
+            <Button variant="outline" size="md" icon={ArrowLeft} onClick={onExit}>
+              Exit to Arcade
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Exit confirmation dialog */}
       <ArcadeExitDialog
         isOpen={showExitConfirm}
         onCancel={() => setShowExitConfirm(false)}
-        onConfirm={onExit}
+        onConfirm={() => {
+          setShowExitConfirm(false);
+          onExit();
+        }}
       />
     </div>
   );
 };
+
+export default WordRunnerGame;

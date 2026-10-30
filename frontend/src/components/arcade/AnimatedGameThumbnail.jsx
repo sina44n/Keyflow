@@ -14,7 +14,7 @@ export const AnimatedGameThumbnail = ({ game }) => {
   const Icon = game.icon;
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden bg-neutral-950 rounded-xl border border-[var(--border)] group/thumb">
+    <div className="relative aspect-video w-full overflow-hidden bg-neutral-950 group/thumb">
       {/* 1. Base Artwork Image */}
       {!imgError ? (
         <img
@@ -130,17 +130,7 @@ export const AnimatedGameThumbnail = ({ game }) => {
         )}
       </div>
 
-      {/* 4. Top Overlay Category & Badge Pills */}
-      <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between pointer-events-none z-10">
-        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black/80 backdrop-blur-xs border border-white/10 text-white shadow-xs">
-          {t(`arcade.${game.id}.badge`) || game.badge}
-        </span>
-        <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-black/75 backdrop-blur-xs text-[var(--text-muted)] border border-white/10">
-          {game.categoryLabel}
-        </span>
-      </div>
-
-      {/* 5. Interactive Light Sweep Shimmer on Card Hover */}
+      {/* 4. Interactive Light Sweep Shimmer on Card Hover */}
       <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/12 to-transparent -translate-x-full group-hover/thumb:translate-x-full transition-transform duration-700 ease-in-out pointer-events-none" />
     </div>
   );

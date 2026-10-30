@@ -100,7 +100,7 @@ function drawWordOnCanvas(ctx, width, height, text, typedCount, isTargeted, isLe
  * Manages full 3D physics, targeting auras, and the Fruit Ninja 3D split animation.
  */
 export class Ninja3DWordObject {
-  constructor({ id, text, startX = 0, startY = -6.5, vx = 0, vy = 14, vz = 0, gravity = 22.0 }) {
+  constructor({ id, text, startX = 0, startY = -6.8, vx = 0, vy = 20.0, vz = 0, gravity = 14.0 }) {
     this.id = id;
     this.text = text;
     this.gravity = gravity;

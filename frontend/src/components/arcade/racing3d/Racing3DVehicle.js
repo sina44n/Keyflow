@@ -350,54 +350,72 @@ export const create3DVehicle = ({
   carGroup.add(bodyGroup);
 
   // ==========================================
-  // 2. 4 ROTATING WHEELS WITH HIGH-DETAIL RIMS
+  // 2. 4 ROTATING WHEELS WITH PHYSICAL SUSPENSION & STEERING
   // ==========================================
   const wheels = [];
   const wheelPositions = [
-    { x: 1.35, y: 0.38, z: 0.98 },
-    { x: 1.35, y: 0.38, z: -0.98 },
-    { x: -1.35, y: 0.38, z: 0.98 },
-    { x: -1.35, y: 0.38, z: -0.98 },
+    { id: 'fl', isFront: true, isRight: false, x: 1.35, y: 0.38, z: -0.98 },
+    { id: 'fr', isFront: true, isRight: true, x: 1.35, y: 0.38, z: 0.98 },
+    { id: 'rl', isFront: false, isRight: false, x: -1.35, y: 0.38, z: -0.98 },
+    { id: 'rr', isFront: false, isRight: true, x: -1.35, y: 0.38, z: 0.98 },
   ];
 
   wheelPositions.forEach((pos) => {
+    // 1. Fixed suspension assembly
     const wheelAssembly = new THREE.Group();
     wheelAssembly.position.set(pos.x, pos.y, pos.z);
 
+    // 2. Steering knuckle (articulates around Y for front-wheel steering)
+    const steeringKnuckle = new THREE.Group();
+    wheelAssembly.add(steeringKnuckle);
+
+    // 3. Stationary brake caliper (fixed to knuckle, does not rotate with wheel)
+    const caliper = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.18, 0.08),
+      brakeCaliperMaterial
+    );
+    caliper.position.set(0, 0.12, pos.isRight ? -0.14 : 0.14);
+    steeringKnuckle.add(caliper);
+
+    // 4. Rotating Hub (spins around Z-axis synchronized to vehicle forward travel)
+    const rotatingHub = new THREE.Group();
+    steeringKnuckle.add(rotatingHub);
+
+    // Tire (outer rubber)
     const tireMesh = new THREE.Mesh(
       new THREE.CylinderGeometry(0.38, 0.38, 0.32, 24),
       wheelRubberMaterial
     );
     tireMesh.rotation.x = Math.PI / 2;
     tireMesh.castShadow = true;
-    wheelAssembly.add(tireMesh);
+    rotatingHub.add(tireMesh);
 
+    // Rim (alloy wheel face)
     const rimMesh = new THREE.Mesh(
       new THREE.CylinderGeometry(0.26, 0.26, 0.33, 16),
       wheelAlloyMaterial
     );
     rimMesh.rotation.x = Math.PI / 2;
-    wheelAssembly.add(rimMesh);
+    rotatingHub.add(rimMesh);
 
-    // Rim spokes for visible rolling animation
+    // 5 Rim spokes for visible rolling animation
     for (let s = 0; s < 5; s++) {
       const spoke = new THREE.Mesh(
         new THREE.BoxGeometry(0.04, 0.22, 0.34),
         wheelAlloyMaterial
       );
       spoke.rotation.z = (s * Math.PI) / 2.5;
-      wheelAssembly.add(spoke);
+      rotatingHub.add(spoke);
     }
 
-    const caliper = new THREE.Mesh(
-      new THREE.BoxGeometry(0.14, 0.18, 0.08),
-      brakeCaliperMaterial
-    );
-    caliper.position.set(0, 0.12, pos.z > 0 ? -0.14 : 0.14);
-    wheelAssembly.add(caliper);
-
     carGroup.add(wheelAssembly);
-    wheels.push(wheelAssembly);
+    wheels.push({
+      assembly: wheelAssembly,
+      steeringKnuckle,
+      rotatingHub,
+      isFront: pos.isFront,
+      isRight: pos.isRight,
+    });
   });
 
   // ==========================================
@@ -609,12 +627,31 @@ export const create3DVehicle = ({
       bodyGroup.rotation.z = THREE.MathUtils.lerp(bodyGroup.rotation.z, targetPitchZ, 0.15);
       bodyGroup.position.y = Math.sin(Date.now() * 0.025) * 0.008 * (this.currentSpeed > 3 ? 1 : 0);
 
-      // 4 wheels rolling animation (positive rotation around Z-axis matching +X forward travel)
-      const wheelRotationStep = this.currentSpeed * 2.8 * dt;
+      // 4 wheels physically correct rolling animation:
+      // Forward vehicle travel along +X requires POSITIVE rotation around local Z axis
+      // (so the top of the wheel rolls forward toward +X, perfectly synchronized to ground velocity).
+      // Angular step = (v / r) * dt, where r = 0.38m
+      const wheelRadius = 0.38;
+      const wheelRotationStep = (this.currentSpeed / wheelRadius) * dt;
+
+      // Lateral steering response when shifting lanes
+      const lateralDeltaZ = this.laneZ - carGroup.position.z;
+      const targetSteerAngle = THREE.MathUtils.clamp(-lateralDeltaZ * 0.4, -0.22, 0.22);
+
       wheels.forEach((w) => {
-        w.children.forEach((c) => {
-          c.rotation.z -= wheelRotationStep;
-        });
+        // Spin the rotating hub (tire, rim, spokes) around Z
+        if (w.rotatingHub) {
+          w.rotatingHub.rotation.z += wheelRotationStep;
+        }
+
+        // Steer front wheels smoothly into turns / lane changes
+        if (w.isFront && w.steeringKnuckle) {
+          w.steeringKnuckle.rotation.y = THREE.MathUtils.lerp(
+            w.steeringKnuckle.rotation.y,
+            targetSteerAngle,
+            0.18
+          );
+        }
       });
 
       // Update Nitro Visual Effects

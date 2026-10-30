@@ -245,3 +245,4 @@ export class Ninja3DScene {
     this.renderer.dispose();
   }
 }
+
