@@ -218,6 +218,66 @@ export const create3DVehicle = ({
     solarHood.position.set(1.15, 0.57, 0);
     solarHood.rotation.z = -0.06;
     bodyGroup.add(solarHood);
+  } else if (vehicleId === 'formula-apex') {
+    // Formula single-seater long needle nose
+    const formulaNose = new THREE.Mesh(
+      new THREE.ConeGeometry(0.55, 2.2, 16),
+      bodyPaintMaterial
+    );
+    formulaNose.rotation.z = -Math.PI / 2;
+    formulaNose.position.set(2.0, 0.42, 0);
+    bodyGroup.add(formulaNose);
+
+    // Front high-downforce front wing
+    const formulaFrontWing = new THREE.Mesh(
+      new THREE.BoxGeometry(0.35, 0.05, 2.2),
+      carbonAccentMaterial
+    );
+    formulaFrontWing.position.set(2.4, 0.22, 0);
+    bodyGroup.add(formulaFrontWing);
+
+    // Elevated engine air intake scoop above driver cockpit
+    const haloScoop = new THREE.Mesh(
+      new THREE.BoxGeometry(0.65, 0.45, 0.5),
+      carbonAccentMaterial
+    );
+    haloScoop.position.set(-0.2, 1.35, 0);
+    bodyGroup.add(haloScoop);
+  } else if (vehicleId === 'muscle-titan') {
+    // Muscle car bulging shaker hood scoop
+    const shakerScoop = new THREE.Mesh(
+      new THREE.BoxGeometry(1.1, 0.25, 0.8),
+      carbonAccentMaterial
+    );
+    shakerScoop.position.set(0.9, 0.78, 0);
+    bodyGroup.add(shakerScoop);
+
+    // Boxy muscle front fascia and grille
+    const muscleGrille = new THREE.Mesh(
+      new THREE.BoxGeometry(0.2, 0.38, 1.8),
+      carbonAccentMaterial
+    );
+    muscleGrille.position.set(2.2, 0.45, 0);
+    bodyGroup.add(muscleGrille);
+  } else if (vehicleId === 'classic-speedster') {
+    // Classic roadster rounded curved hood
+    const curvedHood = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.85, 0.95, 1.8, 16),
+      bodyPaintMaterial
+    );
+    curvedHood.rotation.x = Math.PI / 2;
+    curvedHood.rotation.z = Math.PI / 2;
+    curvedHood.position.set(1.1, 0.52, 0);
+    bodyGroup.add(curvedHood);
+
+    // Aerodynamic driver headrest fairing
+    const headrestFairing = new THREE.Mesh(
+      new THREE.ConeGeometry(0.3, 0.9, 12),
+      bodyPaintMaterial
+    );
+    headrestFairing.rotation.z = Math.PI / 2;
+    headrestFairing.position.set(-0.9, 1.05, -0.3);
+    bodyGroup.add(headrestFairing);
   } else {
     // Apex GT / Default
     const apexHood = new THREE.Mesh(
@@ -240,21 +300,22 @@ export const create3DVehicle = ({
   }
 
   // Rear High-Downforce GT Spoiler Wing
+  const isFormula = vehicleId === 'formula-apex';
   const wingGroup = new THREE.Group();
   const wingBlade = new THREE.Mesh(
-    new THREE.BoxGeometry(0.45, 0.06, 1.85),
+    new THREE.BoxGeometry(0.45, 0.06, isFormula ? 2.1 : 1.85),
     carbonAccentMaterial
   );
-  wingBlade.position.set(-2.05, 1.05, 0);
+  wingBlade.position.set(-2.05, isFormula ? 1.45 : 1.05, 0);
   wingBlade.castShadow = true;
   wingGroup.add(wingBlade);
 
   [-0.6, 0.6].forEach((z) => {
     const wingPillar = new THREE.Mesh(
-      new THREE.BoxGeometry(0.12, 0.42, 0.06),
+      new THREE.BoxGeometry(0.12, isFormula ? 0.82 : 0.42, 0.06),
       carbonAccentMaterial
     );
-    wingPillar.position.set(-1.95, 0.84, z);
+    wingPillar.position.set(-1.95, isFormula ? 1.05 : 0.84, z);
     wingGroup.add(wingPillar);
   });
   bodyGroup.add(wingGroup);
@@ -542,8 +603,10 @@ export const create3DVehicle = ({
       carGroup.position.x = this.distance;
       carGroup.position.z = THREE.MathUtils.lerp(carGroup.position.z, this.laneZ, 0.1);
 
-      // Dynamic suspension roll
-      bodyGroup.rotation.z = -THREE.MathUtils.clamp((this.currentSpeed / 80) * 0.02, 0, 0.035);
+      // Dynamic suspension pitch on acceleration & braking (squat on gas, dive on brake)
+      const accelDelta = (targetSpeedClamp - this.currentSpeed);
+      const targetPitchZ = THREE.MathUtils.clamp(-accelDelta * 0.018 - (this.currentSpeed / 90) * 0.01, -0.05, 0.04);
+      bodyGroup.rotation.z = THREE.MathUtils.lerp(bodyGroup.rotation.z, targetPitchZ, 0.15);
       bodyGroup.position.y = Math.sin(Date.now() * 0.025) * 0.008 * (this.currentSpeed > 3 ? 1 : 0);
 
       // 4 wheels rolling animation (positive rotation around Z-axis matching +X forward travel)

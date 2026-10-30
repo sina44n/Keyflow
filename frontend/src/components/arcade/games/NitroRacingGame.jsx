@@ -618,7 +618,7 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
         playerVehicle.targetSpeed = 0;
       }
 
-      // 2. Advance AI Competitors along +X
+      // 2. Advance AI Competitors along +X with independent non-synchronized kinetics
       if (!isMultiplayer && isRacing) {
         AI_COMPETITORS.forEach((competitor, idx) => {
           const vKey = idx === 0 ? 'xavier' : idx === 1 ? 'thomas' : 'joshua';
@@ -627,12 +627,17 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
               aiRacer: competitor,
               tierConfig,
               playerWpm: currentWpmVal,
+              playerDistance: playerVehicle.distance,
               elapsedSeconds: elapsed,
               currentProgress: (competitors[vKey].distance / targetDistance) * 100,
               targetDistance,
             });
-            competitors[vKey].targetSpeed = aiTargetMps;
-            competitors[vKey].distance += competitors[vKey].targetSpeed * dt;
+            const accelRate = competitor.accelerationRate || 3.0;
+            const currentAiSpeed = competitors[vKey].currentSpeed ?? aiTargetMps;
+            const nextAiSpeed = THREE.MathUtils.lerp(currentAiSpeed, aiTargetMps, Math.min(1, dt * accelRate));
+            competitors[vKey].currentSpeed = nextAiSpeed;
+            competitors[vKey].targetSpeed = nextAiSpeed;
+            competitors[vKey].distance += nextAiSpeed * dt;
           }
         });
       }
@@ -1252,8 +1257,8 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
       {/* 3. ACTIVE 3D RACING VIEWPORT & HEADS-UP DISPLAY */}
       {(gameState === 'racing' || gameState === 'countdown') && (
         <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] shadow-2xl bg-black animate-in fade-in duration-150">
-          {/* Stable Aspect-Ratio 3D Mount Stage */}
-          <div ref={mountRef} className="w-full h-[400px] sm:h-[460px] cursor-text" />
+          {/* Stable Aspect-Ratio 3D Mount Stage with Unobstructed Vertical Clearance */}
+          <div ref={mountRef} className="w-full h-[460px] sm:h-[520px] md:h-[560px] cursor-text" />
 
           {/* Hidden continuous typing input anchor */}
           <input
@@ -1335,8 +1340,8 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
             </button>
           </div>
 
-          {/* Bottom HUD: Continuous Passage Stream Sliding Window */}
-          <div className="absolute bottom-3 left-3 right-3 p-4 rounded-xl bg-black/85 border border-white/10 backdrop-blur-md z-20">
+          {/* Bottom HUD: Continuous Passage Stream Floating Window */}
+          <div className="absolute bottom-3 sm:bottom-4 left-3 right-3 sm:left-6 sm:right-6 max-w-4xl mx-auto p-3 sm:p-4 rounded-2xl bg-black/80 border border-white/15 backdrop-blur-md shadow-2xl z-20">
             <div className="flex items-center justify-between text-xs font-mono text-zinc-400 mb-2 pb-1 border-b border-white/10">
               <span className="text-[11px] font-bold text-red-400 uppercase tracking-wide">
                 CONTINUOUS PASSAGE STREAM • TYPING FOCUS ACTIVE

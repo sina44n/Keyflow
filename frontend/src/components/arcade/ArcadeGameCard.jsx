@@ -97,47 +97,47 @@ export const ArcadeGameCard = ({ game, record, stats, onPlay, onToggleLike }) =>
             </div>
           </div>
 
-          {/* 3. Compact Real-Time Likes and Unique Plays Statistics Bar */}
-          <div className="flex items-center justify-between gap-2 py-1 px-2 rounded-lg bg-[var(--bg-elevated)]/60 border border-[var(--border)] text-xs font-mono">
-            {/* Interactive Thumbs-Up Likes Button */}
+          {/* 3. Reference-Matched High-Visibility Likes and Unique Plays Statistics Bar */}
+          <div className="flex items-center justify-between gap-2 py-1.5 px-2.5 rounded-xl bg-[var(--bg-elevated)]/70 border border-[var(--border)] text-xs font-mono">
+            {/* Interactive Thumbs-Up Likes Button (Reference Matched Green Badge) */}
             <button
               type="button"
               onClick={handleLikeClick}
               disabled={isLiking}
               title={hasLiked ? 'Unlike game' : 'Like game'}
               aria-label={`${currentLikes} likes. ${hasLiked ? 'Liked' : 'Like'}`}
-              className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer select-none ${
                 hasLiked
-                  ? 'text-[var(--accent)] bg-[var(--accent)]/15 font-bold shadow-xs'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-main)]'
+                  ? 'bg-emerald-500/25 text-emerald-400 border border-emerald-500/40 shadow-xs'
+                  : 'bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 border border-emerald-500/20'
               }`}
             >
               <ThumbsUp
                 className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                  hasLiked ? 'fill-[var(--accent)] scale-110' : 'group-hover:scale-110'
+                  hasLiked ? 'fill-emerald-500 scale-110' : 'group-hover:scale-110'
                 }`}
               />
-              <span>{formatCompactCount(currentLikes)}</span>
+              <span className="font-semibold">{formatCompactCount(currentLikes)}</span>
             </button>
 
-            {/* Unique Plays Counter */}
+            {/* Unique Plays Counter (Reference Matched Blue/Cyan Eye Badge) */}
             <div
-              className="flex items-center gap-1.5 px-2 py-1 text-[var(--text-muted)]"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 text-sky-500 border border-sky-500/20 font-bold"
               title={`${currentPlays.toLocaleString()} total play sessions`}
             >
               <Eye className="w-3.5 h-3.5" />
-              <span>{formatCompactCount(currentPlays)}</span>
+              <span className="font-semibold">{formatCompactCount(currentPlays)}</span>
             </div>
 
             {/* Personal Best Indicator */}
             <div
-              className={`flex items-center gap-1 px-2 py-1 truncate ${
+              className={`flex items-center gap-1 px-1.5 py-1 truncate ${
                 hasPlayed ? 'text-[var(--accent)] font-semibold' : 'text-[var(--text-muted)]'
               }`}
               title={`Personal Best: ${bestValue}`}
             >
-              <Trophy className="w-3 h-3 text-amber-400 shrink-0" />
-              <span className="truncate text-[10px]">{bestValue}</span>
+              <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+              <span className="truncate text-[11px] font-semibold">{bestValue}</span>
             </div>
           </div>
 

@@ -123,3 +123,4 @@ class MultiplayerRacingTests(TestCase):
         participant_data = next(p for p in sync_res.data['participants'] if p['id'] == p_id)
         self.assertEqual(participant_data['distance'], 450.5)
         self.assertEqual(participant_data['wpm'], 94)
+

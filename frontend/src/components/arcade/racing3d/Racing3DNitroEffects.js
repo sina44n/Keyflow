@@ -439,3 +439,4 @@ export class NitroEffectController {
     this.parentGroup.remove(this.group);
   }
 }
+

@@ -19,17 +19,19 @@ export class Racing3DCamera {
     this.camera.far = 700;
     this.camera.updateProjectionMatrix();
 
-    // Default side-rear follow offsets relative to player car (traveling in +X)
-    this.baseOffsetX = -11.5; // Chase offset behind player along X
-    this.baseOffsetY = 6.2;   // Elevated angle looking down onto the 4 lanes
-    this.baseOffsetZ = 15.5;  // Side perspective looking across track
+    // Elevated side-rear follow perspective relative to player car (traveling in +X)
+    // Carefully calibrated so vehicles render in the upper-to-mid section of the viewport,
+    // leaving complete unobstructed clearance above the bottom typing HUD on all display sizes.
+    this.baseOffsetX = -12.5; // Chase offset behind player along X
+    this.baseOffsetY = 9.4;   // Elevated angle providing crystal-clear visibility of all 4 lanes
+    this.baseOffsetZ = 18.0;  // Pull-back side perspective across all track lanes
 
-    this.lookAheadX = 14.0;
-    this.lookAheadY = 1.6;
-    this.lookAheadZ = -1.0;
+    this.lookAheadX = 14.5;
+    this.lookAheadY = -1.5;   // Downward look-target elevates the vehicle and road plane into upper view
+    this.lookAheadZ = -1.2;
 
-    this.currentPosition = new THREE.Vector3(-11.5, 6.2, 15.5);
-    this.currentTarget = new THREE.Vector3(14.0, 1.6, -1.0);
+    this.currentPosition = new THREE.Vector3(-12.5, 9.4, 18.0);
+    this.currentTarget = new THREE.Vector3(14.5, -1.5, -1.2);
 
     // Dynamic camera physics
     this.targetFov = 45;

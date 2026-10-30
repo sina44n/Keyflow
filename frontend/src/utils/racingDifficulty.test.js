@@ -25,8 +25,8 @@ describe('KEYFLOW Arcade — Progressive Racing Difficulty Engine', () => {
     }
   });
 
-  it('contains 5 selectable supercars with distinct attribute profiles', () => {
-    assert.equal(RACING_VEHICLES.length, 5);
+  it('contains selectable supercars with distinct attribute profiles', () => {
+    assert.ok(RACING_VEHICLES.length >= 5, 'Must contain at least 5 supercars');
     RACING_VEHICLES.forEach((v) => {
       assert.ok(v.id, 'Vehicle must have id');
       assert.ok(v.name, 'Vehicle must have name');

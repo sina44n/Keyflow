@@ -10,12 +10,12 @@ export const RACING_TIERS = [
     tier: 1,
     name: 'Rookie',
     label: 'Rookie Division',
-    minWpm: 24,
-    maxWpm: 34,
-    aiBaseWpm: 28,
+    minWpm: 15,
+    maxWpm: 25,
+    aiBaseWpm: 20,
     aiAccuracy: 0.92,
-    trackDistance: 800,
-    minPassageLength: 120,
+    trackDistance: 700,
+    minPassageLength: 100,
     punctuationDensity: 'minimal',
     rewardCoins: 100,
   },
@@ -23,12 +23,12 @@ export const RACING_TIERS = [
     tier: 2,
     name: 'Amateur',
     label: 'Amateur Circuit',
-    minWpm: 35,
-    maxWpm: 46,
-    aiBaseWpm: 40,
+    minWpm: 25,
+    maxWpm: 35,
+    aiBaseWpm: 30,
     aiAccuracy: 0.94,
-    trackDistance: 950,
-    minPassageLength: 160,
+    trackDistance: 850,
+    minPassageLength: 140,
     punctuationDensity: 'standard',
     rewardCoins: 200,
   },
@@ -36,12 +36,12 @@ export const RACING_TIERS = [
     tier: 3,
     name: 'Semi-Pro',
     label: 'Semi-Pro Series',
-    minWpm: 47,
-    maxWpm: 58,
-    aiBaseWpm: 52,
+    minWpm: 35,
+    maxWpm: 45,
+    aiBaseWpm: 40,
     aiAccuracy: 0.955,
-    trackDistance: 1100,
-    minPassageLength: 200,
+    trackDistance: 1000,
+    minPassageLength: 180,
     punctuationDensity: 'moderate',
     rewardCoins: 350,
   },
@@ -49,12 +49,12 @@ export const RACING_TIERS = [
     tier: 4,
     name: 'Professional',
     label: 'Pro League',
-    minWpm: 59,
-    maxWpm: 72,
-    aiBaseWpm: 65,
+    minWpm: 45,
+    maxWpm: 58,
+    aiBaseWpm: 52,
     aiAccuracy: 0.965,
-    trackDistance: 1250,
-    minPassageLength: 240,
+    trackDistance: 1200,
+    minPassageLength: 220,
     punctuationDensity: 'advanced',
     rewardCoins: 500,
   },
@@ -62,12 +62,12 @@ export const RACING_TIERS = [
     tier: 5,
     name: 'Expert',
     label: 'Expert Championship',
-    minWpm: 73,
-    maxWpm: 88,
-    aiBaseWpm: 80,
+    minWpm: 58,
+    maxWpm: 72,
+    aiBaseWpm: 65,
     aiAccuracy: 0.975,
     trackDistance: 1400,
-    minPassageLength: 280,
+    minPassageLength: 260,
     punctuationDensity: 'dense',
     rewardCoins: 750,
   },
@@ -75,12 +75,12 @@ export const RACING_TIERS = [
     tier: 6,
     name: 'Master',
     label: 'Master Grand Prix',
-    minWpm: 89,
-    maxWpm: 104,
-    aiBaseWpm: 96,
+    minWpm: 72,
+    maxWpm: 88,
+    aiBaseWpm: 80,
     aiAccuracy: 0.982,
     trackDistance: 1550,
-    minPassageLength: 320,
+    minPassageLength: 300,
     punctuationDensity: 'complex',
     rewardCoins: 1000,
   },
@@ -88,25 +88,25 @@ export const RACING_TIERS = [
     tier: 7,
     name: 'Elite',
     label: 'Elite Invitational',
-    minWpm: 105,
-    maxWpm: 122,
-    aiBaseWpm: 112,
+    minWpm: 88,
+    maxWpm: 105,
+    aiBaseWpm: 96,
     aiAccuracy: 0.988,
     trackDistance: 1700,
-    minPassageLength: 360,
+    minPassageLength: 340,
     punctuationDensity: 'severe',
     rewardCoins: 1500,
   },
   {
     tier: 8,
-    name: 'Legendary',
-    label: 'Apex Apex Legends',
-    minWpm: 123,
-    maxWpm: 145,
-    aiBaseWpm: 130,
+    name: 'Champion',
+    label: 'Champion World Finals',
+    minWpm: 105,
+    maxWpm: 135,
+    aiBaseWpm: 115,
     aiAccuracy: 0.994,
     trackDistance: 1850,
-    minPassageLength: 400,
+    minPassageLength: 380,
     punctuationDensity: 'extreme',
     rewardCoins: 2500,
   },
@@ -186,6 +186,48 @@ export const RACING_VEHICLES = [
     handling: 94,
     unlockTier: 3,
   },
+  {
+    id: 'formula-apex',
+    name: 'Formula Apex',
+    class: 'Formula Monoposto',
+    color: '#10B981',
+    secondaryColor: '#064E3B',
+    glowColor: 'rgba(16, 185, 129, 0.45)',
+    description: 'Ultra-light open-wheel single seater delivering extreme downforce and telepathic responsiveness.',
+    acceleration: 98,
+    topSpeed: 97,
+    nitroBoost: 90,
+    handling: 99,
+    unlockTier: 4,
+  },
+  {
+    id: 'muscle-titan',
+    name: 'Muscle Titan',
+    class: 'American Muscle',
+    color: '#3B82F6',
+    secondaryColor: '#1E1B4B',
+    glowColor: 'rgba(59, 130, 246, 0.45)',
+    description: 'Supercharged 8.0L big-block muscle with a massive shaker hood scoop and raw mechanical grunt.',
+    acceleration: 94,
+    topSpeed: 87,
+    nitroBoost: 94,
+    handling: 80,
+    unlockTier: 2,
+  },
+  {
+    id: 'classic-speedster',
+    name: 'Classic Speedster',
+    class: 'Heritage Racer',
+    color: '#EC4899',
+    secondaryColor: '#500724',
+    glowColor: 'rgba(236, 72, 153, 0.45)',
+    description: 'Vintage aerodynamic roadster celebrating timeless curves, endurance heritage, and purist rhythm.',
+    acceleration: 86,
+    topSpeed: 91,
+    nitroBoost: 85,
+    handling: 91,
+    unlockTier: 3,
+  },
 ];
 
 /**
@@ -243,7 +285,7 @@ export const RACING_ENVIRONMENTS = [
 ];
 
 /**
- * 3 AI Competitors with distinct behavioral profiles
+ * 3 AI Competitors with distinct behavioral profiles and independent speeds
  */
 export const AI_COMPETITORS = [
   {
@@ -252,9 +294,12 @@ export const AI_COMPETITORS = [
     carColor: '#A855F7', // Cyber Purple
     accentColor: '#C084FC',
     personality: 'Aggressive Spurt',
-    speedVariance: 0.08,
+    speedVariance: 0.12,
+    frequency: 1.35,
+    phase: 0.35,
     errorFrequency: 0.035,
     nitroTendency: 0.85,
+    accelerationRate: 3.8,
   },
   {
     id: 'thomas',
@@ -262,9 +307,12 @@ export const AI_COMPETITORS = [
     carColor: '#38BDF8', // Cyan Blue
     accentColor: '#7DD3FC',
     personality: 'Consistent Rhythm',
-    speedVariance: 0.03,
+    speedVariance: 0.04,
+    frequency: 0.65,
+    phase: 2.15,
     errorFrequency: 0.02,
     nitroTendency: 0.65,
+    accelerationRate: 2.5,
   },
   {
     id: 'joshua',
@@ -272,9 +320,12 @@ export const AI_COMPETITORS = [
     carColor: '#FACC15', // Racing Yellow
     accentColor: '#FEF08A',
     personality: 'Late Closer',
-    speedVariance: 0.06,
+    speedVariance: 0.08,
+    frequency: 0.95,
+    phase: 4.45,
     errorFrequency: 0.03,
     nitroTendency: 0.9,
+    accelerationRate: 3.2,
   },
 ];
 
@@ -366,31 +417,57 @@ export const getRacingPassage = (tier = 1) => {
 
 /**
  * Computes live AI competitor speeds and progress using realistic delta-time kinematics.
+ * Each AI competitor calculates an independent target speed with distinct personality variance,
+ * avoiding synchronized movement or lock-step clustering.
  */
 export const computeAiProgress = ({
   aiRacer,
   tierConfig,
   playerWpm,
+  playerDistance = null,
   elapsedSeconds,
   currentProgress,
   targetDistance,
 }) => {
-  // Base target WPM from tier with AI personality variance
-  let targetWpm = tierConfig.aiBaseWpm * (1 + (Math.sin(elapsedSeconds * 0.8 + aiRacer.name.length) * aiRacer.speedVariance));
+  const progressRatio = Math.max(0, Math.min(1, currentProgress / 100));
+  const freq = aiRacer.frequency || 0.9;
+  const phase = aiRacer.phase || 0;
+  const varianceAmp = aiRacer.speedVariance || 0.06;
 
-  // Adaptive rubber-banding: keep race competitive within fair bounds
-  const playerEstimatedDist = (playerWpm / 60) * 18 * elapsedSeconds;
-  const currentDist = (currentProgress / 100) * targetDistance;
-  const deltaDist = currentDist - playerEstimatedDist;
+  // Base oscillating variance unique to this competitor
+  let variance = Math.sin(elapsedSeconds * freq + phase) * varianceAmp;
 
-  // If AI is too far ahead (>80m), gently soften pace; if too far behind (<-90m), slightly boost pace
-  if (deltaDist > 80) {
-    targetWpm *= 0.92;
-  } else if (deltaDist < -90) {
-    targetWpm *= 1.08;
+  // Personality traits: Xavier spurts aggressively in short bursts
+  if (aiRacer.id === 'xavier') {
+    const burstWave = Math.sin(elapsedSeconds * 2.2);
+    if (burstWave > 0.6) {
+      variance += 0.08;
+    }
   }
 
-  // WPM to meters per second conversion: 1 WPM ≈ 5 chars/min ≈ 0.35 m/s on scale
+  // Joshua starts steady and closes aggressively in the second half (>45% track)
+  if (aiRacer.id === 'joshua' && progressRatio > 0.45) {
+    variance += 0.07;
+  }
+
+  let targetWpm = tierConfig.aiBaseWpm * (1 + variance);
+
+  // Dynamic relative racing: compare real distance on track if provided, else fallback to estimate
+  const currentDist = progressRatio * targetDistance;
+  const benchmarkPlayerDist =
+    typeof playerDistance === 'number'
+      ? playerDistance
+      : (playerWpm / 60) * 18 * elapsedSeconds;
+  const deltaDist = currentDist - benchmarkPlayerDist;
+
+  // Fair rubber-banding: prevents AI from completely disappearing or lagging infinitely
+  if (deltaDist > 70) {
+    targetWpm *= 0.93;
+  } else if (deltaDist < -85) {
+    targetWpm *= 1.07;
+  }
+
+  // WPM to meters per second conversion: 1 WPM ≈ 0.28 m/s on scale
   const metersPerSecond = (targetWpm / 60) * 16.5;
   return metersPerSecond;
 };
