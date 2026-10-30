@@ -1,15 +1,29 @@
 import * as THREE from 'three';
 
 /**
- * High-DPI Dynamic Canvas Texture for Floating Obstacle Words
+ * Action Type Metadata: Visual Colors & Labels
  */
-function createWordCanvasTexture(word, actionType, typedCount = 0) {
+export const ACTION_STYLES = {
+  jump: { color: '#38BDF8', label: 'JUMP', sound: 'jump' },
+  slide: { color: '#F59E0B', label: 'SLIDE', sound: 'slide' },
+  hack: { color: '#E11D48', label: 'HACK', sound: 'breach' },
+  lane_left: { color: '#818CF8', label: '← LEFT', sound: 'lane' },
+  lane_right: { color: '#C084FC', label: 'RIGHT →', sound: 'lane' },
+  lane_center: { color: '#2DD4BF', label: '• CENTER', sound: 'lane' },
+  bridge: { color: '#06B6D4', label: '⚡ BRIDGE', sound: 'bridge' },
+  boost: { color: '#10B981', label: '★ BOOST', sound: 'crystal' },
+};
+
+/**
+ * High-DPI Dynamic Canvas Texture for Floating 3D Action Words
+ */
+function createWordCanvasTexture(word, actionType, typedCount = 0, isTargeted = false) {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 160;
   const ctx = canvas.getContext('2d');
 
-  drawWordOnCanvas(ctx, canvas.width, canvas.height, word, actionType, typedCount);
+  drawWordOnCanvas(ctx, canvas.width, canvas.height, word, actionType, typedCount, isTargeted);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.minFilter = THREE.LinearFilter;
@@ -17,43 +31,44 @@ function createWordCanvasTexture(word, actionType, typedCount = 0) {
   return { canvas, ctx, texture };
 }
 
-function drawWordOnCanvas(ctx, width, height, word, actionType, typedCount) {
+function drawWordOnCanvas(ctx, width, height, word, actionType, typedCount, isTargeted = false) {
   ctx.clearRect(0, 0, width, height);
 
-  // Background plaque
+  const style = ACTION_STYLES[actionType] || ACTION_STYLES.jump;
+
+  // Background Plaque Body
   ctx.save();
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-  ctx.shadowBlur = 10;
+  ctx.shadowColor = isTargeted ? style.color : 'rgba(0, 0, 0, 0.7)';
+  ctx.shadowBlur = isTargeted ? 18 : 10;
 
   const grad = ctx.createLinearGradient(0, 10, 0, height - 10);
-  grad.addColorStop(0, 'rgba(15, 23, 42, 0.95)');
-  grad.addColorStop(1, 'rgba(2, 6, 23, 0.95)');
+  if (isTargeted) {
+    grad.addColorStop(0, 'rgba(24, 24, 37, 0.98)');
+    grad.addColorStop(1, 'rgba(10, 10, 20, 0.98)');
+  } else {
+    grad.addColorStop(0, 'rgba(15, 23, 42, 0.92)');
+    grad.addColorStop(1, 'rgba(2, 6, 23, 0.92)');
+  }
   ctx.fillStyle = grad;
 
   ctx.beginPath();
-  ctx.roundRect(14, 14, width - 28, height - 28, 16);
+  ctx.roundRect(12, 12, width - 24, height - 24, 18);
   ctx.fill();
 
-  // Border by action type
-  const borderColors = {
-    jump: '#38BDF8', // Cyan
-    slide: '#F59E0B', // Amber
-    hack: '#E11D48', // Rose
-    crystal: '#10B981', // Emerald
-  };
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = borderColors[actionType] || '#A855F7';
+  // Outer Border with targeted glow
+  ctx.lineWidth = isTargeted ? 4.5 : 2.5;
+  ctx.strokeStyle = isTargeted ? '#FBBF24' : style.color;
   ctx.stroke();
 
-  // Action tag on top
-  ctx.font = 'bold 20px "JetBrains Mono", monospace';
-  ctx.fillStyle = borderColors[actionType] || '#A855F7';
+  // Action Tag Header
+  ctx.font = 'bold 22px "JetBrains Mono", monospace';
+  ctx.fillStyle = isTargeted ? '#FBBF24' : style.color;
   ctx.textAlign = 'center';
-  ctx.fillText(actionType.toUpperCase(), width / 2, 42);
+  ctx.fillText(style.label, width / 2, 42);
 
   ctx.restore();
 
-  // Draw characters with typing progress colors
+  // Draw characters with progressive typing colors
   ctx.font = '900 48px "JetBrains Mono", monospace';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -67,14 +82,14 @@ function drawWordOnCanvas(ctx, width, height, word, actionType, typedCount) {
     const charCenter = startX + charWidth / 2;
 
     if (i < typedCount) {
-      // Correctly typed
+      // Correctly typed character
       ctx.fillStyle = '#10B981'; // Green
-    } else if (i === typedCount) {
-      // Current target character
+    } else if (i === typedCount && isTargeted) {
+      // Active targeted character
       ctx.fillStyle = '#FBBF24'; // Golden glow
     } else {
-      // Remaining
-      ctx.fillStyle = '#F8FAFC'; // White
+      // Remaining untyped characters
+      ctx.fillStyle = '#F8FAFC'; // Crisp White
     }
 
     ctx.fillText(char, charCenter, 100);
@@ -83,7 +98,7 @@ function drawWordOnCanvas(ctx, width, height, word, actionType, typedCount) {
 }
 
 /**
- * Runner3DObstacles — Manages 3D Parkour Obstacles with Floating Words
+ * Runner3DObstacles — Manages Typing-Controlled 3D Obstacles and Navigation Nodes
  */
 export class Runner3DObstacles {
   constructor(scene) {
@@ -124,6 +139,22 @@ export class Runner3DObstacles {
       roughness: 0.1,
       metalness: 0.9,
     });
+
+    this.laneArrowMat = new THREE.MeshStandardMaterial({
+      color: 0x818cf8,
+      emissive: 0x6366f1,
+      emissiveIntensity: 0.9,
+      roughness: 0.2,
+      metalness: 0.8,
+    });
+
+    this.bridgeMat = new THREE.MeshStandardMaterial({
+      color: 0x06b6d4,
+      emissive: 0x0891b2,
+      emissiveIntensity: 0.8,
+      roughness: 0.2,
+      metalness: 0.8,
+    });
   }
 
   spawnObstacle({ word, type = 'jump', lane = 0, z = 50 }) {
@@ -134,7 +165,7 @@ export class Runner3DObstacles {
 
     switch (type) {
       case 'jump': {
-        // Low electric hurdle
+        // Low electric hurdle spanning the lane
         const hurdleGeo = new THREE.BoxGeometry(2.6, 0.45, 0.3);
         obstacleMesh = new THREE.Mesh(hurdleGeo, this.hurdleMat);
         obstacleMesh.position.y = 0.25;
@@ -162,7 +193,7 @@ export class Runner3DObstacles {
       }
 
       case 'hack': {
-        // Cyber firewall barrier
+        // Cyber firewall barrier across lane
         const gateGeo = new THREE.BoxGeometry(2.6, 2.6, 0.25);
         obstacleMesh = new THREE.Mesh(gateGeo, this.gateMat);
         obstacleMesh.position.y = 1.3;
@@ -170,9 +201,48 @@ export class Runner3DObstacles {
         break;
       }
 
-      case 'crystal':
+      case 'lane_left': {
+        // Left-pointing directional arrow
+        const arrowGeo = new THREE.ConeGeometry(0.65, 1.2, 3);
+        obstacleMesh = new THREE.Mesh(arrowGeo, this.laneArrowMat);
+        obstacleMesh.rotation.z = Math.PI / 2;
+        obstacleMesh.position.y = 0.8;
+        group.add(obstacleMesh);
+        break;
+      }
+
+      case 'lane_right': {
+        // Right-pointing directional arrow
+        const arrowGeo = new THREE.ConeGeometry(0.65, 1.2, 3);
+        obstacleMesh = new THREE.Mesh(arrowGeo, this.laneArrowMat);
+        obstacleMesh.rotation.z = -Math.PI / 2;
+        obstacleMesh.position.y = 0.8;
+        group.add(obstacleMesh);
+        break;
+      }
+
+      case 'lane_center': {
+        // Center alignment beacon
+        const beaconGeo = new THREE.TorusGeometry(0.6, 0.12, 8, 24);
+        obstacleMesh = new THREE.Mesh(beaconGeo, this.laneArrowMat);
+        obstacleMesh.rotation.x = Math.PI / 2;
+        obstacleMesh.position.y = 0.5;
+        group.add(obstacleMesh);
+        break;
+      }
+
+      case 'bridge': {
+        // Holographic Bridge Portal
+        const portalGeo = new THREE.BoxGeometry(2.8, 0.2, 0.8);
+        obstacleMesh = new THREE.Mesh(portalGeo, this.bridgeMat);
+        obstacleMesh.position.y = 0.1;
+        group.add(obstacleMesh);
+        break;
+      }
+
+      case 'boost':
       default: {
-        // Floating diamond gem
+        // Floating diamond energy crystal
         const crystalGeo = new THREE.OctahedronGeometry(0.55, 0);
         obstacleMesh = new THREE.Mesh(crystalGeo, this.crystalMat);
         obstacleMesh.position.y = 1.35;
@@ -182,8 +252,8 @@ export class Runner3DObstacles {
     }
 
     // Floating 3D Word Plaque above obstacle
-    const { canvas, ctx, texture } = createWordCanvasTexture(word, type, 0);
-    const plaqueGeo = new THREE.PlaneGeometry(3.2, 1.0);
+    const { canvas, ctx, texture } = createWordCanvasTexture(word, type, 0, false);
+    const plaqueGeo = new THREE.PlaneGeometry(3.4, 1.05);
     const plaqueMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
     const plaqueMesh = new THREE.Mesh(plaqueGeo, plaqueMat);
     plaqueMesh.position.y = type === 'slide' ? 3.4 : 2.5;
@@ -203,6 +273,7 @@ export class Runner3DObstacles {
       ctx,
       texture,
       typedCount: 0,
+      isTargeted: false,
       cleared: false,
       hit: false,
     };
@@ -211,9 +282,18 @@ export class Runner3DObstacles {
     return obs;
   }
 
-  setTypedCount(obstacle, count) {
+  setTypedProgress(obstacle, count, isTargeted = true) {
     obstacle.typedCount = count;
-    drawWordOnCanvas(obstacle.ctx, obstacle.canvas.width, obstacle.canvas.height, obstacle.word, obstacle.type, count);
+    obstacle.isTargeted = isTargeted;
+    drawWordOnCanvas(
+      obstacle.ctx,
+      obstacle.canvas.width,
+      obstacle.canvas.height,
+      obstacle.word,
+      obstacle.type,
+      count,
+      isTargeted
+    );
     obstacle.texture.needsUpdate = true;
   }
 
@@ -223,9 +303,9 @@ export class Runner3DObstacles {
     const startY = obstacle.group.position.y;
     let progress = 0;
     const interval = setInterval(() => {
-      progress += 0.1;
-      obstacle.group.position.y = startY + progress * 2.0;
-      obstacle.group.scale.multiplyScalar(0.85);
+      progress += 0.12;
+      obstacle.group.position.y = startY + progress * 2.2;
+      obstacle.group.scale.multiplyScalar(0.82);
       if (progress >= 1.0) {
         clearInterval(interval);
         this.scene.remove(obstacle.group);
@@ -234,10 +314,14 @@ export class Runner3DObstacles {
   }
 
   update(playerZ, dt) {
-    // Rotate crystals
+    // Continuous idle animation on floating icons
     for (const obs of this.obstacles) {
-      if (obs.type === 'crystal' && obs.obstacleMesh) {
-        obs.obstacleMesh.rotation.y += dt * 2.5;
+      if (!obs.cleared && obs.obstacleMesh) {
+        if (obs.type === 'boost') {
+          obs.obstacleMesh.rotation.y += dt * 2.5;
+        } else if (obs.type.startsWith('lane_')) {
+          obs.obstacleMesh.position.y = 0.8 + Math.sin(Date.now() * 0.006) * 0.15;
+        }
       }
     }
 

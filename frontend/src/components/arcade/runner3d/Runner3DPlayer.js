@@ -197,13 +197,21 @@ export class Runner3DPlayer {
     this.stateTimer = 0;
   }
 
+  changeLane(targetLane) {
+    this.lane = Math.max(-1, Math.min(1, targetLane));
+  }
+
   update(dt) {
     this.stateTimer += dt;
 
-    // Smooth lane interpolation
+    // Smooth lane interpolation with dynamic banking lean
     const targetX = this.lane * 3.0;
-    this.currentLaneX = THREE.MathUtils.lerp(this.currentLaneX, targetX, 0.15);
+    const diffX = targetX - this.currentLaneX;
+    this.currentLaneX = THREE.MathUtils.lerp(this.currentLaneX, targetX, 0.2);
     this.group.position.x = this.currentLaneX;
+
+    const targetBank = THREE.MathUtils.clamp(-diffX * 0.18, -0.35, 0.35);
+    this.pelvis.rotation.z = THREE.MathUtils.lerp(this.pelvis.rotation.z, targetBank, 0.25);
 
     // Animation state machine
     switch (this.state) {
@@ -334,3 +342,4 @@ export class Runner3DPlayer {
     });
   }
 }
+
