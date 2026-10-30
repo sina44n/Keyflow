@@ -63,7 +63,7 @@ export const ArcadeGameCard = ({ game, record, stats, onPlay, onToggleLike }) =>
       <div className="p-3.5 sm:p-4 flex flex-col justify-between space-y-3">
         {/* Centered Game Title */}
         <h3 className="text-center text-sm sm:text-base font-bold text-neutral-800 dark:text-neutral-100 group-hover:text-[var(--accent)] transition-colors leading-snug line-clamp-1">
-          {t(`arcade.${game.id}.title`) || game.title}
+          {t(`arcade.${game.id}.title`) !== `arcade.${game.id}.title` ? t(`arcade.${game.id}.title`) : game.title}
         </h3>
 
         {/* 3. Reference-Matched High-Visibility Likes (Left) and Unique Plays (Right) */}

@@ -27,13 +27,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 describe('KEYFLOW Arcade — Masterpiece Games Integrity', () => {
-  it('contains exactly eight curated arcade games', () => {
-    assert.equal(ARCADE_GAMES.length, 8);
+  it('contains exactly nine curated arcade games', () => {
+    assert.equal(ARCADE_GAMES.length, 9);
     assert.ok(ARCADE_CATEGORIES.length >= 4, 'categories must be defined');
   });
 
   it('contains all required game identities with unique IDs', () => {
-    const expectedIds = ['cascade', 'sprint', 'hunter', 'ninja', 'runner', 'memory', 'boss', 'nitro'];
+    const expectedIds = ['cascade', 'sprint', 'hunter', 'ninja', 'runner', 'memory', 'boss', 'nitro', 'warrior'];
     const actualIds = ARCADE_GAMES.map((g) => g.id);
     assert.deepEqual(actualIds, expectedIds);
   });

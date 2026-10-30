@@ -20,6 +20,7 @@ export const DEFAULT_COMMUNITY_STATS = {
   memory: { likes: 1840, plays: 129500, hasLiked: false },
   boss: { likes: 3750, plays: 284100, hasLiked: false },
   nitro: { likes: 4200, plays: 312000, hasLiked: false },
+  warrior: { likes: 3890, plays: 265400, hasLiked: false },
 };
 
 /**

@@ -197,6 +197,34 @@ export const ARCADE_GAMES = [
       'Nitro boost exhaust ignition',
     ],
   },
+  {
+    id: 'warrior',
+    title: 'Dark Warrior 3D',
+    subtitle: 'Third-person dark fantasy blade combat',
+    category: 'combat',
+    categoryLabel: 'Dark Fantasy Combat',
+    badge: '3D Action Masterpiece',
+    icon: Swords,
+    color: '#DC2626',
+    image: '/arcade/dark_warrior.jpg',
+    description:
+      'Immersive AAA 3D third-person fantasy warrior combat. Master camera-relative locomotion, fluid 3-hit sword combos, heavy cleaves, precise parries, and tactical dodges against coordinated enemy legions and titanic bosses.',
+    difficulty: 'Dynamic Waves (1 → 5 Boss)',
+    defaultMetricLabel: 'Best Score',
+    defaultMetricUnit: 'pts',
+    instructions: [
+      'WASD to move relative to camera, mouse to look around (Pointer Lock).',
+      'Left-Click or J to unleash 3-stage light attack sword combos; Right-Click or K for heavy cleave.',
+      'Hold F to raise defensive shield (blocks 75% damage); press C for precision parry to stun attackers.',
+      'Space, Q, or E for evasive dodge roll with invulnerability frames. Tab to lock target.',
+    ],
+    features: [
+      'Full 3D rigged humanoid SkinnedMesh warriors',
+      'Simultaneous multi-enemy group combat AI with attack token arbitration',
+      'Realistic weapon blade collision & timing-based parries',
+      '5 progressive waves culminating in Dark Commander Boss battle',
+    ],
+  },
 ];
 
 /**
@@ -273,10 +301,10 @@ export const ARCADE_WORDS = {
  * Filter categories for the arcade hub
  */
 export const ARCADE_CATEGORIES = [
-  { id: 'all', label: 'All Games (8)' },
+  { id: 'all', label: 'All Games (9)' },
   { id: 'reaction', label: 'Reaction & Speed (4)' },
   { id: 'precision', label: 'Precision & Recall (2)' },
-  { id: 'action', label: 'Action & Combat (2)' },
+  { id: 'action', label: 'Action & Combat (3)' },
 ];
 
 export const getGameById = (gameId) => {

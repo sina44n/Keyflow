@@ -54,6 +54,7 @@ const DEFAULT_RECORDS = {
   memory: { deepestRound: 0, bestScore: 0, perfectRecalls: 0, highestTier: 1, gamesPlayed: 0 },
   boss: { bossDefeated: false, bestScore: 0, highestWave: 1, highestTier: 1, soldiersDefeated: 0, fastestDefeatSeconds: null, gamesPlayed: 0 },
   nitro: { bestWpm: 0, bestAccuracy: 0, racesWon: 0, highestTier: 1, topPlacement: 4, totalDistance: 0, gamesPlayed: 0 },
+  warrior: { highScore: 0, waveReached: 1, highestTier: 1, gamesPlayed: 0, enemiesDefeated: 0 },
 };
 
 export const getArcadeRecords = () => {
