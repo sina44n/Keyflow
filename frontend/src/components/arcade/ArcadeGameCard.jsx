@@ -7,13 +7,13 @@ import { formatCompactCount } from '../../utils/arcadeStatsService';
 /**
  * ArcadeGameCard — Clean, Modern Typing Arcade Game Card
  * ======================================================
- * Designed to match typingbird.com reference aesthetic:
- * 1. High-Resolution Cover Artwork with smooth hover scale
+ * Designed to match typingbird.com reference aesthetic with 100% precision:
+ * 1. High-Resolution 16:9 Cover Artwork with smooth hover scale
  * 2. Centered Game Title
- * 3. Centered Reference-Matched Pill Badges:
- *    - Green Pill: Thumbs-Up (Interactive Like Button) + Compact Count
- *    - Blue/Cyan Pill: Eye (Unique Plays / Views) + Compact Count
- * 4. Click anywhere on card to launch game immediately
+ * 3. Justified Bottom Action Bar:
+ *    - Left: Green circular Thumbs-Up badge + Like Count
+ *    - Right: Blue circular Eye badge + Unique Plays / Views Count
+ * 4. Entire card is click-to-play with smooth elevation hover
  */
 export const ArcadeGameCard = ({ game, record, stats, onPlay, onToggleLike }) => {
   const { t } = useI18n();
@@ -39,7 +39,7 @@ export const ArcadeGameCard = ({ game, record, stats, onPlay, onToggleLike }) =>
       role="button"
       tabIndex={0}
       aria-label={`Play ${game.title}`}
-      className="card-panel group flex flex-col justify-between overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] transition-all duration-300 hover:-translate-y-1.5 hover:border-[var(--accent)] hover:shadow-2xl cursor-pointer select-none"
+      className="card-panel group flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border border-neutral-200/90 dark:border-neutral-800 bg-white dark:bg-[#151515] shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 hover:border-[var(--accent)] cursor-pointer select-none"
       onClick={() => onPlay(game.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -48,54 +48,66 @@ export const ArcadeGameCard = ({ game, record, stats, onPlay, onToggleLike }) =>
         }
       }}
     >
-      {/* 1. Large Game Artwork Thumbnail */}
+      {/* 1. Large Game Artwork Thumbnail (16:9 Aspect Ratio) */}
       <div className="relative aspect-video w-full overflow-hidden bg-neutral-950">
         <AnimatedGameThumbnail game={game} />
         {/* Sleek Centered Play Button Overlay on Hover */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
           <div className="w-12 h-12 rounded-full bg-[var(--accent)] text-white flex items-center justify-center shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300">
             <Play className="w-5 h-5 ml-0.5 fill-current" />
           </div>
         </div>
       </div>
 
-      {/* 2. Card Content Area — Centered Title and Badges */}
-      <div className="p-4 sm:p-5 text-center flex-1 flex flex-col justify-center space-y-2.5">
-        {/* Game Title */}
-        <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors leading-snug line-clamp-1">
+      {/* 2. Card Content Area — Centered Title and Left/Right Reference Badges */}
+      <div className="p-3.5 sm:p-4 flex flex-col justify-between space-y-3">
+        {/* Centered Game Title */}
+        <h3 className="text-center text-sm sm:text-base font-bold text-neutral-800 dark:text-neutral-100 group-hover:text-[var(--accent)] transition-colors leading-snug line-clamp-1">
           {t(`arcade.${game.id}.title`) || game.title}
         </h3>
 
-        {/* 3. Reference-Matched High-Visibility Likes and Unique Plays Badges */}
-        <div className="flex items-center justify-center gap-2.5 pt-0.5">
-          {/* Interactive Thumbs-Up Likes Button (Reference Matched Green Badge) */}
+        {/* 3. Reference-Matched High-Visibility Likes (Left) and Unique Plays (Right) */}
+        <div className="flex items-center justify-between pt-0.5">
+          {/* Interactive Thumbs-Up Likes Button (Reference Matched Green Circle + Count) */}
           <button
             type="button"
             onClick={handleLikeClick}
             disabled={isLiking}
             title={hasLiked ? 'Unlike game' : 'Like game'}
             aria-label={`${currentLikes} likes. ${hasLiked ? 'Liked' : 'Like'}`}
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer select-none ${
-              hasLiked
-                ? 'bg-emerald-500 text-white border border-emerald-600 shadow-sm scale-105'
-                : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/25 hover:scale-105'
-            }`}
+            className="flex items-center gap-1.5 group/like cursor-pointer select-none"
           >
-            <ThumbsUp
-              className={`w-3.5 h-3.5 transition-transform duration-200 ${
-                hasLiked ? 'fill-current' : 'group-hover:scale-110'
+            <div
+              className={`w-6 h-6 rounded-full flex items-center justify-center transition-transform ${
+                hasLiked
+                  ? 'bg-emerald-600 text-white shadow-sm scale-110'
+                  : 'bg-emerald-500 text-white group-hover/like:scale-110 shadow-xs'
               }`}
-            />
-            <span>{formatCompactCount(currentLikes)}</span>
+            >
+              <ThumbsUp className="w-3.5 h-3.5 fill-current" />
+            </div>
+            <span
+              className={`text-xs font-semibold ${
+                hasLiked
+                  ? 'text-emerald-600 dark:text-emerald-400 font-bold'
+                  : 'text-neutral-600 dark:text-neutral-300'
+              }`}
+            >
+              {formatCompactCount(currentLikes)}
+            </span>
           </button>
 
-          {/* Unique Plays Counter (Reference Matched Blue/Cyan Eye Badge) */}
+          {/* Unique Plays Counter (Reference Matched Blue Circle + Count) */}
           <div
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/25 select-none"
+            className="flex items-center gap-1.5 select-none"
             title={`${currentPlays.toLocaleString()} total play sessions`}
           >
-            <Eye className="w-3.5 h-3.5" />
-            <span>{formatCompactCount(currentPlays)}</span>
+            <div className="w-6 h-6 rounded-full bg-sky-500 text-white flex items-center justify-center shadow-xs">
+              <Eye className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-xs font-semibold text-neutral-600 dark:text-neutral-300">
+              {formatCompactCount(currentPlays)}
+            </span>
           </div>
         </div>
       </div>

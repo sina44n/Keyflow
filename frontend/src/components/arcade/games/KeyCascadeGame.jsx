@@ -1,599 +1,705 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Shield, Flame, RotateCcw, Play, Pause, ArrowLeft, Trophy, AlertTriangle } from 'lucide-react';
+import { Shield, Flame, RotateCcw, Play, Pause, ArrowLeft, Trophy, Zap, Crosshair } from 'lucide-react';
 import { Button } from '../../common/Button';
-import { calculateAccuracy, calculateWpm, playArcadeSound } from '../../../utils/arcadeEngine';
-import { saveArcadeRecord } from '../../../utils/arcadeStorage';
+import { calculateAccuracy, calculateWpm } from '../../../utils/arcadeEngine';
+import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
 import { calculateDifficultyTier, getKeyCascadeConfig } from '../../../utils/arcadeDifficulty';
 import { ArcadeWordDeck, getVocabularyPool } from '../../../utils/arcadeVocabulary';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
 import { useI18n } from '../../../i18n/I18nContext';
 
-const ARENA_HEIGHT = 440;
-const DANGER_LINE_Y = 380;
+import { Meteor3DScene } from '../cascade3d/Meteor3DScene';
+import { Meteor3DObject } from '../cascade3d/Meteor3DObject';
+import { meteorAudio } from '../cascade3d/Meteor3DAudio';
+
 const INITIAL_LIVES = 3;
 
 export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
   const { t } = useI18n();
-  // Game states: 'ready', 'countdown', 'playing', 'paused', 'gameover'
-  const [gameState, setGameState] = useState('ready');
+  const [gameState, setGameState] = useState('ready'); // ready, countdown, playing, paused, gameover
   const [countdown, setCountdown] = useState(3);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
-  // Anti-repetition word deck initialized with Tier 1 pool
-  const wordDeckRef = useRef(
-    new ArcadeWordDeck({ gameId: 'cascade', pool: getVocabularyPool('cascade', 1) })
-  );
-
-  // Gameplay metrics
+  // Gameplay Metrics
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(INITIAL_LIVES);
   const [combo, setCombo] = useState(0);
   const [bestCombo, setBestCombo] = useState(0);
-  const [wordsEliminated, setWordsEliminated] = useState(0);
-  const [missedWords, setMissedWords] = useState(0);
+  const [meteorsEliminated, setMeteorsEliminated] = useState(0);
+  const [missedMeteors, setMissedMeteors] = useState(0);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [totalStrokes, setTotalStrokes] = useState(0);
   const [correctStrokes, setCorrectStrokes] = useState(0);
   const [personalBestNotice, setPersonalBestNotice] = useState(false);
-  const [tierUpToast, setTierUpToast] = useState(null);
+  const [wave, setWave] = useState(1);
 
-  // Dynamic wave derived from score
-  const wave = Math.min(6, Math.floor(score / 450) + 1);
+  // Active Target HUD state
+  const [activeTarget, setActiveTarget] = useState(null); // { id, text, typedCount }
 
-  // Dynamic difficulty calculation based on performance & progression
+  // Sound sync
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
+  useEffect(() => {
+    meteorAudio.setMuted(!soundEnabled);
+  }, [soundEnabled]);
+
+  // Mount & Engine Refs
+  const mountRef = useRef(null);
+  const inputRef = useRef(null);
+  const timerIntervalRef = useRef(null);
+  const nextIdRef = useRef(1);
+  const lastSpawnTimeRef = useRef(0);
+
+  const personalBest = getGameRecord('cascade');
+
+  // Word Deck
+  const wordDeckRef = useRef(
+    new ArcadeWordDeck({ gameId: 'cascade', pool: getVocabularyPool('cascade', 1) })
+  );
+
+  // Progressive Difficulty Tier
   const difficultyInfo = useMemo(() => {
     return calculateDifficultyTier({
       activeSeconds: elapsedSeconds,
-      completedCount: wordsEliminated,
+      completedCount: meteorsEliminated,
       score,
       wave,
       currentStreak: combo,
-      errorCount: missedWords,
+      errorCount: missedMeteors,
       mode: 'cascade',
     });
-  }, [elapsedSeconds, wordsEliminated, score, wave, combo, missedWords]);
+  }, [elapsedSeconds, meteorsEliminated, score, wave, combo, missedMeteors]);
 
   const cascadeConfig = useMemo(() => {
     return getKeyCascadeConfig(difficultyInfo.tier, difficultyInfo.performanceQuotient);
   }, [difficultyInfo.tier, difficultyInfo.performanceQuotient]);
 
-  const prevTierRef = useRef(1);
-  useEffect(() => {
-    if (difficultyInfo.tier > prevTierRef.current) {
-      setTierUpToast(`DIFFICULTY INCREASED — TIER ${difficultyInfo.tier} (${difficultyInfo.tierName})`);
-      playArcadeSound('combo', soundEnabled);
-      // Dynamically update deck pool to match new tier
-      wordDeckRef.current.setPool(getVocabularyPool('cascade', difficultyInfo.tier));
-      const t = setTimeout(() => setTierUpToast(null), 3000);
-      prevTierRef.current = difficultyInfo.tier;
-      return () => clearTimeout(t);
+  // Three.js Engine Container Ref
+  const threeRef = useRef({
+    scene: null,
+    meteors: [],
+    activeTargetId: null,
+    typedBuffer: '',
+    animId: null,
+  });
+
+  const gameStateRef = useRef(gameState);
+  gameStateRef.current = gameState;
+
+  // Focus invisible input
+  const focusInput = useCallback(() => {
+    if (inputRef.current) {
+      inputRef.current.focus({ preventScroll: true });
     }
-    prevTierRef.current = difficultyInfo.tier;
-  }, [difficultyInfo.tier, difficultyInfo.tierName, soundEnabled]);
+  }, []);
 
-  // Active falling words: [{ id, text, x, y, speed, targetIndex }]
-  const [fallingWords, setFallingWords] = useState([]);
-  const [activeWordId, setActiveWordId] = useState(null);
-  const [typedBuffer, setTypedBuffer] = useState('');
-  const [laserBeam, setLaserBeam] = useState(null); // { x, y }
+  // Countdown timer
+  const startCountdown = useCallback(() => {
+    meteorAudio.init();
+    setGameState('countdown');
+    setCountdown(3);
+  }, []);
 
-  const nextWordIdRef = useRef(1);
-  const lastSpawnTimeRef = useRef(0);
-  const timerIntervalRef = useRef(null);
-  const inputRef = useRef(null);
+  useEffect(() => {
+    if (countdown > 0 && gameState === 'countdown') {
+      const timer = setTimeout(() => {
+        setCountdown((c) => c - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (countdown === 0 && gameState === 'countdown') {
+      setGameState('playing');
+      focusInput();
+    }
+  }, [countdown, gameState, focusInput]);
 
-  // Reset all state for a clean game
+  // Elapsed game timer
+  useEffect(() => {
+    if (gameState === 'playing') {
+      timerIntervalRef.current = setInterval(() => {
+        setElapsedSeconds((s) => s + 1);
+      }, 1000);
+    } else {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    }
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [gameState]);
+
+  // Reset Game
   const resetGame = useCallback(() => {
     setGameState('ready');
     setScore(0);
     setLives(INITIAL_LIVES);
     setCombo(0);
     setBestCombo(0);
-    setWordsEliminated(0);
-    setMissedWords(0);
+    setMeteorsEliminated(0);
+    setMissedMeteors(0);
     setElapsedSeconds(0);
     setTotalStrokes(0);
     setCorrectStrokes(0);
-    setFallingWords([]);
-    setActiveWordId(null);
-    setTypedBuffer('');
-    setLaserBeam(null);
+    setWave(1);
+    setActiveTarget(null);
     setPersonalBestNotice(false);
-    nextWordIdRef.current = 1;
-    wordDeckRef.current?.resetRun();
+
+    if (threeRef.current.scene) {
+      for (const m of threeRef.current.meteors) {
+        threeRef.current.scene.scene.remove(m.group);
+        m.dispose();
+      }
+      threeRef.current.meteors = [];
+      threeRef.current.activeTargetId = null;
+      threeRef.current.typedBuffer = '';
+    }
   }, []);
 
-  const startCountdown = () => {
-    resetGame();
-    setGameState('countdown');
-    setCountdown(3);
-  };
-
-  // Countdown handler
+  // Handle Game Over
   useEffect(() => {
-    if (gameState !== 'countdown') return;
-    if (countdown > 0) {
-      const t = setTimeout(() => setCountdown((c) => c - 1), 800);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => setGameState('playing'), 0);
-    return () => clearTimeout(t);
-  }, [gameState, countdown]);
+    if (gameState === 'gameover') {
+      const accuracy = calculateAccuracy(correctStrokes, totalStrokes);
+      const result = saveArcadeRecord('cascade', {
+        bestScore: score,
+        score,
+        accuracy,
+        wordsEliminated: meteorsEliminated,
+        durationSeconds: elapsedSeconds,
+        tier: difficultyInfo.tier,
+      });
 
-  // Elapsed seconds timer
-  useEffect(() => {
-    if (gameState !== 'playing') {
-      clearInterval(timerIntervalRef.current);
-      return;
-    }
-    timerIntervalRef.current = setInterval(() => {
-      setElapsedSeconds((s) => s + 1);
-    }, 1000);
-    return () => clearInterval(timerIntervalRef.current);
-  }, [gameState]);
-
-  // Focus input when playing
-  useEffect(() => {
-    if (gameState === 'playing' && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [gameState]);
-
-  // Core Game Loop
-  useEffect(() => {
-    if (gameState !== 'playing') return;
-
-    let animId;
-    let lastTimestamp = performance.now();
-
-    const loop = (timestamp) => {
-      const delta = Math.min((timestamp - lastTimestamp) / 1000, 0.1);
-      lastTimestamp = timestamp;
-
-      // Spawn words dynamically with anti-repetition and on-screen deduplication
-      if (timestamp - lastSpawnTimeRef.current > cascadeConfig.spawnInterval * 1000) {
-        lastSpawnTimeRef.current = timestamp;
-
-        setFallingWords((prev) => {
-          if (prev.length >= cascadeConfig.maxWords) return prev;
-          const activeScreenWords = prev.map((w) => w.text);
-          const newWordText = wordDeckRef.current.draw(activeScreenWords);
-          const col = Math.floor(Math.random() * 4);
-          const x = 40 + col * 120 + Math.random() * 30;
-          const speed = cascadeConfig.fallSpeed + Math.random() * 8;
-
-          return [
-            ...prev,
-            {
-              id: nextWordIdRef.current++,
-              text: newWordText,
-              x,
-              y: 20,
-              speed,
-            },
-          ];
-        });
+      if (result.isNewBest) {
+        setPersonalBestNotice(true);
       }
+    }
+  }, [gameState, score, correctStrokes, totalStrokes, meteorsEliminated, elapsedSeconds, difficultyInfo.tier]);
 
-      // Move falling words down
-      setFallingWords((prev) => {
-        const next = [];
-        let hitBottomCount = 0;
+  // =========================================================================
+  // 3D WEBGL ENGINE INITIALIZATION & 60 FPS RENDER LOOP
+  // =========================================================================
+  useEffect(() => {
+    const container = mountRef.current;
+    if (!container) return;
 
-        for (const w of prev) {
-          const newY = w.y + w.speed * delta;
-          if (newY >= DANGER_LINE_Y) {
-            hitBottomCount++;
-          } else {
-            next.push({ ...w, y: newY });
+    const scene = new Meteor3DScene(container);
+    threeRef.current.scene = scene;
+    threeRef.current.meteors = [];
+    threeRef.current.activeTargetId = null;
+    threeRef.current.typedBuffer = '';
+
+    let lastTime = performance.now();
+
+    const loop = (time) => {
+      const dt = Math.min((time - lastTime) / 1000, 0.05);
+      lastTime = time;
+
+      const isPlaying = gameStateRef.current === 'playing';
+
+      if (isPlaying) {
+        const currentScore = score;
+        const currentWave = Math.min(8, Math.floor(currentScore / 500) + 1);
+        setWave(currentWave);
+
+        // 1. Procedural Meteor Spawning
+        const spawnIntervalMs = Math.max(1400, 3200 - currentWave * 220);
+        if (time - lastSpawnTimeRef.current > spawnIntervalMs) {
+          lastSpawnTimeRef.current = time;
+
+          const activeUncut = threeRef.current.meteors.filter((m) => !m.isDestroyed);
+          const maxSimultaneous = Math.min(5, 2 + Math.floor(currentWave / 2));
+
+          if (activeUncut.length < maxSimultaneous) {
+            const drawnText = wordDeckRef.current.draw(activeUncut.map((m) => m.text));
+            const startX = (Math.random() - 0.5) * 16.0;
+            const startY = 11.5 + Math.random() * 2.5;
+            const speed = 2.2 + currentWave * 0.35 + Math.random() * 0.4;
+            const isArmored = currentWave >= 3 && Math.random() > 0.65;
+
+            const meteor = new Meteor3DObject({
+              id: nextIdRef.current++,
+              text: drawnText,
+              startX,
+              startY,
+              speed,
+              isArmored,
+            });
+
+            scene.scene.add(meteor.group);
+            threeRef.current.meteors.push(meteor);
           }
         }
 
-        if (hitBottomCount > 0) {
-          playArcadeSound('damage', soundEnabled);
-          setLives((l) => {
-            const remaining = l - hitBottomCount;
-            if (remaining <= 0) {
-              setGameState('gameover');
-            }
-            return Math.max(0, remaining);
-          });
-          setMissedWords((m) => m + hitBottomCount);
-          setCombo(0);
-          setActiveWordId(null);
-          setTypedBuffer('');
+        // 2. Aim Turret at Active Target
+        if (threeRef.current.activeTargetId) {
+          const target = threeRef.current.meteors.find(
+            (m) => m.id === threeRef.current.activeTargetId && !m.isDestroyed
+          );
+          if (target) {
+            scene.aimTurretAt(target.group.position);
+          }
         }
 
-        return next;
-      });
+        // 3. Update Active Meteors & Collision with Defensive Grid
+        const meteors = threeRef.current.meteors;
+        let breachCount = 0;
 
-      animId = requestAnimationFrame(loop);
+        for (let i = meteors.length - 1; i >= 0; i--) {
+          const m = meteors[i];
+          m.update(dt);
+
+          if (m.isDead) {
+            // Debris dissolved
+            scene.scene.remove(m.group);
+            m.dispose();
+            meteors.splice(i, 1);
+          } else if (!m.isDestroyed && m.group.position.y <= -4.2) {
+            // Meteor breached defensive energy grid!
+            breachCount++;
+            scene.triggerShake(0.65);
+            meteorAudio.playShieldBreach();
+
+            m.destroyWithExplosion(scene.scene);
+            meteors.splice(i, 1);
+
+            if (threeRef.current.activeTargetId === m.id) {
+              threeRef.current.activeTargetId = null;
+              threeRef.current.typedBuffer = '';
+              setActiveTarget(null);
+            }
+          }
+        }
+
+        // 4. Handle Shield Depletion on Breaches
+        if (breachCount > 0) {
+          setMissedMeteors((prev) => prev + breachCount);
+          setCombo(0);
+          setLives((prev) => {
+            const next = Math.max(0, prev - breachCount);
+            if (next <= 0) {
+              setGameState('gameover');
+            }
+            return next;
+          });
+        }
+      }
+
+      scene.update(dt);
+      scene.render();
+      threeRef.current.animId = requestAnimationFrame(loop);
     };
 
-    animId = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(animId);
-  }, [gameState, cascadeConfig, soundEnabled]);
+    threeRef.current.animId = requestAnimationFrame(loop);
 
-  // On Game Over, save personal best
-  useEffect(() => {
-    if (gameState === 'gameover') {
-      const result = saveArcadeRecord('cascade', {
-        score,
-        bestCombo,
-        wordsDefeated: wordsEliminated,
-        highestTier: difficultyInfo.tier,
-      });
-      if (result.isNewBest) {
-        const t = setTimeout(() => setPersonalBestNotice(true), 0);
-        playArcadeSound('victory', soundEnabled);
-        return () => clearTimeout(t);
+    const handleResize = () => {
+      scene.handleResize();
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(threeRef.current.animId);
+      scene.dispose();
+    };
+  }, []);
+
+  // =========================================================================
+  // TYPING ENGINE INPUT CONTROLS
+  // =========================================================================
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (showExitConfirm) {
+        if (e.key === 'Escape') setShowExitConfirm(false);
+        return;
       }
-    }
-  }, [gameState, score, bestCombo, wordsEliminated, difficultyInfo.tier, soundEnabled]);
 
-  const handleAttemptExit = () => {
-    if (gameState === 'playing' || gameState === 'paused') {
-      setShowExitConfirm(true);
-    } else {
-      onExit();
-    }
-  };
-
-  // Handle typing inputs
-  const handleKeyDown = (e) => {
-    if (showExitConfirm) {
       if (e.key === 'Escape') {
-        setShowExitConfirm(false);
+        if (gameState === 'playing') setGameState('paused');
+        else if (gameState === 'paused') setGameState('playing');
+        return;
       }
-      return;
-    }
 
-    if (e.key === 'Escape') {
-      if (gameState === 'playing') setGameState('paused');
-      else if (gameState === 'paused') setGameState('playing');
-      return;
-    }
+      if (gameState === 'ready' || gameState === 'gameover') {
+        if (e.key === ' ' || e.key === 'Enter') {
+          e.preventDefault();
+          startCountdown();
+          return;
+        }
+      }
 
-    if (gameState !== 'playing') return;
+      if (gameState !== 'playing') return;
 
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      const scene = threeRef.current.scene;
+      const meteors = threeRef.current.meteors || [];
+
+      // Backspace: erase last character or release lock-on
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        const activeId = threeRef.current.activeTargetId;
+        if (activeId) {
+          const target = meteors.find((m) => m.id === activeId);
+          const currentBuf = threeRef.current.typedBuffer || '';
+
+          if (currentBuf.length > 1) {
+            const nextBuf = currentBuf.slice(0, -1);
+            threeRef.current.typedBuffer = nextBuf;
+            if (target) {
+              target.setTypedProgress(nextBuf.length, true);
+              setActiveTarget({ id: target.id, text: target.text, typedCount: nextBuf.length });
+            }
+          } else {
+            // Release lock-on
+            threeRef.current.typedBuffer = '';
+            threeRef.current.activeTargetId = null;
+            if (target) target.setTypedProgress(0, false);
+            setActiveTarget(null);
+          }
+        }
+        return;
+      }
+
+      if (e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) {
+        return;
+      }
+
       e.preventDefault();
       const char = e.key.toLowerCase();
       setTotalStrokes((s) => s + 1);
 
-      // If already targeting a word
-      if (activeWordId) {
-        const target = fallingWords.find((w) => w.id === activeWordId);
+      const activeId = threeRef.current.activeTargetId;
+      const currentBuf = threeRef.current.typedBuffer || '';
+
+      // 1. If currently locked onto a meteor
+      if (activeId) {
+        const target = meteors.find((m) => m.id === activeId && !m.isDestroyed);
         if (target) {
-          const expectedChar = target.text[typedBuffer.length]?.toLowerCase();
+          const expectedChar = target.text[currentBuf.length]?.toLowerCase();
+
           if (char === expectedChar) {
             setCorrectStrokes((s) => s + 1);
-            const newBuf = typedBuffer + char;
-            setTypedBuffer(newBuf);
+            meteorAudio.playKeystroke();
 
-            // Completed the word!
-            if (newBuf.length === target.text.length) {
-              playArcadeSound('blaster', soundEnabled);
-              setLaserBeam({ x: target.x + 30, y: target.y });
-              setTimeout(() => setLaserBeam(null), 180);
+            const nextBuf = currentBuf + char;
+            threeRef.current.typedBuffer = nextBuf;
+            target.setTypedProgress(nextBuf.length, true);
 
-              const wordPoints = target.text.length * 15 * (1 + combo * 0.25);
-              setScore((s) => Math.round(s + wordPoints));
-              setWordsEliminated((w) => w + 1);
+            setActiveTarget({ id: target.id, text: target.text, typedCount: nextBuf.length });
+
+            // Meteor Completely Typed! FIRE DEFENSE LASER CANNON
+            if (nextBuf.length === target.text.length) {
+              scene.fireLaserAt(target.group.position);
+              meteorAudio.playLaserBlast();
+              meteorAudio.playMeteorExplosion();
+
+              target.destroyWithExplosion(scene.scene);
+              threeRef.current.activeTargetId = null;
+              threeRef.current.typedBuffer = '';
+              setActiveTarget(null);
+
+              setMeteorsEliminated((c) => c + 1);
               setCombo((c) => {
-                const n = c + 1;
-                setBestCombo((b) => Math.max(b, n));
-                if (n % 5 === 0) playArcadeSound('combo', soundEnabled);
-                return n;
+                const next = c + 1;
+                setBestCombo((bc) => Math.max(bc, next));
+                return next;
               });
-
-              setFallingWords((prev) => prev.filter((w) => w.id !== target.id));
-              setActiveWordId(null);
-              setTypedBuffer('');
+              setScore((s) => s + 250 + combo * 30);
             }
           } else {
-            // Typing error on targeted word
+            // Typo: break combo streak
             setCombo(0);
           }
           return;
         }
       }
 
-      // Find lowest word starting with this character
-      const candidate = [...fallingWords]
-        .sort((a, b) => b.y - a.y)
-        .find((w) => w.text.toLowerCase().startsWith(char));
+      // 2. Lock onto an airborne meteor whose starting letter matches
+      const activeUncut = meteors.filter((m) => !m.isDestroyed);
+      // Sort by altitude (lowest Y first = most urgent threat)
+      activeUncut.sort((a, b) => a.group.position.y - b.group.position.y);
+
+      const candidate = activeUncut.find((m) => m.text.toLowerCase().startsWith(char));
 
       if (candidate) {
         setCorrectStrokes((s) => s + 1);
-        setActiveWordId(candidate.id);
-        const newBuf = char;
-        setTypedBuffer(newBuf);
+        meteorAudio.playLockOn();
 
-        // Word might be single letter
-        if (newBuf.length === candidate.text.length) {
-          playArcadeSound('blaster', soundEnabled);
-          setScore((s) => s + 20);
-          setWordsEliminated((w) => w + 1);
-          setFallingWords((prev) => prev.filter((w) => w.id !== candidate.id));
-          setActiveWordId(null);
-          setTypedBuffer('');
+        threeRef.current.activeTargetId = candidate.id;
+        const nextBuf = char;
+        threeRef.current.typedBuffer = nextBuf;
+        candidate.setTypedProgress(1, true);
+
+        setActiveTarget({ id: candidate.id, text: candidate.text, typedCount: 1 });
+        scene.aimTurretAt(candidate.group.position);
+
+        if (nextBuf.length === candidate.text.length) {
+          scene.fireLaserAt(candidate.group.position);
+          meteorAudio.playLaserBlast();
+          meteorAudio.playMeteorExplosion();
+
+          candidate.destroyWithExplosion(scene.scene);
+          threeRef.current.activeTargetId = null;
+          threeRef.current.typedBuffer = '';
+          setActiveTarget(null);
+
+          setMeteorsEliminated((c) => c + 1);
+          setCombo((c) => c + 1);
+          setScore((s) => s + 250);
         }
-      } else {
-        setCombo(0);
       }
-    }
-  };
+    },
+    [gameState, showExitConfirm, startCountdown, combo]
+  );
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleKeyDown]);
 
   const accuracy = calculateAccuracy(correctStrokes, totalStrokes);
-  const wpm = calculateWpm(correctStrokes, elapsedSeconds);
+  const liveWpm = calculateWpm(correctStrokes, elapsedSeconds);
 
   return (
     <div
-      className="card-panel p-4 sm:p-6 space-y-4 max-w-4xl mx-auto border border-[var(--border)] shadow-2xl relative select-none"
-      onClick={() => inputRef.current?.focus()}
+      className="relative min-h-[580px] w-full rounded-2xl bg-neutral-950 border border-[var(--border)] overflow-hidden flex flex-col justify-between select-none shadow-2xl"
+      onClick={focusInput}
     >
-      {/* Hidden input to ensure keyboard captures cleanly across all browsers & mobile */}
       <input
         ref={inputRef}
         type="text"
-        className="opacity-0 absolute w-0 h-0 pointer-events-none"
-        onKeyDown={handleKeyDown}
-        aria-label="Arcade typing input"
+        className="opacity-0 absolute pointer-events-none"
+        aria-hidden="true"
       />
 
-      {/* Top Controls Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="xs" icon={ArrowLeft} onClick={handleAttemptExit}>
-            {t('arcade.title') === 'Game-Engineered Speed Drills' ? 'Arcade Hub' : t('nav.arcade')}
-          </Button>
-          <div>
-            <h2 className="text-base sm:text-lg font-bold text-[var(--text-primary)] flex items-center gap-2">
-              <Flame className="w-5 h-5 text-[var(--accent)]" />
-              {t('arcade.cascade.title')}
-            </h2>
-            <span className="text-[11px] font-mono text-[var(--text-muted)]">
-              Wave {wave} • {difficultyInfo.tierName} Intensity (Tier {difficultyInfo.tier})
-            </span>
+      {/* 3D WebGL Canvas Viewport */}
+      <div ref={mountRef} className="absolute inset-0 w-full h-full cursor-pointer" />
+
+      {/* TOP HUD: Defense Shields, Wave, WPM, Score */}
+      <div className="relative z-10 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-b from-black/85 via-black/40 to-transparent pointer-events-none">
+        {/* Shields & Wave */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-mono font-bold text-white shadow-lg">
+            <span className="text-cyan-400">WAVE {wave}</span>
+            <span className="text-neutral-500">•</span>
+            <span className="text-amber-400">DEFENSE GRID</span>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          {gameState === 'playing' ? (
-            <Button variant="outline" size="xs" icon={Pause} onClick={() => setGameState('paused')}>
-              {t('common.pause')} (Esc)
-            </Button>
-          ) : gameState === 'paused' ? (
-            <Button variant="primary" size="xs" icon={Play} onClick={() => setGameState('playing')}>
-              {t('common.resume')}
-            </Button>
-          ) : null}
-          <Button variant="ghost" size="xs" icon={RotateCcw} onClick={startCountdown}>
-            {t('common.restart')}
-          </Button>
-        </div>
-      </div>
-
-      {/* Dynamic Tier Escalation Toast Banner */}
-      {tierUpToast && (
-        <div className="px-3 py-2 rounded-lg bg-orange-950/80 border border-orange-500/50 text-orange-300 font-mono text-xs flex items-center justify-between animate-in fade-in slide-in-from-top-2">
-          <span className="flex items-center gap-2 font-bold">
-            <Flame className="w-4 h-4 text-orange-400 animate-pulse" />
-            {tierUpToast}
-          </span>
-          <span className="text-[10px] text-orange-400 uppercase">Spawn Rate & Velocity Scaled</span>
-        </div>
-      )}
-
-      {/* HUD Metrics Strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 bg-[var(--bg-elevated)] p-3 rounded-xl border border-[var(--border)] text-xs font-mono">
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.score')}</span>
-          <span className="text-sm sm:text-base font-bold text-[var(--text-primary)]">{score}</span>
-        </div>
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.health')}</span>
-          <div className="flex items-center gap-1 mt-0.5">
-            {[...Array(INITIAL_LIVES)].map((_, i) => (
+          <div className="flex items-center gap-1.5">
+            {[0, 1, 2].map((i) => (
               <Shield
                 key={i}
-                className={`w-3.5 h-3.5 ${
-                  i < lives ? 'text-emerald-400 fill-emerald-400/30' : 'text-neutral-600'
+                className={`w-5 h-5 transition-all ${
+                  i < lives
+                    ? 'text-cyan-400 fill-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.85)]'
+                    : 'text-neutral-700'
                 }`}
               />
             ))}
           </div>
         </div>
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('arcade.hud.combo')}</span>
-          <span className="text-sm sm:text-base font-bold text-[var(--accent)]">
-            {combo}x <span className="text-[10px] text-[var(--text-muted)]">(max {bestCombo})</span>
-          </span>
+
+        {/* Live Typing Speed */}
+        <div className="hidden sm:flex items-center gap-3 font-mono text-xs font-bold">
+          <div className="flex items-center gap-1 px-3 py-1 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-cyan-400">
+            <Zap className="w-3.5 h-3.5" />
+            <span>{liveWpm} WPM</span>
+          </div>
+          <div className="px-3 py-1 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-emerald-400">
+            <span>{accuracy}% ACC</span>
+          </div>
         </div>
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('workstation.wordsTyped')}</span>
-          <span className="text-sm sm:text-base font-bold text-emerald-400">{wordsEliminated}</span>
-        </div>
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.accuracy')}</span>
-          <span className="text-sm sm:text-base font-bold text-[var(--ui-success)]">{accuracy}%</span>
-        </div>
-        <div>
-          <span className="text-[10px] uppercase text-[var(--text-muted)] block">{t('common.time')}</span>
-          <span className="text-sm sm:text-base font-bold text-[var(--text-secondary)]">
-            {elapsedSeconds}s
-          </span>
+
+        {/* Score & Exit */}
+        <div className="flex items-center gap-3">
+          <div className="px-3.5 py-1.5 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-mono font-bold text-white shadow-lg">
+            <span className="text-amber-400 mr-1.5">★</span>
+            <span>{score.toLocaleString()}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowExitConfirm(true);
+            }}
+            className="p-2 rounded-xl bg-black/60 hover:bg-neutral-800 text-neutral-300 hover:text-white border border-white/10 transition-colors pointer-events-auto cursor-pointer"
+            title="Exit Game"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Active Falling Words Arena */}
-      <div
-        className="relative w-full rounded-xl border border-[var(--border)] bg-[var(--bg-main)] overflow-hidden shadow-inner flex flex-col justify-between"
-        style={{ height: ARENA_HEIGHT }}
-      >
-        {/* Background Grid Pattern */}
-        <div
-          className="absolute inset-0 opacity-15 pointer-events-none"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, var(--border) 1px, transparent 1px), linear-gradient(to bottom, var(--border) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-          }}
-        />
-
-        {/* Laser Beam Effect */}
-        {laserBeam && (
-          <div
-            className="absolute bottom-0 z-20 pointer-events-none"
-            style={{
-              left: `${laserBeam.x}px`,
-              top: `${laserBeam.y}px`,
-              width: '2px',
-              height: `${ARENA_HEIGHT - laserBeam.y}px`,
-              background: 'linear-gradient(to top, var(--accent), #fff)',
-              boxShadow: '0 0 12px var(--accent)',
-            }}
-          />
-        )}
-
-        {/* Danger Line */}
-        <div
-          className="absolute left-0 right-0 z-10 border-b-2 border-dashed border-rose-500/60 flex items-center justify-between px-3 text-[10px] font-mono text-rose-400 bg-rose-500/10 pointer-events-none"
-          style={{ top: DANGER_LINE_Y }}
-        >
-          <span className="flex items-center gap-1">
-            <AlertTriangle className="w-3 h-3 text-rose-500" /> BASELINE SHIELD BARRIER
-          </span>
-          <span>BREACH ZONE</span>
-        </div>
-
-        {/* Falling Words */}
-        {fallingWords.map((word) => {
-          const isTargeted = word.id === activeWordId;
-          const typedLen = isTargeted ? typedBuffer.length : 0;
-          const matchingPart = word.text.slice(0, typedLen);
-          const remainingPart = word.text.slice(typedLen);
-
-          return (
-            <div
-              key={word.id}
-              className={`absolute px-2.5 py-1 rounded-md font-mono text-xs font-bold transition-transform shadow-md ${
-                isTargeted
-                  ? 'bg-[var(--bg-elevated)] border-2 border-[var(--accent)] text-[var(--accent-fg)] ring-2 ring-[var(--accent)]/30 scale-105 z-20'
-                  : 'bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-primary)] z-10'
-              }`}
-              style={{ left: `${word.x}px`, top: `${word.y}px` }}
-            >
-              {isTargeted ? (
-                <span>
-                  <span className="text-emerald-400 bg-emerald-950/40 px-0.5 rounded">
-                    {matchingPart}
-                  </span>
-                  <span className="text-[var(--text-primary)]">{remainingPart}</span>
+      {/* BOTTOM HUD: Defense Turret Targeting Cockpit */}
+      <div className="relative z-10 p-4 sm:p-6 flex flex-col items-center justify-end space-y-3 bg-gradient-to-t from-black/90 via-black/55 to-transparent pointer-events-none">
+        {activeTarget ? (
+          <div className="flex flex-col items-center space-y-1.5 max-w-lg w-full">
+            <div className="px-6 py-2.5 rounded-2xl bg-black/85 backdrop-blur-md border border-cyan-500/50 shadow-2xl flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <Crosshair className="w-4 h-4 text-cyan-400 animate-spin" />
+                <span className="text-xs font-mono uppercase tracking-wider text-cyan-300 font-bold">
+                  TURRET LOCK:
                 </span>
-              ) : (
-                word.text
-              )}
-            </div>
-          );
-        })}
+              </div>
 
-        {/* Arena Overlay States */}
-        {gameState === 'ready' && (
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-xs z-30 flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--accent)] flex items-center justify-center shadow-lg">
-              <Flame className="w-8 h-8" />
+              <div className="font-mono text-2xl sm:text-3xl font-black tracking-widest">
+                <span className="text-emerald-400">
+                  {activeTarget.text.slice(0, activeTarget.typedCount)}
+                </span>
+                <span className="text-amber-300 underline decoration-4 underline-offset-4 animate-pulse">
+                  {activeTarget.text[activeTarget.typedCount] || ''}
+                </span>
+                <span className="text-neutral-400">
+                  {activeTarget.text.slice(activeTarget.typedCount + 1)}
+                </span>
+              </div>
+
+              <div className="text-xs font-mono text-amber-400 font-bold">
+                {combo > 0 ? `${combo}x` : ''}
+              </div>
             </div>
-            <div className="space-y-1 max-w-sm">
-              <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.cascade.title')}</h3>
-              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                {t('arcade.cascade.desc')}
-              </p>
+            <div className="text-[11px] font-mono text-neutral-400">
+              Type full keyword to fire orbital defense laser cannon
             </div>
-            <Button variant="primary" size="lg" icon={Play} onClick={startCountdown}>
-              {t('common.play')}
+          </div>
+        ) : (
+          <div className="px-5 py-2 rounded-xl bg-black/60 backdrop-blur-md border border-white/10 text-xs font-mono text-neutral-400">
+            Orbital radar active... Type first letter of any descending meteor to lock cannon!
+          </div>
+        )}
+      </div>
+
+      {/* READY SCREEN */}
+      {gameState === 'ready' && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-6 text-center space-y-5 animate-in fade-in duration-200">
+          <div className="w-16 h-16 rounded-2xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-xl">
+            <Flame className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-1 max-w-md">
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              3D METEOR DEFENSE
+            </h2>
+            <p className="text-xs sm:text-sm text-neutral-300 leading-relaxed">
+              Defend your planetary colony against falling plasma meteors. Type the keywords floating above descending asteroids to aim and fire your orbital laser cannon!
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2.5 text-center font-mono text-[11px] max-w-md w-full">
+            <div className="p-2.5 rounded-xl bg-neutral-900/90 border border-white/10">
+              <span className="text-cyan-400 font-bold block">LOCK-ON</span>
+              <span className="text-neutral-400">Type 1st letter</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-neutral-900/90 border border-white/10">
+              <span className="text-amber-400 font-bold block">FIRE CANNON</span>
+              <span className="text-neutral-400">Complete word</span>
+            </div>
+            <div className="p-2.5 rounded-xl bg-neutral-900/90 border border-white/10">
+              <span className="text-emerald-400 font-bold block">ENERGY GRID</span>
+              <span className="text-neutral-400">3 Shield lives</span>
+            </div>
+          </div>
+
+          <Button
+            variant="primary"
+            size="lg"
+            icon={Play}
+            onClick={startCountdown}
+            className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold px-8 shadow-xl"
+          >
+            Activate Defense Grid
+          </Button>
+        </div>
+      )}
+
+      {/* COUNTDOWN OVERLAY */}
+      {gameState === 'countdown' && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-xs">
+          <span className="text-7xl sm:text-8xl font-black font-mono text-cyan-400 animate-ping">
+            {countdown}
+          </span>
+        </div>
+      )}
+
+      {/* PAUSE OVERLAY */}
+      {gameState === 'paused' && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md p-6 space-y-4">
+          <h3 className="text-2xl font-bold text-white">Defense Grid Paused</h3>
+          <div className="flex gap-3">
+            <Button variant="primary" size="md" icon={Play} onClick={() => setGameState('playing')}>
+              Resume
+            </Button>
+            <Button variant="outline" size="md" icon={RotateCcw} onClick={resetGame}>
+              Restart
+            </Button>
+            <Button variant="outline" size="md" icon={ArrowLeft} onClick={onExit}>
+              Exit
             </Button>
           </div>
-        )}
+        </div>
+      )}
 
-        {gameState === 'countdown' && (
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-30 flex items-center justify-center">
-            <span className="text-6xl font-black font-mono text-[var(--accent)] animate-pulse">
-              {countdown}
+      {/* GAME OVER OVERLAY */}
+      {gameState === 'gameover' && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/85 backdrop-blur-md p-6 text-center space-y-5 animate-in zoom-in-95 duration-200">
+          <div className="space-y-1">
+            <span className="text-xs font-mono font-bold uppercase tracking-widest text-rose-400">
+              DEFENSE GRID BREACHED • MISSION OVER
             </span>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white">
+              Colony Defended to Wave {wave}
+            </h2>
           </div>
-        )}
 
-        {gameState === 'paused' && (
-          <div className="absolute inset-0 bg-black/75 backdrop-blur-xs z-30 flex flex-col items-center justify-center space-y-4">
-            <h3 className="text-xl font-bold text-[var(--text-primary)]">{t('arcade.hud.pause')}</h3>
-            <div className="flex gap-3">
-              <Button variant="primary" size="sm" icon={Play} onClick={() => setGameState('playing')}>
-                {t('common.resume')}
-              </Button>
-              <Button variant="outline" size="sm" icon={RotateCcw} onClick={startCountdown}>
-                {t('common.restart')}
-              </Button>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-xl mx-auto font-mono text-center w-full">
+            <div className="p-3 rounded-xl bg-neutral-900 border border-white/10">
+              <span className="text-[10px] text-neutral-400 uppercase block">Total Score</span>
+              <span className="text-2xl font-extrabold text-cyan-400">{score.toLocaleString()}</span>
             </div>
-          </div>
-        )}
-
-        {gameState === 'gameover' && (
-          <div className="absolute inset-0 bg-black/85 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <div className="w-12 h-12 rounded-xl bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6" />
+            <div className="p-3 rounded-xl bg-neutral-900 border border-white/10">
+              <span className="text-[10px] text-neutral-400 uppercase block">Meteors Destroyed</span>
+              <span className="text-2xl font-extrabold text-emerald-400">{meteorsEliminated}</span>
             </div>
-            <div className="space-y-1">
-              <h3 className="text-2xl font-black text-[var(--text-primary)]">{t('arcade.hud.gameOver')}</h3>
-              <p className="text-xs text-[var(--text-secondary)]">All 3 shield barriers were overloaded.</p>
+            <div className="p-3 rounded-xl bg-neutral-900 border border-white/10">
+              <span className="text-[10px] text-neutral-400 uppercase block">Max Combo</span>
+              <span className="text-2xl font-extrabold text-amber-400">{bestCombo}x</span>
             </div>
-
-            {personalBestNotice && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-mono font-bold">
-                <Trophy className="w-3.5 h-3.5" /> {t('arcade.hud.newBest')}
-              </div>
-            )}
-
-            <div className="grid grid-cols-3 gap-3 bg-[var(--bg-elevated)] p-4 rounded-xl border border-[var(--border)] text-xs font-mono w-full max-w-sm">
-              <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">{t('arcade.hud.score')}</span>
-                <span className="text-lg font-bold text-[var(--accent)]">{score}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">{t('common.words')}</span>
-                <span className="text-lg font-bold text-emerald-400">{wordsEliminated}</span>
-              </div>
-              <div>
-                <span className="text-[10px] text-[var(--text-muted)] block">{t('arcade.hud.combo')}</span>
-                <span className="text-lg font-bold text-amber-400">{bestCombo}x</span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 pt-2">
-              <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown}>
-                {t('arcade.hud.playAgain')}
-              </Button>
-              <Button variant="outline" size="md" onClick={onExit}>
-                {t('arcade.hud.returnToHub')}
-              </Button>
+            <div className="p-3 rounded-xl bg-neutral-900 border border-white/10">
+              <span className="text-[10px] text-neutral-400 uppercase block">Typing Speed</span>
+              <span className="text-2xl font-extrabold text-purple-400">{liveWpm} WPM</span>
             </div>
           </div>
-        )}
-      </div>
 
-      {/* Bottom Status / Instructions Tip */}
-      <div className="flex flex-wrap items-center justify-between text-xs text-[var(--text-muted)] font-mono px-1">
-        <span>{t('workstation.clickToFocus')}</span>
-        <span>{t('arcade.hud.wave')} {wave} • {t('workstation.mistakes')}: {missedWords} • {t('common.speed')} {wpm} WPM</span>
-      </div>
+          {personalBestNotice && (
+            <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono text-xs">
+              🏆 New Personal Best Recorded!
+            </div>
+          )}
 
-      {/* Exit Run Confirmation Dialog */}
+          <div className="flex gap-3">
+            <Button
+              variant="primary"
+              size="md"
+              icon={RotateCcw}
+              onClick={resetGame}
+              className="bg-cyan-600 hover:bg-cyan-700 text-white font-bold"
+            >
+              Play Again
+            </Button>
+            <Button variant="outline" size="md" icon={ArrowLeft} onClick={onExit}>
+              Exit to Arcade
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Exit confirmation dialog */}
       <ArcadeExitDialog
         isOpen={showExitConfirm}
         onCancel={() => setShowExitConfirm(false)}
-        onConfirm={onExit}
+        onConfirm={() => {
+          setShowExitConfirm(false);
+          onExit();
+        }}
       />
     </div>
   );
 };
+
+export default KeyCascadeGame;
