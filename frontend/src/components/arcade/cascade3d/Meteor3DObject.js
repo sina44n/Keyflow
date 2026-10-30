@@ -269,3 +269,4 @@ export class Meteor3DObject {
     });
   }
 }
+

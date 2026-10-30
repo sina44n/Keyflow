@@ -388,3 +388,4 @@ export class Boss3DScene {
     }
   }
 }
+
