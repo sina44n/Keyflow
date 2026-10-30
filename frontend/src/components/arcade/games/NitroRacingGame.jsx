@@ -19,11 +19,20 @@ import {
   Award,
   Infinity as InfinityIcon,
   Timer,
+  Sliders,
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { useI18n } from '../../../i18n/I18nContext';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
 import { saveArcadeRecord, getGameRecord } from '../../../utils/arcadeStorage';
+import {
+  GlobalGameManager,
+  RENDERING_TECH,
+  WebGLFallbackManager,
+  GameLifecycleManager,
+  getWebGLGraphicsConfig,
+} from '../../../utils/performance/GlobalGameManager';
+import { GlobalGameSettingsModal } from '../performance/GlobalGameSettingsModal';
 import {
   RACING_TIERS,
   RACING_VEHICLES,
@@ -98,6 +107,10 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
   const [gameState, setGameState] = useState('garage');
   const [countdown, setCountdown] = useState(3);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [is2DFallback, setIs2DFallback] = useState(() =>
+    WebGLFallbackManager.shouldActivateFallback('nitro')
+  );
 
   // Active configurations
   const vehicle = useMemo(() => {
@@ -314,7 +327,7 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
   }, [gameState, handleKeyDown]);
 
   // ==========================================
-  // THREE.JS 3D SCENE & 60 FPS RENDER LOOP
+  // THREE.JS 3D SCENE & 60 FPS RENDER LOOP + CANVAS 2D FALLBACK
   // ==========================================
   useEffect(() => {
     if (gameState !== 'racing' || !mountRef.current) return;
@@ -323,19 +336,265 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     const width = container.clientWidth || 960;
     const height = 400;
 
+    // Start 2D Fallback renderer if WebGL is unavailable or requested
+    const start2DFallbackLoop = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.className = 'w-full h-full block rounded-2xl shadow-inner';
+      container.innerHTML = '';
+      container.appendChild(canvas);
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return () => {};
+
+      const audio = new Racing3DAudio();
+      audio.init();
+      audio.setMuted(!soundEnabled);
+      audio.startEngine();
+
+      const cars = [
+        { id: 'player', name: 'YOU', isPlayer: true, color: vehicle.color || '#EF4444', lane: 2, distance: 0, speed: 0, targetSpeed: 8 },
+        { id: 'xavier', name: 'Xavier', isPlayer: false, color: '#A855F7', lane: 0, distance: 0, speed: 0, targetSpeed: 8 },
+        { id: 'thomas', name: 'Thomas', isPlayer: false, color: '#38BDF8', lane: 1, distance: 0, speed: 0, targetSpeed: 8 },
+        { id: 'joshua', name: 'Joshua', isPlayer: false, color: '#FACC15', lane: 3, distance: 0, speed: 0, targetSpeed: 8 },
+      ];
+
+      let animId;
+      const loop = (timestamp) => {
+        if (!threeRef.current.lastFrameTime) threeRef.current.lastFrameTime = timestamp;
+        const dt = Math.min(0.08, (timestamp - threeRef.current.lastFrameTime) / 1000);
+        threeRef.current.lastFrameTime = timestamp;
+
+        const elapsed = Math.max(0.1, (timestamp - threeRef.current.raceStartTime) / 1000);
+        setElapsedTime(elapsed);
+
+        if (selectedMode === 'time-attack' && elapsed >= 60 && !threeRef.current.isFinished) {
+          threeRef.current.isFinished = true;
+        }
+
+        const stream = threeRef.current.streamQueue;
+        const streamMetrics = stream ? stream.getProgress() : { totalCorrect: 0, totalErrors: 0 };
+        const words = streamMetrics.totalCorrect / 5;
+        const currentWpmVal = Math.round((words / (elapsed / 60))) || 0;
+        const totalStrokes = streamMetrics.totalCorrect + streamMetrics.totalErrors;
+        const accVal = totalStrokes > 0 ? Math.round((streamMetrics.totalCorrect / totalStrokes) * 100) : 100;
+
+        const baseMps = (currentWpmVal / 60) * 17.5;
+        const vehicleBonus = (vehicle.topSpeed - 80) * 0.006;
+        const accBonus = (vehicle.acceleration - 80) * 0.005;
+        const nitroMultiplier = isNitroActive ? 1.48 : 1.0;
+        const targetPlayerMps = Math.max(8.0, baseMps * (1 + vehicleBonus + accBonus) * nitroMultiplier);
+
+        cars[0].targetSpeed = targetPlayerMps;
+        cars[0].speed += (cars[0].targetSpeed - cars[0].speed) * Math.min(1.0, dt * 4.0);
+        cars[0].distance += cars[0].speed * dt;
+
+        for (let i = 1; i < 4; i++) {
+          const competitor = AI_COMPETITORS[i - 1];
+          const aiTargetMps = computeAiProgress({
+            tier: selectedTier,
+            competitor,
+            elapsedSeconds: elapsed,
+            playerDistance: cars[0].distance,
+            targetDistance,
+          });
+          cars[i].targetSpeed = aiTargetMps;
+          cars[i].speed += (cars[i].targetSpeed - cars[i].speed) * Math.min(1.0, dt * 3.5);
+          cars[i].distance += cars[i].speed * dt;
+        }
+
+        audio.updateLive(currentWpmVal, isNitroActive, cars[0].speed);
+
+        const sorted = [...cars].sort((a, b) => b.distance - a.distance);
+        const playerRank = sorted.findIndex((c) => c.isPlayer) + 1;
+        setPlayerPlacement(playerRank);
+        setLiveWpm(currentWpmVal);
+        setAccuracy(accVal);
+        setTotalDistanceCovered(cars[0].distance);
+
+        const totalDist = cars[0].distance;
+        const isTargetReached = totalDist >= targetDistance;
+        const isTimeAttackDone = selectedMode === 'time-attack' && elapsed >= 60;
+
+        if ((isTargetReached || isTimeAttackDone) && !threeRef.current.isFinished) {
+          threeRef.current.isFinished = true;
+          audio.playFinishFanfare();
+
+          const finalRank = playerRank;
+          const isWinner = finalRank === 1;
+
+          saveArcadeRecord('nitro', {
+            wpm: currentWpmVal,
+            accuracy: accVal,
+            won: isWinner,
+            tier: selectedTier,
+            placement: finalRank,
+            distance: totalDist,
+          });
+
+          setRaceResult({
+            isWinner,
+            placement: finalRank,
+            finalWpm: currentWpmVal,
+            peakWpm: Math.max(peakWpm, currentWpmVal),
+            accuracy: accVal,
+            elapsedTime: elapsed,
+            totalDistance: totalDist,
+            nitroBurstsUsed,
+            tierName: tierConfig.name,
+            rewardCoins: finalRank === 1 ? tierConfig.rewardCoins : Math.round(tierConfig.rewardCoins * 0.45),
+            standings: sorted.map((r, idx) => ({
+              id: r.name,
+              name: r.name,
+              placement: idx + 1,
+              distance: Math.round(r.distance),
+            })),
+          });
+
+          setTimeout(() => {
+            setGameState('gameover');
+          }, 1500);
+        }
+
+        // Draw 2D canvas race scene
+        ctx.fillStyle = '#0b0f19';
+        ctx.fillRect(0, 0, width, height);
+
+        const laneHeight = height / 4;
+        for (let l = 0; l < 4; l++) {
+          const y = l * laneHeight;
+          ctx.fillStyle = l % 2 === 0 ? '#1e293b' : '#141e2e';
+          ctx.fillRect(0, y, width, laneHeight);
+
+          if (l > 0) {
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([24, 16]);
+            ctx.lineDashOffset = -(cars[0].distance * 6) % 40;
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        }
+
+        // Checkered finish line
+        const finishScreenX = ((targetDistance - cars[0].distance) * 2.5) + (width * 0.45);
+        if (finishScreenX > 0 && finishScreenX < width + 100) {
+          ctx.fillStyle = '#f8fafc';
+          ctx.fillRect(finishScreenX, 0, 10, height);
+          ctx.fillStyle = '#000000';
+          for (let y = 0; y < height; y += 16) {
+            ctx.fillRect(finishScreenX, y, 5, 8);
+            ctx.fillRect(finishScreenX + 5, y + 8, 5, 8);
+          }
+        }
+
+        // Draw cars Left to Right
+        for (const car of cars) {
+          const laneY = car.lane * laneHeight + laneHeight / 2;
+          const screenX = car.isPlayer
+            ? width * 0.38
+            : width * 0.38 + (car.distance - cars[0].distance) * 2.8;
+
+          if (screenX > -120 && screenX < width + 120) {
+            if (car.speed > 4) {
+              const flameLength = Math.min(32, car.speed * 1.1 * (isNitroActive && car.isPlayer ? 1.8 : 1.0));
+              const grad = ctx.createLinearGradient(screenX - 38 - flameLength, laneY, screenX - 38, laneY);
+              grad.addColorStop(0, 'rgba(56, 189, 248, 0)');
+              grad.addColorStop(1, isNitroActive && car.isPlayer ? 'rgba(56, 189, 248, 0.9)' : 'rgba(249, 115, 22, 0.85)');
+              ctx.fillStyle = grad;
+              ctx.beginPath();
+              ctx.ellipse(screenX - 42, laneY, flameLength, 4, 0, 0, Math.PI * 2);
+              ctx.fill();
+            }
+
+            const beamGrad = ctx.createLinearGradient(screenX + 32, laneY, screenX + 90, laneY);
+            beamGrad.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+            beamGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = beamGrad;
+            ctx.beginPath();
+            ctx.moveTo(screenX + 32, laneY - 6);
+            ctx.lineTo(screenX + 90, laneY - 16);
+            ctx.lineTo(screenX + 90, laneY + 16);
+            ctx.lineTo(screenX + 32, laneY + 6);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = car.color;
+            ctx.beginPath();
+            ctx.roundRect(screenX - 34, laneY - 12, 68, 24, [4, 10, 10, 4]);
+            ctx.fill();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.roundRect(screenX - 8, laneY - 8, 24, 16, 3);
+            ctx.fill();
+
+            ctx.fillStyle = '#020617';
+            ctx.fillRect(screenX - 36, laneY - 15, 5, 30);
+
+            ctx.fillStyle = car.isPlayer ? '#EF4444' : '#94a3b8';
+            ctx.font = 'bold 10px monospace';
+            ctx.textAlign = 'center';
+            ctx.fillText(`${car.name} (${Math.round(car.speed * 2.23)} mph)`, screenX, laneY - 18);
+          }
+        }
+
+        animId = requestAnimationFrame(loop);
+      };
+
+      animId = requestAnimationFrame(loop);
+
+      return () => {
+        cancelAnimationFrame(animId);
+        audio.cleanup();
+      };
+    };
+
+    if (is2DFallback) {
+      return start2DFallbackLoop();
+    }
+
     // 1. Scene, Camera & WebGL Renderer
+    const graphicsConfig = GlobalGameManager.getGraphicsConfig(RENDERING_TECH.THREEJS_WEBGL);
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.2, 800);
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.2, graphicsConfig.drawDistance || 800);
     const cameraController = new Racing3DCamera({ camera, aspect: width / height });
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    let renderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: graphicsConfig.antiAliasing,
+        powerPreference: 'high-performance',
+      });
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(graphicsConfig.pixelRatio);
+      if (graphicsConfig.shadows !== 'disabled') {
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type =
+          graphicsConfig.shadows === 'high' ? THREE.PCFSoftShadowMap : THREE.BasicShadowMap;
+      } else {
+        renderer.shadowMap.enabled = false;
+      }
+    } catch (err) {
+      console.warn('[NitroRacingGame] WebGLRenderer init failed, switching to 2D canvas fallback:', err);
+      setIs2DFallback(true);
+      return start2DFallbackLoop();
+    }
 
     container.innerHTML = '';
     container.appendChild(renderer.domElement);
+
+    // Bind context loss handler
+    const cleanupContextLoss = WebGLFallbackManager.attachContextLossHandlers(
+      renderer.domElement,
+      () => {
+        setIs2DFallback(true);
+      }
+    );
 
     // 2. Audio Engine
     const audio = new Racing3DAudio();
@@ -412,6 +671,19 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     };
     window.addEventListener('resize', handleResize);
 
+    // Tab backgrounding safety handlers
+    const handleTabHidden = () => {
+      if (audio) audio.setMuted(true);
+    };
+    const handleTabRestored = () => {
+      if (audio && soundEnabled) audio.setMuted(false);
+      if (threeRef.current) {
+        threeRef.current.lastFrameTime = performance.now();
+      }
+    };
+    window.addEventListener('keyflow-tab-hidden', handleTabHidden);
+    window.addEventListener('keyflow-tab-restored', handleTabRestored);
+
     // ==========================================
     // 60 FPS SIMULATION & RENDER LOOP
     // ==========================================
@@ -448,85 +720,83 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
       playerVehicle.distance += playerVehicle.targetSpeed * dt;
 
       // 2. Advance AI Racers along +X
-      AI_COMPETITORS.forEach((ai) => {
-        const aiCar = vehicles[ai.id];
-        if (!aiCar) return;
-
-        const aiSpeedMps = computeAiProgress({
-          aiRacer: ai,
-          tierConfig,
-          playerWpm: currentWpmVal * nitroMultiplier,
+      for (let i = 0; i < 3; i++) {
+        const competitor = AI_COMPETITORS[i];
+        const vKey = i === 0 ? 'xavier' : i === 1 ? 'thomas' : 'joshua';
+        const aiTargetMps = computeAiProgress({
+          tier: selectedTier,
+          competitor,
           elapsedSeconds: elapsed,
-          currentProgress: (aiCar.distance / targetDistance) * 100,
+          playerDistance: playerVehicle.distance,
           targetDistance,
         });
+        vehicles[vKey].targetSpeed = aiTargetMps;
+        vehicles[vKey].distance += vehicles[vKey].targetSpeed * dt;
+      }
 
-        aiCar.targetSpeed = aiSpeedMps;
-        aiCar.distance += aiSpeedMps * dt;
+      // 3. Update Audio Pitch mapped to live WPM & velocity
+      audio.updateLive(currentWpmVal, isNitroActive, playerVehicle.speed);
+
+      // 4. Update 3D Visual Kinematics (Wheels, Flames, Underglow, Positions)
+      Object.values(vehicles).forEach((v) => {
+        v.update(dt, isNitroActive && v.isPlayer, dt > 0.001);
       });
 
-      // 3. Compute Real-time Placements from 3D X coordinates
-      const racerList = [playerVehicle, xavierVehicle, thomasVehicle, joshuaVehicle];
-      racerList.sort((a, b) => b.distance - a.distance);
+      // 5. Update Procedural Environment along +X
+      env.update(playerVehicle.distance);
+
+      // 6. Update Follow Camera
+      cameraController.update(playerVehicle.group.position, isNitroActive, dt);
+
+      // 7. Update Live Telemetry State
+      const racerList = [
+        { driverName: 'YOU', distance: playerVehicle.distance, isPlayer: true },
+        { driverName: 'Xavier', distance: vehicles.xavier.distance, isPlayer: false },
+        { driverName: 'Thomas', distance: vehicles.thomas.distance, isPlayer: false },
+        { driverName: 'Joshua', distance: vehicles.joshua.distance, isPlayer: false },
+      ].sort((a, b) => b.distance - a.distance);
+
       racerList.forEach((r, idx) => {
         r.placement = idx + 1;
+        if (r.isPlayer) {
+          playerVehicle.badge.update(r.placement, playerVehicle.speed);
+        } else {
+          const vKey = r.driverName.toLowerCase();
+          if (vehicles[vKey]) {
+            vehicles[vKey].badge.update(r.placement, vehicles[vKey].speed);
+          }
+        }
       });
 
-      setCurrentPlacement(playerVehicle.placement);
+      const playerRank = racerList.find((r) => r.isPlayer)?.placement || 1;
+      setPlayerPlacement(playerRank);
+      setLiveWpm(currentWpmVal);
+      setAccuracy(accVal);
+      setTotalDistanceCovered(playerVehicle.distance);
 
-      // Mini-progress updates
-      setMiniProgress({
-        player: Math.min(100, (playerVehicle.distance / targetDistance) * 100),
-        xavier: Math.min(100, (xavierVehicle.distance / targetDistance) * 100),
-        thomas: Math.min(100, (thomasVehicle.distance / targetDistance) * 100),
-        joshua: Math.min(100, (joshuaVehicle.distance / targetDistance) * 100),
-      });
+      // 8. Check Race Finish Condition
+      const totalDist = playerVehicle.distance;
+      const isTargetReached = totalDist >= targetDistance;
+      const isTimeAttackDone = selectedMode === 'time-attack' && elapsed >= 60;
 
-      // 4. Update 3D Vehicles Transforms, Wheels & Effects
-      racerList.forEach((v) => {
-        v.update({
-          speed: v.targetSpeed,
-          dt,
-          isNitro: v.isPlayer ? isNitroActive : false,
-          placement: v.placement,
-          currentWpm: v.isPlayer ? currentWpmVal : 0,
-        });
-      });
-
-      // 5. Update Procedural Environment
-      env.update({ playerX: playerVehicle.distance });
-
-      // 6. Update Cinematic Follow Camera (LEFT TO RIGHT)
-      cameraController.update({
-        playerX: playerVehicle.distance,
-        speed: playerVehicle.targetSpeed,
-        isNitro: isNitroActive,
-        dt,
-        isFinished: threeRef.current.isFinished,
-      });
-
-      // 7. Check Victory Condition
-      if (
-        (playerVehicle.distance >= targetDistance || (selectedMode === 'time-attack' && elapsed >= 60)) &&
-        !threeRef.current.isFinished
-      ) {
+      if ((isTargetReached || isTimeAttackDone) && !threeRef.current.isFinished) {
         threeRef.current.isFinished = true;
-        audio.stopEngine();
-        audio.playVictory();
+        audio.playFinishFanfare();
 
-        const finalRank = playerVehicle.placement;
-        const totalDist = Math.round(playerVehicle.distance);
+        const finalRank = playerRank;
+        const isWinner = finalRank === 1;
 
-        // Save authoritative arcade record
         saveArcadeRecord('nitro', {
           wpm: currentWpmVal,
           accuracy: accVal,
-          distance: totalDist,
+          won: isWinner,
+          tier: selectedTier,
           placement: finalRank,
-          highestTier: selectedTier,
+          distance: totalDist,
         });
 
-        setFinalResults({
+        setRaceResult({
+          isWinner,
           placement: finalRank,
           finalWpm: currentWpmVal,
           peakWpm: Math.max(peakWpm, currentWpmVal),
@@ -560,10 +830,13 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
+      window.removeEventListener('keyflow-tab-hidden', handleTabHidden);
+      window.removeEventListener('keyflow-tab-restored', handleTabRestored);
+      cleanupContextLoss();
       audio.cleanup();
       env.dispose();
       Object.values(vehicles).forEach((v) => v.dispose());
-      renderer.dispose();
+      GameLifecycleManager.disposeThreeScene(scene, renderer);
     };
   }, [
     gameState,
@@ -577,6 +850,7 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     selectedTier,
     soundEnabled,
     nitroBurstsUsed,
+    is2DFallback,
   ]);
 
   return (
@@ -624,6 +898,15 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
               <span>Record: <strong className="text-[var(--text-primary)]">{personalBest.bestWpm} WPM</strong></span>
             </div>
           )}
+          <Button
+            variant="outline"
+            size="sm"
+            icon={Sliders}
+            onClick={() => setIsSettingsOpen(true)}
+            title="Graphics & Performance Settings"
+          >
+            Settings
+          </Button>
           {gameState === 'racing' && (
             <Button
               variant="outline"
@@ -637,6 +920,17 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
           )}
         </div>
       </div>
+
+      {/* 2D Fallback Notice Banner */}
+      {is2DFallback && (
+        <div className="flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono text-xs animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-400" />
+            <span><strong>High-Performance 2D Canvas Mode:</strong> WebGL hardware acceleration unavailable.</span>
+          </div>
+          <span className="text-[10px] text-amber-400/90 hidden sm:inline">Continuous Typing Kinematics & AI Opponents Preserved</span>
+        </div>
+      )}
 
       {/* 2. CHAMPIONSHIP GARAGE & VEHICLE TUNING SCREEN */}
       {gameState === 'garage' && (
@@ -1135,6 +1429,12 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
           threeRef.current.audio?.stopEngine();
           onExit();
         }}
+      />
+
+      {/* Global Performance & Graphics Settings Modal */}
+      <GlobalGameSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );

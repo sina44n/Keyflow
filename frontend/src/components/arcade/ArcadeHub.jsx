@@ -1,25 +1,50 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Volume2, VolumeX } from 'lucide-react';
+import { Volume2, VolumeX, Sliders } from 'lucide-react';
 import { useI18n } from '../../i18n/I18nContext';
 import { ARCADE_GAMES, ARCADE_CATEGORIES } from '../../data/arcadeGamesData';
 import { getArcadeRecords } from '../../utils/arcadeStorage';
 import { ArcadeGameCard } from './ArcadeGameCard';
 import { ArcadeErrorBoundary } from './ArcadeErrorBoundary';
-import { KeyCascadeGame } from './games/KeyCascadeGame';
-import { SpeedSprintGame } from './games/SpeedSprintGame';
-import { WordHunterGame } from './games/WordHunterGame';
-import { KeyNinjaGame } from './games/KeyNinjaGame';
-import { WordRunnerGame } from './games/WordRunnerGame';
-import { TypingMemoryGame } from './games/TypingMemoryGame';
-import { BossBattleGame } from './games/BossBattleGame';
-import { NitroRacingGame } from './games/NitroRacingGame';
+import { ArcadeGameLoadingScreen } from './performance/ArcadeGameLoadingScreen';
+import { GlobalGameSettingsModal } from './performance/GlobalGameSettingsModal';
+import { PerformanceTelemetryHUD } from './performance/PerformanceTelemetryHUD';
+import {
+  GlobalGameManager,
+  getStoredGraphicsSettings,
+} from '../../utils/performance/GlobalGameManager';
 import {
   fetchArcadeStats,
   toggleGameLike,
   recordGamePlaySession,
   getCachedArcadeStats,
 } from '../../utils/arcadeStatsService';
+
+// Lazy-loaded Game Modules — Guarantees ZERO heavy engine bundles loaded during website/gallery browsing
+const KeyCascadeGame = React.lazy(() =>
+  import('./games/KeyCascadeGame').then((m) => ({ default: m.KeyCascadeGame }))
+);
+const SpeedSprintGame = React.lazy(() =>
+  import('./games/SpeedSprintGame').then((m) => ({ default: m.SpeedSprintGame }))
+);
+const WordHunterGame = React.lazy(() =>
+  import('./games/WordHunterGame').then((m) => ({ default: m.WordHunterGame }))
+);
+const KeyNinjaGame = React.lazy(() =>
+  import('./games/KeyNinjaGame').then((m) => ({ default: m.KeyNinjaGame }))
+);
+const WordRunnerGame = React.lazy(() =>
+  import('./games/WordRunnerGame').then((m) => ({ default: m.WordRunnerGame }))
+);
+const TypingMemoryGame = React.lazy(() =>
+  import('./games/TypingMemoryGame').then((m) => ({ default: m.TypingMemoryGame }))
+);
+const BossBattleGame = React.lazy(() =>
+  import('./games/BossBattleGame').then((m) => ({ default: m.BossBattleGame }))
+);
+const NitroRacingGame = React.lazy(() =>
+  import('./games/NitroRacingGame').then((m) => ({ default: m.NitroRacingGame }))
+);
 
 export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedded = false }) => {
   const { t } = useI18n();
@@ -29,6 +54,8 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
   const [stats, setStats] = useState(getCachedArcadeStats);
   const [soundOn, setSoundOn] = useState(true);
   const [isLaunching, setIsLaunching] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [graphicsSettings, setGraphicsSettings] = useState(getStoredGraphicsSettings);
 
   const navigate = useNavigate();
   const arenaRef = useRef(null);
@@ -38,7 +65,21 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
   if (initialGameId !== prevInitialId) {
     setPrevInitialId(initialGameId);
     setSelectedGameId(initialGameId);
+    if (initialGameId) {
+      GlobalGameManager.startGameSession(initialGameId);
+    }
   }
+
+  // Sync settings when changed in modal
+  useEffect(() => {
+    const handleSettingsChange = (e) => {
+      if (e.detail) {
+        setGraphicsSettings(e.detail);
+      }
+    };
+    window.addEventListener('keyflow-graphics-profile-changed', handleSettingsChange);
+    return () => window.removeEventListener('keyflow-graphics-profile-changed', handleSettingsChange);
+  }, []);
 
   // Sync personal best records across tab events
   useEffect(() => {
@@ -77,13 +118,16 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
     }));
   };
 
-  // When a game is chosen, launch reliably with double-click protection and scroll
+  // When a game is chosen, launch reliably with session isolation and scroll
   const handlePlayGame = (gameId) => {
     if (isLaunching) return;
     setIsLaunching(true);
 
     // Record unique play session idempotently
     recordGamePlaySession(gameId);
+
+    // Initialize global performance session
+    GlobalGameManager.startGameSession(gameId);
 
     if (isEmbedded) {
       navigate(`/arcade/${gameId}`);
@@ -105,6 +149,7 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
   };
 
   const handleExitGame = () => {
+    GlobalGameManager.endGameSession();
     setSelectedGameId(null);
     if (onGameChange) {
       onGameChange(null);
@@ -120,68 +165,78 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
     return true;
   });
 
-  const isValidGame = ARCADE_GAMES.some((game) => game.id === selectedGameId);
+  const activeGameMeta = ARCADE_GAMES.find((g) => g.id === selectedGameId);
+  const isValidGame = Boolean(activeGameMeta);
 
   return (
     <div className="space-y-10" ref={arenaRef}>
-      {/* If a game is actively running, render its dedicated interface inside an Error Boundary */}
+      {/* If a game is actively running, render its dedicated interface inside an Error Boundary and Suspense */}
       {selectedGameId && isValidGame ? (
         <ArcadeErrorBoundary onExit={handleExitGame}>
-          <div className="space-y-4 animate-in fade-in duration-200">
-            {selectedGameId === 'cascade' && (
-              <KeyCascadeGame
-                onExit={handleExitGame}
-                soundEnabled={soundOn}
+          <Suspense
+            fallback={
+              <ArcadeGameLoadingScreen
+                onCancel={handleExitGame}
+                gameTitle={activeGameMeta.title}
               />
-            )}
-            {selectedGameId === 'sprint' && (
-              <SpeedSprintGame
-                onExit={handleExitGame}
-                soundEnabled={soundOn}
-              />
-            )}
-            {selectedGameId === 'hunter' && (
-              <WordHunterGame
-                onExit={handleExitGame}
-                soundEnabled={soundOn}
-              />
-            )}
-            {selectedGameId === 'ninja' && (
-              <KeyNinjaGame
-                onExit={handleExitGame}
-                soundEnabled={soundOn}
-              />
-            )}
-            {selectedGameId === 'runner' && (
-              <WordRunnerGame
-                onExit={handleExitGame}
-                soundEnabled={soundOn}
-              />
-            )}
-            {selectedGameId === 'memory' && (
-              <TypingMemoryGame
-                onExit={handleExitGame}
-                soundEnabled={soundOn}
-              />
-            )}
-            {selectedGameId === 'boss' && (
-              <BossBattleGame
-                onExit={handleExitGame}
-                soundEnabled={soundOn}
-              />
-            )}
-            {selectedGameId === 'nitro' && (
-              <NitroRacingGame
-                onExit={handleExitGame}
-                soundEnabled={soundOn}
-              />
-            )}
-          </div>
+            }
+          >
+            <div className="space-y-4 animate-in fade-in duration-200">
+              {selectedGameId === 'cascade' && (
+                <KeyCascadeGame
+                  onExit={handleExitGame}
+                  soundEnabled={soundOn}
+                />
+              )}
+              {selectedGameId === 'sprint' && (
+                <SpeedSprintGame
+                  onExit={handleExitGame}
+                  soundEnabled={soundOn}
+                />
+              )}
+              {selectedGameId === 'hunter' && (
+                <WordHunterGame
+                  onExit={handleExitGame}
+                  soundEnabled={soundOn}
+                />
+              )}
+              {selectedGameId === 'ninja' && (
+                <KeyNinjaGame
+                  onExit={handleExitGame}
+                  soundEnabled={soundOn}
+                />
+              )}
+              {selectedGameId === 'runner' && (
+                <WordRunnerGame
+                  onExit={handleExitGame}
+                  soundEnabled={soundOn}
+                />
+              )}
+              {selectedGameId === 'memory' && (
+                <TypingMemoryGame
+                  onExit={handleExitGame}
+                  soundEnabled={soundOn}
+                />
+              )}
+              {selectedGameId === 'boss' && (
+                <BossBattleGame
+                  onExit={handleExitGame}
+                  soundEnabled={soundOn}
+                />
+              )}
+              {selectedGameId === 'nitro' && (
+                <NitroRacingGame
+                  onExit={handleExitGame}
+                  soundEnabled={soundOn}
+                />
+              )}
+            </div>
+          </Suspense>
         </ArcadeErrorBoundary>
       ) : (
         /* Discovery Hub View */
         <div className="space-y-8">
-          {/* Controls Bar: Categories & Sound Toggle */}
+          {/* Controls Bar: Categories & Global Settings / Sound Toggle */}
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
             {/* Category Filter Pills */}
             <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Arcade categories">
@@ -213,8 +268,19 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
               })}
             </div>
 
-            {/* Sound Toggle */}
-            <div className="flex items-center gap-3">
+            {/* Performance Settings & Sound Toggles */}
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setIsSettingsOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                title="Open Game Graphics & Performance Settings"
+                aria-label="Game Graphics and Performance Settings"
+              >
+                <Sliders className="w-3.5 h-3.5 text-[var(--accent)]" />
+                <span className="hidden sm:inline">Settings</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setSoundOn((s) => !s)}
@@ -262,8 +328,8 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
               <span className="text-base font-bold text-orange-400">8 Progressive Tiers</span>
             </div>
             <div className="space-y-1">
-              <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Audio Engine</span>
-              <span className="text-base font-bold text-emerald-400">Synthesized Web Audio</span>
+              <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Performance System</span>
+              <span className="text-base font-bold text-emerald-400">Adaptive WebGL / 2D</span>
             </div>
             <div className="space-y-1">
               <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Score Tracking</span>
@@ -272,6 +338,18 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
           </div>
         </div>
       )}
+
+      {/* Global Performance & Graphics Settings Modal */}
+      <GlobalGameSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
+
+      {/* Live Performance Telemetry HUD */}
+      <PerformanceTelemetryHUD
+        isVisible={Boolean(graphicsSettings.showPerfHud && selectedGameId)}
+        gameId={selectedGameId}
+      />
     </div>
   );
 };

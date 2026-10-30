@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   ShieldAlert, RotateCcw, Play, Pause, ArrowLeft, Trophy, Skull, Shield, Crosshair, Zap,
-  AlertTriangle, Award, Flame
+  AlertTriangle, Award, Flame, Sliders
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { calculateAccuracy, calculateWpm, playArcadeSound } from '../../../utils/arcadeEngine';
@@ -11,6 +11,11 @@ import { calculateDifficultyTier, getBossBattleConfig } from '../../../utils/arc
 import { ArcadeWordDeck } from '../../../utils/arcadeVocabulary';
 import { ArcadeExitDialog } from '../ArcadeExitDialog';
 import { useI18n } from '../../../i18n/I18nContext';
+import {
+  GlobalGameManager,
+  RENDERING_TECH,
+} from '../../../utils/performance/GlobalGameManager';
+import { GlobalGameSettingsModal } from '../performance/GlobalGameSettingsModal';
 
 const ARENA_WIDTH = 760;
 const ARENA_HEIGHT = 460;
@@ -41,6 +46,7 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
   const [personalBestNotice, setPersonalBestNotice] = useState(false);
   const [tierUpToast, setTierUpToast] = useState(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Active battlefield soldiers: [{ id, classId, word, x, y, hp, maxHp, speed, isDefeated, defeatTimer }]
   const [soldiers, setSoldiers] = useState([]);
@@ -228,11 +234,15 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
     ]);
   }, []);
 
-  // Helper: Add impact particles
+  // Helper: Add impact particles with graphics profile scaling
   const addImpactParticles = useCallback((x, y, color = '#F97316') => {
+    const domConfig = GlobalGameManager.getGraphicsConfig(RENDERING_TECH.SVG_DOM);
+    const maxParticles = domConfig.maxParticles || 35;
+    const count = Math.min(8, Math.round(maxParticles * 0.25));
+
     const newParticles = [];
-    for (let i = 0; i < 8; i++) {
-      const angle = (Math.PI * 2 * i) / 8 + Math.random() * 0.5;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + Math.random() * 0.5;
       const speed = 60 + Math.random() * 100;
       newParticles.push({
         id: Math.random(),
@@ -244,7 +254,7 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
         life: 1.0,
       });
     }
-    setParticles((prev) => [...prev, ...newParticles]);
+    setParticles((prev) => [...prev.slice(-maxParticles), ...newParticles]);
   }, []);
 
   // Helper: Add floating combat text
@@ -253,8 +263,10 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
     setFloatingTexts((prev) => [...prev, { id, text, x, y, color, life: 1.0 }]);
   }, []);
 
-  // Screen shake
+  // Screen shake respecting Reduced Motion and Graphics Profile
   const triggerScreenShake = useCallback(() => {
+    const domConfig = GlobalGameManager.getGraphicsConfig(RENDERING_TECH.SVG_DOM);
+    if (!domConfig.enableScreenShake) return;
     if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     setIsShaking(true);
     setTimeout(() => setIsShaking(false), 240);
@@ -710,6 +722,15 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
         </div>
 
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="xs"
+            icon={Sliders}
+            onClick={() => setIsSettingsOpen(true)}
+            title="Graphics & Performance Settings"
+          >
+            Settings
+          </Button>
           {gameState === 'playing' ? (
             <Button variant="outline" size="xs" icon={Pause} onClick={() => setGameState('paused')}>
               {t('common.pause')}
@@ -1167,6 +1188,12 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
         isOpen={showExitConfirm}
         onCancel={() => setShowExitConfirm(false)}
         onConfirm={onExit}
+      />
+
+      {/* Global Performance & Graphics Settings Modal */}
+      <GlobalGameSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );
