@@ -56,38 +56,6 @@ export function HandGuide({ targetChar, isVisible = true, standalone = false, hi
   const content = (
     <g className="hand-guide-realistic-layer select-none pointer-events-none" aria-hidden="true">
       <defs>
-        {/* Soft atmospheric glow for active fingertip */}
-        <filter id="handFingertipGlow" x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="4.5" result="blur1" />
-          <feGaussianBlur in="SourceGraphic" stdDeviation="9.0" result="blur2" />
-          <feMerge>
-            <feMergeNode in="blur2" />
-            <feMergeNode in="blur1" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-
-        {/* Ambient spill filter */}
-        <filter id="handAmbientSpill" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur in="SourceGraphic" stdDeviation="14" />
-        </filter>
-
-        {/* Neon-red fingertip radial illumination */}
-        <radialGradient id="fingertipNeonRedGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
-          <stop offset="25%" stopColor="#FF304F" stopOpacity="0.85" />
-          <stop offset="60%" stopColor="#FF1744" stopOpacity="0.55" />
-          <stop offset="85%" stopColor="#D50032" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#7F0018" stopOpacity="0" />
-        </radialGradient>
-
-        {/* Secondary warm reflection gradient */}
-        <radialGradient id="fingertipWarmSpill" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#FF1744" stopOpacity="0.45" />
-          <stop offset="70%" stopColor="#7F0018" stopOpacity="0.15" />
-          <stop offset="100%" stopColor="#000000" stopOpacity="0" />
-        </radialGradient>
-
         {/* Wrists seamless gradient mask towards the bottom edge */}
         <linearGradient id="wristFadeLinearGrad" x1="0" y1="0" x2="0" y2="100%">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
@@ -102,69 +70,42 @@ export function HandGuide({ targetChar, isVisible = true, standalone = false, hi
         </mask>
       </defs>
 
-      {/* ── DYNAMIC FINGER GUIDANCE: AMBIENT RED KEY REFLECTION ──────── */}
-      {/* Lights up the active finger subtly with authentic neon-red glow */}
+      {/* ── SUBTLE TACTILE FINGER GUIDANCE (STRICTLY NO RGB / NO NEON) ── */}
       {activeTips.map((tip, idx) => (
         <g key={`tip-${idx}`} className="transition-all duration-150">
-          {/* Broad atmospheric red aura spilling onto surrounding skin */}
-          <ellipse
-            cx={tip.x}
-            cy={tip.y}
-            rx="32"
-            ry="26"
-            fill="url(#fingertipWarmSpill)"
-            filter="url(#handAmbientSpill)"
-            opacity="0.75"
-          />
-
-          {/* Focused red illumination at the fingertip contact point */}
-          <ellipse
-            cx={tip.x}
-            cy={tip.y}
-            rx="16"
-            ry="13"
-            fill="url(#fingertipNeonRedGlow)"
-            filter="url(#handFingertipGlow)"
-            opacity="0.9"
-            style={{ mixBlendMode: 'screen' }}
-          />
-
-          {/* Specular contact pinpoint */}
+          {/* Subtle tactile guidance point at the contact center */}
           <circle
             cx={tip.x}
-            cy={tip.y - 1}
-            r="3"
+            cy={tip.y}
+            r="4.5"
+            fill="#801424"
+            opacity="0.85"
+          />
+          <circle
+            cx={tip.x}
+            cy={tip.y}
+            r="2.2"
             fill="#FFFFFF"
-            opacity="0.8"
-            filter="url(#handFingertipGlow)"
+            opacity="0.95"
           />
 
-          {/* Off-home row directional beacon ray: points finger to off-home key */}
+          {/* Off-home row directional subtle guide: connects active finger to target keycap */}
           {!isHomeRowTarget && targetPos && (
-            <g opacity="0.85">
-              {/* Subtle dashed guide line connecting finger to target keycap */}
+            <g opacity="0.75">
               <line
                 x1={tip.x}
                 y1={tip.y - 4}
                 x2={targetPos.x}
-                y2={targetPos.y + (targetPos.y > tip.y ? -10 : 10)}
-                stroke="#FF304F"
-                strokeWidth="1.5"
+                y2={targetPos.y + (targetPos.y > tip.y ? -8 : 8)}
+                stroke="#801424"
+                strokeWidth="1.2"
                 strokeDasharray="3 3"
-                strokeOpacity="0.65"
-                filter="url(#handFingertipGlow)"
               />
-              {/* Target key pulse halo */}
               <circle
                 cx={targetPos.x}
                 cy={targetPos.y}
-                r="18"
-                fill="none"
-                stroke="#FF1744"
-                strokeWidth="1.2"
-                strokeDasharray="2 2"
-                strokeOpacity="0.7"
-                filter="url(#handFingertipGlow)"
+                r="3.5"
+                fill="#801424"
               />
             </g>
           )}

@@ -562,7 +562,7 @@ export function createHandRigMesh(texture = null) {
   // Compute realistic 3D vertex normals for PBR skin lighting
   geometry.computeVertexNormals();
 
-  // High-fidelity PBR skin material
+  // High-fidelity PBR skin material (strictly NO neon glow)
   const material = new THREE.MeshStandardMaterial({
     map: texture,
     roughness: 0.58,
@@ -680,68 +680,51 @@ export function createHandAnimationController(boneMap) {
       const isThumb = finger.includes('thumb');
       const isHomeKey = Math.hypot(anim.reachX, anim.reachY) < 12;
 
+      // Authentic mechanical switch key travel distance: 3.8mm
+      const keyTravelDist = 3.8;
+
       anim.bones.forEach((bone, idx) => {
         const rest = restTransforms[bone.name];
         if (!rest) return;
 
         if (isThumb) {
-          // Thumbs (2 bones: proximal, distal)
-          // Press downward onto spacebar with visible key strike
-          if (idx === 0) {
-            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.15);
-            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.15 - 3.5);
-            bone.position.z = rest.pos.z - strike * 7.5;
-            bone.rotation.x = rest.rot.x - strike * 0.16;
-          } else {
-            bone.position.x = rest.pos.x + strike * (anim.reachX * 0.25);
-            bone.position.y = rest.pos.y + strike * (anim.reachY * 0.25 - 2.5);
-            bone.position.z = rest.pos.z - strike * 5.0;
-            bone.rotation.x = rest.rot.x - strike * 0.12;
-          }
+          // Spacebar Thumbs (proximal, distal)
+          // Strike downward onto spacebar with uniform displacement to eliminate stretching
+          const tReachX = anim.reachX * 0.12;
+          const tReachY = anim.reachY * 0.12;
+          bone.position.x = rest.pos.x + strike * tReachX;
+          bone.position.y = rest.pos.y + strike * tReachY;
+          bone.position.z = rest.pos.z - strike * keyTravelDist;
+          bone.rotation.x = rest.rot.x - strike * (idx === 0 ? 0.16 : 0.10);
         } else if (isHomeKey) {
           // Home row downstroke: authentic physical keycap compression
-          // Visible downward motion in Y, joint flexion in rotation.x, depression in Z
-          if (idx === 0) {
-            // MCP Proximal
-            bone.position.y = rest.pos.y - strike * 4.0;
-            bone.position.z = rest.pos.z - strike * 8.0;
-            bone.rotation.x = rest.rot.x - strike * 0.22;
-          } else if (idx === 1) {
-            // PIP Intermediate
-            bone.position.y = rest.pos.y - strike * 3.0;
-            bone.position.z = rest.pos.z - strike * 5.0;
-            bone.rotation.x = rest.rot.x - strike * 0.16;
-          } else if (idx === 2) {
-            // DIP Distal (Fingertip)
-            bone.position.y = rest.pos.y - strike * 2.0;
-            bone.position.z = rest.pos.z - strike * 3.0;
-            bone.rotation.x = rest.rot.x - strike * 0.12;
-          }
+          // Zero X/Y translation -> zero texture stretching!
+          bone.position.x = rest.pos.x;
+          bone.position.y = rest.pos.y;
+          bone.position.z = rest.pos.z - strike * keyTravelDist;
+          bone.rotation.x = rest.rot.x - strike * (idx === 0 ? 0.18 : idx === 1 ? 0.14 : 0.08);
         } else {
-          // Reach key: smooth natural reach toward target keycap + keycap downstroke
-          // Controlled reach scaling ensures zero texture stretching while cleanly indicating the target key
-          const reachScaleX = 0.40;
-          const reachScaleY = 0.42;
+          // Reaching key: smooth natural reach toward target keycap + mechanical downstroke
+          // Uniform reaching vector across the finger chain guarantees invariant bone lengths (ZERO stretching)
+          const reachScale = 0.35;
+          const deltaX = anim.reachX * reachScale;
+          const deltaY = anim.reachY * reachScale;
 
+          bone.position.x = rest.pos.x + strike * deltaX;
+          bone.position.y = rest.pos.y + strike * deltaY;
+          bone.position.z = rest.pos.z - strike * keyTravelDist;
+
+          // Natural joint articulation
           if (idx === 0) {
-            // Proximal bone (MCP)
-            bone.position.x = rest.pos.x + strike * (anim.reachX * reachScaleX * 0.28);
-            bone.position.y = rest.pos.y + strike * (anim.reachY * reachScaleY * 0.28 - 3.0);
-            bone.position.z = rest.pos.z - strike * 7.0;
-            bone.rotation.x = rest.rot.x - strike * 0.20;
-            bone.rotation.z = rest.rot.z - strike * (anim.reachX / 280);
+            // MCP Knuckle: pitch & yaw orientation towards target key
+            bone.rotation.x = rest.rot.x - strike * (anim.reachY * 0.003 + 0.14);
+            bone.rotation.z = rest.rot.z - strike * (anim.reachX * 0.003);
           } else if (idx === 1) {
-            // Intermediate bone (PIP)
-            bone.position.x = rest.pos.x + strike * (anim.reachX * reachScaleX * 0.44);
-            bone.position.y = rest.pos.y + strike * (anim.reachY * reachScaleY * 0.44 - 2.0);
-            bone.position.z = rest.pos.z - strike * 4.5;
-            bone.rotation.x = rest.rot.x - strike * 0.16;
-          } else if (idx === 2) {
-            // Distal bone (DIP - fingertip)
-            bone.position.x = rest.pos.x + strike * (anim.reachX * reachScaleX * 0.28);
-            bone.position.y = rest.pos.y + strike * (anim.reachY * reachScaleY * 0.28 - 1.5);
-            bone.position.z = rest.pos.z - strike * 3.0;
+            // PIP Joint: natural knuckle flexion
             bone.rotation.x = rest.rot.x - strike * 0.12;
+          } else if (idx === 2) {
+            // DIP Fingertip: aligns fingertip perpendicular to keycap dish
+            bone.rotation.x = rest.rot.x - strike * 0.08;
           }
         }
       });

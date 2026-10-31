@@ -68,24 +68,24 @@ export function Hand3DGuide({
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
-    // Studio lighting rig tailored for PBR human skin rendering
+    // Clean studio lighting tailored for PBR human skin rendering (strictly NO RGB / NO NEON)
     // 1. Warm Key Light (top-right frontal) providing natural diffuse illumination and knuckle highlights
-    const keyLight = new THREE.DirectionalLight(0xFFF5EB, 1.35);
+    const keyLight = new THREE.DirectionalLight(0xFFF6EE, 1.20);
     keyLight.position.set(70, 160, 320);
     scene.add(keyLight);
 
     // 2. Soft Cool Fill Light (left ambient fill) to soften deep shadows
-    const fillLight = new THREE.DirectionalLight(0xDEE7F8, 0.55);
+    const fillLight = new THREE.DirectionalLight(0xE2E8F0, 0.65);
     fillLight.position.set(-130, 80, 220);
     scene.add(fillLight);
 
-    // 3. Biological Red Rim Light simulating dermal subsurface light transmission along finger contours
-    const rimLight = new THREE.DirectionalLight(0xFF2244, 0.85);
-    rimLight.position.set(0, 260, 100);
+    // 3. Subtle Neutral Rim Light defining finger contours against dark mechanical chassis
+    const rimLight = new THREE.DirectionalLight(0xF8FAFC, 0.35);
+    rimLight.position.set(0, 260, 120);
     scene.add(rimLight);
 
-    // 4. Soft Ambient Base Light preventing shadow clipping against dark UI
-    const ambientLight = new THREE.AmbientLight(0xF4ECE6, 0.75);
+    // 4. Soft Ambient Base Light preventing shadow clipping
+    const ambientLight = new THREE.AmbientLight(0xF1F5F9, 0.75);
     scene.add(ambientLight);
 
     // Create authentic 3D Volumetric SkinnedMesh with 32-bone skeletal hierarchy
@@ -107,6 +107,7 @@ export function Hand3DGuide({
         texture.minFilter = THREE.LinearMipmapLinearFilter;
         if (handMesh && handMesh.material) {
           handMesh.material.map = texture;
+          handMesh.material.opacity = 0.98;
           handMesh.material.needsUpdate = true;
           if (rendererRef.current && sceneRef.current && cameraRef.current) {
             rendererRef.current.render(sceneRef.current, cameraRef.current);

@@ -94,24 +94,11 @@ export function KeyboardGuide({
         }}
       >
         <defs>
-          {/* Target Key Dark-Red Bloom (Matches KEYFLOW Burgundy/Crimson Palette) */}
-          <filter id="targetKeyDarkRedBloom" x="-40%" y="-40%" width="180%" height="180%">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="3.5" result="blur1" />
-            <feGaussianBlur in="SourceGraphic" stdDeviation="7.5" result="blur2" />
-            <feFlood floodColor="#8B001D" floodOpacity="0.60" result="redFlood" />
-            <feComposite in="redFlood" in2="blur2" operator="in" result="redGlow" />
-            <feMerge>
-              <feMergeNode in="redGlow" />
-              <feMergeNode in="blur1" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-
-          {/* Target Key Dark-Red Dish Gradient (Rich Burgundy Crimson) */}
-          <linearGradient id="targetKeyDarkRedGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#A81E32" />
-            <stop offset="45%" stopColor="#851022" />
-            <stop offset="100%" stopColor="#680A18" />
+          {/* Target Key Authentic Dyed PBT Burgundy Cap (Physical Matte Texture, Strictly No RGB/Neon) */}
+          <linearGradient id="targetKeyBurgundyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor="#8A1828" />
+            <stop offset="50%" stopColor="#701220" />
+            <stop offset="100%" stopColor="#550A16" />
           </linearGradient>
 
           {/* CNC Aluminum Chassis Gradient (Silver-Grey Anodized Aluminum with Specular Edge) */}
@@ -284,8 +271,8 @@ export function KeyboardGuide({
             const isHighlighted = isTarget || isShiftActive;
             const isBlackKey = k.color === 'black';
 
-            // Real physical mechanical switch downstroke displacement on keystroke
-            const dy = isPressed ? 2.6 : (isHighlighted ? 0.6 : 0);
+            // Authentic physical mechanical switch travel distance: 3.8mm on keystroke
+            const dy = isPressed ? 3.8 : 0;
 
             // Shading and fills
             let skirtFill;
@@ -296,13 +283,13 @@ export function KeyboardGuide({
             let filterEffect = 'none';
 
             if (isHighlighted || (isPressed && isTarget)) {
-              // Target key: Darker red matching KEYFLOW's burgundy palette
-              skirtFill = '#520612';
-              dishFill = 'url(#targetKeyDarkRedGrad)';
-              dishStroke = '#BD2D44';
+              // Target key: Custom dyed matte PBT burgundy accent keycap (strictly NO neon glow)
+              skirtFill = '#58101E';
+              dishFill = 'url(#targetKeyBurgundyGrad)';
+              dishStroke = '#7A1628';
               textColor = '#FFFFFF';
-              secondaryColor = 'rgba(255, 255, 255, 0.90)';
-              filterEffect = 'url(#targetKeyDarkRedBloom)';
+              secondaryColor = 'rgba(255, 255, 255, 0.95)';
+              filterEffect = 'none';
             } else if (isBlackKey) {
               // Matte obsidian black modifiers
               skirtFill = 'url(#matteBlackSkirtGrad)';
@@ -319,7 +306,7 @@ export function KeyboardGuide({
               secondaryColor = '#1E2530';
             }
 
-            const strokeWidth = isHighlighted ? 1.5 : 0.8;
+            const strokeWidth = isHighlighted ? 1.2 : 0.8;
 
             return (
               <g
@@ -327,7 +314,9 @@ export function KeyboardGuide({
                 className="select-none"
                 style={{
                   transform: `translate3d(0, ${dy}px, 0)`,
-                  transition: 'transform 80ms cubic-bezier(0.2, 0.9, 0.3, 1.25)',
+                  transition: isPressed
+                    ? 'transform 45ms cubic-bezier(0.1, 0.9, 0.2, 1)'
+                    : 'transform 90ms cubic-bezier(0.3, 1.2, 0.4, 1)',
                 }}
               >
                 {/* 3D Extruded Keycap Skirt (Side Walls & Contact Shadow) */}

@@ -18,7 +18,12 @@ import {
 import { Button } from '../components/common/Button';
 import { KeyboardGuide } from '../components/academy/KeyboardGuide';
 import { getGuidePreferences, saveGuidePreferences } from '../utils/lessonProgress';
-import { getCharacterFeedback, countCorrectChars } from '../utils/typingFeedback';
+import {
+  getCharacterFeedback,
+  countCorrectChars,
+  calculateRawAccuracy,
+  calculateFinalTextAccuracy,
+} from '../utils/typingFeedback';
 import { useKeyboardSound } from '../context/SoundContext';
 import { useI18n } from '../i18n/I18nContext';
 import { practiceAPI, profileAPI, competitionAPI } from '../utils/api';
@@ -161,6 +166,8 @@ export const WorkstationPage = () => {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [remainingTime, setRemainingTime] = useState(30);
   const [mistakes, setMistakes] = useState(0);
+  const [correctKeystrokes, setCorrectKeystrokes] = useState(0);
+  const [backspaces, setBackspaces] = useState(0);
   const [errorHistory, setErrorHistory] = useState([]);
   const [wpmGoal, setWpmGoal] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -240,9 +247,11 @@ export const WorkstationPage = () => {
 
   const elapsedMinutes = Math.max((elapsedSeconds || 1) / 60, 0.016);
   const liveWpm = startTime ? Math.max(0, Math.round(correctChars / 5 / elapsedMinutes)) : 0;
+  // Live Raw Keystroke Accuracy: Correct Entries / (Correct Entries + Incorrect Entries) * 100
+  // Backspace does NOT reset or erase mistakes from this calculation!
   const liveAccuracy =
-    typed.length > 0
-      ? Math.max(0, Math.min(100, Math.round((correctChars / Math.max(correctChars + mistakes, 1)) * 100)))
+    (correctKeystrokes + mistakes) > 0
+      ? calculateRawAccuracy(correctKeystrokes, mistakes)
       : 100;
 
   // Complete session handler
@@ -254,7 +263,9 @@ export const WorkstationPage = () => {
       const actualMinutes = Math.max(duration / 60, 0.016);
       const grossWpm = Math.round(typed.length / 5 / actualMinutes);
       const netWpm = Math.max(0, Math.round((typed.length / 5 - mistakes) / actualMinutes));
-      const accuracy = typed.length > 0 ? Math.round((correctChars / (typed.length + mistakes)) * 100) : 100;
+      const rawAccuracy = calculateRawAccuracy(correctKeystrokes, mistakes);
+      const finalTextAccuracy = calculateFinalTextAccuracy(typed, currentTargetText);
+      const accuracy = rawAccuracy;
 
       let tier = 'Typist';
       if (netWpm >= 100) tier = 'Godspeed';
@@ -265,15 +276,19 @@ export const WorkstationPage = () => {
       const results = {
         netWpm,
         grossWpm,
-        accuracy,
+        accuracy: rawAccuracy,
+        rawAccuracy,
+        finalTextAccuracy,
         duration,
         correctChars,
+        correctKeystrokes,
         mistakes,
+        backspaces,
         totalChars: typed.length,
         tier,
         isCompetition: Boolean(activeCompetition),
         competitionCode: activeCompetition?.competition?.code || null,
-        accuracyTargetPassed: mode === 'accuracy' ? accuracy >= 98 : null,
+        accuracyTargetPassed: mode === 'accuracy' ? rawAccuracy >= 98 : null,
         wpmGoal,
         wpmGoalPassed: wpmGoal ? netWpm >= wpmGoal : null,
         errorDetails: [...errorHistory],
@@ -285,12 +300,15 @@ export const WorkstationPage = () => {
       recordTelemetrySession({
         userId: user?.id || null,
         wpm: netWpm,
-        accuracy,
+        accuracy: rawAccuracy,
+        rawAccuracy,
+        finalTextAccuracy,
         durationSeconds: duration,
-        totalKeystrokes: typed.length,
-        correctKeystrokes: correctChars,
+        totalKeystrokes: correctKeystrokes + mistakes,
+        correctKeystrokes,
         incorrectKeystrokes: mistakes,
-        status: accuracy >= 70 ? 'passed' : 'failed',
+        backspaces,
+        status: rawAccuracy >= 70 ? 'passed' : 'failed',
         sessionType: activeCompetition ? 'competition' : customPrompt ? 'custom' : mode,
         typedText: typed,
       });
@@ -305,7 +323,7 @@ export const WorkstationPage = () => {
           incorrect_chars: mistakes,
           gross_wpm: grossWpm,
           net_wpm: netWpm,
-          accuracy: accuracy,
+          accuracy: rawAccuracy,
           error_count: mistakes,
         })
         .catch(() => {});
@@ -317,7 +335,7 @@ export const WorkstationPage = () => {
             participant_id: competitionParticipantId,
             net_wpm: netWpm,
             gross_wpm: grossWpm,
-            accuracy: accuracy,
+            accuracy: rawAccuracy,
             duration_seconds: duration,
             correct_chars: correctChars,
             incorrect_chars: mistakes,
@@ -325,7 +343,7 @@ export const WorkstationPage = () => {
           .catch(() => {});
       }
     },
-    [typed, mistakes, correctChars, mode, user, activeCompetition, competitionParticipantId, customPrompt, wpmGoal, errorHistory]
+    [typed, mistakes, correctKeystrokes, backspaces, correctChars, currentTargetText, mode, user, activeCompetition, competitionParticipantId, customPrompt, wpmGoal, errorHistory]
   );
 
   // Key input handler
@@ -338,33 +356,39 @@ export const WorkstationPage = () => {
     }
 
     if (val.length > typed.length) {
-      const charIndex = val.length - 1;
-      const expectedChar = currentTargetText[charIndex];
-      const actualChar = val[charIndex];
-      const isError = actualChar !== expectedChar;
-      playClick(isError);
-      if (isError) {
-        setMistakes((m) => m + 1);
-        const textBefore = currentTargetText.slice(0, charIndex);
-        const lastSpace = textBefore.lastIndexOf(' ');
-        const textAfter = currentTargetText.slice(charIndex);
-        const nextSpace = textAfter.indexOf(' ');
-        const wordStart = lastSpace === -1 ? 0 : lastSpace + 1;
-        const wordEnd = nextSpace === -1 ? currentTargetText.length : charIndex + nextSpace;
-        const targetWord = currentTargetText.slice(wordStart, wordEnd).trim();
+      for (let i = typed.length; i < val.length; i++) {
+        const expectedChar = currentTargetText[i];
+        const actualChar = val[i];
+        const isError = actualChar !== expectedChar;
+        playClick(isError);
+        if (isError) {
+          setMistakes((m) => m + 1);
+          const textBefore = currentTargetText.slice(0, i);
+          const lastSpace = textBefore.lastIndexOf(' ');
+          const textAfter = currentTargetText.slice(i);
+          const nextSpace = textAfter.indexOf(' ');
+          const wordStart = lastSpace === -1 ? 0 : lastSpace + 1;
+          const wordEnd = nextSpace === -1 ? currentTargetText.length : i + nextSpace;
+          const targetWord = currentTargetText.slice(wordStart, wordEnd).trim();
 
-        setErrorHistory((prev) => [
-          ...prev,
-          {
-            index: charIndex,
-            expected: expectedChar,
-            actual: actualChar,
-            word: targetWord,
-          },
-        ]);
+          setErrorHistory((prev) => [
+            ...prev,
+            {
+              index: i,
+              expected: expectedChar,
+              actual: actualChar,
+              word: targetWord,
+            },
+          ]);
+        } else {
+          setCorrectKeystrokes((c) => c + 1);
+        }
       }
+      const actualChar = val[val.length - 1];
       setLastKeystroke({ key: actualChar, code: '', id: performance.now() });
     } else if (val.length < typed.length) {
+      // Backspace pressed: removes character, does NOT clear previous mistakes or alter error count
+      setBackspaces((b) => b + (typed.length - val.length));
       setLastKeystroke({ key: 'backspace', code: 'Backspace', id: performance.now() });
     }
 
@@ -384,6 +408,8 @@ export const WorkstationPage = () => {
     setElapsedSeconds(0);
     setRemainingTime(timeLimit);
     setMistakes(0);
+    setCorrectKeystrokes(0);
+    setBackspaces(0);
     setErrorHistory([]);
     setIsCompleted(false);
     setSessionResults(null);

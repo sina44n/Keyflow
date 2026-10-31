@@ -77,3 +77,104 @@ export function countCorrectChars(typed = '', targetText = '') {
   }
   return count;
 }
+
+/**
+ * Computes Raw Keystroke Accuracy based on cumulative historical attempts.
+ * Formula: Correct Entries / (Correct Entries + Incorrect Entries) * 100.
+ *
+ * Critical requirement: Correcting a typo via Backspace does NOT erase the historical
+ * error from the session record!
+ *
+ * @param {number} correctEntries - Total count of correct character entries
+ * @param {number} incorrectEntries - Total count of incorrect character entries (errors)
+ * @param {number} [decimals=0] - Decimal places to round to (default 0 for integer percentage)
+ * @returns {number} Raw keystroke accuracy percentage (0 to 100)
+ */
+export function calculateRawAccuracy(correctEntries = 0, incorrectEntries = 0, decimals = 0) {
+  const total = correctEntries + incorrectEntries;
+  if (total <= 0) return 100;
+  const raw = (correctEntries / total) * 100;
+  const clamped = Math.max(0, Math.min(100, raw));
+  if (decimals > 0) {
+    const factor = Math.pow(10, decimals);
+    return Math.round(clamped * factor) / factor;
+  }
+  return Math.round(clamped);
+}
+
+/**
+ * Computes Final Text Accuracy: the match percentage of the final text against target.
+ *
+ * @param {string} typed - Final user-typed string
+ * @param {string} targetText - Full target passage string
+ * @param {number} [decimals=0] - Decimal places to round to
+ * @returns {number} Final text accuracy percentage (0 to 100)
+ */
+export function calculateFinalTextAccuracy(typed = '', targetText = '', decimals = 0) {
+  if (!targetText || targetText.length === 0) return 100;
+  const correct = countCorrectChars(typed, targetText);
+  const baseline = Math.max(typed.length, targetText.length);
+  if (baseline <= 0) return 100;
+  const raw = (correct / baseline) * 100;
+  const clamped = Math.max(0, Math.min(100, raw));
+  if (decimals > 0) {
+    const factor = Math.pow(10, decimals);
+    return Math.round(clamped * factor) / factor;
+  }
+  return Math.round(clamped);
+}
+
+/**
+ * Creates a keystroke accuracy tracking manager.
+ * Tracks character entries, mistakes, and backspaces according to touch-typing standards.
+ */
+export function createKeystrokeTracker() {
+  let correctEntries = 0;
+  let incorrectEntries = 0;
+  let backspaceCount = 0;
+  const errorDetails = [];
+
+  return {
+    recordChar(actualChar, expectedChar, charIndex = 0, targetWord = '') {
+      const isCorrect = actualChar === expectedChar;
+      if (isCorrect) {
+        correctEntries += 1;
+      } else {
+        incorrectEntries += 1;
+        errorDetails.push({
+          index: charIndex,
+          actual: actualChar,
+          expected: expectedChar,
+          word: targetWord,
+          timestamp: Date.now(),
+        });
+      }
+      return isCorrect;
+    },
+    recordBackspace() {
+      backspaceCount += 1;
+      // Backspace removes character from editable text, but does NOT remove previous mistakes
+      // and does NOT change correctEntries or incorrectEntries count.
+    },
+    getStats(typed = '', targetText = '', decimals = 0) {
+      const rawAccuracy = calculateRawAccuracy(correctEntries, incorrectEntries, decimals);
+      const finalTextAccuracy = calculateFinalTextAccuracy(typed, targetText, decimals);
+      return {
+        correctEntries,
+        incorrectEntries,
+        backspaceCount,
+        totalKeystrokes: correctEntries + incorrectEntries,
+        rawAccuracy,
+        finalTextAccuracy,
+        errorDetails: [...errorDetails],
+      };
+    },
+    reset() {
+      correctEntries = 0;
+      incorrectEntries = 0;
+      backspaceCount = 0;
+      errorDetails.length = 0;
+    },
+  };
+}
+

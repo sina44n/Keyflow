@@ -213,13 +213,25 @@ export function recordTelemetrySession(data) {
     ? Math.round(data.wpm)
     : Math.max(0, Math.round((totalChars / 5 - incorrectChars) / minutes));
 
-  const accuracy = totalChars > 0
-    ? Math.min(100, Math.max(0, Math.round((correctChars / Math.max(totalChars, 1)) * 100)))
-    : (data.accuracy || 100);
+  const accuracy = typeof data.rawAccuracy === 'number'
+    ? Math.max(0, Math.min(100, Math.round(data.rawAccuracy)))
+    : typeof data.accuracy === 'number'
+      ? Math.max(0, Math.min(100, Math.round(data.accuracy)))
+      : (correctChars + incorrectChars) > 0
+        ? Math.min(100, Math.max(0, Math.round((correctChars / (correctChars + incorrectChars)) * 100)))
+        : totalChars > 0
+          ? Math.min(100, Math.max(0, Math.round((correctChars / Math.max(totalChars, 1)) * 100)))
+          : 100;
 
-  const realAccuracy = totalChars > 0
-    ? Math.min(100, Math.max(0, Math.round((correctChars / Math.max(correctChars + incorrectChars + backspaces, 1)) * 100)))
+  const realAccuracy = (correctChars + incorrectChars) > 0
+    ? Math.min(100, Math.max(0, Math.round((correctChars / Math.max(correctChars + incorrectChars, 1)) * 100)))
     : accuracy;
+
+  const finalTextAccuracy = typeof data.finalTextAccuracy === 'number'
+    ? Math.max(0, Math.min(100, Math.round(data.finalTextAccuracy)))
+    : totalChars > 0
+      ? Math.min(100, Math.max(0, Math.round((correctChars / Math.max(totalChars, 1)) * 100)))
+      : 100;
 
   const status = data.status || (accuracy >= 85 ? 'passed' : 'failed');
 
@@ -234,6 +246,7 @@ export function recordTelemetrySession(data) {
     grossWpm,
     accuracy,
     realAccuracy,
+    finalTextAccuracy,
     totalChars,
     correctChars,
     incorrectChars,

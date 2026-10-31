@@ -14,7 +14,12 @@ import {
 } from '../../utils/lessonProgress';
 import { SoundSelector } from '../common/SoundSelector';
 import { useKeyboardSound } from '../../context/SoundContext';
-import { getCharacterFeedback, countCorrectChars } from '../../utils/typingFeedback';
+import {
+  getCharacterFeedback,
+  countCorrectChars,
+  calculateRawAccuracy,
+  calculateFinalTextAccuracy,
+} from '../../utils/typingFeedback';
 import { useI18n } from '../../i18n/I18nContext';
 
 /**
@@ -69,7 +74,9 @@ export const LessonPlayer = ({
   const [startTime, setStartTime] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [totalStrokes, setTotalStrokes] = useState(0);
+  const [correctStrokes, setCorrectStrokes] = useState(0);
   const [mistakes, setMistakes] = useState(0);
+  const [backspaces, setBackspaces] = useState(0);
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -96,14 +103,14 @@ export const LessonPlayer = ({
 
   const elapsedMinutes = Math.max((elapsedSeconds || 1) / 60, 0.016);
   const currentWpm = startTime ? Math.max(0, Math.round((correctChars / 5) / elapsedMinutes)) : 0;
-  const currentAccuracy = totalStrokes > 0
-    ? Math.max(0, Math.min(100, Math.round((correctChars / Math.max(correctChars + mistakes, 1)) * 100)))
+  // Live Raw Keystroke Accuracy: Correct Entries / (Correct Entries + Incorrect Entries) * 100
+  // Backspace does NOT reset or erase mistakes from this calculation!
+  const currentAccuracy = (correctStrokes + mistakes) > 0
+    ? calculateRawAccuracy(correctStrokes, mistakes)
     : 100;
   const progressPercent = targetText ? Math.min(100, Math.round((typed.length / targetText.length) * 100)) : 0;
 
   const timeDisplay = `${String(Math.floor(elapsedSeconds / 60)).padStart(2, '0')}:${String(elapsedSeconds % 60).padStart(2, '0')}`;
-
-
 
   // ── Reset ────────────────────────────────────────────────────────────────
   const handleReset = useCallback(() => {
@@ -111,7 +118,9 @@ export const LessonPlayer = ({
     setStartTime(null);
     setElapsedSeconds(0);
     setTotalStrokes(0);
+    setCorrectStrokes(0);
     setMistakes(0);
+    setBackspaces(0);
     setStreak(0);
     setMaxStreak(0);
     streakRef.current = 0;
@@ -160,9 +169,11 @@ export const LessonPlayer = ({
     }
 
     if (value.length < typed.length) {
+      // Backspace pressed: removes character, does NOT clear previous mistakes or alter error count
       setTyped(value);
       streakRef.current = 0;
       setStreak(0);
+      setBackspaces(prev => prev + (typed.length - value.length));
       setLastKeystroke({ key: 'backspace', code: 'Backspace', id: performance.now() });
       return;
     }
@@ -174,6 +185,7 @@ export const LessonPlayer = ({
     setTotalStrokes(prev => prev + 1);
 
     if (isCorrect) {
+      setCorrectStrokes(prev => prev + 1);
       streakRef.current += 1;
       const currentStreakVal = streakRef.current;
       setStreak(currentStreakVal);
@@ -200,20 +212,25 @@ export const LessonPlayer = ({
       const finalCorrect = countCorrectChars(value, targetText);
       const finalWpm = Math.max(0, Math.round((finalCorrect / 5) / Math.max(finalMinutes, 0.016)));
       const finalStrokes = totalStrokes + 1;
+      const finalCorrectStrokes = isCorrect ? correctStrokes + 1 : correctStrokes;
       const finalMistakes = isCorrect ? mistakes : mistakes + 1;
-      const finalAccuracy = Math.max(0, Math.min(100, Math.round((finalCorrect / Math.max(finalCorrect + finalMistakes, 1)) * 100)));
+      const finalAccuracy = calculateRawAccuracy(finalCorrectStrokes, finalMistakes);
+      const finalTextAccuracy = calculateFinalTextAccuracy(value, targetText);
       const finalStars = calculateStars(finalAccuracy, lesson?.targetAccuracy || 90, finalWpm, lesson?.targetWpm || 20);
       const passed = finalWpm >= (lesson?.targetWpm || 20) && finalAccuracy >= (lesson?.targetAccuracy || 90);
 
       const result = {
         wpm: finalWpm,
         accuracy: finalAccuracy,
+        rawAccuracy: finalAccuracy,
+        finalTextAccuracy,
         mistakes: finalMistakes,
         duration: finalDuration,
         stars: finalStars,
         passed,
         maxStreak,
         totalStrokes: finalStrokes,
+        correctStrokes: finalCorrectStrokes,
       };
       setCompletedResult(result);
 
@@ -224,6 +241,8 @@ export const LessonPlayer = ({
           recordLessonResult(sId, lNum, {
             wpm: finalWpm,
             accuracy: finalAccuracy,
+            rawAccuracy: finalAccuracy,
+            finalTextAccuracy,
             stars: finalStars,
             passed,
             mistakes: finalMistakes,
@@ -233,7 +252,7 @@ export const LessonPlayer = ({
         } catch { /* storage fallback */ }
       }
     }
-  }, [isCompleted, targetText, typed, startTime, totalStrokes, mistakes, maxStreak, playClick, lesson]);
+  }, [isCompleted, targetText, typed, startTime, totalStrokes, correctStrokes, mistakes, maxStreak, playClick, lesson]);
 
   // ── Guide toggles ────────────────────────────────────────────────────────
   const toggleKeyboardGuide = useCallback(() => {

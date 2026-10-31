@@ -1,6 +1,140 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getCharacterFeedback, countCorrectChars } from './typingFeedback.js';
+import {
+  getCharacterFeedback,
+  countCorrectChars,
+  calculateRawAccuracy,
+  calculateFinalTextAccuracy,
+  createKeystrokeTracker,
+} from './typingFeedback.js';
+
+describe('Typing Accuracy & Backspace Tracking System (5 Core Specifications)', () => {
+  it('Test 1: ABC typed cleanly produces 100% raw and final accuracy', () => {
+    const target = 'ABC';
+    const tracker = createKeystrokeTracker();
+
+    // Type 'A'
+    assert.equal(tracker.recordChar('A', target[0]), true);
+    // Type 'B'
+    assert.equal(tracker.recordChar('B', target[1]), true);
+    // Type 'C'
+    assert.equal(tracker.recordChar('C', target[2]), true);
+
+    const stats = tracker.getStats('ABC', target);
+    assert.equal(stats.correctEntries, 3);
+    assert.equal(stats.incorrectEntries, 0);
+    assert.equal(stats.rawAccuracy, 100);
+    assert.equal(stats.finalTextAccuracy, 100);
+  });
+
+  it('Test 2: AXC + Backspace + B produces 75% raw keystroke accuracy (3 correct / 4 attempts)', () => {
+    const target = 'ABC';
+    const tracker = createKeystrokeTracker();
+
+    // User types 'A' (correct, stroke 1)
+    tracker.recordChar('A', target[0]);
+    // User types 'X' (incorrect error, stroke 2)
+    tracker.recordChar('X', target[1]);
+    // User backspaces 'X'
+    tracker.recordBackspace();
+    // User types 'B' (correct, stroke 3)
+    tracker.recordChar('B', target[1]);
+    // User types 'C' (correct, stroke 4)
+    tracker.recordChar('C', target[2]);
+
+    const stats = tracker.getStats('ABC', target);
+    assert.equal(stats.correctEntries, 3);
+    assert.equal(stats.incorrectEntries, 1);
+    assert.equal(stats.totalKeystrokes, 4);
+    assert.equal(stats.rawAccuracy, 75); // 3 / 4 * 100 = 75%
+    assert.equal(stats.finalTextAccuracy, 100); // final text "ABC" is 100% correct
+  });
+
+  it('Test 3: HEXLLO + Backspace + HELLO produces 83.33% raw keystroke accuracy (5/6)', () => {
+    const target = 'HELLO';
+    const tracker = createKeystrokeTracker();
+
+    // 'H' (correct 1)
+    tracker.recordChar('H', target[0]);
+    // 'E' (correct 2)
+    tracker.recordChar('E', target[1]);
+    // 'X' (incorrect 1)
+    tracker.recordChar('X', target[2]);
+    // Backspace 'X'
+    tracker.recordBackspace();
+    // 'L' (correct 3)
+    tracker.recordChar('L', target[2]);
+    // 'L' (correct 4)
+    tracker.recordChar('L', target[3]);
+    // 'O' (correct 5)
+    tracker.recordChar('O', target[4]);
+
+    const stats = tracker.getStats('HELLO', target, 2);
+    assert.equal(stats.correctEntries, 5);
+    assert.equal(stats.incorrectEntries, 1);
+    assert.equal(stats.totalKeystrokes, 6);
+    assert.equal(stats.rawAccuracy, 83.33); // 5 / 6 * 100 = 83.33%
+    assert.equal(calculateRawAccuracy(5, 1, 0), 83); // Integer rounded: 83%
+    assert.equal(stats.finalTextAccuracy, 100);
+  });
+
+  it('Test 4: AXX + 2 Backspaces + BC produces 60% raw keystroke accuracy (3/5)', () => {
+    const target = 'ABC';
+    const tracker = createKeystrokeTracker();
+
+    // 'A' (correct 1)
+    tracker.recordChar('A', target[0]);
+    // 'X' (incorrect 1)
+    tracker.recordChar('X', target[1]);
+    // 'X' (incorrect 2)
+    tracker.recordChar('X', target[2]);
+    // 2 Backspaces
+    tracker.recordBackspace();
+    tracker.recordBackspace();
+    // 'B' (correct 2)
+    tracker.recordChar('B', target[1]);
+    // 'C' (correct 3)
+    tracker.recordChar('C', target[2]);
+
+    const stats = tracker.getStats('ABC', target);
+    assert.equal(stats.correctEntries, 3);
+    assert.equal(stats.incorrectEntries, 2);
+    assert.equal(stats.totalKeystrokes, 5);
+    assert.equal(stats.rawAccuracy, 60); // 3 / 5 * 100 = 60%
+    assert.equal(stats.finalTextAccuracy, 100);
+  });
+
+  it('Test 5: Backspace spamming does not alter error count or create fake correct entries', () => {
+    const target = 'ABC';
+    const tracker = createKeystrokeTracker();
+
+    // Start with Test 4 state: 'A', 'X', 'X'
+    tracker.recordChar('A', target[0]);
+    tracker.recordChar('X', target[1]);
+    tracker.recordChar('X', target[2]);
+
+    // Spam Backspace 15 times
+    for (let i = 0; i < 15; i++) {
+      tracker.recordBackspace();
+    }
+
+    // Finish typing 'B' and 'C'
+    tracker.recordChar('B', target[1]);
+    tracker.recordChar('C', target[2]);
+
+    // Additional 10 Backspaces at the end
+    for (let i = 0; i < 10; i++) {
+      tracker.recordBackspace();
+    }
+
+    const stats = tracker.getStats('ABC', target);
+    assert.equal(stats.correctEntries, 3);
+    assert.equal(stats.incorrectEntries, 2);
+    assert.equal(stats.totalKeystrokes, 5);
+    assert.equal(stats.rawAccuracy, 60);
+    assert.equal(stats.backspaceCount, 25);
+  });
+});
 
 describe('Live Character Color Feedback Logic', () => {
   it('identifies correct characters and assigns char-correct', () => {
