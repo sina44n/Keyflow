@@ -1,51 +1,37 @@
 /**
  * StickmanParagraphManager.js
- * Continuous battle paragraph and sentence typing engine for KEYFLOW Stickman Fight (2D).
- * Provides continuous combat narrative passages, real-time char-by-char telemetry,
- * cadence tracking, and triggers martial combat actions.
+ * Continuous Battle Paragraph & Sentence Typing Engine.
+ *
+ * Implements:
+ * - Evocative, grammatically correct martial arts battle passages.
+ * - Accurate Gross WPM, Net WPM, Accuracy, Keystroke Cadence, and Combo Multipliers.
+ * - Choreography events: word completion, punctuation, paragraph finishers, and error stumble.
+ * - Automatic seamless streaming into the next passage without breaking typing flow.
  */
 
-export const BATTLE_PASSAGES = {
-  // Wave 1: The Shadow Awakening
-  wave1: [
-    "The crimson warrior grips his tactical blade as shadowy stalkers emerge from the blood-red forest. With silent steps he advances across the cold flagstones, emerald energy swirling around his knuckles.",
-    "A lone shadow slips between the twisted pines with drawn steel. The warrior channels his inner flame, glowing crystals rotating gently as he prepares to strike with lethal precision.",
-    "Leaves crunch beneath dark boots as the first enemy dashes forward. With steady breath and measured cadence, the crimson fighter draws his weapon into a low combat guard.",
+export const BATTLE_PARAGRAPHS = {
+  // Phase 1: 1-on-1 Sparring Passages
+  encounter1: [
+    "The crimson martial artist stepped into the arena, watching every breath of the shadowy opponent. With blinding speed, he closed the distance and launched a rapid barrage of strikes.",
+    "Bouncing lightly on the balls of his feet, the fighter ducked beneath an incoming fist and drove a sharp counter into his rival's chest. Balance and precision decided every exchange.",
+    "Dust rose from the flagstones as the two stickmen circled each other. He timed his approach carefully, stepping forward with a crisp jab before pivoting into a high roundhouse kick.",
   ],
 
-  // Wave 2: Twin Phantoms
-  wave2: [
-    "Two shadowed phantoms dart through the crimson mist with gleaming daggers. He sidesteps the first lunge, deflects the incoming steel with a ringing clash, and spins into an acrobatic counter.",
-    "Shadows converge from both flanks, their dark blades whistling through the dusk. Emerald ribbons ignite in a radiant arc as the crimson warrior vaults into the air to unleash a swift double strike.",
-    "The twin stalkers circle in synchronization, seeking a gap in his defense. The warrior accelerates his tempo, each strike flowing seamlessly into the next like water cutting through granite.",
+  // Encounter 2: Two Opponents
+  encounter2: [
+    "Two shadow fighters advanced from opposite flanks, seeking to overwhelm him through sheer numbers. Shifting his stance, he intercepted the first attacker and swept low across the stones.",
+    "Steel nerves and unbroken cadence guided his movement. He deflected a flying knee from the left, spun fluidly through the pocket, and drove both rivals backward with relentless combinations.",
   ],
 
-  // Wave 3: Night Flurry
-  wave3: [
-    "Steel sings in the crimson darkness as shadow ninjas leap from ancient stone spires. The warrior executes a rapid flurry of strikes, his floating crystal shards cutting luminous emerald trails through the gloom.",
-    "Three adversaries close the distance simultaneously. Breathing through the clash, the fighter parries high, sweeps low with a spinning roundhouse, and thrusts forward to shatter their formation.",
-    "Dark energy crackles through the canopy as waves of shadow warriors press their assault. The crimson blade dances in blinding patterns, each decisive impact echoing across the blood-red valley.",
+  // Encounter 3: Three Opponents
+  encounter3: [
+    "Three adversaries closed the ring in tight formation. Breathing through the clash, the warrior vaulted into the air, driving a ferocious dropkick into their line and scattering their assault.",
+    "Shadows blurred across the arena as rapid strikes collided. Every sentence typed fueled his speed, channeling pure martial spirit into an unstoppable torrent of punches and evasions.",
   ],
 
-  // Wave 4: Iron Vanguard
-  wave4: [
-    "Heavy iron armor groans under the relentless impact of glowing energy strikes. The crimson warrior unleashes a tempest of rapid cuts, exploiting every opening as armored sentinels buckle under pressure.",
-    "Elite shadow assassins weave between brutish vanguards, testing his reflexes at maximum speed. With unbroken cadence and piercing focus, the warrior deflects heavy blows and carves through their defenses.",
-    "Sparks shower the cracked earth as jagged blades collide at breakneck speed. The warrior channels maximum spirit power, sending orbiting emerald shards piercing directly through fortified barriers.",
-  ],
-
-  // Wave 5: Infernal Commander Boss
-  wave5: [
-    "The infernal commander rises amidst smoke and burning embers, brandishing an obsidian greatsword that splits the earth. The crimson warrior channels his supreme flow, crystals spinning wildly in a roaring tempest of emerald light.",
-    "Flames lick the battlefield as the colossal boss charges with earth-shattering force. The warrior dodges beneath the sweeping cleave, leaping skyward to drive his glowing blade into the core of darkness.",
-    "Every sinew burns with fiery resolve as commander and crimson warrior trade thunderous blows. With relentless typing fury, the warrior prepares the final blade storm to banish the dark legion forever.",
-  ],
-
-  // Endless / Bonus Passages
-  endless: [
-    "Beyond the shattered ruins lies the heart of the eternal eclipse. The crimson champion steps through the storm, his blade alight with emerald fire as endless shadow legions gather on the horizon.",
-    "Through rain of sparks and whistling steel, the solitary warrior marches forward. Master of rhythm and deadly grace, no shadow army can halt the inexorable advance of the crimson flame.",
-    "The ancient runic spires resonate with pure spirit harmony. Orbiting crystal daggers sing in unison as the warrior weaves an impenetrable barrier of martial perfection.",
+  // Advanced / Boss Encounters
+  boss: [
+    "The colossal shadow champion stepped forward with thunderous footsteps. The crimson warrior focused his inner energy, planting both feet firmly before unleashing a roaring double-palm ki blast that shattered the night.",
   ],
 };
 
@@ -54,12 +40,12 @@ export class StickmanParagraphManager {
     this.onCorrectChar = options.onCorrectChar || (() => {});
     this.onErrorChar = options.onErrorChar || (() => {});
     this.onWordComplete = options.onWordComplete || (() => {});
-    this.onParagraphComplete = options.onParagraphComplete || (() => {});
     this.onPunctuation = options.onPunctuation || (() => {});
+    this.onParagraphComplete = options.onParagraphComplete || (() => {});
 
     this.currentPassage = "";
     this.currentIndex = 0;
-    this.charStatuses = []; // 'untyped' | 'correct' | 'incorrect'
+    this.charStatuses = [];
     this.typedHistory = [];
 
     this.startTime = null;
@@ -73,24 +59,22 @@ export class StickmanParagraphManager {
     this.currentWordStartIndex = 0;
     this.wordsTyped = 0;
 
-    this.currentWave = 1;
-    this.passageIndex = 0;
+    this.encounterIndex = 1;
+    this.paragraphIdx = 0;
 
-    this.loadPassageForWave(1);
+    this.loadPassageForEncounter(1);
   }
 
-  loadPassageForWave(wave = 1) {
-    this.currentWave = wave;
-    let pool = BATTLE_PASSAGES.wave1;
-    if (wave === 2) pool = BATTLE_PASSAGES.wave2;
-    else if (wave === 3) pool = BATTLE_PASSAGES.wave3;
-    else if (wave === 4) pool = BATTLE_PASSAGES.wave4;
-    else if (wave === 5) pool = BATTLE_PASSAGES.wave5;
-    else pool = BATTLE_PASSAGES.endless;
+  loadPassageForEncounter(encounter = 1) {
+    this.encounterIndex = encounter;
+    let pool = BATTLE_PARAGRAPHS.encounter1;
+    if (encounter === 2) pool = BATTLE_PARAGRAPHS.encounter2;
+    else if (encounter === 3) pool = BATTLE_PARAGRAPHS.encounter3;
+    else if (encounter >= 4) pool = BATTLE_PARAGRAPHS.boss;
 
-    const passageText = pool[this.passageIndex % pool.length];
-    this.setPassage(passageText);
-    this.passageIndex++;
+    const text = pool[this.paragraphIdx % pool.length];
+    this.setPassage(text);
+    this.paragraphIdx++;
   }
 
   setPassage(text) {
@@ -102,7 +86,7 @@ export class StickmanParagraphManager {
     this.wordsTyped = 0;
   }
 
-  reset(wave = 1) {
+  reset(encounter = 1) {
     this.startTime = null;
     this.lastKeystrokeTime = null;
     this.totalKeystrokes = 0;
@@ -110,8 +94,8 @@ export class StickmanParagraphManager {
     this.errorCount = 0;
     this.currentCombo = 0;
     this.maxCombo = 0;
-    this.passageIndex = 0;
-    this.loadPassageForWave(wave);
+    this.paragraphIdx = 0;
+    this.loadPassageForEncounter(encounter);
   }
 
   handleKeyDown(e) {
@@ -119,7 +103,7 @@ export class StickmanParagraphManager {
 
     const key = e.key;
 
-    // Handle Backspace
+    // Backspace handling
     if (key === "Backspace") {
       if (this.currentIndex > 0) {
         this.currentIndex--;
@@ -134,10 +118,8 @@ export class StickmanParagraphManager {
       return null;
     }
 
-    // Ignore non-printable keys
-    if (key.length !== 1) {
-      return null;
-    }
+    // Ignore modifier keys
+    if (key.length !== 1) return null;
 
     const now = performance.now();
     if (!this.startTime) {
@@ -160,12 +142,12 @@ export class StickmanParagraphManager {
       }
 
       const isSpace = expectedChar === " ";
-      const isPunctuation = [".", ",", "!", "?", ";", ":", "-", '"', "'"].includes(expectedChar);
+      const isPunctuation = [".", ",", "!", "?", ";", ":", "-"].includes(expectedChar);
 
       let completedWord = null;
       if (isSpace || this.currentIndex === this.currentPassage.length - 1) {
         const wordEnd = isSpace ? this.currentIndex : this.currentIndex + 1;
-        completedWord = this.currentPassage.slice(this.currentWordStartIndex, wordEnd);
+        completedWord = this.currentPassage.slice(this.currentWordStartIndex, wordEnd).trim();
         this.currentWordStartIndex = this.currentIndex + 1;
         this.wordsTyped++;
         this.onWordComplete(completedWord, this.wordsTyped, this.getStats());
@@ -179,8 +161,8 @@ export class StickmanParagraphManager {
 
       this.currentIndex++;
 
-      const isParagraphComplete = this.currentIndex >= this.currentPassage.length;
-      if (isParagraphComplete) {
+      // Check if paragraph is completed
+      if (this.currentIndex >= this.currentPassage.length) {
         const stats = this.getStats();
         this.onParagraphComplete(stats);
         return {
@@ -194,22 +176,18 @@ export class StickmanParagraphManager {
         type: "correct",
         char: expectedChar,
         isSpace,
-        isPunctuation,
-        word: completedWord,
         stats: this.getStats(),
       };
     } else {
       this.charStatuses[this.currentIndex] = "incorrect";
       this.errorCount++;
-      this.currentCombo = 0;
+      this.currentCombo = 0; // Combo breaks
 
       this.onErrorChar(key, expectedChar, this.getStats());
 
-      // Advance cursor anyway so player never gets rigidly blocked
-      this.currentIndex++;
+      this.currentIndex++; // Move forward so player is not stuck
 
-      const isParagraphComplete = this.currentIndex >= this.currentPassage.length;
-      if (isParagraphComplete) {
+      if (this.currentIndex >= this.currentPassage.length) {
         const stats = this.getStats();
         this.onParagraphComplete(stats);
         return {
@@ -241,11 +219,10 @@ export class StickmanParagraphManager {
       : 100;
 
     let flowMultiplier = 1.0;
-    if (this.currentCombo >= 40) flowMultiplier = 4.0;
-    else if (this.currentCombo >= 25) flowMultiplier = 3.0;
-    else if (this.currentCombo >= 15) flowMultiplier = 2.2;
-    else if (this.currentCombo >= 8) flowMultiplier = 1.6;
-    else if (this.currentCombo >= 3) flowMultiplier = 1.2;
+    if (this.currentCombo >= 35) flowMultiplier = 3.5;
+    else if (this.currentCombo >= 20) flowMultiplier = 2.5;
+    else if (this.currentCombo >= 10) flowMultiplier = 1.8;
+    else if (this.currentCombo >= 4) flowMultiplier = 1.3;
 
     return {
       wpm: netWpm,
@@ -261,17 +238,5 @@ export class StickmanParagraphManager {
       currentIndex: this.currentIndex,
       passageLength: this.currentPassage.length,
     };
-  }
-
-  getCurrentWord() {
-    let start = this.currentIndex;
-    while (start > 0 && this.currentPassage[start - 1] !== " ") {
-      start--;
-    }
-    let end = this.currentIndex;
-    while (end < this.currentPassage.length && this.currentPassage[end] !== " ") {
-      end++;
-    }
-    return this.currentPassage.slice(start, end);
   }
 }

@@ -1,7 +1,17 @@
 /**
  * Stickman2DEnemies.js
- * Enemy AI, Wave progression manager, group tactical spacing,
- * and combat state machines for Stickman Fight (2D).
+ * Multi-Enemy Martial Arts Group AI & Progression Engine (Phase 2).
+ * Features:
+ * - Anti-overlap spatial separation physics (enemies maintain independent physical space).
+ * - Coordinated attack token system (prevents unfair simultaneous mobbing).
+ * - Flanking tactics: In 2-enemy and 3-enemy encounters, enemies take front, rear, and reserve positions.
+ * - Progressive difficulty:
+ *   - Encounter 1: 1 Shadow Brawler (180 HP)
+ *   - Encounter 2: 2 Twin Shadows (140 HP each, flanking front & back)
+ *   - Encounter 3: 3 Shadow Ninjas (130 HP each, coordinated strikes)
+ *   - Encounter 4: 4 Iron Vanguards & Assassins (160 HP each)
+ *   - Encounter 5: Infernal Boss (400 HP, high-impact ground stomp)
+ * - Independent health, hitboxes, hit-reactions, and ground recovery for every fighter.
  */
 
 import { Stickman2DCharacter } from "./Stickman2DCharacter";
@@ -9,212 +19,287 @@ import { Stickman2DCharacter } from "./Stickman2DCharacter";
 export class Stickman2DEnemies {
   constructor(options = {}) {
     this.groundY = options.groundY || 420;
-    this.currentWave = 1;
-    this.enemies = [];
-    this.boss = null;
-    this.waveCleared = false;
     this.onEnemyDefeated = options.onEnemyDefeated || (() => {});
-    this.onWaveCleared = options.onWaveCleared || (() => {});
-  }
+    this.onEncounterCleared = options.onEncounterCleared || (() => {});
 
-  startWave(wave = 1, playerX = 200) {
-    this.currentWave = wave;
     this.enemies = [];
-    this.boss = null;
-    this.waveCleared = false;
+    this.currentEncounter = 1;
+    this.cleared = false;
 
-    if (wave === 1) {
-      // Wave 1: 1 Shadow Warrior
-      this.spawnEnemy("shadow", playerX + 350, 150);
-    } else if (wave === 2) {
-      // Wave 2: 2 Shadow Assassins
-      this.spawnEnemy("assassin", playerX + 320, 130);
-      this.spawnEnemy("assassin", playerX + 460, 130);
-    } else if (wave === 3) {
-      // Wave 3: 3 Mixed Warriors
-      this.spawnEnemy("shadow", playerX + 300, 160);
-      this.spawnEnemy("assassin", playerX + 440, 140);
-      this.spawnEnemy("shadow", playerX + 580, 160);
-    } else if (wave === 4) {
-      // Wave 4: 4 Enemies with Armored Brute
-      this.spawnEnemy("shadow", playerX + 280, 180);
-      this.spawnEnemy("assassin", playerX + 420, 150);
-      this.spawnEnemy("brute", playerX + 560, 260);
-      this.spawnEnemy("shadow", playerX + 700, 180);
-    } else if (wave === 5) {
-      // Wave 5: Infernal Commander Boss
-      const boss = this.spawnEnemy("boss", playerX + 420, 650);
-      this.boss = boss;
+    // Attack token manager: guarantees only 1 enemy attacks at a time
+    this.activeAttackerId = null;
+    this.attackTokenCooldown = 0.8;
+  }
+
+  // Setup Encounter
+  setupEncounter(encounter = 1, playerX = 250) {
+    this.currentEncounter = encounter;
+    this.cleared = false;
+    this.enemies = [];
+    this.activeAttackerId = null;
+
+    if (encounter === 1) {
+      // Encounter 1: 1 Single Fighter (180 HP)
+      const e = new Stickman2DCharacter({
+        type: "enemy",
+        name: "Shadow Brawler",
+        x: playerX + 220,
+        y: this.groundY,
+        groundY: this.groundY,
+        facing: -1,
+        maxHp: 180,
+      });
+      e.aiRole = "front";
+      e.decisionTimer = 0.5;
+      e.attackCooldown = 1.4;
+      e.preferredDist = 80;
+      this.enemies.push(e);
+    } else if (encounter === 2) {
+      // Encounter 2: 2 Fighters (Flanking front & rear)
+      const e1 = new Stickman2DCharacter({
+        type: "enemy",
+        name: "Shadow Striker A",
+        x: playerX + 190,
+        y: this.groundY,
+        groundY: this.groundY,
+        facing: -1,
+        maxHp: 140,
+      });
+      e1.aiRole = "front";
+      e1.decisionTimer = 0.4;
+      e1.attackCooldown = 1.2;
+      e1.preferredDist = 80;
+
+      const e2 = new Stickman2DCharacter({
+        type: "enemy",
+        name: "Shadow Striker B",
+        x: playerX - 170, // Behind the player
+        y: this.groundY,
+        groundY: this.groundY,
+        facing: 1,
+        maxHp: 140,
+      });
+      e2.aiRole = "flank";
+      e2.decisionTimer = 0.9;
+      e2.attackCooldown = 2.0;
+      e2.preferredDist = 85;
+
+      this.enemies.push(e1, e2);
+    } else if (encounter === 3) {
+      // Encounter 3: 3 Fighters (Front, Flank, and Reserve)
+      const e1 = new Stickman2DCharacter({
+        type: "enemy",
+        name: "Ninja Front",
+        x: playerX + 180,
+        y: this.groundY,
+        groundY: this.groundY,
+        facing: -1,
+        maxHp: 130,
+      });
+      e1.aiRole = "front";
+      e1.decisionTimer = 0.3;
+      e1.attackCooldown = 1.3;
+      e1.preferredDist = 75;
+
+      const e2 = new Stickman2DCharacter({
+        type: "enemy",
+        name: "Ninja Rear",
+        x: playerX - 160,
+        y: this.groundY,
+        groundY: this.groundY,
+        facing: 1,
+        maxHp: 130,
+      });
+      e2.aiRole = "flank";
+      e2.decisionTimer = 0.8;
+      e2.attackCooldown = 2.2;
+      e2.preferredDist = 85;
+
+      const e3 = new Stickman2DCharacter({
+        type: "enemy",
+        name: "Ninja Reserve",
+        x: playerX + 310,
+        y: this.groundY,
+        groundY: this.groundY,
+        facing: -1,
+        maxHp: 140,
+      });
+      e3.aiRole = "reserve";
+      e3.decisionTimer = 1.4;
+      e3.attackCooldown = 3.0;
+      e3.preferredDist = 160; // Stands back until a comrade falls
+
+      this.enemies.push(e1, e2, e3);
+    } else if (encounter === 4) {
+      // Encounter 4: 4 Fighters with Iron Vanguard
+      for (let i = 0; i < 4; i++) {
+        const isRear = i % 2 === 1;
+        const e = new Stickman2DCharacter({
+          type: "enemy",
+          name: i === 0 ? "Iron Vanguard" : `Shadow Elite ${i}`,
+          x: isRear ? playerX - (150 + i * 45) : playerX + (170 + i * 50),
+          y: this.groundY,
+          groundY: this.groundY,
+          facing: isRear ? 1 : -1,
+          maxHp: i === 0 ? 200 : 130,
+          scale: i === 0 ? 1.15 : 1.0,
+        });
+        e.aiRole = i < 2 ? "front" : "reserve";
+        e.decisionTimer = 0.5 + i * 0.4;
+        e.attackCooldown = 1.5 + i * 0.5;
+        e.preferredDist = 80 + i * 35;
+        this.enemies.push(e);
+      }
     } else {
-      // Wave 6+ Scaling Endless Trial
-      const count = Math.min(6, 2 + Math.floor(wave / 2));
-      const hasBoss = wave % 5 === 0;
-      if (hasBoss) {
-        this.boss = this.spawnEnemy("boss", playerX + 420, 600 + wave * 50);
-      } else {
-        for (let i = 0; i < count; i++) {
-          const type = i % 3 === 2 ? "brute" : i % 2 === 1 ? "assassin" : "shadow";
-          this.spawnEnemy(type, playerX + 280 + i * 140, 160 + wave * 20);
-        }
-      }
+      // Encounter 5+: Boss Titan
+      const boss = new Stickman2DCharacter({
+        type: "enemy",
+        name: "Infernal Titan Boss",
+        x: playerX + 240,
+        y: this.groundY,
+        groundY: this.groundY,
+        facing: -1,
+        maxHp: 420,
+        scale: 1.35,
+      });
+      boss.aiRole = "boss";
+      boss.decisionTimer = 0.4;
+      boss.attackCooldown = 1.2;
+      boss.preferredDist = 95;
+      this.enemies.push(boss);
     }
   }
 
-  spawnEnemy(type, x, hp) {
-    const enemy = new Stickman2DCharacter({
-      type,
-      x,
-      y: this.groundY,
-      facing: -1, // Face towards player
-      maxHp: hp,
-    });
+  update(dt, player, combat, audio, env) {
+    if (this.cleared) return;
 
-    // AI state metadata
-    enemy.aiState = "approach";
-    enemy.stateTimer = 0.5 + Math.random() * 0.8;
-    enemy.attackCooldown = 1.2 + Math.random() * 1.5;
-    enemy.preferredDistance = type === "boss" ? 85 : type === "brute" ? 75 : 65;
-    enemy.attackWindup = type === "boss" ? 0.6 : type === "brute" ? 0.7 : 0.45;
+    if (this.attackTokenCooldown > 0) {
+      this.attackTokenCooldown -= dt;
+      if (this.attackTokenCooldown <= 0) {
+        this.activeAttackerId = null;
+      }
+    }
 
-    this.enemies.push(enemy);
-    return enemy;
-  }
+    let allDefeated = true;
 
-  update(dt, player, combat, audio) {
-    if (this.waveCleared) return;
-
-    let allDead = true;
-
+    // 1. Anti-Overlap Separation Physics: push overlapping enemies apart
     for (let i = 0; i < this.enemies.length; i++) {
-      const e = this.enemies[i];
-      if (!e.isAlive) {
-        e.update(dt);
+      for (let j = i + 1; j < this.enemies.length; j++) {
+        const e1 = this.enemies[i];
+        const e2 = this.enemies[j];
+        if (!e1.isAlive || !e2.isAlive) continue;
+
+        const diffX = e1.x - e2.x;
+        const minDist = 50;
+        if (Math.abs(diffX) < minDist) {
+          const overlap = minDist - Math.abs(diffX);
+          const push = (diffX >= 0 ? 1 : -1) * (overlap * 0.5);
+          e1.x += push;
+          e2.x -= push;
+        }
+      }
+    }
+
+    // 2. Individual AI Behavior & Combat Updates
+    for (let i = 0; i < this.enemies.length; i++) {
+      const enemy = this.enemies[i];
+      if (!enemy.isAlive && enemy.state === "defeated") {
         continue;
       }
 
-      allDead = false;
+      allDefeated = false;
 
-      // Distance to player
-      const distToPlayer = Math.abs(e.x - player.x);
-      const dirToPlayer = player.x > e.x ? 1 : -1;
-      e.facing = dirToPlayer;
+      const dist = Math.abs(enemy.x - player.x);
+      const dirToPlayer = player.x > enemy.x ? 1 : -1;
 
-      // Multi-enemy spacing: Prevent overlapping
-      for (let j = 0; j < this.enemies.length; j++) {
-        if (i === j) continue;
-        const other = this.enemies[j];
-        if (!other.isAlive) continue;
-        const diffX = e.x - other.x;
-        if (Math.abs(diffX) < 45) {
-          e.x += (diffX >= 0 ? 1 : -1) * 20 * dt;
+      // Always face player when standing
+      if (enemy.state !== "knockback" && enemy.state !== "down" && enemy.state !== "getting_up") {
+        enemy.facing = dirToPlayer;
+      }
+
+      // Standing & Neutral Decision Logic
+      if (enemy.isAlive && enemy.state === "neutral" && enemy.isGrounded) {
+        enemy.decisionTimer -= dt;
+        if (enemy.attackCooldown > 0) enemy.attackCooldown -= dt;
+
+        // Position according to tactical role
+        let targetDist = enemy.preferredDist;
+        if (enemy.aiRole === "reserve") targetDist = 170;
+
+        if (dist > targetDist + 20) {
+          enemy.animator.play("dash", 1.0);
+          enemy.vx = dirToPlayer * 115;
+        } else if (dist < targetDist - 25) {
+          enemy.animator.play("idle", 1.0);
+          enemy.vx = -dirToPlayer * 75;
+        } else {
+          enemy.vx = 0;
+
+          // Action trigger when decision timer expires
+          if (enemy.decisionTimer <= 0) {
+            enemy.decisionTimer = 0.7 + Math.random() * 0.6;
+
+            // Block check if player is attacking in range
+            if (player.state === "attacking" && dist < 95 && Math.random() < 0.3) {
+              enemy.block(0.4);
+              if (audio) audio.playClash();
+            } else if (
+              enemy.attackCooldown <= 0 &&
+              (this.activeAttackerId === null || this.activeAttackerId === i)
+            ) {
+              // Grab the single attack token to ensure readability
+              this.activeAttackerId = i;
+              this.attackTokenCooldown = 0.9;
+              enemy.attackCooldown = 1.8 + Math.random() * 1.0;
+
+              const attacks = ["jab", "cross", "highKick", "lowSweep"];
+              const chosen = attacks[Math.floor(Math.random() * attacks.length)];
+              enemy.attack(chosen, 1.15);
+              if (audio) audio.playSlash(1.0);
+            } else {
+              enemy.animator.play("idle");
+            }
+          }
         }
       }
 
-      // AI State Machine
-      e.stateTimer -= dt;
-      if (e.attackCooldown > 0) e.attackCooldown -= dt;
-
-      if (e.isStunned) {
-        e.update(dt);
-        continue;
+      // Check if this enemy strikes Player
+      if (enemy.state === "attacking" && !enemy.hasHitCurrentTarget) {
+        const hitInfo = combat.checkHit(enemy, player);
+        if (hitInfo) {
+          combat.resolveHit(enemy, player, hitInfo, { wpm: 35 }, audio, env);
+        }
       }
 
-      switch (e.aiState) {
-        case "approach":
-          if (distToPlayer > e.preferredDistance + 10) {
-            e.animator.play("advance", 1.0);
-            e.vx = dirToPlayer * (e.type === "boss" ? 85 : e.type === "assassin" ? 140 : 100);
-          } else if (distToPlayer < e.preferredDistance - 15) {
-            // Back up slightly
-            e.vx = -dirToPlayer * 60;
-          } else {
-            e.vx = 0;
-            e.animator.play("idle");
-            if (e.attackCooldown <= 0) {
-              e.aiState = "windup";
-              e.stateTimer = e.attackWindup;
-              e.animator.play("slash1", 0.5); // Slow windup
-            }
+      // Check if Player strikes this enemy
+      if (player.state === "attacking" && !player.hasHitCurrentTarget) {
+        const hitInfo = combat.checkHit(player, enemy);
+        if (hitInfo) {
+          const stats = player.currentStats || {};
+          const res = combat.resolveHit(player, enemy, hitInfo, stats, audio, env);
+          if (res.dead) {
+            this.onEnemyDefeated(enemy);
+            // If reserve enemy exists, promote it to front
+            const reserve = this.enemies.find((e) => e.isAlive && e.aiRole === "reserve");
+            if (reserve) reserve.aiRole = "front";
           }
-          break;
-
-        case "windup":
-          e.vx = 0;
-          if (e.stateTimer <= 0) {
-            e.aiState = "attack";
-            e.stateTimer = 0.35;
-            e.animator.play("slash1", 1.4);
-            audio.playSlash(0.9);
-          }
-          break;
-
-        case "attack":
-          // Strike execution
-          if (e.stateTimer <= 0.15 && !e.hasDealtDamage) {
-            e.hasDealtDamage = true;
-            if (distToPlayer < e.preferredDistance + 25) {
-              // Player takes damage or parries
-              const dmgResult = player.takeDamage(e.type === "boss" ? 28 : 16);
-              if (dmgResult.parried) {
-                // Precision Parry!
-                audio.playParry();
-                combat.spawnDamageText(player.x + 30 * player.facing, player.y - 70, "PARRIED!", "parry");
-                combat.spawnHitSparks(player.x + 35 * player.facing, player.y - 60, true, true);
-                e.isStunned = true;
-                e.stunTimer = 1.4;
-                e.animator.play("hit", 0.8);
-              } else if (dmgResult.blocked) {
-                audio.playClash();
-                combat.spawnDamageText(player.x, player.y - 60, "BLOCKED", "blocked");
-                combat.spawnHitSparks(player.x + 20 * player.facing, player.y - 50, false, false);
-              } else if (dmgResult.hit) {
-                audio.playHit();
-                combat.spawnDamageText(player.x, player.y - 60, `-${dmgResult.damage}`, "player_hurt");
-                combat.spawnHitSparks(player.x, player.y - 50, false, false);
-              }
-            }
-          }
-
-          if (e.stateTimer <= 0) {
-            e.hasDealtDamage = false;
-            e.aiState = "recover";
-            e.stateTimer = 0.4;
-            e.animator.play("idle");
-          }
-          break;
-
-        case "recover":
-          e.vx = 0;
-          if (e.stateTimer <= 0) {
-            e.aiState = "approach";
-            e.attackCooldown = 1.0 + Math.random() * 1.5;
-          }
-          break;
+        }
       }
 
-      e.update(dt);
+      // Physical simulation update
+      enemy.update(dt);
     }
 
-    // Check wave clear condition
-    if (allDead && this.enemies.length > 0) {
-      this.waveCleared = true;
-      audio.playWaveCleared();
-      this.onWaveCleared(this.currentWave);
+    // Check encounter cleared condition
+    if (allDefeated && this.enemies.length > 0) {
+      this.cleared = true;
+      if (audio) audio.playWaveCleared();
+      this.onEncounterCleared(this.currentEncounter);
     }
   }
 
-  getNearestLivingEnemy(playerX) {
-    let nearest = null;
-    let minDist = Infinity;
-    for (const e of this.enemies) {
-      if (!e.isAlive) continue;
-      const d = Math.abs(e.x - playerX);
-      if (d < minDist) {
-        minDist = d;
-        nearest = e;
-      }
-    }
-    return nearest;
+  getPrimaryEnemy() {
+    return this.enemies.find((e) => e.isAlive) || this.enemies[0];
   }
 
   getLivingCount() {
@@ -222,25 +307,29 @@ export class Stickman2DEnemies {
   }
 
   render(ctx) {
-    for (const e of this.enemies) {
-      e.render(ctx);
+    for (const enemy of this.enemies) {
+      enemy.render(ctx);
 
-      // Render Overhead Health Bar for living non-boss enemies
-      if (e.isAlive && e.type !== "boss") {
-        const barWidth = 38 * e.scale;
-        const barHeight = 4.5;
-        const barX = e.x - barWidth / 2;
-        const barY = e.y - 105 * e.scale;
+      // Overhead Enemy Health Bar & Role Badge
+      if (enemy.isAlive) {
+        const barW = 46 * enemy.scale;
+        const barH = 5;
+        const barX = enemy.x - barW / 2;
+        const barY = enemy.y - 95 * enemy.scale;
 
         ctx.save();
-        // Background track
-        ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-        ctx.fillRect(barX - 1, barY - 1, barWidth + 2, barHeight + 2);
+        ctx.fillStyle = "rgba(0, 0, 0, 0.75)";
+        ctx.fillRect(barX - 1, barY - 1, barW + 2, barH + 2);
 
-        // Fill
-        const pct = Math.max(0, e.hp / e.maxHp);
-        ctx.fillStyle = e.type === "brute" ? "#f59e0b" : e.type === "assassin" ? "#38bdf8" : "#ef4444";
-        ctx.fillRect(barX, barY, barWidth * pct, barHeight);
+        const pct = Math.max(0, enemy.hp / enemy.maxHp);
+        ctx.fillStyle = pct > 0.4 ? "#ef4444" : "#f59e0b";
+        ctx.fillRect(barX, barY, barW * pct, barH);
+
+        // Small indicator above
+        ctx.font = "bold 9px 'Inter', sans-serif";
+        ctx.fillStyle = "#94a3b8";
+        ctx.textAlign = "center";
+        ctx.fillText(enemy.name, enemy.x, barY - 4);
         ctx.restore();
       }
     }

@@ -1,49 +1,46 @@
 /**
  * Stickman2DCharacter.js
- * Articulated 2D Stickman Warrior renderer and kinematic character controller.
- * Authentically replicates Reference Image B:
- * - Crimson red body (#dc2626) with solid articulated strokes
- * - Spherical head with glowing emerald cross-scar eyes
- * - Tactical reverse-grip dagger with glowing emerald cutting edge
- * - 4 Orbiting emerald crystal shards and swirling green energy ribbons
- * Also supports Shadow Assassins, Armored Brutes, and Infernal Commander Boss.
+ * Iconic Martial Arts 2D Stickman Fighter.
+ * Implements clean, authentic stick figure proportions from References A, B, and C:
+ * - High-contrast silhouette: Round head, articulated spine, arms with fists, legs with feet.
+ * - Accurate striking hitboxes calculated from limb endpoints.
+ * - Real-world physics: airborne knockback arcs, gravity, ground sliding, and getting up.
+ * - Energy blast beam rendering for special finishers (Reference A Frame 14/34/44).
  */
 
 import { Stickman2DAnimator } from "./Stickman2DAnimator";
 
 export class Stickman2DCharacter {
   constructor(options = {}) {
-    this.type = options.type || "player"; // 'player' | 'shadow' | 'assassin' | 'brute' | 'boss'
-    this.x = options.x || 200;
-    this.y = options.y || 420; // Ground plane Y
+    this.type = options.type || "player"; // 'player' | 'enemy' | 'boss'
+    this.name = options.name || (this.type === "player" ? "Crimson Fighter" : "Shadow Brawler");
+    this.x = options.x || 250;
+    this.y = options.y || 420; // Ground level Y
+    this.groundY = options.groundY || 420;
     this.facing = options.facing || 1; // 1 = right, -1 = left
-    this.scale = options.scale || (this.type === "boss" ? 1.45 : this.type === "brute" ? 1.2 : 1.0);
+    this.scale = options.scale || 1.0;
 
     this.animator = new Stickman2DAnimator();
 
-    // Stats
-    this.maxHp = options.maxHp || (this.type === "boss" ? 600 : this.type === "brute" ? 220 : this.type === "assassin" ? 120 : 150);
+    // Health
+    this.maxHp = options.maxHp || (this.type === "player" ? 150 : 180);
     this.hp = this.maxHp;
     this.isAlive = true;
 
-    // Combat states
-    this.isBlocking = false;
-    this.isParrying = false;
-    this.isStunned = false;
-    this.stunTimer = 0;
-    this.invincibleTimer = 0;
-
-    // Movement
+    // Physics & combat states
     this.vx = 0;
     this.vy = 0;
+    this.gravity = 980; // pixels / s^2
+    this.isGrounded = true;
 
-    // Crystal shard & energy ribbon physics (for Player & Boss)
-    this.shardAngle = 0;
-    this.ribbonPoints = [];
-    this.ribbonTimer = 0;
+    this.state = "neutral"; // 'neutral' | 'attacking' | 'blocking' | 'stagger' | 'knockback' | 'down' | 'getting_up' | 'defeated'
+    this.groundTimer = 0;
+    this.invulnerableTimer = 0;
+    this.hitStopTimer = 0; // Micro freeze on impact
 
-    // Slicing energy trail
-    this.bladeTipHistory = [];
+    // Strike tracking
+    this.lastStrikeId = 0;
+    this.hasHitCurrentTarget = false;
 
     // Visual Palette
     this.setupPalette();
@@ -51,119 +48,166 @@ export class Stickman2DCharacter {
 
   setupPalette() {
     if (this.type === "player") {
-      this.bodyColor = "#dc2626"; // Crimson Red
+      this.color = "#ef4444"; // Crimson Red
       this.headColor = "#ef4444";
-      this.eyeColor = "#4ade80"; // Glowing Emerald
-      this.weaponColor = "#18181b";
-      this.edgeColor = "#22c55e"; // Glowing Green
-      this.crystalColor = "#4ade80";
-      this.ribbonColor = "rgba(34, 197, 94, 0.75)";
-      this.strokeWidth = 7;
-    } else if (this.type === "shadow") {
-      this.bodyColor = "#18181b"; // Charcoal Black
+      this.eyeColor = "#ffffff";
+      this.glowColor = "rgba(239, 68, 68, 0.4)";
+      this.strokeWidth = 6.5;
+    } else {
+      // Enemy: Charcoal / White contrast
+      this.color = "#18181b"; // Charcoal Black
       this.headColor = "#27272a";
-      this.eyeColor = "#a855f7"; // Glowing Purple
-      this.weaponColor = "#09090b";
-      this.edgeColor = "#9333ea";
-      this.crystalColor = null;
-      this.ribbonColor = null;
-      this.strokeWidth = 6;
-    } else if (this.type === "assassin") {
-      this.bodyColor = "#0f172a"; // Midnight Azure
-      this.headColor = "#1e293b";
-      this.eyeColor = "#38bdf8"; // Cyan
-      this.weaponColor = "#0284c7";
-      this.edgeColor = "#38bdf8";
-      this.crystalColor = null;
-      this.ribbonColor = null;
-      this.strokeWidth = 5.5;
-    } else if (this.type === "brute") {
-      this.bodyColor = "#334155"; // Armored Slate
-      this.headColor = "#475569";
-      this.eyeColor = "#f59e0b"; // Glowing Amber
-      this.weaponColor = "#1e293b";
-      this.edgeColor = "#fbbf24";
-      this.crystalColor = null;
-      this.ribbonColor = null;
-      this.strokeWidth = 9;
-    } else if (this.type === "boss") {
-      this.bodyColor = "#7f1d1d"; // Infernal Obsidian Crimson
-      this.headColor = "#991b1b";
-      this.eyeColor = "#fbbf24"; // Fiery Gold
-      this.weaponColor = "#09090b";
-      this.edgeColor = "#ef4444"; // Fiery Red
-      this.crystalColor = "#ef4444";
-      this.ribbonColor = "rgba(239, 68, 68, 0.75)";
-      this.strokeWidth = 10;
+      this.eyeColor = "#ef4444"; // Menacing red eyes
+      this.glowColor = "rgba(24, 24, 27, 0.4)";
+      this.strokeWidth = 6.0;
     }
   }
 
   update(dt) {
-    if (!this.isAlive) {
-      this.animator.update(dt);
-      return;
+    if (this.hitStopTimer > 0) {
+      this.hitStopTimer -= dt;
+      return; // Freeze movement during hit-stop
     }
 
-    // Update timers
-    if (this.invincibleTimer > 0) this.invincibleTimer -= dt;
-    if (this.stunTimer > 0) {
-      this.stunTimer -= dt;
-      if (this.stunTimer <= 0) {
-        this.isStunned = false;
-        this.animator.play("idle");
+    if (this.invulnerableTimer > 0) {
+      this.invulnerableTimer -= dt;
+    }
+
+    // Apply Gravity & Movement Physics
+    if (!this.isGrounded) {
+      this.vy += this.gravity * dt;
+      this.y += this.vy * dt;
+      this.x += this.vx * dt;
+
+      // Check ground collision
+      if (this.y >= this.groundY) {
+        this.y = this.groundY;
+        this.vy = 0;
+        this.isGrounded = true;
+
+        // If landing from airborne knockback, transition to lying on ground
+        if (this.state === "knockback") {
+          this.state = "down";
+          this.groundTimer = 0.85; // Lie on ground for 0.85s before rising
+          this.vx = 0;
+        }
+      }
+    } else {
+      // Ground friction
+      this.x += this.vx * dt;
+      this.vx *= 0.82;
+    }
+
+    // State Machine Updates
+    if (this.state === "down") {
+      this.groundTimer -= dt;
+      if (this.groundTimer <= 0) {
+        if (this.hp <= 0) {
+          this.state = "defeated";
+          this.isAlive = false;
+          this.animator.play("defeat");
+        } else {
+          this.state = "getting_up";
+          this.animator.play("getUp", 1.0, () => {
+            this.state = "neutral";
+            this.animator.play("idle");
+          });
+        }
       }
     }
 
+    // Update Animator
     this.animator.update(dt);
-
-    // Update crystal rotation
-    this.shardAngle = (this.shardAngle + dt * 2.8) % (Math.PI * 2);
-    this.ribbonTimer += dt * 4.0;
-
-    // Movement physics
-    this.x += this.vx * dt;
-    this.vx *= 0.85; // Damping
   }
 
-  takeDamage(amount, isCrit = false) {
-    if (!this.isAlive || this.invincibleTimer > 0) return { hit: false };
-
-    if (this.isParrying) {
-      return { hit: false, parried: true };
+  // Execute a martial attack
+  attack(moveName, speed = 1.0, onComplete = null) {
+    if (!this.isAlive || this.state === "down" || this.state === "knockback" || this.state === "defeated") {
+      return false;
     }
+    this.state = "attacking";
+    this.hasHitCurrentTarget = false;
+    this.lastStrikeId++;
 
-    if (this.isBlocking) {
-      const reduced = Math.round(amount * 0.3); // 70% damage reduction
-      this.hp -= reduced;
-      this.invincibleTimer = 0.2;
-      if (this.hp <= 0) {
-        this.hp = 0;
-        this.die();
-      }
+    this.animator.play(moveName, speed, () => {
+      this.state = "neutral";
+      if (onComplete) onComplete();
+    });
+    return true;
+  }
+
+  // Raise block
+  block(duration = 0.4) {
+    if (!this.isAlive || this.state === "down" || this.state === "knockback") return;
+    this.state = "blocking";
+    this.animator.play("block", 1.0, () => {
+      this.state = "neutral";
+    });
+  }
+
+  // Take damage with realistic hit reactions and knockback
+  takeDamage(amount, attackType = "punch", attackerX = 0) {
+    if (!this.isAlive || this.invulnerableTimer > 0) return { hit: false };
+
+    // Check Block
+    if (this.state === "blocking") {
+      const reduced = Math.max(1, Math.round(amount * 0.25)); // 75% reduction
+      this.hp = Math.max(0, this.hp - reduced);
+      this.invulnerableTimer = 0.2;
+      this.vx = (this.x > attackerX ? 1 : -1) * 60; // Pushback
       return { hit: true, blocked: true, damage: reduced };
     }
 
-    this.hp -= amount;
-    this.invincibleTimer = 0.25;
+    // Apply Damage
+    this.hp = Math.max(0, this.hp - amount);
+    this.invulnerableTimer = 0.22;
+    const knockDir = this.x > attackerX ? 1 : -1;
 
+    // Determine reaction based on attack severity
     if (this.hp <= 0) {
       this.hp = 0;
-      this.die();
-      return { hit: true, dead: true, damage: amount, isCrit };
+      this.isAlive = false;
+      this.state = "knockback";
+      this.isGrounded = false;
+      this.vy = -360; // Launch upward into air
+      this.vx = knockDir * 240;
+      this.animator.play("knockback", 1.0);
+      return { hit: true, dead: true, damage: amount, knockback: true };
+    }
+
+    if (attackType === "dropkick" || attackType === "energy" || attackType === "knee" || attackType === "sweep") {
+      // Heavy knockback: character is launched backward into the air or knocked down!
+      this.state = "knockback";
+      this.isGrounded = false;
+      this.vy = attackType === "sweep" ? -180 : -340;
+      this.vx = knockDir * (attackType === "energy" ? 380 : 260);
+      this.animator.play("knockback", 1.0);
+      return { hit: true, dead: false, damage: amount, knockback: true };
+    } else if (attackType === "kick") {
+      // High head kick: head snap + step back
+      this.state = "stagger";
+      this.vx = knockDir * 160;
+      this.animator.play("hitHead", 1.2, () => {
+        this.state = "neutral";
+      });
+      return { hit: true, dead: false, damage: amount };
     } else {
-      this.animator.play("hit", 1.2);
-      return { hit: true, dead: false, damage: amount, isCrit };
+      // Punch: stomach or head snap
+      this.state = "stagger";
+      this.vx = knockDir * 100;
+      const hitAnim = Math.random() > 0.5 ? "hitHead" : "hitStomach";
+      this.animator.play(hitAnim, 1.4, () => {
+        this.state = "neutral";
+      });
+      return { hit: true, dead: false, damage: amount };
     }
   }
 
-  die() {
-    this.isAlive = false;
-    this.animator.play("death", 1.0);
-  }
-
+  // Get Body Hurtbox [head, torso, legs]
   getHurtbox() {
-    const w = 40 * this.scale;
-    const h = 95 * this.scale;
+    const scale = this.scale;
+    const w = 36 * scale;
+    const h = 85 * scale;
     return {
       x: this.x - w / 2,
       y: this.y - h,
@@ -172,15 +216,86 @@ export class Stickman2DCharacter {
     };
   }
 
-  getBladeHitbox() {
-    if (this.bladeTipHistory.length < 2) return null;
-    const tip = this.bladeTipHistory[this.bladeTipHistory.length - 1];
-    return {
-      x: Math.min(tip.x, tip.x - 30 * this.facing),
-      y: tip.y - 20,
-      w: 45 * this.scale,
-      h: 40 * this.scale,
-    };
+  // Calculate active striking hitbox position from limb endpoints
+  getActiveStrikeHitbox() {
+    if (this.state !== "attacking") return null;
+
+    const pose = this.animator.getCurrentPose();
+    const scale = this.scale;
+    const facing = this.facing;
+
+    const hipX = this.x;
+    const hipY = this.y + pose.hipY * scale;
+
+    const spineLen = 36 * scale;
+    const chestX = hipX + Math.sin(pose.torsoAngle) * spineLen * facing;
+    const chestY = hipY - Math.cos(pose.torsoAngle) * spineLen;
+
+    const armUpperLen = 22 * scale;
+    const armForeLen = 22 * scale;
+    const legUpperLen = 26 * scale;
+    const legLowerLen = 26 * scale;
+
+    // 1. Fist strikes (jab, cross, hook)
+    if (pose.fistContact) {
+      const isRight = pose.fistContact === "right";
+      const uAngle = isRight ? pose.rArmUpper : pose.lArmUpper;
+      const fAngle = isRight ? pose.rArmFore : pose.lArmFore;
+
+      const elbowX = chestX + Math.sin(uAngle) * armUpperLen * facing;
+      const elbowY = chestY + Math.cos(uAngle) * armUpperLen;
+      const fistX = elbowX + Math.sin(uAngle + fAngle) * armForeLen * facing;
+      const fistY = elbowY + Math.cos(uAngle + fAngle) * armForeLen;
+
+      return {
+        type: "punch",
+        x: fistX,
+        y: fistY,
+        radius: 18 * scale,
+      };
+    }
+
+    // 2. Foot strikes (high kick, low sweep, dropkick)
+    if (pose.footContact) {
+      const kneeX = hipX + Math.sin(pose.rLegUpper) * legUpperLen * facing;
+      const kneeY = hipY + Math.cos(pose.rLegUpper) * legUpperLen;
+      const footX = kneeX + Math.sin(pose.rLegUpper + pose.rLegLower) * legLowerLen * facing;
+      const footY = kneeY + Math.cos(pose.rLegUpper + pose.rLegLower) * legLowerLen;
+
+      return {
+        type: pose.animName === "lowSweep" ? "sweep" : "kick",
+        x: footX,
+        y: footY,
+        radius: 22 * scale,
+      };
+    }
+
+    // 3. Knee strike
+    if (pose.kneeContact) {
+      const kneeX = hipX + Math.sin(pose.rLegUpper) * legUpperLen * facing;
+      const kneeY = hipY + Math.cos(pose.rLegUpper) * legUpperLen;
+      return {
+        type: "knee",
+        x: kneeX,
+        y: kneeY,
+        radius: 20 * scale,
+      };
+    }
+
+    // 4. Energy Beam (Reference A Frame 14/34/44)
+    if (pose.energyBeam) {
+      return {
+        type: "energy",
+        x: chestX + 70 * facing,
+        y: chestY,
+        radius: 45 * scale,
+        isBeam: true,
+        startX: chestX + 25 * facing,
+        endX: chestX + 280 * facing,
+      };
+    }
+
+    return null;
   }
 
   render(ctx) {
@@ -190,45 +305,40 @@ export class Stickman2DCharacter {
     const scale = this.scale;
     const facing = this.facing;
 
-    // Flash white when invincible/hit
-    if (this.invincibleTimer > 0 && Math.floor(this.invincibleTimer * 20) % 2 === 0) {
-      ctx.globalAlpha = 0.6;
+    // Invulnerability flashing
+    if (this.invulnerableTimer > 0 && Math.floor(this.invulnerableTimer * 25) % 2 === 0) {
+      ctx.globalAlpha = 0.55;
     }
 
-    ctx.translate(this.x, this.y);
-
-    // Draw shadow on ground
+    // Ground Shadow
     ctx.beginPath();
-    ctx.ellipse(0, 0, 24 * scale, 7 * scale, 0, 0, Math.PI * 2);
+    const shadowWidth = Math.max(12, (26 - Math.abs(this.y - this.groundY) * 0.15)) * scale;
+    ctx.ellipse(this.x, this.groundY, shadowWidth, 6 * scale, 0, 0, Math.PI * 2);
     ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
     ctx.fill();
 
-    // 1. Draw Background Orbiting Crystals (half of orbit behind character)
-    if (this.type === "player" || this.type === "boss") {
-      this.renderCrystals(ctx, true);
-    }
+    ctx.translate(this.x, this.y);
 
-    // 2. Kinematics calculations
+    // Kinematic Joints
     const hipX = 0;
     const hipY = pose.hipY * scale;
 
-    const spineLength = 36 * scale;
-    const chestX = hipX + Math.sin(pose.torsoAngle) * spineLength * facing;
-    const chestY = hipY - Math.cos(pose.torsoAngle) * spineLength;
+    const spineLen = 36 * scale;
+    const chestX = hipX + Math.sin(pose.torsoAngle) * spineLen * facing;
+    const chestY = hipY - Math.cos(pose.torsoAngle) * spineLen;
 
-    const headRadius = 13 * scale;
-    const neckLength = 12 * scale;
-    const headX = chestX + Math.sin(pose.headAngle + pose.torsoAngle) * neckLength * facing;
-    const headY = chestY - Math.cos(pose.headAngle + pose.torsoAngle) * neckLength - headRadius;
+    const headRadius = 13.5 * scale;
+    const neckLen = 11 * scale;
+    const headX = chestX + Math.sin(pose.headAngle + pose.torsoAngle) * neckLen * facing;
+    const headY = chestY - Math.cos(pose.headAngle + pose.torsoAngle) * neckLen - headRadius;
 
-    // Upper limb segment lengths
     const armUpperLen = 22 * scale;
-    const armForeLen = 20 * scale;
-    const legUpperLen = 25 * scale;
+    const armForeLen = 22 * scale;
+    const legUpperLen = 26 * scale;
     const legLowerLen = 26 * scale;
 
-    // Setup line styles
-    ctx.strokeStyle = this.bodyColor;
+    // Stroke style
+    ctx.strokeStyle = this.color;
     ctx.lineWidth = this.strokeWidth * scale;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -245,25 +355,29 @@ export class Stickman2DCharacter {
     ctx.lineTo(lFootX, lFootY);
     ctx.stroke();
 
-    // --- LEFT ARM (Back / Off-hand) ---
+    // Foot
+    ctx.beginPath();
+    ctx.moveTo(lFootX, lFootY);
+    ctx.lineTo(lFootX + 7 * scale * facing, lFootY);
+    ctx.stroke();
+
+    // --- LEFT ARM (Back) ---
     const lElbowX = chestX + Math.sin(pose.lArmUpper) * armUpperLen * facing;
     const lElbowY = chestY + Math.cos(pose.lArmUpper) * armUpperLen;
-    const lHandX = lElbowX + Math.sin(pose.lArmUpper + pose.lArmFore) * armForeLen * facing;
-    const lHandY = lElbowY + Math.cos(pose.lArmUpper + pose.lArmFore) * armForeLen;
+    const lFistX = lElbowX + Math.sin(pose.lArmUpper + pose.lArmFore) * armForeLen * facing;
+    const lFistY = lElbowY + Math.cos(pose.lArmUpper + pose.lArmFore) * armForeLen;
 
     ctx.beginPath();
     ctx.moveTo(chestX, chestY);
     ctx.lineTo(lElbowX, lElbowY);
-    ctx.lineTo(lHandX, lHandY);
+    ctx.lineTo(lFistX, lFistY);
     ctx.stroke();
 
-    // Left hand open palm / fingers for player martial pose
-    if (this.type === "player") {
-      ctx.beginPath();
-      ctx.arc(lHandX, lHandY, 4 * scale, 0, Math.PI * 2);
-      ctx.fillStyle = this.bodyColor;
-      ctx.fill();
-    }
+    // Fist circle
+    ctx.beginPath();
+    ctx.arc(lFistX, lFistY, 4.5 * scale, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.fill();
 
     // --- TORSO / SPINE ---
     ctx.beginPath();
@@ -283,49 +397,29 @@ export class Stickman2DCharacter {
     ctx.lineTo(rFootX, rFootY);
     ctx.stroke();
 
-    // --- RIGHT ARM (Front / Weapon hand) ---
+    // Foot
+    ctx.beginPath();
+    ctx.moveTo(rFootX, rFootY);
+    ctx.lineTo(rFootX + 7 * scale * facing, rFootY);
+    ctx.stroke();
+
+    // --- RIGHT ARM (Front) ---
     const rElbowX = chestX + Math.sin(pose.rArmUpper) * armUpperLen * facing;
     const rElbowY = chestY + Math.cos(pose.rArmUpper) * armUpperLen;
-    const rHandX = rElbowX + Math.sin(pose.rArmUpper + pose.rArmFore) * armForeLen * facing;
-    const rHandY = rElbowY + Math.cos(pose.rArmUpper + pose.rArmFore) * armForeLen;
+    const rFistX = rElbowX + Math.sin(pose.rArmUpper + pose.rArmFore) * armForeLen * facing;
+    const rFistY = rElbowY + Math.cos(pose.rArmUpper + pose.rArmFore) * armForeLen;
 
     ctx.beginPath();
     ctx.moveTo(chestX, chestY);
     ctx.lineTo(rElbowX, rElbowY);
-    ctx.lineTo(rHandX, rHandY);
+    ctx.lineTo(rFistX, rFistY);
     ctx.stroke();
 
-    // --- WEAPON (Reverse-grip Tactical Dagger / Greatsword) ---
-    const bladeLen = (this.type === "boss" ? 55 : this.type === "brute" ? 38 : 28) * scale;
-    const weaponAngleRad = pose.weaponAngle;
-    const tipX = rHandX + Math.sin(weaponAngleRad) * bladeLen * facing;
-    const tipY = rHandY - Math.cos(weaponAngleRad) * bladeLen;
-
-    // Track blade tip for trails and hitboxes
-    if (this.isAlive) {
-      this.bladeTipHistory.push({ x: this.x + tipX, y: this.y + tipY });
-      if (this.bladeTipHistory.length > 8) this.bladeTipHistory.shift();
-    }
-
-    // Draw Blade
-    ctx.save();
+    // Fist circle
     ctx.beginPath();
-    ctx.moveTo(rHandX, rHandY);
-    ctx.lineTo(tipX, tipY);
-    ctx.lineWidth = (this.type === "boss" ? 6 : 4) * scale;
-    ctx.strokeStyle = this.weaponColor;
-    ctx.stroke();
-
-    // Glowing edge
-    ctx.beginPath();
-    ctx.moveTo(rHandX, rHandY);
-    ctx.lineTo(tipX, tipY);
-    ctx.lineWidth = 2.2 * scale;
-    ctx.strokeStyle = this.edgeColor;
-    ctx.shadowColor = this.edgeColor;
-    ctx.shadowBlur = 10;
-    ctx.stroke();
-    ctx.restore();
+    ctx.arc(rFistX, rFistY, 4.5 * scale, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.fill();
 
     // --- HEAD ---
     ctx.save();
@@ -333,175 +427,59 @@ export class Stickman2DCharacter {
     ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
     ctx.fillStyle = this.headColor;
     ctx.fill();
-
-    // Red inner edge shading
-    ctx.lineWidth = 2.5 * scale;
-    ctx.strokeStyle = this.bodyColor;
+    ctx.strokeStyle = this.color;
+    ctx.lineWidth = 2 * scale;
     ctx.stroke();
 
-    // EYES & SCARS (Faithful to Reference Image B!)
-    if (this.type === "player") {
-      const eyeOffsetX = 4 * scale * facing;
-      const eyeOffsetY = -1 * scale;
-
-      // Glowing Emerald Eyes
-      ctx.shadowColor = "#4ade80";
-      ctx.shadowBlur = 12;
-
-      // Left eye
-      ctx.beginPath();
-      ctx.ellipse(headX + eyeOffsetX - 4 * scale, headY + eyeOffsetY, 2.5 * scale, 3.5 * scale, 0.2 * facing, 0, Math.PI * 2);
-      ctx.fillStyle = "#4ade80";
-      ctx.fill();
-
-      // Right eye
-      ctx.beginPath();
-      ctx.ellipse(headX + eyeOffsetX + 3 * scale, headY + eyeOffsetY, 2.8 * scale, 4 * scale, 0.1 * facing, 0, Math.PI * 2);
-      ctx.fillStyle = "#ffffff";
-      ctx.fill();
-
-      // Cross-scar scratches over eyes (Reference Image B)
-      ctx.strokeStyle = "rgba(74, 222, 128, 0.75)";
-      ctx.lineWidth = 1.2 * scale;
-      // Cross 1
-      ctx.beginPath();
-      ctx.moveTo(headX + eyeOffsetX - 4 * scale, headY + eyeOffsetY - 6 * scale);
-      ctx.lineTo(headX + eyeOffsetX - 4 * scale, headY + eyeOffsetY + 6 * scale);
-      ctx.moveTo(headX + eyeOffsetX - 8 * scale, headY + eyeOffsetY);
-      ctx.lineTo(headX + eyeOffsetX, headY + eyeOffsetY);
-      ctx.stroke();
-
-      // Cross 2
-      ctx.beginPath();
-      ctx.moveTo(headX + eyeOffsetX + 3 * scale, headY + eyeOffsetY - 7 * scale);
-      ctx.lineTo(headX + eyeOffsetX + 3 * scale, headY + eyeOffsetY + 7 * scale);
-      ctx.moveTo(headX + eyeOffsetX - 1 * scale, headY + eyeOffsetY);
-      ctx.lineTo(headX + eyeOffsetX + 7 * scale, headY + eyeOffsetY);
-      ctx.stroke();
-    } else if (this.type === "boss") {
-      // Golden horned crown & blazing eyes
-      ctx.shadowColor = "#fbbf24";
-      ctx.shadowBlur = 15;
-      ctx.fillStyle = "#fbbf24";
-      ctx.beginPath();
-      ctx.arc(headX + 4 * scale * facing, headY - 2 * scale, 3 * scale, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Horns
-      ctx.strokeStyle = "#fbbf24";
-      ctx.lineWidth = 3.5 * scale;
-      ctx.beginPath();
-      ctx.moveTo(headX - 6 * scale, headY - headRadius);
-      ctx.lineTo(headX - 12 * scale, headY - headRadius - 12 * scale);
-      ctx.moveTo(headX + 6 * scale, headY - headRadius);
-      ctx.lineTo(headX + 12 * scale, headY - headRadius - 12 * scale);
-      ctx.stroke();
-    } else {
-      // Standard glowing menacing eye slits for enemies
-      ctx.shadowColor = this.eyeColor;
-      ctx.shadowBlur = 8;
-      ctx.fillStyle = this.eyeColor;
-      ctx.beginPath();
-      ctx.ellipse(headX + 4 * scale * facing, headY - 1 * scale, 3 * scale, 2 * scale, 0.3 * facing, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-
-    // 3. Draw Foreground Orbiting Crystals & Energy Ribbons
-    if (this.type === "player" || this.type === "boss") {
-      this.renderCrystals(ctx, false);
-      this.renderEnergyRibbons(ctx, chestX, chestY);
-    }
-
-    // 4. Draw Slash Arcs if active
-    if (pose.slashArc) {
-      this.renderSlashArc(ctx, tipX, tipY);
-    }
-
-    ctx.restore();
-  }
-
-  renderCrystals(ctx, isBackLayer) {
-    const scale = this.scale;
-    const rx = 55 * scale;
-    const ry = 22 * scale;
-    const centerY = -50 * scale;
-
-    ctx.save();
-    for (let i = 0; i < 4; i++) {
-      const angle = this.shardAngle + (i * Math.PI) / 2;
-      const sinA = Math.sin(angle);
-      const cosA = Math.cos(angle);
-
-      // Distinguish back vs front half of orbit
-      const isBack = sinA < 0;
-      if (isBack !== isBackLayer) continue;
-
-      const cx = cosA * rx;
-      const cy = centerY + sinA * ry;
-
-      // Crystal Polygon (Emerald Diamond Shard from Reference Image B)
-      const shardSize = (8 + (sinA + 1) * 2) * scale;
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate(angle * 1.5);
-
-      ctx.beginPath();
-      ctx.moveTo(0, -shardSize);
-      ctx.lineTo(shardSize * 0.5, 0);
-      ctx.lineTo(0, shardSize);
-      ctx.lineTo(-shardSize * 0.5, 0);
-      ctx.closePath();
-
-      ctx.fillStyle = this.crystalColor;
-      ctx.shadowColor = this.crystalColor;
-      ctx.shadowBlur = 12;
-      ctx.fill();
-
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.2 * scale;
-      ctx.stroke();
-      ctx.restore();
-    }
-    ctx.restore();
-  }
-
-  renderEnergyRibbons(ctx, chestX, chestY) {
-    const scale = this.scale;
-    const t = this.ribbonTimer;
-
-    ctx.save();
-    ctx.strokeStyle = this.ribbonColor;
-    ctx.lineWidth = 3.5 * scale;
-    ctx.shadowColor = this.edgeColor;
-    ctx.shadowBlur = 14;
-    ctx.lineCap = "round";
-
-    // Animated dynamic spiral ribbon (Reference Image B)
+    // Eye slit / glow
+    ctx.fillStyle = this.eyeColor;
     ctx.beginPath();
-    const rx = 60 * scale;
-    const ry = 26 * scale;
-    for (let a = 0; a < Math.PI * 2.2; a += 0.25) {
-      const theta = a + t;
-      const px = Math.cos(theta) * rx * 0.8;
-      const py = chestY + Math.sin(theta) * ry + Math.cos(a) * 12 * scale;
-      if (a === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+    ctx.arc(headX + 4 * scale * facing, headY - 1 * scale, 2.5 * scale, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // --- SPECIAL ENERGY BEAM (Reference A Frame 14, 34, 44) ---
+    if (pose.energyBeam) {
+      this.renderEnergyBeam(ctx, chestX, chestY);
     }
-    ctx.stroke();
+
     ctx.restore();
   }
 
-  renderSlashArc(ctx, tipX, tipY) {
+  renderEnergyBeam(ctx, chestX, chestY) {
+    const facing = this.facing;
     const scale = this.scale;
+    const startX = chestX + 22 * facing;
+    const length = 240 * scale;
+    const endX = startX + length * facing;
+
     ctx.save();
+    // Beam Core
+    const grad = ctx.createLinearGradient(startX, chestY, endX, chestY);
+    grad.addColorStop(0, "#ffffff");
+    grad.addColorStop(0.3, this.type === "player" ? "#4ade80" : "#f87171");
+    grad.addColorStop(1, this.type === "player" ? "rgba(34, 197, 94, 0.2)" : "rgba(239, 68, 68, 0.2)");
+
     ctx.beginPath();
-    ctx.arc(tipX - 10 * this.facing, tipY, 40 * scale, -0.6 * this.facing, 1.2 * this.facing, this.facing < 0);
-    ctx.lineWidth = 5 * scale;
-    ctx.strokeStyle = this.edgeColor;
-    ctx.shadowColor = this.edgeColor;
-    ctx.shadowBlur = 16;
-    ctx.stroke();
+    ctx.moveTo(startX, chestY - 10 * scale);
+    ctx.lineTo(endX, chestY - 26 * scale);
+    ctx.lineTo(endX, chestY + 26 * scale);
+    ctx.lineTo(startX, chestY + 10 * scale);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.shadowColor = this.type === "player" ? "#4ade80" : "#ef4444";
+    ctx.shadowBlur = 20;
+    ctx.fill();
+
+    // Swirling rings around beam
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2 * scale;
+    for (let i = 1; i <= 3; i++) {
+      const rx = startX + (length / 4) * i * facing;
+      ctx.beginPath();
+      ctx.ellipse(rx, chestY, 8 * scale, 22 * scale, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
     ctx.restore();
   }
 }

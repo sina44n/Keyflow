@@ -1,16 +1,19 @@
 /**
  * Stickman2DEnvironment.js
- * Multi-layer 2D Parallax Red Forest Battlefield with dynamic particle atmosphere,
- * smooth horizontal camera tracking, and screen shake system.
+ * High-readability 2D Martial Arts Fighting Arena.
+ * Features:
+ * - High-contrast dojo / dusky mountain courtyard background that highlights stickman silhouettes.
+ * - Solid ground combat platform with stone seams and subtle lighting.
+ * - Smooth horizontal camera tracking the active fight pocket.
+ * - Dynamic camera screen shake system on heavy punches, kicks, and knockdowns.
  */
 
 export class Stickman2DEnvironment {
-  constructor(canvasWidth = 1000, canvasHeight = 600) {
+  constructor(canvasWidth = 1000, canvasHeight = 560) {
     this.width = canvasWidth;
     this.height = canvasHeight;
     this.groundY = Math.round(canvasHeight * 0.72);
 
-    // 2D Camera
     this.cameraX = 0;
     this.targetCameraX = 0;
     this.shakeIntensity = 0;
@@ -18,20 +21,7 @@ export class Stickman2DEnvironment {
 
     // Atmospheric particles
     this.particles = [];
-    this.initParticles();
-
-    // Runic Spires positions (world X coordinates)
-    this.spires = [-600, -200, 300, 800, 1400, 2000, 2600];
-    // Background trees positions
-    this.bgTrees = [];
-    for (let x = -1000; x < 3500; x += 180 + Math.random() * 120) {
-      this.bgTrees.push({
-        x,
-        height: 160 + Math.random() * 90,
-        width: 35 + Math.random() * 25,
-        branches: Math.floor(2 + Math.random() * 3),
-      });
-    }
+    this.initAtmosphere();
   }
 
   resize(width, height) {
@@ -40,36 +30,31 @@ export class Stickman2DEnvironment {
     this.groundY = Math.round(height * 0.72);
   }
 
-  initParticles() {
+  initAtmosphere() {
     this.particles = [];
-    const count = 45;
-    for (let i = 0; i < count; i++) {
-      const isEmerald = Math.random() > 0.65;
+    for (let i = 0; i < 30; i++) {
       this.particles.push({
-        x: Math.random() * (this.width + 1200) - 600,
+        x: Math.random() * (this.width + 800) - 400,
         y: Math.random() * this.height,
-        vx: (Math.random() - 0.5) * 20 - 15,
-        vy: isEmerald ? (Math.random() - 0.5) * 15 : -25 - Math.random() * 30,
-        radius: isEmerald ? 2.5 + Math.random() * 2 : 1.5 + Math.random() * 2,
-        color: isEmerald ? "rgba(74, 222, 128, " : "rgba(239, 68, 68, ",
-        alpha: 0.3 + Math.random() * 0.6,
-        pulseSpeed: 1 + Math.random() * 3,
-        pulse: Math.random() * Math.PI * 2,
+        vx: (Math.random() - 0.5) * 15 - 10,
+        vy: -15 - Math.random() * 25,
+        radius: 1.5 + Math.random() * 1.5,
+        alpha: 0.2 + Math.random() * 0.4,
       });
     }
   }
 
-  addShake(intensity = 8, duration = 0.25) {
+  addShake(intensity = 6, duration = 0.2) {
     this.shakeIntensity = Math.max(this.shakeIntensity, intensity);
     this.shakeTime = Math.max(this.shakeTime, duration);
   }
 
-  update(dt, playerX) {
-    // Camera follows player smoothly
-    this.targetCameraX = playerX - this.width * 0.35;
+  update(dt, focusX) {
+    // Camera centers smoothly between fighters
+    this.targetCameraX = focusX - this.width * 0.5;
     this.cameraX += (this.targetCameraX - this.cameraX) * 0.08;
 
-    // Camera screen shake decay
+    // Screen shake decay
     if (this.shakeTime > 0) {
       this.shakeTime -= dt;
       if (this.shakeTime <= 0) {
@@ -77,231 +62,111 @@ export class Stickman2DEnvironment {
       }
     }
 
-    // Update atmospheric particles
+    // Atmospheric particles
     for (const p of this.particles) {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
-      p.pulse += p.pulseSpeed * dt;
-
-      // Wrap around screen boundaries relative to camera
       if (p.y < 0) p.y = this.height;
-      if (p.y > this.height) p.y = 0;
       if (p.x < this.cameraX - 100) p.x = this.cameraX + this.width + 100;
-      if (p.x > this.cameraX + this.width + 100) p.x = this.cameraX - 100;
     }
   }
 
   render(ctx) {
     ctx.save();
 
-    // Calculate camera shake offset
-    let shakeOffsetX = 0;
-    let shakeOffsetY = 0;
+    // Screen shake offsets
+    let shakeX = 0;
+    let shakeY = 0;
     if (this.shakeIntensity > 0) {
-      shakeOffsetX = (Math.random() * 2 - 1) * this.shakeIntensity;
-      shakeOffsetY = (Math.random() * 2 - 1) * this.shakeIntensity;
+      shakeX = (Math.random() * 2 - 1) * this.shakeIntensity;
+      shakeY = (Math.random() * 2 - 1) * this.shakeIntensity;
     }
 
-    // 1. SKY GRADIENT (Static in screen space)
+    // 1. SKY / DOJO BACKDROP (Screen space)
     const skyGrad = ctx.createLinearGradient(0, 0, 0, this.groundY);
-    skyGrad.addColorStop(0, "#180608"); // Deep dark obsidian red
-    skyGrad.addColorStop(0.45, "#3b0c11"); // Blood crimson
-    skyGrad.addColorStop(0.85, "#5a131b"); // Fiery twilight glow
-    skyGrad.addColorStop(1, "#2a0a0e");
+    skyGrad.addColorStop(0, "#09090b"); // Pure deep obsidian night
+    skyGrad.addColorStop(0.5, "#18181b"); // Slate dark
+    skyGrad.addColorStop(1, "#27272a"); // Subtle horizon glow
     ctx.fillStyle = skyGrad;
     ctx.fillRect(0, 0, this.width, this.height);
 
-    // Glowing Blood Moon
-    const moonX = this.width * 0.78 - (this.cameraX * 0.03);
+    // Subtle atmospheric moon / arena backlight
+    const moonX = this.width * 0.75 - this.cameraX * 0.02;
     const moonY = this.height * 0.22;
-    const moonRadius = 45;
-
-    ctx.save();
     ctx.beginPath();
-    ctx.arc(moonX, moonY, moonRadius, 0, Math.PI * 2);
-    ctx.fillStyle = "#f87171";
-    ctx.shadowColor = "rgba(239, 68, 68, 0.85)";
-    ctx.shadowBlur = 40;
+    ctx.arc(moonX, moonY, 48, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+    ctx.shadowColor = "rgba(255, 255, 255, 0.15)";
+    ctx.shadowBlur = 35;
     ctx.fill();
 
-    // Dark eclipse crescent
-    ctx.beginPath();
-    ctx.arc(moonX - 12, moonY - 6, moonRadius - 4, 0, Math.PI * 2);
-    ctx.fillStyle = "#3b0c11";
-    ctx.shadowBlur = 0;
-    ctx.fill();
-    ctx.restore();
+    // 2. WORLD SPACE TRANSFORM
+    ctx.translate(-this.cameraX + shakeX, shakeY);
 
-    // Apply Camera Transform
-    ctx.translate(-this.cameraX + shakeOffsetX, shakeOffsetY);
-
-    // 2. LAYER 1: Distant Silhouette Mountain Range (Parallax ~0.2x)
-    this.renderDistantMountains(ctx);
-
-    // 3. LAYER 2: Midground Red Pines & Runic Spire Monoliths (Parallax ~0.5x)
-    this.renderMidgroundPinesAndSpires(ctx);
-
-    // 4. LAYER 3: Battlefield Ground Plane (1.0x full speed)
-    this.renderBattlefieldGround(ctx);
-
-    // 5. LAYER 4: Atmospheric Embers & Fireflies
-    this.renderAtmosphereParticles(ctx);
-
-    ctx.restore();
-  }
-
-  renderDistantMountains(ctx) {
-    ctx.save();
-    ctx.fillStyle = "#1e080b";
+    // Distant mountain silhouettes
+    ctx.fillStyle = "#121215";
     ctx.beginPath();
     ctx.moveTo(this.cameraX - 200, this.groundY);
-
-    const startX = Math.floor((this.cameraX * 0.2) / 250) * 250 - 400;
-    for (let x = startX; x < startX + this.width + 800; x += 180) {
-      const peakY = this.groundY - 140 - Math.sin(x * 0.005) * 60;
-      ctx.lineTo(x + this.cameraX * 0.8, peakY);
+    for (let x = this.cameraX - 200; x <= this.cameraX + this.width + 200; x += 150) {
+      const my = this.groundY - 120 - Math.sin(x * 0.006) * 45;
+      ctx.lineTo(x, my);
     }
-    ctx.lineTo(this.cameraX + this.width + 300, this.groundY);
+    ctx.lineTo(this.cameraX + this.width + 200, this.groundY);
     ctx.closePath();
     ctx.fill();
-    ctx.restore();
-  }
 
-  renderMidgroundPinesAndSpires(ctx) {
-    ctx.save();
-
-    // Draw background trees
-    for (const tree of this.bgTrees) {
-      const screenX = tree.x;
-      if (screenX < this.cameraX - 150 || screenX > this.cameraX + this.width + 150) continue;
-
-      const topY = this.groundY - tree.height;
-
-      // Trunk
-      ctx.fillStyle = "#2d0b10";
+    // Arena pillars / lanterns in background
+    ctx.fillStyle = "#1e1e24";
+    for (let px = -600; px <= 2400; px += 350) {
+      if (px < this.cameraX - 100 || px > this.cameraX + this.width + 100) continue;
+      // Pillar
+      ctx.fillRect(px - 14, this.groundY - 160, 28, 160);
+      // Lantern glow
       ctx.beginPath();
-      ctx.moveTo(screenX - tree.width * 0.5, this.groundY);
-      ctx.lineTo(screenX + tree.width * 0.5, this.groundY);
-      ctx.lineTo(screenX + tree.width * 0.2, topY);
-      ctx.lineTo(screenX - tree.width * 0.2, topY);
-      ctx.closePath();
+      ctx.arc(px, this.groundY - 170, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(239, 68, 68, 0.5)";
+      ctx.shadowColor = "#ef4444";
+      ctx.shadowBlur = 12;
       ctx.fill();
-
-      // Gnarled branches
-      ctx.strokeStyle = "#2d0b10";
-      ctx.lineWidth = 5;
-      ctx.beginPath();
-      ctx.moveTo(screenX, topY + tree.height * 0.4);
-      ctx.lineTo(screenX - 45, topY + tree.height * 0.25);
-      ctx.moveTo(screenX, topY + tree.height * 0.6);
-      ctx.lineTo(screenX + 45, topY + tree.height * 0.45);
-      ctx.stroke();
-    }
-
-    // Ancient Runic Spires with glowing green runes
-    for (const spireX of this.spires) {
-      if (spireX < this.cameraX - 200 || spireX > this.cameraX + this.width + 200) continue;
-
-      const spireHeight = 180;
-      const spireWidth = 32;
-      const topY = this.groundY - spireHeight;
-
-      // Spire stone obelisk
       ctx.fillStyle = "#1e1e24";
-      ctx.beginPath();
-      ctx.moveTo(spireX - spireWidth / 2, this.groundY);
-      ctx.lineTo(spireX - spireWidth / 3, topY);
-      ctx.lineTo(spireX, topY - 20); // Pointed cap
-      ctx.lineTo(spireX + spireWidth / 3, topY);
-      ctx.lineTo(spireX + spireWidth / 2, this.groundY);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.strokeStyle = "#2e2e38";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Glowing Emerald Runes
-      ctx.save();
-      ctx.strokeStyle = "#4ade80";
-      ctx.shadowColor = "#4ade80";
-      ctx.shadowBlur = 10;
-      ctx.lineWidth = 2.5;
-
-      // Draw rune glyphs on the spire
-      ctx.beginPath();
-      const rY1 = topY + 40;
-      ctx.moveTo(spireX - 5, rY1 - 8);
-      ctx.lineTo(spireX + 5, rY1);
-      ctx.lineTo(spireX - 5, rY1 + 8);
-
-      const rY2 = topY + 80;
-      ctx.moveTo(spireX - 6, rY2);
-      ctx.lineTo(spireX + 6, rY2);
-      ctx.moveTo(spireX, rY2 - 8);
-      ctx.lineTo(spireX, rY2 + 8);
-
-      const rY3 = topY + 120;
-      ctx.arc(spireX, rY3, 5, 0, Math.PI * 2);
-
-      ctx.stroke();
-      ctx.restore();
     }
 
-    ctx.restore();
-  }
-
-  renderBattlefieldGround(ctx) {
-    ctx.save();
-
-    // Ground platform fill
+    // 3. GROUND PLATFORM (Solid martial arts stone floor)
     const groundGrad = ctx.createLinearGradient(0, this.groundY, 0, this.height);
-    groundGrad.addColorStop(0, "#1c1417"); // Dark ancient basalt
-    groundGrad.addColorStop(0.3, "#120c0f");
-    groundGrad.addColorStop(1, "#080507");
+    groundGrad.addColorStop(0, "#18181b");
+    groundGrad.addColorStop(0.3, "#0f172a");
+    groundGrad.addColorStop(1, "#020617");
     ctx.fillStyle = groundGrad;
     ctx.fillRect(this.cameraX - 200, this.groundY, this.width + 400, this.height - this.groundY);
 
-    // Stone flagstone edge line
-    ctx.strokeStyle = "#3f1b24";
-    ctx.lineWidth = 4;
+    // Crisp Stone Ground Line
+    ctx.strokeStyle = "#3f3f46";
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
     ctx.moveTo(this.cameraX - 200, this.groundY);
     ctx.lineTo(this.cameraX + this.width + 200, this.groundY);
     ctx.stroke();
 
-    // Flagstone tile seams and cracks
-    ctx.strokeStyle = "#2a151b";
-    ctx.lineWidth = 2;
-    const tileWidth = 90;
-    const startTile = Math.floor((this.cameraX - 200) / tileWidth) * tileWidth;
-    for (let tx = startTile; tx < this.cameraX + this.width + 200; tx += tileWidth) {
+    // Flagstone Tile Seams
+    ctx.strokeStyle = "#27272a";
+    ctx.lineWidth = 1.5;
+    const tileW = 90;
+    const startX = Math.floor((this.cameraX - 200) / tileW) * tileW;
+    for (let tx = startX; tx < this.cameraX + this.width + 200; tx += tileW) {
       ctx.beginPath();
       ctx.moveTo(tx, this.groundY);
-      ctx.lineTo(tx - 15, this.groundY + 35);
+      ctx.lineTo(tx - 20, this.height);
       ctx.stroke();
     }
 
-    // Subtle mossy / blood stains on the battle floor
-    ctx.fillStyle = "rgba(185, 28, 28, 0.15)";
-    for (let bx = startTile; bx < this.cameraX + this.width + 200; bx += 180) {
-      ctx.beginPath();
-      ctx.ellipse(bx + 40, this.groundY + 10, 45, 6, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.restore();
-  }
-
-  renderAtmosphereParticles(ctx) {
-    ctx.save();
+    // 4. ATMOSPHERIC MOTES
+    ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
     for (const p of this.particles) {
-      const alpha = p.alpha * (0.6 + 0.4 * Math.sin(p.pulse));
-      ctx.fillStyle = p.color + alpha + ")";
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
       ctx.fill();
     }
+
     ctx.restore();
   }
 }
