@@ -24,6 +24,7 @@ import {
   Users,
   Check,
   Disc,
+  AlertTriangle,
 } from 'lucide-react';
 import { Button } from '../../common/Button';
 import { useI18n } from '../../../i18n/I18nContext';
@@ -578,6 +579,7 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     // 60 FPS Simulation Loop
     let animId;
     const renderLoop = (timestamp) => {
+      const nowMs = performance.now();
       if (!threeRef.current.lastFrameTime) threeRef.current.lastFrameTime = timestamp;
       const dt = Math.min(0.08, (timestamp - threeRef.current.lastFrameTime) / 1000);
       threeRef.current.lastFrameTime = timestamp;
@@ -630,8 +632,8 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
             threeRef.current.slowCadenceElapsed = (threeRef.current.slowCadenceElapsed || 0) + dt;
             const remaining = Math.max(0, tierConfig.eliminationGraceSeconds - threeRef.current.slowCadenceElapsed);
 
-            if (!threeRef.current.lastWarnUpdate || now - threeRef.current.lastWarnUpdate > 250) {
-              threeRef.current.lastWarnUpdate = now;
+            if (!threeRef.current.lastWarnUpdate || nowMs - threeRef.current.lastWarnUpdate > 250) {
+              threeRef.current.lastWarnUpdate = nowMs;
               setEliminationWarning({
                 remaining: Math.ceil(remaining),
                 minWpm,
@@ -758,7 +760,7 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
       });
 
       // 6. Update Environment
-      env.update(playerVehicle.distance);
+      env.update({ playerX: playerVehicle.distance });
 
       // 7. Calculate Live Placements & Update Billboard Badges
       const racerList = [

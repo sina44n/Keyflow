@@ -325,7 +325,8 @@ export const create3DEnvironment = ({
      * Updates road tile positions as the player advances from Left to Right.
      * Recycles passed segments with zero allocations or memory leaks.
      */
-    update({ playerX = 0 }) {
+    update(arg) {
+    const playerX = typeof arg === 'object' && arg !== null ? (arg.playerX ?? 0) : (Number(arg) || 0);
       // Re-position segments that fall behind player
       roadSegments.forEach((seg) => {
         if (seg.position.x + segmentLength < playerX - 100) {

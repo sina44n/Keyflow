@@ -27,6 +27,9 @@ export class Stickman2DCharacter {
     this.hp = this.maxHp;
     this.isAlive = true;
 
+    // Animation & aura time
+    this.animTime = 0;
+
     // Physics & combat states
     this.vx = 0;
     this.vy = 0;
@@ -48,14 +51,31 @@ export class Stickman2DCharacter {
 
   setupPalette() {
     if (this.type === "player") {
-      this.color = "#ef4444"; // Crimson Red
-      this.headColor = "#ef4444";
-      this.eyeColor = "#ffffff";
-      this.glowColor = "rgba(239, 68, 68, 0.4)";
-      this.strokeWidth = 6.5;
+      // Red Stickman Warrior (Reference Image 1 & 2)
+      this.color = "#dc2626"; // Crimson Red
+      this.headColor = "#dc2626";
+      this.eyeColor = "#4ade80"; // Glowing emerald green
+      this.glowColor = "rgba(74, 222, 128, 0.45)";
+      this.strokeWidth = 6.8;
+      this.hasWarriorAura = true;
+    } else if (this.name && this.name.toLowerCase().includes("white")) {
+      // Iconic White Stickman Rival from Storyboard (Reference Image 4 Frame 1-54)
+      this.color = "#ffffff";
+      this.headColor = "#ffffff";
+      this.eyeColor = "#09090b";
+      this.outlineColor = "#09090b";
+      this.glowColor = "rgba(255, 255, 255, 0.4)";
+      this.strokeWidth = 6.2;
+      this.isWhiteFighter = true;
+    } else if (this.type === "boss") {
+      this.color = "#7c2d12"; // Deep bronze/dark red
+      this.headColor = "#991b1b";
+      this.eyeColor = "#f59e0b"; // Golden glow
+      this.glowColor = "rgba(245, 158, 11, 0.45)";
+      this.strokeWidth = 8.5;
     } else {
-      // Enemy: Charcoal / White contrast
-      this.color = "#18181b"; // Charcoal Black
+      // Enemy: Charcoal / Ninja Black
+      this.color = "#18181b";
       this.headColor = "#27272a";
       this.eyeColor = "#ef4444"; // Menacing red eyes
       this.glowColor = "rgba(24, 24, 27, 0.4)";
@@ -64,6 +84,8 @@ export class Stickman2DCharacter {
   }
 
   update(dt) {
+    this.animTime += dt;
+
     if (this.hitStopTimer > 0) {
       this.hitStopTimer -= dt;
       return; // Freeze movement during hit-stop
@@ -337,18 +359,64 @@ export class Stickman2DCharacter {
     const legUpperLen = 26 * scale;
     const legLowerLen = 26 * scale;
 
+    // Joint Endpoints
+    const lKneeX = hipX + Math.sin(pose.lLegUpper) * legUpperLen * facing;
+    const lKneeY = hipY + Math.cos(pose.lLegUpper) * legUpperLen;
+    const lFootX = lKneeX + Math.sin(pose.lLegUpper + pose.lLegLower) * legLowerLen * facing;
+    const lFootY = lKneeY + Math.cos(pose.lLegUpper + pose.lLegLower) * legLowerLen;
+
+    const lElbowX = chestX + Math.sin(pose.lArmUpper) * armUpperLen * facing;
+    const lElbowY = chestY + Math.cos(pose.lArmUpper) * armUpperLen;
+    const lFistX = lElbowX + Math.sin(pose.lArmUpper + pose.lArmFore) * armForeLen * facing;
+    const lFistY = lElbowY + Math.cos(pose.lArmUpper + pose.lArmFore) * armForeLen;
+
+    const rKneeX = hipX + Math.sin(pose.rLegUpper) * legUpperLen * facing;
+    const rKneeY = hipY + Math.cos(pose.rLegUpper) * legUpperLen;
+    const rFootX = rKneeX + Math.sin(pose.rLegUpper + pose.rLegLower) * legLowerLen * facing;
+    const rFootY = rKneeY + Math.cos(pose.rLegUpper + pose.rLegLower) * legLowerLen;
+
+    const rElbowX = chestX + Math.sin(pose.rArmUpper) * armUpperLen * facing;
+    const rElbowY = chestY + Math.cos(pose.rArmUpper) * armUpperLen;
+    const rFistX = rElbowX + Math.sin(pose.rArmUpper + pose.rArmFore) * armForeLen * facing;
+    const rFistY = rElbowY + Math.cos(pose.rArmUpper + pose.rArmFore) * armForeLen;
+
     // Stroke style
     ctx.strokeStyle = this.color;
     ctx.lineWidth = this.strokeWidth * scale;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    // --- LEFT LEG (Back) ---
-    const lKneeX = hipX + Math.sin(pose.lLegUpper) * legUpperLen * facing;
-    const lKneeY = hipY + Math.cos(pose.lLegUpper) * legUpperLen;
-    const lFootX = lKneeX + Math.sin(pose.lLegUpper + pose.lLegLower) * legLowerLen * facing;
-    const lFootY = lKneeY + Math.cos(pose.lLegUpper + pose.lLegLower) * legLowerLen;
+    // If White Fighter (Storyboard Rival), draw dark outline first for comic book contrast
+    if (this.isWhiteFighter) {
+      ctx.save();
+      ctx.strokeStyle = "#09090b";
+      ctx.lineWidth = (this.strokeWidth + 3.0) * scale;
+      // Draw limbs outline
+      ctx.beginPath();
+      ctx.moveTo(hipX, hipY);
+      ctx.lineTo(lKneeX, lKneeY);
+      ctx.lineTo(lFootX, lFootY);
+      ctx.moveTo(chestX, chestY);
+      ctx.lineTo(lElbowX, lElbowY);
+      ctx.lineTo(lFistX, lFistY);
+      ctx.moveTo(hipX, hipY);
+      ctx.lineTo(chestX, chestY);
+      ctx.moveTo(hipX, hipY);
+      ctx.lineTo(rKneeX, rKneeY);
+      ctx.lineTo(rFootX, rFootY);
+      ctx.moveTo(chestX, chestY);
+      ctx.lineTo(rElbowX, rElbowY);
+      ctx.lineTo(rFistX, rFistY);
+      ctx.stroke();
+      ctx.restore();
+    }
 
+    // --- WARRIOR FLOATING BLADES (Behind Body - Reference Image 1 & 2) ---
+    if (this.hasWarriorAura && this.isAlive && this.state !== "down" && this.state !== "knockback") {
+      this.renderFloatingBlades(ctx, chestX, chestY, scale, facing, this.animTime);
+    }
+
+    // --- LEFT LEG (Back) ---
     ctx.beginPath();
     ctx.moveTo(hipX, hipY);
     ctx.lineTo(lKneeX, lKneeY);
@@ -362,11 +430,6 @@ export class Stickman2DCharacter {
     ctx.stroke();
 
     // --- LEFT ARM (Back) ---
-    const lElbowX = chestX + Math.sin(pose.lArmUpper) * armUpperLen * facing;
-    const lElbowY = chestY + Math.cos(pose.lArmUpper) * armUpperLen;
-    const lFistX = lElbowX + Math.sin(pose.lArmUpper + pose.lArmFore) * armForeLen * facing;
-    const lFistY = lElbowY + Math.cos(pose.lArmUpper + pose.lArmFore) * armForeLen;
-
     ctx.beginPath();
     ctx.moveTo(chestX, chestY);
     ctx.lineTo(lElbowX, lElbowY);
@@ -379,6 +442,11 @@ export class Stickman2DCharacter {
     ctx.fillStyle = this.color;
     ctx.fill();
 
+    // Left Forearm Scars (Reference Image 1 & 2)
+    if (this.hasWarriorAura) {
+      this.renderForearmScars(ctx, lElbowX, lElbowY, lFistX, lFistY, scale);
+    }
+
     // --- TORSO / SPINE ---
     ctx.beginPath();
     ctx.moveTo(hipX, hipY);
@@ -386,11 +454,6 @@ export class Stickman2DCharacter {
     ctx.stroke();
 
     // --- RIGHT LEG (Front) ---
-    const rKneeX = hipX + Math.sin(pose.rLegUpper) * legUpperLen * facing;
-    const rKneeY = hipY + Math.cos(pose.rLegUpper) * legUpperLen;
-    const rFootX = rKneeX + Math.sin(pose.rLegUpper + pose.rLegLower) * legLowerLen * facing;
-    const rFootY = rKneeY + Math.cos(pose.rLegUpper + pose.rLegLower) * legLowerLen;
-
     ctx.beginPath();
     ctx.moveTo(hipX, hipY);
     ctx.lineTo(rKneeX, rKneeY);
@@ -404,11 +467,6 @@ export class Stickman2DCharacter {
     ctx.stroke();
 
     // --- RIGHT ARM (Front) ---
-    const rElbowX = chestX + Math.sin(pose.rArmUpper) * armUpperLen * facing;
-    const rElbowY = chestY + Math.cos(pose.rArmUpper) * armUpperLen;
-    const rFistX = rElbowX + Math.sin(pose.rArmUpper + pose.rArmFore) * armForeLen * facing;
-    const rFistY = rElbowY + Math.cos(pose.rArmUpper + pose.rArmFore) * armForeLen;
-
     ctx.beginPath();
     ctx.moveTo(chestX, chestY);
     ctx.lineTo(rElbowX, rElbowY);
@@ -421,22 +479,20 @@ export class Stickman2DCharacter {
     ctx.fillStyle = this.color;
     ctx.fill();
 
-    // --- HEAD ---
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
-    ctx.fillStyle = this.headColor;
-    ctx.fill();
-    ctx.strokeStyle = this.color;
-    ctx.lineWidth = 2 * scale;
-    ctx.stroke();
+    // Right Forearm Scars (Reference Image 1 & 2)
+    if (this.hasWarriorAura) {
+      this.renderForearmScars(ctx, rElbowX, rElbowY, rFistX, rFistY, scale);
+      // Combat Dagger held in front hand
+      this.renderCombatDagger(ctx, rFistX, rFistY, pose.rArmUpper + pose.rArmFore, scale, facing);
+    }
 
-    // Eye slit / glow
-    ctx.fillStyle = this.eyeColor;
-    ctx.beginPath();
-    ctx.arc(headX + 4 * scale * facing, headY - 1 * scale, 2.5 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    // --- SWIRLING NEON GREEN ENERGY RIBBON (Reference Image 1 & 2) ---
+    if (this.hasWarriorAura && this.isAlive && this.state !== "down" && this.state !== "knockback") {
+      this.renderEnergyRibbon(ctx, chestX, chestY, hipY, scale, facing, this.animTime);
+    }
+
+    // --- HEAD & FACE ---
+    this.renderHead(ctx, headX, headY, headRadius, scale, facing);
 
     // --- SPECIAL ENERGY BEAM (Reference A Frame 14, 34, 44) ---
     if (pose.energyBeam) {
@@ -480,6 +536,216 @@ export class Stickman2DCharacter {
       ctx.ellipse(rx, chestY, 8 * scale, 22 * scale, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
+    ctx.restore();
+  }
+
+  // Floating Emerald Dagger Crystals (Reference Image 1 & 2)
+  renderFloatingBlades(ctx, chestX, chestY, scale, facing, time) {
+    const bladeConfigs = [
+      { baseAngle: -0.85, dist: 78, rot: 0.35, s: 1.1 },
+      { baseAngle: -0.25, dist: 95, rot: -0.22, s: 0.92 },
+      { baseAngle: 2.15, dist: 82, rot: 0.75, s: 1.05 },
+      { baseAngle: 2.85, dist: 68, rot: -0.45, s: 0.88 },
+    ];
+
+    bladeConfigs.forEach((b, idx) => {
+      const bob = Math.sin(time * 2.4 + idx * 1.6) * 6;
+      const angle = b.baseAngle + Math.cos(time * 1.5 + idx) * 0.12;
+      const bx = chestX + Math.cos(angle) * b.dist * facing;
+      const by = chestY + Math.sin(angle) * (b.dist * 0.65) + bob;
+
+      ctx.save();
+      ctx.translate(bx, by);
+      ctx.rotate((b.rot + Math.sin(time * 2.0 + idx) * 0.25) * facing);
+      ctx.scale(scale * b.s, scale * b.s);
+
+      // Translucent Emerald Body with Glow
+      ctx.shadowColor = "#4ade80";
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = "rgba(16, 185, 129, 0.75)";
+      ctx.strokeStyle = "#86efac";
+      ctx.lineWidth = 1.6;
+
+      ctx.beginPath();
+      ctx.moveTo(0, -22); // Top tip
+      ctx.lineTo(6, -6);
+      ctx.lineTo(4, 18);
+      ctx.lineTo(0, 24); // Bottom tip
+      ctx.lineTo(-4, 18);
+      ctx.lineTo(-6, -6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // Sharp central energy spine
+      ctx.beginPath();
+      ctx.moveTo(0, -18);
+      ctx.lineTo(0, 20);
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.0;
+      ctx.stroke();
+
+      ctx.restore();
+    });
+  }
+
+  // Dynamic Swirling Neon Green Ribbon (Reference Image 1 & 2)
+  renderEnergyRibbon(ctx, chestX, chestY, hipY, scale, facing, time) {
+    ctx.save();
+    ctx.shadowColor = "#22c55e";
+    ctx.shadowBlur = 14;
+
+    const t = time * 2.8;
+
+    // Outer Ribbon Spiral
+    ctx.strokeStyle = "#4ade80";
+    ctx.lineWidth = 3.2 * scale;
+    ctx.lineCap = "round";
+
+    ctx.beginPath();
+    ctx.ellipse(chestX, chestY + 8 * scale, 54 * scale, 24 * scale, (Math.PI / 6) * facing, t, t + Math.PI * 1.25);
+    ctx.stroke();
+
+    // Secondary Inner Ribbon orbiting hips/legs
+    ctx.strokeStyle = "#86efac";
+    ctx.lineWidth = 2.4 * scale;
+    ctx.beginPath();
+    ctx.ellipse(chestX - 6 * scale * facing, hipY + 16 * scale, 44 * scale, 18 * scale, (-Math.PI / 7) * facing, -t * 0.9, -t * 0.9 + Math.PI * 1.15);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Tactical Combat Dagger in Lead Hand (Reference Image 1 & 2)
+  renderCombatDagger(ctx, fistX, fistY, armAngle, scale, facing) {
+    ctx.save();
+    ctx.translate(fistX, fistY);
+    ctx.rotate(armAngle);
+
+    // Dark charcoal hilt & grip
+    ctx.fillStyle = "#18181b";
+    ctx.fillRect(-2 * scale, -2 * scale, 4.5 * scale, 9 * scale);
+
+    // Guard
+    ctx.fillStyle = "#3f3f46";
+    ctx.fillRect(-4.5 * scale, 7 * scale, 9 * scale, 2.5 * scale);
+
+    // Blade with glowing emerald cutting edge
+    ctx.shadowColor = "#4ade80";
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = "#0f172a";
+    ctx.strokeStyle = "#4ade80";
+    ctx.lineWidth = 1.6 * scale;
+
+    ctx.beginPath();
+    ctx.moveTo(-1 * scale, 9 * scale);
+    ctx.lineTo(15 * scale * facing, 22 * scale); // Point
+    ctx.lineTo(2.5 * scale * facing, 9 * scale);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // Forearm Battle Scratches (Reference Image 1 & 2)
+  renderForearmScars(ctx, elbowX, elbowY, fistX, fistY, scale) {
+    ctx.save();
+    ctx.strokeStyle = "rgba(74, 222, 128, 0.6)";
+    ctx.lineWidth = 1.0 * scale;
+    const midX = (elbowX + fistX) / 2;
+    const midY = (elbowY + fistY) / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(midX - 4 * scale, midY - 3 * scale);
+    ctx.lineTo(midX + 4 * scale, midY + 3 * scale);
+    ctx.moveTo(midX - 3 * scale, midY + 4 * scale);
+    ctx.lineTo(midX + 5 * scale, midY - 2 * scale);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Authentic Head Rendering: Cross Scars & Glowing Green Cross Eyes (Image 1 & 2) or White Rival (Image 4)
+  renderHead(ctx, headX, headY, headRadius, scale, facing) {
+    ctx.save();
+
+    if (this.isWhiteFighter) {
+      // White Stickman Rival (Image 4 Storyboard)
+      ctx.beginPath();
+      ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
+      ctx.strokeStyle = "#09090b";
+      ctx.lineWidth = 3.0 * scale;
+      ctx.stroke();
+
+      // Sharp dark eye
+      ctx.fillStyle = "#09090b";
+      ctx.beginPath();
+      ctx.arc(headX + 4 * scale * facing, headY - 1 * scale, 2.8 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      return;
+    }
+
+    // Standard / Red Stickman Head
+    ctx.beginPath();
+    ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
+    ctx.fillStyle = this.headColor;
+    ctx.fill();
+    ctx.strokeStyle = this.hasWarriorAura ? "#991b1b" : this.color;
+    ctx.lineWidth = 2 * scale;
+    ctx.stroke();
+
+    if (this.hasWarriorAura) {
+      // 1. Battle Scar Scratches (faint gold/green etched lines as in Image 1/2)
+      ctx.strokeStyle = "rgba(254, 240, 138, 0.45)";
+      ctx.lineWidth = 1.0 * scale;
+      ctx.beginPath();
+      ctx.moveTo(headX - 6 * scale * facing, headY - 8 * scale);
+      ctx.lineTo(headX + 4 * scale * facing, headY + 5 * scale);
+      ctx.moveTo(headX - 2 * scale * facing, headY - 10 * scale);
+      ctx.lineTo(headX + 8 * scale * facing, headY + 3 * scale);
+      ctx.moveTo(headX - 7 * scale * facing, headY - 2 * scale);
+      ctx.lineTo(headX + 5 * scale * facing, headY - 8 * scale);
+      ctx.stroke();
+
+      // 2. Angled dark eye socket
+      const eyeX = headX + 4 * scale * facing;
+      const eyeY = headY - 1 * scale;
+      ctx.fillStyle = "#09090b";
+      ctx.beginPath();
+      ctx.ellipse(eyeX, eyeY, 4.8 * scale, 2.6 * scale, facing > 0 ? 0.3 : -0.3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 3. Glowing Emerald Cross Eye (Reference Image 1 & 2)
+      ctx.shadowColor = "#4ade80";
+      ctx.shadowBlur = 12;
+
+      ctx.strokeStyle = "#4ade80";
+      ctx.lineWidth = 2.0 * scale;
+      ctx.beginPath();
+      // Horizontal cross bar
+      ctx.moveTo(eyeX - 4.5 * scale, eyeY);
+      ctx.lineTo(eyeX + 4.5 * scale, eyeY);
+      // Vertical cross bar
+      ctx.moveTo(eyeX, eyeY - 4.5 * scale);
+      ctx.lineTo(eyeX, eyeY + 4.5 * scale);
+      ctx.stroke();
+
+      // White central spark
+      ctx.fillStyle = "#ffffff";
+      ctx.beginPath();
+      ctx.arc(eyeX, eyeY, 1.2 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      // Standard enemy eye
+      ctx.fillStyle = this.eyeColor;
+      ctx.beginPath();
+      ctx.arc(headX + 4 * scale * facing, headY - 1 * scale, 2.5 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.restore();
   }
 }

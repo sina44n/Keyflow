@@ -31,6 +31,11 @@ export class Stickman2DEnemies {
     this.attackTokenCooldown = 0.8;
   }
 
+  // Setup 1v1 Sparring Match (Phase 1)
+  setup1v1(playerX = 250) {
+    return this.setupEncounter(1, playerX);
+  }
+
   // Setup Encounter
   setupEncounter(encounter = 1, playerX = 250) {
     this.currentEncounter = encounter;
@@ -39,10 +44,10 @@ export class Stickman2DEnemies {
     this.activeAttackerId = null;
 
     if (encounter === 1) {
-      // Encounter 1: 1 Single Fighter (180 HP)
+      // Encounter 1: 1 Single Fighter (180 HP) - Iconic White Stickman Rival (Reference Image 4)
       const e = new Stickman2DCharacter({
         type: "enemy",
-        name: "Shadow Brawler",
+        name: "White Stickman Rival",
         x: playerX + 220,
         y: this.groundY,
         groundY: this.groundY,
@@ -168,6 +173,7 @@ export class Stickman2DEnemies {
       boss.preferredDist = 95;
       this.enemies.push(boss);
     }
+    return this.getPrimaryEnemy();
   }
 
   update(dt, player, combat, audio, env) {

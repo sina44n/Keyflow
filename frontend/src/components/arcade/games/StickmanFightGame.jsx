@@ -126,10 +126,12 @@ export function StickmanFightGame({ onBack, onComplete, initialEncounter = 1 }) 
     enemiesRef.current = enemies;
 
     // Initialize 1v1 Sparring Opponent (Phase 1)
-    const primaryEnemy = enemies.setup1v1(player.x);
-    setEnemyHp(primaryEnemy.hp);
-    setMaxEnemyHp(primaryEnemy.maxHp);
-    setEnemyName(primaryEnemy.name);
+    const primaryEnemy = enemies.setup1v1 ? enemies.setup1v1(player.x) : enemies.getPrimaryEnemy();
+    if (primaryEnemy) {
+      setEnemyHp(primaryEnemy.hp);
+      setMaxEnemyHp(primaryEnemy.maxHp);
+      setEnemyName(primaryEnemy.name);
+    }
 
     // Continuous Paragraph Typing Controller
     const paragraphMgr = new StickmanParagraphManager({
