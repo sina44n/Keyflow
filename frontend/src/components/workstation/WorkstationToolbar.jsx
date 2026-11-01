@@ -22,6 +22,9 @@ import {
   Keyboard,
   HandMetal,
   User,
+  Type,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { SoundSelector } from '../common/SoundSelector';
 import { Button } from '../common/Button';
@@ -52,7 +55,11 @@ export const WorkstationToolbar = ({
   onOpenCompetitions,
   onOpenProfile,
   onResetTest,
-  _t,
+  fontSize = 'normal',
+  setFontSize,
+  showLiveWpm = true,
+  setShowLiveWpm,
+  t,
 }) => {
   const TIME_OPTIONS = [15, 30, 60, 120];
   const WORD_OPTIONS = [10, 25, 50, 100];
@@ -275,6 +282,39 @@ export const WorkstationToolbar = ({
           <Maximize2 className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Focus</span>
         </button>
+
+        {/* Font Size Selector (Compact / Normal / Large) */}
+        {setFontSize && (
+          <button
+            type="button"
+            onClick={() => {
+              const next = fontSize === 'normal' ? 'large' : fontSize === 'large' ? 'compact' : 'normal';
+              setFontSize(next);
+            }}
+            className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
+            title={`Font Size: ${fontSize.toUpperCase()} (Click to change)`}
+          >
+            <Type className="w-3.5 h-3.5 text-[var(--accent)]" />
+            <span className="capitalize hidden lg:inline">{fontSize}</span>
+          </button>
+        )}
+
+        {/* Anxiety-Free Live Speed Toggle (Hide/Show live WPM while typing) */}
+        {setShowLiveWpm && (
+          <button
+            type="button"
+            onClick={() => setShowLiveWpm((v) => !v)}
+            className={`h-8 px-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
+              !showLiveWpm
+                ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-semibold shadow-xs'
+                : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
+            }`}
+            title={showLiveWpm ? 'Live WPM visible (Click for anxiety-free hidden speed mode)' : 'Live WPM hidden (Anxiety-free mode active)'}
+          >
+            {showLiveWpm ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5 text-[var(--accent)]" />}
+            <span className="hidden xl:inline">{showLiveWpm ? 'Speed On' : 'Speed Off'}</span>
+          </button>
+        )}
 
         {/* Keyboard Guide Toggle */}
         <button

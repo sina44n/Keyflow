@@ -176,6 +176,40 @@ export const WorkstationPage = () => {
   const [sessionResults, setSessionResults] = useState(null);
   const [lastKeystroke, setLastKeystroke] = useState(null);
 
+  // Ergonomic preferences (font size, anxiety-free live speed toggle)
+  const [fontSize, setFontSizeState] = useState(() => {
+    try {
+      return localStorage.getItem('keyflow_workstation_fontsize') || 'normal';
+    } catch {
+      return 'normal';
+    }
+  });
+
+  const setFontSize = (size) => {
+    setFontSizeState(size);
+    try {
+      localStorage.setItem('keyflow_workstation_fontsize', size);
+    } catch {}
+  };
+
+  const [showLiveWpm, setShowLiveWpmState] = useState(() => {
+    try {
+      return localStorage.getItem('keyflow_workstation_show_live_wpm') !== 'false';
+    } catch {
+      return true;
+    }
+  });
+
+  const setShowLiveWpm = (val) => {
+    setShowLiveWpmState((prev) => {
+      const next = typeof val === 'function' ? val(prev) : val;
+      try {
+        localStorage.setItem('keyflow_workstation_show_live_wpm', String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   const inputRef = useRef(null);
   const timerRef = useRef(null);
   const viewportRef = useRef(null);
@@ -650,8 +684,8 @@ export const WorkstationPage = () => {
           </div>
         )}
 
-        {/* Workstation Feature Toolbar (Hidden in Focus Mode) */}
-        {!focusMode && (
+        {/* Workstation Feature Toolbar (Hidden in Focus Mode or when Results Screen is active) */}
+        {!focusMode && !(isCompleted && sessionResults) && (
           <WorkstationToolbar
             mode={mode}
             setMode={handleModeChange}
@@ -684,6 +718,10 @@ export const WorkstationPage = () => {
             onOpenCompetitions={() => setCompetitionsOpen(true)}
             onOpenProfile={() => setProfileModalOpen(true)}
             onResetTest={handleReset}
+            fontSize={fontSize}
+            setFontSize={setFontSize}
+            showLiveWpm={showLiveWpm}
+            setShowLiveWpm={setShowLiveWpm}
             t={t}
           />
         )}
@@ -724,7 +762,9 @@ export const WorkstationPage = () => {
                   <div className="flex items-center gap-1.5">
                     <Gauge className="w-4 h-4 text-[var(--accent)]" />
                     <span className="text-[11px] uppercase">{t('workstation.liveWpm') || 'Live WPM'}</span>
-                    <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveWpm}</span>
+                    <span className="text-base font-bold text-[var(--text-primary)] font-mono">
+                      {showLiveWpm ? liveWpm : '—'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Target className="w-4 h-4 text-[var(--ui-success)]" />
@@ -788,7 +828,13 @@ export const WorkstationPage = () => {
               >
                 <div
                   ref={viewportRef}
-                  className="overflow-hidden relative leading-relaxed font-mono text-base sm:text-2xl whitespace-pre-wrap break-words"
+                  className={`overflow-hidden relative leading-relaxed font-mono whitespace-pre-wrap break-words ${
+                    fontSize === 'large'
+                      ? 'text-lg sm:text-3xl'
+                      : fontSize === 'compact'
+                      ? 'text-sm sm:text-lg'
+                      : 'text-base sm:text-2xl'
+                  }`}
                   style={{
                     height: 'calc(3 * 1.625em)',
                     maxHeight: 'calc(3 * 1.625em)',
