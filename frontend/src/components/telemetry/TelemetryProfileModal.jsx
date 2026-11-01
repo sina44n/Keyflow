@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User,
   Lock,
@@ -331,17 +332,35 @@ export default function TelemetryProfileModal({ isOpen, onClose, sessions = [], 
     return Math.min(100, score);
   }, [username, email, firstName, lastName, bio, timezone]);
 
+  // Escape key handler to close modal
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  return (
+  const modalNode = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/65 backdrop-blur-xs animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
       role="dialog"
       aria-modal="true"
       aria-labelledby="profile-settings-title"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       {/* Modal Container */}
-      <div className="relative w-full max-w-5xl max-h-[92vh] flex flex-col rounded-3xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl overflow-hidden">
+      <div
+        className="relative w-full max-w-5xl max-h-[88vh] my-auto flex flex-col rounded-3xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header Bar */}
         <div className="flex items-center justify-between px-6 py-4.5 border-b border-[var(--border)] bg-[var(--bg-elevated)]/40">
           <div className="flex items-center gap-2.5">
@@ -1089,4 +1108,6 @@ export default function TelemetryProfileModal({ isOpen, onClose, sessions = [], 
       )}
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalNode, document.body) : modalNode;
 }
