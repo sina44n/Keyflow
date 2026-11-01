@@ -141,7 +141,7 @@ class CompetitionListView(APIView):
             target_limit = 25
 
         max_participants = int(data.get('max_participants', 10))
-        if max_participants < 2 or max_participants > 50:
+        if max_participants != 0 and (max_participants < 2 or max_participants > 500):
             max_participants = 10
 
         is_public = bool(data.get('is_public', True))
@@ -189,8 +189,8 @@ class CompetitionListView(APIView):
 
 class CompetitionDetailView(APIView):
     """
-    GET /api/practice/competitions/<str:code>/
-    Retrieve competition status, challenge text, and live participant leaderboard.
+    GET    /api/practice/competitions/<str:code>/ — Retrieve status, challenge text, and leaderboard.
+    DELETE /api/practice/competitions/<str:code>/ — Host cancels and deletes competition room.
     """
     permission_classes = [AllowAny]
 
@@ -202,6 +202,55 @@ class CompetitionDetailView(APIView):
 
         serializer = CompetitionSerializer(competition)
         return Response(serializer.data)
+
+    def delete(self, request, code):
+        try:
+            competition = Competition.objects.get(code__iexact=code)
+        except Competition.DoesNotExist:
+            return Response({'error': 'Competition not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user if request.user and request.user.is_authenticated else None
+        participant_id = request.data.get('participant_id') or request.query_params.get('participant_id')
+
+        is_host = False
+        if competition.created_by:
+            if user and competition.created_by == user:
+                is_host = True
+        else:
+            # Guest-created room: verify participant is first participant (host)
+            first_p = competition.participants.order_by('id').first()
+            if first_p and str(first_p.id) == str(participant_id):
+                is_host = True
+            elif not participant_id:
+                is_host = True
+
+        if not is_host:
+            return Response({'error': 'Only the host can delete this competition room.'}, status=status.HTTP_403_FORBIDDEN)
+
+        competition_code = competition.code
+        competition.delete()
+        return Response({'status': 'deleted', 'code': competition_code}, status=status.HTTP_200_OK)
+
+
+class CompetitionStartView(APIView):
+    """
+    POST /api/practice/competitions/<str:code>/start/
+    Host starts competition, advancing status from 'waiting' to 'active'.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request, code):
+        try:
+            competition = Competition.objects.get(code__iexact=code)
+        except Competition.DoesNotExist:
+            return Response({'error': 'Competition not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        if competition.status == 'cancelled':
+            return Response({'error': 'Cannot start a cancelled competition.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        competition.status = 'active'
+        competition.save(update_fields=['status'])
+        return Response(CompetitionSerializer(competition).data, status=status.HTTP_200_OK)
 
 
 class CompetitionJoinView(APIView):
@@ -221,7 +270,7 @@ class CompetitionJoinView(APIView):
             return Response({'error': f'This competition is already {competition.status}.'}, status=status.HTTP_400_BAD_REQUEST)
 
         current_count = competition.participants.count()
-        if current_count >= competition.max_participants:
+        if competition.max_participants > 0 and current_count >= competition.max_participants:
             return Response({'error': 'Competition lobby is full.'}, status=status.HTTP_400_BAD_REQUEST)
 
         user = request.user if request.user and request.user.is_authenticated else None

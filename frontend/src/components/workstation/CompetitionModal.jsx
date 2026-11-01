@@ -19,6 +19,9 @@ import {
   ChevronRight,
   Download,
   FileText,
+  Trash2,
+  AlertTriangle,
+  Users,
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { competitionAPI } from '../../utils/api.js';
@@ -39,6 +42,16 @@ export const CompetitionModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  const isHost = Boolean(
+    currentComp && (
+      (currentComp.created_by_name && (user?.username === currentComp.created_by_name || user?.profile?.display_name === currentComp.created_by_name)) ||
+      (currentComp.participants && currentComp.participants[0]?.id === myParticipantId) ||
+      !currentComp.created_by_name ||
+      currentComp.created_by_name === 'Anonymous'
+    )
+  );
 
   // Create form state
   const [createForm, setCreateForm] = useState({
@@ -175,8 +188,13 @@ export const CompetitionModal = ({
   };
 
   // Start Competition typing test in Workstation
-  const handleStartTyping = () => {
+  const handleStartTyping = async () => {
     if (!currentComp) return;
+    try {
+      if (currentComp.status === 'waiting') {
+        await competitionAPI.start(currentComp.code).catch(() => {});
+      }
+    } catch {}
     onStartCompetitionTest({
       competition: currentComp,
       participantId: myParticipantId,
@@ -185,6 +203,25 @@ export const CompetitionModal = ({
       targetLimit: currentComp.target_limit,
     });
     onClose();
+  };
+
+  // Delete / Cancel Competition Room (Host Only)
+  const handleDeleteRoom = async () => {
+    if (!currentComp) return;
+    setIsLoading(true);
+    try {
+      await competitionAPI.delete(currentComp.code, { participant_id: myParticipantId });
+      setStatusMessage({ type: 'success', text: `Room ${currentComp.code} deleted successfully.` });
+      setCurrentComp(null);
+      setActiveTab('lobbies');
+      loadCompetitions();
+    } catch (err) {
+      const errMsg = err.response?.data?.error || err.message || 'Failed to delete room.';
+      setStatusMessage({ type: 'error', text: errMsg });
+    } finally {
+      setIsLoading(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   // Export Results as CSV
@@ -529,14 +566,17 @@ export const CompetitionModal = ({
                 </div>
                 <div>
                   <label className="block text-[var(--text-muted)] mb-1">Max Participants</label>
-                  <input
-                    type="number"
-                    min="2"
-                    max="50"
+                  <select
                     value={createForm.max_participants}
-                    onChange={(e) => setCreateForm({ ...createForm, max_participants: parseInt(e.target.value, 10) || 10 })}
-                    className="w-full px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
-                  />
+                    onChange={(e) => setCreateForm({ ...createForm, max_participants: parseInt(e.target.value, 10) })}
+                    className="w-full px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)] cursor-pointer"
+                  >
+                    <option value="5">5 Typists</option>
+                    <option value="10">10 Typists (Standard)</option>
+                    <option value="25">25 Typists</option>
+                    <option value="50">50 Typists</option>
+                    <option value="0">Unlimited Typists (Scalable)</option>
+                  </select>
                 </div>
               </div>
 
@@ -679,6 +719,18 @@ export const CompetitionModal = ({
                       <span>JSON</span>
                     </button>
                   </div>
+
+                  {isHost && (
+                    <button
+                      type="button"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold text-[11px] transition-all cursor-pointer"
+                      title="Delete / cancel this competition room"
+                    >
+                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                      <span>Delete Room</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -932,6 +984,43 @@ export const CompetitionModal = ({
             </div>
           )}
         </div>
+        {/* Delete Confirmation Modal Overlay */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <div className="w-full max-w-sm rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 shadow-2xl space-y-4">
+              <div className="flex items-center gap-3 text-red-500">
+                <div className="p-2.5 rounded-xl bg-red-500/10 border border-red-500/20">
+                  <Trash2 className="w-5 h-5 text-red-500" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm text-[var(--text-primary)]">Delete Competition Room</h4>
+                  <p className="text-xs text-[var(--text-muted)]">Room {currentComp?.code}</p>
+                </div>
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+                Are you sure you want to delete and cancel this competition room? All participants will be removed and leaderboard results will be permanently erased.
+              </p>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={handleDeleteRoom}
+                  className="px-3.5 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white font-bold text-xs shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Confirm Delete</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

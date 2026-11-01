@@ -173,6 +173,8 @@ export const competitionAPI = {
   get: (code) => api.get(`/practice/competitions/${code}/`),
   join: (code, data) => api.post(`/practice/competitions/${code}/join/`, data),
   submit: (code, data) => api.post(`/practice/competitions/${code}/submit/`, data),
+  start: (code) => api.post(`/practice/competitions/${code}/start/`),
+  delete: (code, params) => api.delete(`/practice/competitions/${code}/`, { data: params, params }),
   my: () => api.get('/practice/competitions/my/'),
 };
 

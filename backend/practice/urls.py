@@ -12,6 +12,7 @@ from .views import (
     CompetitionDetailView,
     CompetitionJoinView,
     CompetitionSubmitView,
+    CompetitionStartView,
     UserCompetitionsView,
 )
 
@@ -27,5 +28,6 @@ urlpatterns = [
     path('competitions/my/', UserCompetitionsView.as_view(), name='practice_user_competitions'),
     path('competitions/<str:code>/', CompetitionDetailView.as_view(), name='practice_competition_detail'),
     path('competitions/<str:code>/join/', CompetitionJoinView.as_view(), name='practice_competition_join'),
+    path('competitions/<str:code>/start/', CompetitionStartView.as_view(), name='practice_competition_start'),
     path('competitions/<str:code>/submit/', CompetitionSubmitView.as_view(), name='practice_competition_submit'),
 ]
