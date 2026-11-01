@@ -180,6 +180,7 @@ export const WorkstationPage = () => {
   const timerRef = useRef(null);
   const viewportRef = useRef(null);
   const activeCharSpanRef = useRef(null);
+  const lastTargetScrollRef = useRef(0);
   const secondTimelineRef = useRef([]);
   const lastSampleSecondRef = useRef(0);
 
@@ -219,23 +220,39 @@ export const WorkstationPage = () => {
       })();
 
     if (typed.length === 0) {
+      lastTargetScrollRef.current = 0;
       viewportRef.current.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
       return;
     }
     const activeSpan = activeCharSpanRef.current;
     if (!activeSpan) return;
 
-    const spanTop = activeSpan.offsetTop;
-    const spanHeight = activeSpan.offsetHeight || 38;
+    // Use computed line-height or measured span offsetHeight
+    const computedLineHeight =
+      parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
+      activeSpan.offsetHeight ||
+      38;
+    const spanHeight = computedLineHeight;
 
-    // Center active line in 3-line viewport:
-    // When spanTop > spanHeight, scroll so active line remains in center without pushing keyboard
+    // Relative line top from line 0
+    const firstCharSpan = viewportRef.current.querySelector('.char-untyped, .char-correct, .char-incorrect, .char-current') || viewportRef.current.firstElementChild;
+    const baseOffsetTop = firstCharSpan ? firstCharSpan.offsetTop : 0;
+    const relativeTop = Math.max(0, activeSpan.offsetTop - baseOffsetTop);
+    const lineIndex = Math.round(relativeTop / computedLineHeight);
+
+    // Keep active line centered in 3-line viewport:
+    // Lines 0 and 1 stay at scrollTop = 0; Line 2 shifts by 1 line, Line 3 by 2 lines, etc.
+    const spanTop = lineIndex <= 1 ? 0 : (lineIndex * computedLineHeight);
     const targetScrollTop = Math.max(0, spanTop - spanHeight);
 
-    viewportRef.current.scrollTo({
-      top: targetScrollTop,
-      behavior: prefersReducedMotion ? 'auto' : 'smooth',
-    });
+    // Only trigger smooth scroll when crossing into a new line (prevents keystroke animation interruption)
+    if (Math.abs(targetScrollTop - lastTargetScrollRef.current) >= 2) {
+      lastTargetScrollRef.current = targetScrollTop;
+      viewportRef.current.scrollTo({
+        top: targetScrollTop,
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
+    }
   }, [typed.length, currentTargetText]);
 
   // Next expected character for guide highlight
@@ -448,6 +465,7 @@ export const WorkstationPage = () => {
     setLastKeystroke(null);
     secondTimelineRef.current = [];
     lastSampleSecondRef.current = 0;
+    lastTargetScrollRef.current = 0;
     clearInterval(timerRef.current);
     if (viewportRef.current) {
       viewportRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -760,60 +778,69 @@ export const WorkstationPage = () => {
                 </div>
               </div>
 
-              {/* Controlled Fixed-Height Typing Viewport — Smooth Line-by-Line Progression */}
+              {/* Controlled 3-Line Typing Viewport — Smooth Line-by-Line Progression */}
               <div
-                ref={viewportRef}
                 onClick={() => inputRef.current && inputRef.current.focus()}
-                className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-text relative select-none leading-relaxed font-mono text-base sm:text-2xl whitespace-pre-wrap break-words overflow-hidden min-h-[160px] h-[160px] sm:h-[180px] max-h-[180px] ${
+                className={`p-4 sm:p-6 rounded-2xl border min-h-[160px] max-h-[180px] flex flex-col justify-center transition-all cursor-text relative select-none ${
                   isCompleted ? 'opacity-85 border-[var(--border)]' : 'border-[var(--accent)] shadow-sm'
                 }`}
-                style={{ background: 'var(--bg-surface)', scrollBehavior: 'smooth' }}
+                style={{ background: 'var(--bg-surface)' }}
               >
-                {currentTargetText.split('').map((char, idx) => {
-                  const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted, correctedIndices);
-                  const isCurrent = idx === typed.length && !isCompleted;
-                  return (
-                    <span
-                      key={idx}
-                      ref={isCurrent ? activeCharSpanRef : null}
-                      className={feedback.className}
-                    >
-                      {char === '\n' ? '↵\n' : char}
-                    </span>
-                  );
-                })}
-
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={typed}
-                  onChange={handleInputChange}
-                  onKeyDown={(e) => {
-                    if (isCompleted) return;
-                    if (e.key === 'Escape') return;
-                    if (e.key === 'Tab') {
-                      e.preventDefault();
-                      if (currentTargetChar === '\t') {
-                        handleInputChange({ target: { value: typed + '\t' } });
-                      }
-                      return;
-                    }
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleInputChange({ target: { value: typed + '\n' } });
-                      return;
-                    }
-                    setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+                <div
+                  ref={viewportRef}
+                  className="overflow-hidden relative leading-relaxed font-mono text-base sm:text-2xl whitespace-pre-wrap break-words"
+                  style={{
+                    height: 'calc(3 * 1.625em)',
+                    maxHeight: 'calc(3 * 1.625em)',
+                    scrollBehavior: 'smooth',
                   }}
-                  disabled={isCompleted}
-                  className="absolute inset-0 opacity-0 cursor-default"
-                  autoFocus
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="off"
-                  spellCheck={false}
-                  aria-label="Type the passage text here"
-                />
+                >
+                  {currentTargetText.split('').map((char, idx) => {
+                    const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted, correctedIndices);
+                    const isCurrent = idx === typed.length && !isCompleted;
+                    return (
+                      <span
+                        key={idx}
+                        ref={isCurrent ? activeCharSpanRef : null}
+                        className={feedback.className}
+                      >
+                        {char === '\n' ? '↵\n' : char}
+                      </span>
+                    );
+                  })}
+
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={typed}
+                    onChange={handleInputChange}
+                    onKeyDown={(e) => {
+                      if (isCompleted) return;
+                      if (e.key === 'Escape') return;
+                      if (e.key === 'Tab') {
+                        e.preventDefault();
+                        if (currentTargetChar === '\t') {
+                          handleInputChange({ target: { value: typed + '\t' } });
+                        }
+                        return;
+                      }
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleInputChange({ target: { value: typed + '\n' } });
+                        return;
+                      }
+                      setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+                    }}
+                    disabled={isCompleted}
+                    className="absolute inset-0 opacity-0 cursor-default"
+                    autoFocus
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    aria-label="Type the passage text here"
+                  />
+                </div>
               </div>
 
               {/* Precision Virtual Keyboard + Realistic Hand Overlay (Hidden in Focus Mode) */}
