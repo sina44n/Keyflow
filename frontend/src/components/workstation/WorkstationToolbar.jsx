@@ -2,8 +2,10 @@
  * KEYFLOW Workstation Feature Toolbar
  * ===================================
  * Compact, unified professional control bar for the typing workstation.
- * Houses practice mode selectors, custom studio trigger, guides, sound,
- * focus mode, history, and typing competitions.
+ * Engineered with a strict maximum of TWO rows to guarantee zero multi-row spillage.
+ * 
+ * Row 1: Core Practice Mode Selectors & active mode parameter selectors.
+ * Row 2: Dynamic Custom generation mode trigger, Saved, History, Focus, and practice tooling.
  */
 
 import React from 'react';
@@ -21,10 +23,12 @@ import {
   RotateCcw,
   Keyboard,
   HandMetal,
-  User,
   Type,
   Eye,
   EyeOff,
+  Shuffle,
+  Repeat,
+  Sparkles,
 } from 'lucide-react';
 import { SoundSelector } from '../common/SoundSelector';
 import { Button } from '../common/Button';
@@ -53,126 +57,149 @@ export const WorkstationToolbar = ({
   onOpenHistory,
   onOpenShortcuts,
   onOpenCompetitions,
-  onOpenProfile,
   onResetTest,
   fontSize = 'normal',
   setFontSize,
   showLiveWpm = true,
   setShowLiveWpm,
+  customGenerationMode = 'simple',
+  onTriggerCustomMode,
   t,
 }) => {
   const TIME_OPTIONS = [15, 30, 60, 120];
   const WORD_OPTIONS = [10, 25, 50, 100];
 
+  // Derive active dynamic generation mode label and icon
+  const getModeDetails = (m) => {
+    switch (m) {
+      case 'repeat':
+        return { label: 'Repeat', icon: Repeat, color: 'text-sky-400' };
+      case 'shuffle':
+        return { label: 'Shuffle', icon: Shuffle, color: 'text-amber-400' };
+      case 'random':
+        return { label: 'Random', icon: Sparkles, color: 'text-emerald-400' };
+      case 'simple':
+      default:
+        return { label: 'Simple', icon: Sliders, color: 'text-[var(--accent)]' };
+    }
+  };
+
+  const currentModeInfo = getModeDetails(customGenerationMode);
+  const ModeIcon = currentModeInfo.icon;
+
   return (
-    <div className="card-panel p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2.5 text-xs font-mono w-full">
-      {/* Left Cluster: Practice Mode Selectors */}
-      <div className="flex flex-wrap items-center gap-2 max-w-full">
-        {/* Core Modes */}
-        <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 p-1 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] max-w-full">
-          {/* Timed Mode */}
+    <div className="card-panel p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs font-mono w-full select-none">
+      {/* ─────────────────────────────────────────────────────────────
+          ROW 1: Core Practice Mode Selectors & Mode Parameters
+          ───────────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-none pb-0.5 w-full">
+        {/* Left: Mode Tabs Cluster */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] shrink-0">
+            {/* Timed Mode */}
+            <button
+              type="button"
+              onClick={() => setMode('timed')}
+              className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
+                mode === 'timed' && !customActive && !activeCompetition
+                  ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Time Trial Mode"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Time</span>
+            </button>
+
+            {/* Words Mode */}
+            <button
+              type="button"
+              onClick={() => setMode('words')}
+              className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
+                mode === 'words' && !customActive && !activeCompetition
+                  ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Word Sprint Mode"
+            >
+              <Hash className="w-3.5 h-3.5" />
+              <span>Words</span>
+            </button>
+
+            {/* Passages Mode */}
+            <button
+              type="button"
+              onClick={() => setMode('passage')}
+              className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
+                mode === 'passage' && !customActive && !activeCompetition
+                  ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Curated Literature & Technical Passages"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Passage</span>
+            </button>
+
+            {/* Accuracy Practice Mode */}
+            <button
+              type="button"
+              onClick={() => setMode('accuracy')}
+              className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
+                mode === 'accuracy'
+                  ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+              title="Accuracy Focus (98%+ Target Precision)"
+            >
+              <Target className="w-3.5 h-3.5 text-[var(--ui-success)]" />
+              <span>Accuracy</span>
+            </button>
+          </div>
+
+          {/* Custom Studio Trigger Button */}
           <button
             type="button"
-            onClick={() => setMode('timed')}
-            className={`flex items-center gap-1.5 px-2 sm:px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
-              mode === 'timed' && !customActive && !activeCompetition
-                ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            onClick={onOpenCustomStudio}
+            className={`h-8 flex items-center gap-1.5 px-2.5 rounded-xl border font-medium transition-all cursor-pointer shrink-0 ${
+              customActive
+                ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] font-bold shadow-xs'
+                : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
             }`}
-            title="Time Trial Mode"
+            title={customTitle ? `Custom Studio: ${customTitle} (Alt+C)` : "Open Custom Typing Studio (Alt+C)"}
+            aria-label="Open Custom Typing Studio"
           >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Time</span>
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Custom</span>
+            {customActive && (
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse ml-0.5" />
+            )}
           </button>
 
-          {/* Words Mode */}
+          {/* Competition Arena Trigger Button */}
           <button
             type="button"
-            onClick={() => setMode('words')}
-            className={`flex items-center gap-1.5 px-2 sm:px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
-              mode === 'words' && !customActive && !activeCompetition
-                ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            onClick={onOpenCompetitions}
+            className={`h-8 flex items-center gap-1.5 px-2.5 rounded-xl border font-medium transition-all cursor-pointer shrink-0 ${
+              activeCompetition
+                ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] font-bold shadow-xs'
+                : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
             }`}
-            title="Word Sprint Mode"
+            title="Typing Competition Arena"
+            aria-label="Typing Competition Arena"
           >
-            <Hash className="w-3.5 h-3.5" />
-            <span>Words</span>
-          </button>
-
-          {/* Passages Mode */}
-          <button
-            type="button"
-            onClick={() => setMode('passage')}
-            className={`flex items-center gap-1.5 px-2 sm:px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
-              mode === 'passage' && !customActive && !activeCompetition
-                ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-            title="Curated Literature & Technical Passages"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Passage</span>
-          </button>
-
-          {/* Accuracy Practice Mode */}
-          <button
-            type="button"
-            onClick={() => setMode('accuracy')}
-            className={`flex items-center gap-1.5 px-2 sm:px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
-              mode === 'accuracy'
-                ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-            title="Accuracy Focus (98%+ Target Precision)"
-          >
-            <Target className="w-3.5 h-3.5 text-[var(--ui-success)]" />
-            <span>Accuracy</span>
+            <Trophy className="w-3.5 h-3.5 text-amber-400" />
+            <span>Competition</span>
+            {activeCompetition && (
+              <span className="text-[10px] bg-black/30 px-1.5 py-0.2 rounded font-bold">
+                {activeCompetition.code}
+              </span>
+            )}
           </button>
         </div>
 
-        {/* Custom Studio Trigger Button */}
-        <button
-          type="button"
-          onClick={onOpenCustomStudio}
-          className={`h-8 flex items-center gap-1.5 px-2.5 rounded-xl border font-medium transition-all cursor-pointer ${
-            customActive
-              ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] font-bold shadow-xs'
-              : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
-          }`}
-          title={customTitle ? `Custom Studio: ${customTitle} (Alt+C)` : "Open Custom Typing Studio (Alt+C)"}
-          aria-label="Open Custom Typing Studio"
-        >
-          <Sliders className="w-3.5 h-3.5" />
-          <span>Custom</span>
-          {customActive && (
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse ml-0.5" />
-          )}
-        </button>
-
-        {/* Competition Arena Trigger Button */}
-        <button
-          type="button"
-          onClick={onOpenCompetitions}
-          className={`h-8 flex items-center gap-1.5 px-2.5 rounded-xl border font-medium transition-all cursor-pointer ${
-            activeCompetition
-              ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] font-bold shadow-xs'
-              : 'bg-[var(--bg-elevated)] border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
-          }`}
-          title="Typing Competition Arena"
-          aria-label="Typing Competition Arena"
-        >
-          <Trophy className="w-3.5 h-3.5 text-amber-400" />
-          <span>Competition</span>
-          {activeCompetition && (
-            <span className="text-[10px] bg-black/30 px-1.5 py-0.2 rounded font-bold">
-              {activeCompetition.code}
-            </span>
-          )}
-        </button>
-
-        {/* Secondary Sub-Controls depending on active mode */}
-        <div className="flex items-center gap-1">
+        {/* Right: Active Mode Sub-Controls */}
+        <div className="flex items-center gap-1 shrink-0">
           {mode === 'timed' && !customActive && !activeCompetition && (
             <div className="flex items-center gap-1 bg-[var(--bg-elevated)] p-1 rounded-xl border border-[var(--border)] h-8">
               {TIME_OPTIONS.map((timeVal) => (
@@ -227,159 +254,166 @@ export const WorkstationToolbar = ({
 
           {customActive && (
             <div className="h-8 flex items-center gap-1.5 px-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 text-[11px] text-[var(--accent)]">
-              <span>Custom Text Active</span>
+              <span>Custom Active</span>
               <button
                 type="button"
                 onClick={onOpenCustomStudio}
-                className="underline hover:text-[var(--text-primary)] cursor-pointer"
+                className="underline hover:text-[var(--text-primary)] cursor-pointer font-bold"
               >
-                Configure
+                Edit
               </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Right Cluster: Tooling, Guides, Audio, Focus Mode */}
-      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-        {/* Saved Texts Library Shortcut (PART 4.2) */}
-        <button
-          type="button"
-          onClick={onOpenSavedTexts}
-          className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
-          title="Saved Passages Library (Alt+S)"
-          aria-label="Saved Passages"
-        >
-          <Bookmark className="w-3.5 h-3.5" />
-          <span className="hidden lg:inline">Saved</span>
-        </button>
-
-        {/* Practice History Shortcut (PART 4.3) */}
-        <button
-          type="button"
-          onClick={onOpenHistory}
-          className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
-          title="Practice Session History (Alt+H)"
-          aria-label="Practice History"
-        >
-          <History className="w-3.5 h-3.5" />
-          <span className="hidden lg:inline">History</span>
-        </button>
-
-        {/* Focus Mode Toggle (PART 4.4) */}
-        <button
-          type="button"
-          onClick={toggleFocusMode}
-          className={`h-8 px-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-            focusMode
-              ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
-              : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
-          }`}
-          title="Focus Mode (Alt+F)"
-          aria-label="Focus Mode"
-          aria-pressed={focusMode}
-        >
-          <Maximize2 className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Focus</span>
-        </button>
-
-        {/* Font Size Selector (Compact / Normal / Large) */}
-        {setFontSize && (
+      {/* ─────────────────────────────────────────────────────────────
+          ROW 2: Dynamic Custom Mode, Library, History & Practice Tools
+          (Guarantees exactly 2 rows total)
+          ───────────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between gap-2 overflow-x-auto scrollbar-none pt-1.5 border-t border-[var(--border)]/40 w-full">
+        {/* Left Cluster: Dynamic Generation Mode Action + Saved + History */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Dynamic Custom Generation Mode Action Button (PHASE 11) */}
           <button
             type="button"
-            onClick={() => {
-              const next = fontSize === 'normal' ? 'large' : fontSize === 'large' ? 'compact' : 'normal';
-              setFontSize(next);
-            }}
-            className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
-            title={`Font Size: ${fontSize.toUpperCase()} (Click to change)`}
+            onClick={onTriggerCustomMode}
+            className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[var(--bg-surface)] transition-all cursor-pointer flex items-center gap-1.5 font-bold shadow-xs"
+            title={`Generation Mode: ${currentModeInfo.label} (Click to generate and practice)`}
+            aria-label={`Generation Mode: ${currentModeInfo.label}`}
           >
-            <Type className="w-3.5 h-3.5 text-[var(--accent)]" />
-            <span className="capitalize hidden lg:inline">{fontSize}</span>
+            <ModeIcon className={`w-3.5 h-3.5 ${currentModeInfo.color}`} />
+            <span>{currentModeInfo.label}</span>
           </button>
-        )}
 
-        {/* Anxiety-Free Live Speed Toggle (Hide/Show live WPM while typing) */}
-        {setShowLiveWpm && (
+          {/* Saved Passages Library Shortcut (PHASE 10) */}
           <button
             type="button"
-            onClick={() => setShowLiveWpm((v) => !v)}
+            onClick={onOpenSavedTexts}
+            className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
+            title="Saved Passages Library (Alt+S)"
+            aria-label="Saved Passages"
+          >
+            <Bookmark className="w-3.5 h-3.5" />
+            <span>Saved</span>
+          </button>
+
+          {/* Practice Session History Shortcut (PHASE 9) */}
+          <button
+            type="button"
+            onClick={onOpenHistory}
+            className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
+            title="Practice Session History (Alt+H)"
+            aria-label="Practice History"
+          >
+            <History className="w-3.5 h-3.5" />
+            <span>History</span>
+          </button>
+
+          {/* Focus Mode Toggle */}
+          <button
+            type="button"
+            onClick={toggleFocusMode}
             className={`h-8 px-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-              !showLiveWpm
-                ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-semibold shadow-xs'
+              focusMode
+                ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
                 : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
             }`}
-            title={showLiveWpm ? 'Live WPM visible (Click for anxiety-free hidden speed mode)' : 'Live WPM hidden (Anxiety-free mode active)'}
+            title="Focus Mode (Alt+F)"
+            aria-label="Focus Mode"
+            aria-pressed={focusMode}
           >
-            {showLiveWpm ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5 text-[var(--accent)]" />}
-            <span className="hidden xl:inline">{showLiveWpm ? 'Speed On' : 'Speed Off'}</span>
+            <Maximize2 className="w-3.5 h-3.5" />
+            <span>Focus</span>
           </button>
-        )}
+        </div>
 
-        {/* Keyboard Guide Toggle */}
-        <button
-          type="button"
-          onClick={toggleKeyboardGuide}
-          className={`h-8 px-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-            keyboardGuideOn
-              ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-semibold shadow-xs'
-              : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-          }`}
-          title="Toggle Visual Keyboard Guide"
-          aria-pressed={keyboardGuideOn}
-        >
-          <Keyboard className="w-3.5 h-3.5" />
-          <span className="hidden xl:inline">{keyboardGuideOn ? 'Keys On' : 'Keys Off'}</span>
-        </button>
+        {/* Right Cluster: Tooling, Guides, Audio, Reset */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Live Speed Toggle (Speed On / Off) */}
+          {setShowLiveWpm && (
+            <button
+              type="button"
+              onClick={() => setShowLiveWpm((v) => !v)}
+              className={`h-8 px-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1 ${
+                !showLiveWpm
+                  ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-semibold shadow-xs'
+                  : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)]'
+              }`}
+              title={showLiveWpm ? 'Live WPM visible (Click for anxiety-free hidden speed mode)' : 'Live WPM hidden (Anxiety-free mode active)'}
+            >
+              {showLiveWpm ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5 text-[var(--accent)]" />}
+              <span>{showLiveWpm ? 'Speed On' : 'Speed Off'}</span>
+            </button>
+          )}
 
-        {/* Hand Guide Toggle */}
-        <button
-          type="button"
-          onClick={toggleHandGuide}
-          className={`h-8 px-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 ${
-            handGuideOn
-              ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-semibold shadow-xs'
-              : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-          }`}
-          title="Toggle 3D/Anatomical Hand Guide"
-          aria-pressed={handGuideOn}
-        >
-          <HandMetal className="w-3.5 h-3.5" />
-          <span className="hidden xl:inline">{handGuideOn ? 'Hands On' : 'Hands Off'}</span>
-        </button>
+          {/* Font Size Selector (Compact / Normal / Large) */}
+          {setFontSize && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = fontSize === 'normal' ? 'large' : fontSize === 'large' ? 'compact' : 'normal';
+                setFontSize(next);
+              }}
+              className="h-8 px-2 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1"
+              title={`Font Size: ${fontSize.toUpperCase()} (Click to toggle)`}
+            >
+              <Type className="w-3.5 h-3.5 text-[var(--accent)]" />
+              <span className="capitalize">{fontSize}</span>
+            </button>
+          )}
 
-        {/* Keyboard Sound Selector */}
-        <SoundSelector variant="toolbar" />
-
-        {/* Workstation Profile Access Button */}
-        {onOpenProfile && (
+          {/* Keyboard Guide Toggle */}
           <button
             type="button"
-            onClick={onOpenProfile}
-            className="h-8 px-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center gap-1.5"
-            title="Workstation Profile & Settings"
-            aria-label="Workstation Profile & Settings"
+            onClick={toggleKeyboardGuide}
+            className={`h-8 px-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1 ${
+              keyboardGuideOn
+                ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-semibold shadow-xs'
+                : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+            title="Toggle Visual Keyboard Guide"
+            aria-pressed={keyboardGuideOn}
           >
-            <User className="w-3.5 h-3.5 text-[var(--accent)]" />
-            <span className="hidden lg:inline">Profile</span>
+            <Keyboard className="w-3.5 h-3.5" />
+            <span>{keyboardGuideOn ? 'Keys On' : 'Keys Off'}</span>
           </button>
-        )}
 
-        {/* Shortcuts Help (PART 4.5) */}
-        <button
-          type="button"
-          onClick={onOpenShortcuts}
-          className="h-8 w-8 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center justify-center"
-          title="Keyboard Shortcuts (Alt+K)"
-          aria-label="Keyboard Shortcuts"
-        >
-          <Command className="w-3.5 h-3.5" />
-        </button>
+          {/* Hand Guide Toggle */}
+          <button
+            type="button"
+            onClick={toggleHandGuide}
+            className={`h-8 px-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1 ${
+              handGuideOn
+                ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-semibold shadow-xs'
+                : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+            title="Toggle 3D/Anatomical Hand Guide"
+            aria-pressed={handGuideOn}
+          >
+            <HandMetal className="w-3.5 h-3.5" />
+            <span>{handGuideOn ? 'Hands On' : 'Hands Off'}</span>
+          </button>
 
-        {/* Reset Test */}
-        <Button variant="outline" size="sm" icon={RotateCcw} onClick={onResetTest} title="Reset Test (Esc)">
-          <span className="hidden sm:inline">Reset</span>
-        </Button>
+          {/* Keyboard Sound Selector */}
+          <SoundSelector variant="toolbar" />
+
+          {/* Shortcuts Help */}
+          <button
+            type="button"
+            onClick={onOpenShortcuts}
+            className="h-8 w-8 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] transition-all cursor-pointer flex items-center justify-center shrink-0"
+            title="Keyboard Shortcuts (Alt+K)"
+            aria-label="Keyboard Shortcuts"
+          >
+            <Command className="w-3.5 h-3.5" />
+          </button>
+
+          {/* Reset Test */}
+          <Button variant="outline" size="sm" icon={RotateCcw} onClick={onResetTest} title="Reset Test (Esc)">
+            <span>Reset</span>
+          </Button>
+        </div>
       </div>
     </div>
   );

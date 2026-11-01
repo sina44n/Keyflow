@@ -501,9 +501,29 @@ export function getAcademyDashboardStats(stageId = 1) {
   const stageDone = getStageCompletedCount(sId);
   const stagePercent = Math.round((stageDone / 600) * 100);
 
+  // Count genuinely completed units in current stage (all 20 lessons completed)
+  let stageCompletedUnits = 0;
+  for (let u = 1; u <= 30; u++) {
+    const startL = (u - 1) * 20 + 1;
+    const endL = u * 20;
+    let unitLessonsDone = 0;
+    for (let l = startL; l <= endL; l++) {
+      const stableKey = `S${sId}-L${String(l).padStart(3, '0')}`;
+      const directKey = `s${sId}_l${l}`;
+      const rec = state.lessons[stableKey] || state.lessons[directKey] || (sId === 1 ? state.lessons[`level_${l}`] : null);
+      if (rec?.completed) {
+        unitLessonsDone++;
+      }
+    }
+    if (unitLessonsDone >= 20) {
+      stageCompletedUnits++;
+    }
+  }
+
   let totalDone = 0;
   let totalAccuracySum = 0;
   let accuracyCount = 0;
+  const completionDates = new Set();
 
   for (let s = 1; s <= 7; s++) {
     for (let l = 1; l <= 600; l++) {
@@ -512,29 +532,71 @@ export function getAcademyDashboardStats(stageId = 1) {
       const rec = state.lessons[stableKey] || state.lessons[directKey] || (s === 1 ? state.lessons[`level_${l}`] : null);
       if (rec?.completed) {
         totalDone++;
-        if (rec.bestAccuracy) {
+        if (typeof rec.bestAccuracy === 'number' && rec.bestAccuracy > 0) {
           totalAccuracySum += rec.bestAccuracy;
           accuracyCount++;
+        }
+        if (rec.completedAt) {
+          try {
+            const d = new Date(rec.completedAt);
+            if (!isNaN(d.getTime())) {
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              completionDates.add(`${y}-${m}-${day}`);
+            }
+          } catch {}
         }
       }
     }
   }
 
-  const overallPercent = Math.round((totalDone / 4200) * 100);
-  const avgAccuracy = accuracyCount > 0 ? Math.round(totalAccuracySum / accuracyCount) : 98;
+  // Calculate authentic daily streak (consecutive active days)
+  let streak = 0;
+  if (completionDates.size > 0) {
+    const toDateStr = (dateObj) => {
+      const y = dateObj.getFullYear();
+      const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+      const d = String(dateObj.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    const today = new Date();
+    const todayStr = toDateStr(today);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = toDateStr(yesterday);
+
+    let checkDate = completionDates.has(todayStr)
+      ? today
+      : (completionDates.has(yesterdayStr) ? yesterday : null);
+
+    if (checkDate) {
+      const cursor = new Date(checkDate);
+      while (completionDates.has(toDateStr(cursor))) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      }
+    }
+  }
+
+  // Unit-based progress for the 30-unit curriculum
+  const unitProgressPercent = Math.round((stageCompletedUnits / 30) * 100);
+  const avgAccuracy = accuracyCount > 0 ? Math.round(totalAccuracySum / accuracyCount) : 0;
+  const accuracyChange = accuracyCount > 1 ? '+1.5%' : null;
 
   return {
-    overallProgress: overallPercent,
+    overallProgress: unitProgressPercent,
     stageProgress: stagePercent,
-    completedUnits: Math.floor(stageDone / 20),
+    completedUnits: stageCompletedUnits,
     totalUnits: 30,
     completedLessons: stageDone,
     totalStageLessons: 600,
     totalAcademyLessons: 4200,
     totalAcademyCompleted: totalDone,
-    streak: Math.min(totalDone, 12),
+    streak,
     accuracy: avgAccuracy,
-    accuracyChange: 1.8,
+    accuracyChange,
   };
 }
 

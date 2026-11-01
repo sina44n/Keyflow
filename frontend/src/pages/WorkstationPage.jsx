@@ -29,6 +29,7 @@ import { useI18n } from '../i18n/I18nContext';
 import { practiceAPI, profileAPI, competitionAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { recordTelemetrySession } from '../utils/telemetryStorage';
+import { generateCustomTypingPrompt } from '../utils/textUtilities';
 
 // New Workstation modular components
 import { WorkstationToolbar } from '../components/workstation/WorkstationToolbar';
@@ -171,7 +172,52 @@ export const WorkstationPage = () => {
   const [backspaces, setBackspaces] = useState(0);
   const [errorHistory, setErrorHistory] = useState([]);
   const [correctedIndices, setCorrectedIndices] = useState(() => new Set());
-  const [wpmGoal, setWpmGoal] = useState(null);
+  const [wpmGoal, setWpmGoalState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('keyflow_workstation_wpm_goal');
+      return saved ? Number(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setWpmGoal = useCallback((val) => {
+    const num = val ? Number(val) : null;
+    setWpmGoalState(num);
+    try {
+      if (num) {
+        localStorage.setItem('keyflow_workstation_wpm_goal', String(num));
+      } else {
+        localStorage.removeItem('keyflow_workstation_wpm_goal');
+      }
+    } catch {}
+  }, []);
+
+  // 10 to 500 WPM in increments of 10 + None (PHASE 5)
+  const WPM_GOAL_OPTIONS = useMemo(() => {
+    const opts = [{ value: '', label: 'None' }];
+    for (let w = 10; w <= 500; w += 10) {
+      opts.push({ value: String(w), label: `${w} WPM` });
+    }
+    return opts;
+  }, []);
+
+  // Dynamic Custom Generation Mode State (PHASE 11)
+  const [customGenerationMode, setCustomGenerationModeState] = useState(() => {
+    try {
+      return localStorage.getItem('keyflow_workstation_custom_gen_mode') || 'simple';
+    } catch {
+      return 'simple';
+    }
+  });
+
+  const setCustomGenerationMode = useCallback((newMode) => {
+    setCustomGenerationModeState(newMode);
+    try {
+      localStorage.setItem('keyflow_workstation_custom_gen_mode', newMode);
+    } catch {}
+  }, []);
+
   const [isCompleted, setIsCompleted] = useState(false);
   const [sessionResults, setSessionResults] = useState(null);
   const [lastKeystroke, setLastKeystroke] = useState(null);
@@ -214,6 +260,7 @@ export const WorkstationPage = () => {
   const timerRef = useRef(null);
   const viewportRef = useRef(null);
   const activeCharSpanRef = useRef(null);
+  const pacingLineRef = useRef(null);
   const lastTargetScrollRef = useRef(0);
   const secondTimelineRef = useRef([]);
   const lastSampleSecondRef = useRef(0);
@@ -240,7 +287,8 @@ export const WorkstationPage = () => {
     return PRACTICE_PASSAGES[selectedPassageIndex].text;
   }, [mode, wordLimit, selectedPassageIndex, customPrompt, activeCompetition]);
 
-  // Automatic line-by-line smooth viewport progression
+  // ── Automatic 4-Line Text Scrolling (PHASE 4 & 7) ─────────────────────────
+  // Works with built-in passages, word limits, and multi-paragraph custom text.
   useEffect(() => {
     if (!viewportRef.current) return;
     const prefersReducedMotion =
@@ -266,21 +314,21 @@ export const WorkstationPage = () => {
       parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
       activeSpan.offsetHeight ||
       38;
-    const spanHeight = computedLineHeight;
 
     // Relative line top from line 0
-    const firstCharSpan = viewportRef.current.querySelector('.char-untyped, .char-correct, .char-incorrect, .char-current') || viewportRef.current.firstElementChild;
+    const firstCharSpan = viewportRef.current.querySelector('.typing-char') || viewportRef.current.firstElementChild;
     const baseOffsetTop = firstCharSpan ? firstCharSpan.offsetTop : 0;
     const relativeTop = Math.max(0, activeSpan.offsetTop - baseOffsetTop);
-    const lineIndex = Math.round(relativeTop / computedLineHeight);
+    const lineIndex = Math.floor((relativeTop + 4) / computedLineHeight);
 
-    // Keep active line centered in 3-line viewport:
-    // Lines 0 and 1 stay at scrollTop = 0; Line 2 shifts by 1 line, Line 3 by 2 lines, etc.
+    // Controlled 4-Line Viewport Progression (PHASE 4 & 7):
+    // Lines 0 and 1 stay at scrollTop = 0.
+    // Line 2 and above shifts so the active typing line stays centered on visible row 2 of 4!
+    const spanHeight = computedLineHeight;
     const spanTop = lineIndex <= 1 ? 0 : (lineIndex * computedLineHeight);
     const targetScrollTop = Math.max(0, spanTop - spanHeight);
 
-    // Only trigger smooth scroll when crossing into a new line (prevents keystroke animation interruption)
-    if (Math.abs(targetScrollTop - lastTargetScrollRef.current) >= 2) {
+    if (Math.abs(targetScrollTop - lastTargetScrollRef.current) >= 4) {
       lastTargetScrollRef.current = targetScrollTop;
       viewportRef.current.scrollTo({
         top: targetScrollTop,
@@ -288,6 +336,53 @@ export const WorkstationPage = () => {
       });
     }
   }, [typed.length, currentTargetText]);
+
+  // ── Real WPM Pacing Guide Line Animation (PHASE 6) ─────────────────────────
+  // Glides smoothly at the selected target speed (wpmGoal * 5 / 60 chars/sec).
+  // Hidden when wpmGoal is None, pauses when paused, resets on reset.
+  useEffect(() => {
+    if (!wpmGoal || !startTime || isCompleted || !viewportRef.current) {
+      if (pacingLineRef.current) {
+        pacingLineRef.current.style.display = 'none';
+      }
+      return;
+    }
+
+    let animFrameId = null;
+    const targetCharsPerSec = (wpmGoal * 5) / 60; // Standard 5 chars/word
+
+    const updatePacingLine = () => {
+      if (!viewportRef.current || !pacingLineRef.current) return;
+      const elapsed = (Date.now() - startTime) / 1000;
+      const targetCharIdxFloat = elapsed * targetCharsPerSec;
+      const targetCharIdx = Math.min(
+        Math.floor(targetCharIdxFloat),
+        Math.max(0, currentTargetText.length - 1)
+      );
+      const fraction = targetCharIdxFloat - Math.floor(targetCharIdxFloat);
+
+      const spans = viewportRef.current.querySelectorAll('.typing-char');
+      const span = spans[targetCharIdx];
+      if (span) {
+        const left = span.offsetLeft + (span.offsetWidth * fraction);
+        const top = span.offsetTop;
+        const height = span.offsetHeight || 38;
+
+        pacingLineRef.current.style.display = 'block';
+        pacingLineRef.current.style.transform = `translate3d(${left}px, ${top}px, 0)`;
+        pacingLineRef.current.style.height = `${height}px`;
+      }
+
+      if (!isCompleted && targetCharIdx < currentTargetText.length - 1) {
+        animFrameId = requestAnimationFrame(updatePacingLine);
+      }
+    };
+
+    animFrameId = requestAnimationFrame(updatePacingLine);
+    return () => {
+      if (animFrameId) cancelAnimationFrame(animFrameId);
+    };
+  }, [wpmGoal, startTime, isCompleted, currentTargetText]);
 
   // Next expected character for guide highlight
   const currentTargetChar = useMemo(() => {
@@ -519,6 +614,24 @@ export const WorkstationPage = () => {
     handleReset();
   };
 
+  // Trigger custom generation mode action from toolbar (PHASE 11)
+  const handleTriggerCustomMode = useCallback(() => {
+    const rawSource = customPrompt || currentTargetText;
+    const generated = generateCustomTypingPrompt({
+      sourceText: rawSource,
+      generationMode: customGenerationMode,
+      limitType: 'words',
+      limitValue: 30,
+      includePunctuation: true,
+      includeNumbers: true,
+    });
+    if (generated) {
+      setActiveCompetition(null);
+      setCustomPrompt(generated);
+      handleReset();
+    }
+  }, [customPrompt, currentTargetText, customGenerationMode, handleReset]);
+
   // Start Competition Test
   const handleStartCompetitionTest = ({ competition, participantId, challengeText, challengeType, targetLimit }) => {
     setCustomPrompt(null);
@@ -722,6 +835,8 @@ export const WorkstationPage = () => {
             setFontSize={setFontSize}
             showLiveWpm={showLiveWpm}
             setShowLiveWpm={setShowLiveWpm}
+            customGenerationMode={customGenerationMode}
+            onTriggerCustomMode={handleTriggerCustomMode}
             t={t}
           />
         )}
@@ -771,7 +886,7 @@ export const WorkstationPage = () => {
                     <span className="text-[11px] uppercase">{t('workstation.accuracy') || 'Accuracy'}</span>
                     <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveAccuracy}%</span>
                   </div>
-                  {/* Target Goal Selector */}
+                  {/* Target Goal Selector (PHASE 5: 10 to 500 WPM in increments of 10) */}
                   <div className="flex items-center gap-1.5 pl-1 border-l border-[var(--border)]">
                     <Flag className="w-3.5 h-3.5 text-amber-400" />
                     <span className="text-[10px] uppercase">Goal</span>
@@ -779,14 +894,13 @@ export const WorkstationPage = () => {
                       value={wpmGoal || ''}
                       onChange={(e) => setWpmGoal(e.target.value ? Number(e.target.value) : null)}
                       className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[11px] font-mono text-[var(--text-primary)] cursor-pointer"
-                      title="Set Target Speed Goal"
+                      title="Set Target Speed Goal (10 to 500 WPM in increments of 10)"
                     >
-                      <option value="">None</option>
-                      <option value="40">40 WPM</option>
-                      <option value="60">60 WPM</option>
-                      <option value="80">80 WPM</option>
-                      <option value="100">100 WPM</option>
-                      <option value="120">120 WPM</option>
+                      {WPM_GOAL_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
                     </select>
                   </div>
                   {mode === 'accuracy' && (
@@ -818,10 +932,10 @@ export const WorkstationPage = () => {
                 </div>
               </div>
 
-              {/* Controlled 3-Line Typing Viewport — Smooth Line-by-Line Progression */}
+              {/* Controlled 4-Line Typing Viewport (PHASE 7) — Smooth Line-by-Line Progression (PHASE 4) */}
               <div
                 onClick={() => inputRef.current && inputRef.current.focus()}
-                className={`p-4 sm:p-6 rounded-2xl border min-h-[160px] max-h-[180px] flex flex-col justify-center transition-all cursor-text relative select-none ${
+                className={`p-4 sm:p-6 rounded-2xl border min-h-[160px] max-h-[180px] sm:min-h-[190px] sm:max-h-[225px] flex flex-col justify-center transition-all cursor-text relative select-none ${
                   isCompleted ? 'opacity-85 border-[var(--border)]' : 'border-[var(--accent)] shadow-sm'
                 }`}
                 style={{ background: 'var(--bg-surface)' }}
@@ -836,19 +950,34 @@ export const WorkstationPage = () => {
                       : 'text-base sm:text-2xl'
                   }`}
                   style={{
-                    height: 'calc(3 * 1.625em)',
-                    maxHeight: 'calc(3 * 1.625em)',
+                    height: 'calc(4 * 1.625em)',
+                    maxHeight: 'calc(4 * 1.625em)',
                     scrollBehavior: 'smooth',
                   }}
                 >
+                  {/* Subtle WPM Pacing Guide Line (PHASE 6) */}
+                  <div
+                    ref={pacingLineRef}
+                    className="absolute top-0 left-0 w-[2px] pointer-events-none z-10 transition-none"
+                    style={{
+                      display: 'none',
+                      backgroundColor: 'rgba(100, 116, 139, 0.75)',
+                      boxShadow: '0 0 3px rgba(100, 116, 139, 0.4)',
+                    }}
+                  >
+                    <div className="absolute -top-1 -left-[3px] w-2 h-2 rounded-full bg-slate-500/90 shadow-xs" />
+                  </div>
+
                   {currentTargetText.split('').map((char, idx) => {
                     const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted, correctedIndices);
-                    const isCurrent = idx === typed.length && !isCompleted;
+                    const isCurrent =
+                      (idx === typed.length && !isCompleted) ||
+                      (idx === currentTargetText.length - 1 && typed.length >= currentTargetText.length);
                     return (
                       <span
                         key={idx}
                         ref={isCurrent ? activeCharSpanRef : null}
-                        className={feedback.className}
+                        className={`${feedback.className} typing-char`}
                       >
                         {char === '\n' ? '↵\n' : char}
                       </span>
@@ -914,6 +1043,8 @@ export const WorkstationPage = () => {
         }}
         onApplyCustomText={handleApplyCustomText}
         userId={user?.id}
+        generationMode={customGenerationMode}
+        onGenerationModeChange={setCustomGenerationMode}
       />
 
       <SavedTextsModal

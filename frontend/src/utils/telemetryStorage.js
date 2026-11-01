@@ -138,6 +138,20 @@ export function saveRawTelemetrySessions(sessions, explicitUserId = null) {
   } catch {}
 }
 
+export function deleteTelemetrySession(sessionId, explicitUserId = null) {
+  const sessions = loadRawTelemetrySessions(explicitUserId);
+  const updated = sessions.filter(
+    (s) => String(s.id || s.timestamp) !== String(sessionId)
+  );
+  saveRawTelemetrySessions(updated, explicitUserId);
+  return updated;
+}
+
+export function clearAllTelemetrySessions(explicitUserId = null) {
+  saveRawTelemetrySessions([], explicitUserId);
+  return [];
+}
+
 /**
  * Merges legacy lessonProgress completed lessons so that users with past
  * activity immediately have their historical data reflected in telemetry.

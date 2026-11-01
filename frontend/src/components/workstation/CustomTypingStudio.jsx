@@ -51,6 +51,8 @@ export const CustomTypingStudio = ({
   onApplyCustomText,
   userId = null,
   initialText = '',
+  generationMode: propGenerationMode = 'simple',
+  onGenerationModeChange,
 }) => {
   const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'saved'
 
@@ -61,8 +63,19 @@ export const CustomTypingStudio = ({
   const [showSaveInput, setShowSaveInput] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
 
-  // Settings groups
-  const [generationMode, setGenerationMode] = useState('simple'); // 'simple' | 'repeat' | 'shuffle' | 'random'
+  // Settings groups with 2-way toolbar sync (PHASE 11)
+  const [internalMode, setInternalMode] = useState(propGenerationMode);
+  const generationMode = propGenerationMode || internalMode;
+  const setGenerationMode = (newMode) => {
+    setInternalMode(newMode);
+    if (onGenerationModeChange) onGenerationModeChange(newMode);
+  };
+
+  useEffect(() => {
+    if (propGenerationMode) {
+      setInternalMode(propGenerationMode);
+    }
+  }, [propGenerationMode]);
   const [delimiter, setDelimiter] = useState(' '); // ' ' | '|'
   const [limitType, setLimitType] = useState('words'); // 'words' | 'timed' | 'passage'
   const [wordLimit, setWordLimit] = useState(25);

@@ -36,9 +36,12 @@ export const SavedTextsModal = ({
   const [editTitle, setEditTitle] = useState('');
 
   useEffect(() => {
+    const refresh = () => setTexts(getSavedCustomTexts(userId));
     if (isOpen) {
-      setTexts(getSavedCustomTexts(userId));
+      refresh();
     }
+    window.addEventListener('keyflow-custom-texts-updated', refresh);
+    return () => window.removeEventListener('keyflow-custom-texts-updated', refresh);
   }, [isOpen, userId]);
 
   useEffect(() => {

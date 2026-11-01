@@ -180,29 +180,48 @@ export const LessonPlayer = ({
       return;
     }
 
-    const newChar = value[value.length - 1];
-    const expectedChar = targetText[typed.length];
-    const isCorrect = newChar === expectedChar;
+    let runningCorrectStrokes = correctStrokes;
+    let runningMistakes = mistakes;
+    let addedStrokes = 0;
+    let lastKey = '';
+    const newMistakeIndices = [];
 
-    setTotalStrokes(prev => prev + 1);
+    for (let i = typed.length; i < value.length; i++) {
+      const char = value[i];
+      const expected = targetText[i];
+      const isMatch = char === expected;
+      lastKey = char;
+      addedStrokes += 1;
 
-    if (isCorrect) {
-      setCorrectStrokes(prev => prev + 1);
-      streakRef.current += 1;
-      const currentStreakVal = streakRef.current;
-      setStreak(currentStreakVal);
-      setMaxStreak(prev => Math.max(prev, currentStreakVal));
-      playClick(false);
-    } else {
-      streakRef.current = 0;
-      setStreak(0);
-      setMistakes(prev => prev + 1);
-      setCorrectedIndices(prev => new Set(prev).add(charIdx));
-      playClick(true);
+      if (isMatch) {
+        runningCorrectStrokes += 1;
+        streakRef.current += 1;
+        playClick(false);
+      } else {
+        streakRef.current = 0;
+        runningMistakes += 1;
+        newMistakeIndices.push(i);
+        playClick(true);
+      }
     }
 
+    if (newMistakeIndices.length > 0) {
+      setCorrectedIndices(prev => {
+        const next = new Set(prev);
+        newMistakeIndices.forEach(idx => next.add(idx));
+        return next;
+      });
+    }
+
+    const currentStreakVal = streakRef.current;
+    setStreak(currentStreakVal);
+    setMaxStreak(prev => Math.max(prev, currentStreakVal));
+    setTotalStrokes(prev => prev + addedStrokes);
+    setCorrectStrokes(runningCorrectStrokes);
+    setMistakes(runningMistakes);
+
     setTyped(value);
-    setLastKeystroke({ key: newChar, code: '', id: performance.now() });
+    setLastKeystroke({ key: lastKey, code: '', id: performance.now() });
 
     // Completion check
     if (value.length >= targetText.length && !completionFiredRef.current) {
@@ -214,9 +233,9 @@ export const LessonPlayer = ({
       const finalMinutes = finalDuration / 60;
       const finalCorrect = countCorrectChars(value, targetText);
       const finalWpm = Math.max(0, Math.round((finalCorrect / 5) / Math.max(finalMinutes, 0.016)));
-      const finalStrokes = totalStrokes + 1;
-      const finalCorrectStrokes = isCorrect ? correctStrokes + 1 : correctStrokes;
-      const finalMistakes = isCorrect ? mistakes : mistakes + 1;
+      const finalStrokes = totalStrokes + addedStrokes;
+      const finalCorrectStrokes = runningCorrectStrokes;
+      const finalMistakes = runningMistakes;
       const finalAccuracy = calculateRawAccuracy(finalCorrectStrokes, finalMistakes);
       const finalTextAccuracy = calculateFinalTextAccuracy(value, targetText);
       const finalStars = calculateStars(finalAccuracy, lesson?.targetAccuracy || 90, finalWpm, lesson?.targetWpm || 20);
@@ -231,7 +250,7 @@ export const LessonPlayer = ({
         duration: finalDuration,
         stars: finalStars,
         passed,
-        maxStreak,
+        maxStreak: Math.max(maxStreak, currentStreakVal),
         totalStrokes: finalStrokes,
         correctStrokes: finalCorrectStrokes,
       };

@@ -12,8 +12,14 @@ import {
   BarChart3,
   CheckCircle2,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
-import { loadRawTelemetrySessions, formatDuration } from '../../utils/telemetryStorage.js';
+import {
+  loadRawTelemetrySessions,
+  deleteTelemetrySession,
+  clearAllTelemetrySessions,
+  formatDuration,
+} from '../../utils/telemetryStorage.js';
 import { practiceAPI } from '../../utils/api.js';
 
 export const PracticeHistoryModal = ({ isOpen, onClose, userId = null }) => {
@@ -65,7 +71,28 @@ export const PracticeHistoryModal = ({ isOpen, onClose, userId = null }) => {
     };
 
     loadHistory();
+
+    const handleTelemetryUpdated = () => loadHistory();
+    window.addEventListener('keyflow-telemetry-updated', handleTelemetryUpdated);
+    return () => window.removeEventListener('keyflow-telemetry-updated', handleTelemetryUpdated);
   }, [isOpen, userId]);
+
+  const handleDeleteSession = (sessionToDelete) => {
+    if (!window.confirm('Are you sure you want to delete this typing session record from your history?')) {
+      return;
+    }
+    const targetId = sessionToDelete.id || String(sessionToDelete.timestamp);
+    deleteTelemetrySession(targetId, userId);
+    setSessions((prev) => prev.filter((s) => String(s.id || s.timestamp) !== targetId));
+  };
+
+  const handleClearAll = () => {
+    if (!window.confirm('Are you sure you want to delete ALL practice session records? This cannot be undone.')) {
+      return;
+    }
+    clearAllTelemetrySessions(userId);
+    setSessions([]);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -121,14 +148,26 @@ export const PracticeHistoryModal = ({ isOpen, onClose, userId = null }) => {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
-            aria-label="Close history modal"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            {sessions.length > 0 && (
+              <button
+                type="button"
+                onClick={handleClearAll}
+                className="px-2.5 py-1 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-red-500 hover:border-red-500/40 text-xs font-mono transition-colors cursor-pointer"
+                title="Delete all practice history"
+              >
+                Clear All
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1.5 rounded-lg border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+              aria-label="Close history modal"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Stats Summary Bar */}
@@ -199,12 +238,21 @@ export const PracticeHistoryModal = ({ isOpen, onClose, userId = null }) => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 text-xs">
+                  <div className="flex items-center gap-2 text-xs">
                     {s.accuracy >= 95 ? (
                       <CheckCircle2 className="w-4 h-4 text-[var(--ui-success)]" />
                     ) : (
                       <AlertCircle className="w-4 h-4 text-[var(--ui-warning)]" />
                     )}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSession(s)}
+                      className="p-1 rounded-md text-[var(--text-muted)] hover:text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                      title="Delete this session record"
+                      aria-label="Delete this session record"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
               );

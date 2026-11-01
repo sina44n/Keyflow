@@ -29,10 +29,10 @@ export const AcademyLevelCard = React.forwardRef(({
   const isUnlocked = Boolean(lesson.unlocked);
   const isLocked = !isUnlocked;
 
-  // Star calculation (0 to 5)
-  const starsEarned = typeof lesson.record?.stars === 'number'
+  // Star calculation (0 to 5) — Real earned performance only
+  const starsEarned = isCompleted && typeof lesson.record?.stars === 'number'
     ? Math.max(0, Math.min(5, lesson.record.stars))
-    : (isCompleted ? 3 : 0);
+    : (isCompleted && lesson.record?.passed ? 3 : 0);
 
   // Check if review/focus lesson
   const lowerTitle = (lesson.title || '').toLowerCase();
@@ -149,19 +149,50 @@ export const AcademyLevelCard = React.forwardRef(({
 
       {/* Bottom: 5-Star Rating & Curated Title */}
       <div className="space-y-1.5 pt-1.5">
-        {/* 5-Star Rating Row */}
-        <div className="flex items-center justify-center gap-0.5" aria-label={`Rating: ${starsEarned} of 5 stars`}>
-          {[1, 2, 3, 4, 5].map((starIdx) => {
-            const isFilled = isCompleted ? starIdx <= starsEarned : (isCurrent && starIdx <= starsEarned && starsEarned > 0);
+        {/* Clustered 5-Star Row matching TypingClub reference */}
+        <div
+          className="flex items-center justify-center -space-x-1 py-1"
+          aria-label={`Rating: ${starsEarned} of 5 stars`}
+        >
+          {[0, 1, 2, 3, 4].map((idx) => {
+            const starNum = idx + 1;
+            const isEarned = isCompleted && starNum <= starsEarned;
+            // Arched offsets: center star is elevated, outer stars arched down
+            const yOffsets = [3, 1, -2, 1, 3];
+            const rotations = [-6, -3, 0, 3, 6];
+            const sizes = [18, 20, 22, 20, 18];
+            const zIndexes = [1, 2, 3, 2, 1];
+
             return (
-              <Star
-                key={starIdx}
-                className={`w-3.5 h-3.5 transition-colors ${
-                  isFilled
-                    ? 'text-[#FFB800] fill-[#FFB800] filter drop-shadow-[0_1px_1px_rgba(255,184,0,0.4)]'
-                    : 'text-[var(--border)] fill-transparent stroke-[1.4]'
-                }`}
-              />
+              <div
+                key={idx}
+                className="transition-transform duration-200"
+                style={{
+                  transform: `translateY(${yOffsets[idx]}px) rotate(${rotations[idx]}deg)`,
+                  zIndex: zIndexes[idx],
+                }}
+              >
+                <svg
+                  width={sizes[idx]}
+                  height={sizes[idx]}
+                  viewBox="0 0 24 24"
+                  className="transition-all duration-200"
+                  style={{
+                    filter: isEarned
+                      ? 'drop-shadow(0 2px 2px rgba(180, 83, 9, 0.45))'
+                      : 'none',
+                  }}
+                >
+                  <path
+                    d="M12 2l2.9 6.26L21.8 9.27l-5 4.87 1.18 6.88L12 17.77l-5.98 3.25L7.2 14.14 2.2 9.27l6.9-1.01L12 2z"
+                    fill={isEarned ? '#FFC107' : 'transparent'}
+                    stroke={isEarned ? '#D97706' : 'var(--border)'}
+                    strokeWidth={isEarned ? 1.2 : 1.5}
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </div>
             );
           })}
         </div>

@@ -38,7 +38,19 @@ const STARTER_CUSTOM_TEXTS = [
 ];
 
 const getStorageKey = (userId) => {
-  return `keyflow_custom_texts_${userId || 'guest'}`;
+  let resolvedId = userId;
+  if (!resolvedId && typeof localStorage !== 'undefined') {
+    try {
+      resolvedId = localStorage.getItem('keyflow_current_user_id');
+    } catch {}
+  }
+  return `keyflow_custom_texts_${resolvedId || 'guest'}`;
+};
+
+const notifyCustomTextsChanged = () => {
+  if (typeof window !== 'undefined' && window.dispatchEvent) {
+    window.dispatchEvent(new CustomEvent('keyflow-custom-texts-updated'));
+  }
 };
 
 /**
@@ -95,6 +107,7 @@ export const saveCustomText = ({ title, text, userId = null }) => {
   const updated = [newEntry, ...existing];
   try {
     localStorage.setItem(getStorageKey(userId), JSON.stringify(updated));
+    notifyCustomTextsChanged();
   } catch (err) {
     console.error('Failed to save custom text to localStorage:', err);
   }
@@ -132,6 +145,7 @@ export const updateCustomText = (id, { title, text }, userId = null) => {
   existing[index] = updatedEntry;
   try {
     localStorage.setItem(getStorageKey(userId), JSON.stringify(existing));
+    notifyCustomTextsChanged();
   } catch (err) {
     console.error('Failed to update custom text in localStorage:', err);
   }
@@ -146,6 +160,7 @@ export const deleteCustomText = (id, userId = null) => {
   const filtered = existing.filter((item) => item.id !== id);
   try {
     localStorage.setItem(getStorageKey(userId), JSON.stringify(filtered));
+    notifyCustomTextsChanged();
   } catch (err) {
     console.error('Failed to delete custom text from localStorage:', err);
   }
