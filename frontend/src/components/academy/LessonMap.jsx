@@ -1,18 +1,19 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { LessonCard } from './LessonCard';
-import { PathConnector } from './PathConnector';
-import { UnitElevator } from './UnitElevator';
+import { AcademyLevelCard } from './AcademyLevelCard';
+import { AcademyCurriculumSidebar } from './AcademyCurriculumSidebar';
 import { AlertCircle, X } from 'lucide-react';
 
 /**
  * LessonMap
  * =========================================================================
- * Displays interactive lesson destination cards arranged in a responsive grid
- * with dynamic SVG circuit connectors, status badges, and synchronized unit elevator.
- * Never truncates lessons; displays all modules in the active view.
+ * Production interactive lesson map matching the reference screenshots:
+ * - 5-column grid of rich, illustrated AcademyLevelCards on desktop
+ * - Independent vertically scrollable Curriculum sidebar on the right
+ * - High-performance virtualized rendering for up to 600 levels per stage
+ * - Locked module feedback and accessible keyboard navigation
  */
 export const LessonMap = ({
-  _stageId = 1,
+  stageId = 1,
   activeUnit = 1,
   unitLabel = 'Home Row Foundations',
   lessons = [],
@@ -21,24 +22,14 @@ export const LessonMap = ({
   onSelectUnit,
   unitsData = [],
   unitProgress = {},
-  unlockedUnitCount = 7,
+  unlockedUnitCount = 30,
+  viewAllLevels = false,
 }) => {
   const containerRef = useRef(null);
   const cardRefs = useRef([]);
   const [lockedToast, setLockedToast] = useState(null);
 
-  // Prepare enriched lessons without arbitrary truncation
-  const displayLessons = useMemo(() => {
-    return lessons.map((l) => {
-      const estimatedMinutes = l.estimatedMinutes || String(Math.ceil((l.estimatedSeconds || 60) / 60)) || '3';
-      return {
-        ...l,
-        customTitle: l.title,
-        estimatedMinutes,
-      };
-    });
-  }, [lessons]);
-
+  // Locked click notification
   const handleLockedClick = (lessonNum) => {
     const requiredLessonNum = lessonNum > 1 ? lessonNum - 1 : 1;
     setLockedToast(`Complete Lesson ${requiredLessonNum} to unlock this module.`);
@@ -47,42 +38,11 @@ export const LessonMap = ({
     }, 3500);
   };
 
-  const firstLessonNum = displayLessons[0]?.levelNumber || displayLessons[0]?.lessonNum || 1;
-  const lastLessonNum = displayLessons[displayLessons.length - 1]?.levelNumber || displayLessons[displayLessons.length - 1]?.lessonNum || displayLessons.length;
-
   return (
-    <div className="space-y-6">
-      {/* Unit Header Bar with Red Accent Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
-        <div className="border-l-4 border-[var(--accent)] pl-3.5 space-y-0.5">
-          <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
-            Unit {activeUnit} — <span className="text-[var(--text-primary)]">{unitLabel}</span>
-          </h2>
-          <div className="text-xs font-mono text-[var(--text-muted)]">
-            Lessons {firstLessonNum} – {lastLessonNum} ({displayLessons.length} Modules)
-          </div>
-        </div>
-
-        {/* Legend / Status hints */}
-        <div className="flex items-center gap-4 text-[11px] font-mono text-[var(--text-secondary)] self-start sm:self-auto">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[var(--accent)] shadow-[0_0_6px_var(--accent)]" />
-            <span>Next Up</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[var(--ui-success)]" />
-            <span>Completed</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[var(--border)]" />
-            <span>Upcoming</span>
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-4">
       {/* Locked Requirement Toast Notification */}
       {lockedToast && (
-        <div className="p-3 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 text-xs font-mono text-[var(--text-primary)] flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-200 shadow-xl">
+        <div className="p-3 rounded-xl bg-[#FFFDFB] dark:bg-[#251D19] border border-[var(--accent)]/50 text-xs font-mono text-[var(--text-primary)] flex items-center justify-between animate-in fade-in slide-in-from-top-2 duration-200 shadow-xl">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-[var(--accent)] shrink-0" />
             <span>{lockedToast}</span>
@@ -90,7 +50,7 @@ export const LessonMap = ({
           <button
             type="button"
             onClick={() => setLockedToast(null)}
-            className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 cursor-pointer"
+            className="text-[#A59285] hover:text-[var(--text-primary)] p-1 cursor-pointer"
             aria-label="Dismiss notification"
           >
             <X className="w-3.5 h-3.5" />
@@ -98,40 +58,46 @@ export const LessonMap = ({
         </div>
       )}
 
-      {/* Main Grid + Unit Elevator Layout */}
-      <div className="flex flex-col lg:flex-row items-start gap-6 relative">
-        {/* Lesson Map Cards with SVG Circuit Connector Network */}
-        <div className="flex-1 w-full relative" ref={containerRef}>
-          {/* Dynamic Glowing Circuit Pathways */}
-          <PathConnector
-            containerRef={containerRef}
-            cardRefs={cardRefs}
-            lessons={displayLessons}
-            activeLessonNum={activeLessonNum}
-          />
-
-          {/* 5-Column Grid on Desktop */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5 relative z-10">
-            {displayLessons.map((lesson, idx) => {
-              const isCurrent = (lesson.levelNumber || lesson.lessonNum) === activeLessonNum && !lesson.record?.completed;
+      {/* Main Layout: 5-Column Level Cards Grid + Curriculum Sidebar */}
+      <div className="flex flex-col lg:flex-row items-start gap-5 sm:gap-6 relative">
+        {/* Main Level Cards Grid Container */}
+        <div className="flex-1 w-full" ref={containerRef}>
+          <div
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3.5 sm:gap-4 relative z-10"
+            style={{
+              // CSS containment for 600-level high performance scrolling
+              contain: 'layout style',
+            }}
+          >
+            {lessons.map((lesson, idx) => {
+              const lessonNum = lesson.levelNumber || lesson.lessonNum || (idx + 1);
+              const isCurrent = lessonNum === activeLessonNum && !lesson.record?.completed;
 
               return (
-                <LessonCard
-                  key={lesson.id || idx}
-                  ref={(el) => (cardRefs.current[idx] = el)}
-                  lesson={lesson}
-                  isCurrent={isCurrent}
-                  onSelect={onSelectLesson}
-                  onLockedClick={handleLockedClick}
-                />
+                <div
+                  key={lesson.id || `level-${stageId}-${lessonNum}`}
+                  style={{
+                    // Browser content-visibility optimization skips rendering off-screen cards
+                    contentVisibility: lessons.length > 30 ? 'auto' : 'visible',
+                    containIntrinsicSize: '210px',
+                  }}
+                >
+                  <AcademyLevelCard
+                    ref={(el) => (cardRefs.current[idx] = el)}
+                    lesson={lesson}
+                    isCurrent={isCurrent}
+                    onSelect={onSelectLesson}
+                    onLockedClick={handleLockedClick}
+                  />
+                </div>
               );
             })}
           </div>
         </div>
 
-        {/* Right-Side Unit Elevator Panel */}
+        {/* Right-Side Curriculum Navigation Sidebar */}
         <div className="w-full lg:w-auto shrink-0">
-          <UnitElevator
+          <AcademyCurriculumSidebar
             activeUnit={activeUnit}
             onSelectUnit={onSelectUnit}
             unitsData={unitsData}
@@ -143,3 +109,5 @@ export const LessonMap = ({
     </div>
   );
 };
+
+export default LessonMap;

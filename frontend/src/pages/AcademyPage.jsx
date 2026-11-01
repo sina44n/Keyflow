@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   STAGE_META,
   getLessonMeta,
@@ -15,8 +15,7 @@ import {
   getAcademyDashboardStats,
 } from '../utils/lessonProgress';
 import { LessonPlayer } from '../components/academy/LessonPlayer';
-import { AcademyHero } from '../components/academy/AcademyHero';
-import { UnitSelector } from '../components/academy/UnitSelector';
+import { ProgressStats } from '../components/academy/ProgressStats';
 import { LessonMap } from '../components/academy/LessonMap';
 import { ShortcutBar } from '../components/academy/ShortcutBar';
 import { Button } from '../components/common/Button';
@@ -27,6 +26,7 @@ import {
   Zap,
   Grid,
   Layers,
+  ArrowLeft,
 } from 'lucide-react';
 
 const VIEW = {
@@ -67,6 +67,22 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   const [progress, setProgress] = useState(getLessonProgress);
   const [dashboardStats, setDashboardStats] = useState(() => getAcademyDashboardStats(activeStageId || 1));
   const [stageMenuOpen, setStageMenuOpen] = useState(false);
+  const stageMenuRef = useRef(null);
+
+  // Close stage dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (stageMenuRef.current && !stageMenuRef.current.contains(e.target)) {
+        setStageMenuOpen(false);
+      }
+    };
+    if (stageMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [stageMenuOpen]);
 
   // Sync progress on external updates (e.g. lesson completion)
   const refreshProgress = useCallback(() => {
@@ -232,94 +248,42 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     );
   }
 
+  const startLessonNum = viewAllLevels ? 1 : (currentUnit?.startLesson || 1);
+  const endLessonNum = viewAllLevels ? 600 : (currentUnit?.endLesson || 20);
+
   return (
     <div className="relative min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)] pb-16 overflow-x-hidden selection:bg-[var(--accent)] selection:text-[var(--accent-fg)]">
-      {/* Subtle Atmospheric Accent Edge Glow Effects */}
+      {/* Subtle Atmospheric Background Glow */}
       <div
-        className="pointer-events-none fixed inset-0 z-0 opacity-30"
+        className="pointer-events-none fixed inset-0 z-0 opacity-25"
         style={{
           backgroundImage: `
-            radial-gradient(ellipse at 50% -10%, color-mix(in srgb, var(--accent) 15%, transparent) 0%, transparent 60%),
-            radial-gradient(ellipse at 95% 40%, color-mix(in srgb, var(--accent) 8%, transparent) 0%, transparent 45%),
-            radial-gradient(ellipse at 5% 85%, color-mix(in srgb, var(--accent) 6%, transparent) 0%, transparent 50%)
+            radial-gradient(ellipse at 50% -10%, color-mix(in srgb, var(--accent) 14%, transparent) 0%, transparent 60%),
+            radial-gradient(ellipse at 95% 40%, color-mix(in srgb, var(--accent) 7%, transparent) 0%, transparent 45%),
+            radial-gradient(ellipse at 5% 85%, color-mix(in srgb, var(--accent) 5%, transparent) 0%, transparent 50%)
           `,
         }}
         aria-hidden="true"
       />
 
-      <div className="relative z-10 container-app py-6 space-y-7">
-        {/* Stage Switcher Header Bar (Subtle Stage Selector & Exit) */}
+      <div className="relative z-10 container-app py-5 sm:py-6 space-y-6">
+        {/* Top Control Bar (Navigation & Mode Toggles) */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {onExit && (
-              <Button variant="outline" size="sm" onClick={onExit} className="border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
-                ← {t('nav.home')}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onExit}
+                className="border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-card)] rounded-xl text-xs"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+                {t('nav.home')}
               </Button>
             )}
 
-            {/* Stage Dropdown Selector */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setStageMenuOpen(!stageMenuOpen)}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] hover:border-[var(--accent)]/60 text-[var(--text-primary)] font-mono text-xs cursor-pointer shadow-xs transition-all"
-                aria-expanded={stageMenuOpen}
-                aria-label="Switch Curriculum Stage"
-              >
-                <div className="w-2 h-2 rounded-full bg-[var(--accent)] shadow-[0_0_6px_var(--accent)]" />
-                <span className="text-[var(--text-secondary)]">{t('academy.stage_label', { id: activeStageId })}:</span>
-                <span className="font-bold text-[var(--text-primary)]">{activeStageMeta.title}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)] ml-1" />
-              </button>
-
-              {/* Stage Selection Flyout */}
-              {stageMenuOpen && (
-                <div className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
-                  <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
-                    <span>{t('academy.stages_count', { count: 7 })}</span>
-                    <span className="text-[10px] text-[var(--accent)] font-bold">{t('academy.levels_count', { count: 600 })}</span>
-                  </div>
-                  <div className="space-y-1 mt-1 max-h-64 overflow-y-auto pr-1">
-                    {STAGE_META.map((st) => {
-                      const isStUnlocked = isStageUnlocked(st.stageId);
-                      const isStActive = st.stageId === activeStageId && !viewAllLevels;
-
-                      return (
-                        <button
-                          key={st.stageId}
-                          type="button"
-                          disabled={!isStUnlocked}
-                          onClick={() => {
-                            setActiveStageId(st.stageId);
-                            setActiveUnit(1);
-                            setViewAllLevels(false);
-                            setStageMenuOpen(false);
-                          }}
-                          className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
-                            isStActive
-                              ? 'bg-[var(--bg-elevated)] border border-[var(--accent)] text-[var(--text-primary)] shadow-xs'
-                              : isStUnlocked
-                              ? 'hover:bg-[var(--bg-elevated)]/80 text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent'
-                              : 'opacity-40 cursor-not-allowed text-[var(--text-muted)] border border-transparent'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <span className="font-mono text-xs font-bold w-4 text-center">
-                              {st.stageId}
-                            </span>
-                            <span className="text-xs font-medium">{st.title}</span>
-                          </div>
-                          {!isStUnlocked && <Lock className="w-3 h-3 text-[var(--text-muted)]" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* View Mode Toggle (Stage vs All 600 Levels) */}
-            <div className="hidden sm:flex items-center rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] p-0.5">
+            {/* View Mode Toggle: By Unit (20) vs All 600 Levels */}
+            <div className="flex items-center rounded-xl bg-[var(--bg-card)] border border-[var(--border)] p-0.5">
               <button
                 type="button"
                 onClick={() => setViewAllLevels(false)}
@@ -330,7 +294,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 }`}
               >
                 <Layers className="w-3 h-3" />
-                <span>{t('academy.by_unit')}</span>
+                <span>By Unit</span>
               </button>
               <button
                 type="button"
@@ -342,69 +306,139 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 }`}
               >
                 <Grid className="w-3 h-3" />
-                <span>{t('academy.all_levels', { count: 600 })}</span>
+                <span>All 600 Levels</span>
               </button>
             </div>
           </div>
 
-          {/* Quick Resume Link */}
-          <div className="flex items-center gap-3">
-            <span className="text-[var(--text-muted)] hidden sm:inline">
-              {t('academy.recommended')}: <span className="text-[var(--accent)] font-bold">{t('academy.stage_label', { id: recommended.stageId })} L{recommended.lessonNum}</span>
+          {/* Recommended Next Lesson Resume Pill */}
+          <div className="flex items-center gap-2.5">
+            <span className="text-[var(--text-muted)] hidden md:inline text-[11px]">
+              Next Up: <span className="text-[var(--accent)] font-bold">Stage {recommended.stageId} Level {recommended.lessonNum}</span>
             </span>
             <button
               type="button"
               onClick={() => handleSelectLesson(recommended.stageId, recommended.lessonNum)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 hover:border-[var(--accent)] text-[var(--accent)] hover:text-[var(--accent-fg)] hover:bg-[var(--accent)] text-xs font-mono font-bold shadow-xs transition-all cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] text-xs font-mono font-bold shadow-sm hover:opacity-90 transition-all cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5 fill-current" />
-              <span>{t('academy.resume')}</span>
+              <span>Resume Lesson</span>
             </button>
           </div>
         </div>
 
-        {/* 1. Dashboard Hero with 3 Statistics Cards */}
-        <AcademyHero
-          overallProgress={dashboardStats.overallProgress}
-          completedUnits={dashboardStats.completedUnits}
-          totalUnits={dashboardStats.totalUnits}
-          streak={dashboardStats.streak}
-          accuracy={dashboardStats.accuracy}
-          accuracyChange={dashboardStats.accuracyChange}
-        />
+        {/* Unified Reference Header Section:
+            Left: Red Accent Bar with Unit Title + Stage Name with Select Stage Dropdown
+            Right: ProgressStats Cards Stack (Progress % Ring, Streak, Accuracy)
+        */}
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 pb-2 border-b border-[var(--border)]">
+          {/* Left Column: Contextual Hierarchy matching Reference Images */}
+          <div className="space-y-2.5">
+            {/* Red Accent Bar with Unit Number & Subtitle */}
+            <div className="border-l-4 border-[var(--accent)] pl-3.5 space-y-0.5">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
+                {viewAllLevels ? (
+                  <>Stage {activeStageId} — <span className="text-[var(--text-primary)]">All 600 Levels</span></>
+                ) : (
+                  <>Unit {activeUnit} — <span className="text-[var(--text-primary)]">{currentUnit?.unitLabel}</span></>
+                )}
+              </h2>
+              <div className="text-xs font-mono text-[var(--text-muted)]">
+                Lessons {startLessonNum} - {endLessonNum} ({displayLessons.length} Modules)
+              </div>
+            </div>
 
-        {/* 2. Horizontal Stage Selector */}
-        <section aria-label="Units Navigation" className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-mono text-[var(--text-secondary)]">
-            <span className="font-semibold tracking-wider uppercase text-[11px] text-[var(--text-muted)]">
-              Select Curriculum Unit (1–{stageUnits.length}):
-            </span>
-            <span className="text-[11px] text-[var(--text-secondary)]">
-              {viewAllLevels ? (
-                <span className="text-[var(--accent)] font-bold">Viewing All 600 Levels of Stage {activeStageId}</span>
-              ) : (
-                <>
-                  Active: <span className="text-[var(--accent)] font-bold">Unit {String(activeUnit).padStart(2, '0')}</span> ({currentUnit?.unitLabel})
-                </>
-              )}
-            </span>
+            {/* Stage Title + Select Stage Dropdown */}
+            <div className="flex items-center gap-3 pt-1 pl-3.5" ref={stageMenuRef}>
+              <h3 className="text-lg sm:text-xl font-bold text-[var(--text-primary)]">
+                {activeStageMeta.title}
+              </h3>
+
+              {/* Select Stage Dropdown Button */}
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setStageMenuOpen(!stageMenuOpen)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] cursor-pointer shadow-xs transition-all"
+                  aria-expanded={stageMenuOpen}
+                  aria-label="Select Curriculum Stage"
+                >
+                  <span className="font-semibold text-xs">Select Stage</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-[var(--text-muted)]" />
+                </button>
+
+                {/* Stage Flyout Menu */}
+                {stageMenuOpen && (
+                  <div className="absolute left-0 top-full mt-2 z-50 w-72 sm:w-80 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">
+                      <span className="font-bold">Curriculum Stages (7)</span>
+                      <span className="text-[var(--accent)] font-bold">4,200 Levels Total</span>
+                    </div>
+                    <div className="space-y-1 mt-1 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
+                      {STAGE_META.map((st) => {
+                        const isStUnlocked = isStageUnlocked(st.stageId);
+                        const isStActive = st.stageId === activeStageId;
+
+                        return (
+                          <button
+                            key={st.stageId}
+                            type="button"
+                            disabled={!isStUnlocked}
+                            onClick={() => {
+                              setActiveStageId(st.stageId);
+                              setActiveUnit(1);
+                              setViewAllLevels(false);
+                              setStageMenuOpen(false);
+                            }}
+                            className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+                              isStActive
+                                ? 'bg-[var(--bg-elevated)] border-2 border-[var(--accent)] text-[var(--text-primary)] shadow-xs'
+                                : isStUnlocked
+                                ? 'hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent'
+                                : 'opacity-40 cursor-not-allowed text-[var(--text-muted)] border border-transparent'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <span className="font-mono text-xs font-bold w-5 h-5 rounded-full bg-[var(--border)]/40 flex items-center justify-center text-center">
+                                {st.stageId}
+                              </span>
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold leading-tight">{st.title}</span>
+                                <span className="text-[10px] text-[var(--text-muted)] leading-tight truncate max-w-[180px]">
+                                  {st.badge} · 600 Levels
+                                </span>
+                              </div>
+                            </div>
+                            {!isStUnlocked && <Lock className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
 
-          <UnitSelector
-            activeUnit={activeUnit}
-            onSelectUnit={handleSelectUnit}
-            unitProgress={unitProgress}
-            unlockedUnitCount={unlockedUnitCount}
-            totalUnits={stageUnits.length}
-          />
-        </section>
+          {/* Right Column: Protected ProgressStats Component Rendered As-Is */}
+          <div className="w-full lg:w-auto shrink-0">
+            <ProgressStats
+              overallProgress={dashboardStats.overallProgress}
+              completedUnits={dashboardStats.completedUnits}
+              totalUnits={dashboardStats.totalUnits}
+              streak={dashboardStats.streak}
+              accuracy={dashboardStats.accuracy}
+              accuracyChange={dashboardStats.accuracyChange}
+            />
+          </div>
+        </div>
 
-        {/* 3. The Masterpiece Lesson Map */}
-        <section aria-label="Lesson Journey Map" className="pt-2">
+        {/* Main Lesson Map: 5-Column Illustrated Level Cards + Curriculum Sidebar */}
+        <section aria-label="Curriculum Level Matrix" className="pt-1">
           <LessonMap
             stageId={activeStageId}
-            activeUnit={viewAllLevels ? 1 : activeUnit}
-            unitLabel={viewAllLevels ? `Stage ${activeStageId}: ${activeStageMeta.title} (All 600 Levels)` : (currentUnit?.unitLabel || activeStageMeta.title)}
+            activeUnit={activeUnit}
+            unitLabel={viewAllLevels ? `All 600 Levels` : (currentUnit?.unitLabel || activeStageMeta.title)}
             lessons={displayLessons}
             activeLessonNum={recommended.lessonNum}
             onSelectLesson={handleSelectLesson}
@@ -412,18 +446,21 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
             unitsData={stageUnits}
             unitProgress={unitProgress}
             unlockedUnitCount={unlockedUnitCount}
+            viewAllLevels={viewAllLevels}
           />
         </section>
       </div>
 
-      {/* 4. Bottom Shortcut Bar */}
+      {/* Bottom Sticky Shortcut Bar */}
       <ShortcutBar
         onNextLesson={() => handleSelectLesson(recommended.stageId, recommended.lessonNum)}
         onRestart={() => handleSelectLesson(activeStageId, 1)}
         onBack={onExit || (() => {})}
-        systemStatus="System Online"
+        systemStatus="KEYFLOW Academy Engine Online"
         isOnline={true}
       />
     </div>
   );
 };
+
+export default AcademyPage;
