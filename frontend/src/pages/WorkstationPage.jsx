@@ -38,6 +38,7 @@ import { PracticeHistoryModal } from '../components/workstation/PracticeHistoryM
 import { ShortcutsModal } from '../components/workstation/ShortcutsModal';
 import { CompetitionModal } from '../components/workstation/CompetitionModal';
 import TelemetryProfileModal from '../components/telemetry/TelemetryProfileModal';
+import { DedicatedResultsScreen, calculateConsistency } from '../components/workstation/DedicatedResultsScreen';
 
 const PRACTICE_PASSAGES = [
   {
@@ -169,6 +170,7 @@ export const WorkstationPage = () => {
   const [correctKeystrokes, setCorrectKeystrokes] = useState(0);
   const [backspaces, setBackspaces] = useState(0);
   const [errorHistory, setErrorHistory] = useState([]);
+  const [correctedIndices, setCorrectedIndices] = useState(() => new Set());
   const [wpmGoal, setWpmGoal] = useState(null);
   const [isCompleted, setIsCompleted] = useState(false);
   const [sessionResults, setSessionResults] = useState(null);
@@ -178,6 +180,8 @@ export const WorkstationPage = () => {
   const timerRef = useRef(null);
   const viewportRef = useRef(null);
   const activeCharSpanRef = useRef(null);
+  const secondTimelineRef = useRef([]);
+  const lastSampleSecondRef = useRef(0);
 
   // Determine current active text
   const currentTargetText = useMemo(() => {
@@ -273,16 +277,39 @@ export const WorkstationPage = () => {
       else if (netWpm >= 60) tier = 'Expert';
       else if (netWpm >= 40) tier = 'Proficient';
 
+      // Ensure final timeline point exists
+      const finalTimeline = [...secondTimelineRef.current];
+      const testDurationSec = Math.max(1, Math.round(duration));
+      if (finalTimeline.length === 0 || finalTimeline[finalTimeline.length - 1].second !== testDurationSec) {
+        finalTimeline.push({
+          second: testDurationSec,
+          wpm: netWpm,
+          rawWpm: grossWpm,
+          errors: mistakes,
+        });
+      }
+
+      const wpmSeries = finalTimeline.map((pt) => pt.wpm);
+      const consistency = calculateConsistency(wpmSeries);
+      const extraChars = Math.max(0, typed.length - currentTargetText.length);
+      const missedChars = Math.max(0, currentTargetText.length - typed.length);
+
       const results = {
         netWpm,
         grossWpm,
         accuracy: rawAccuracy,
         rawAccuracy,
         finalTextAccuracy,
-        duration,
+        consistency,
+        duration: testDurationSec,
+        mode,
+        timeLimit,
+        wordLimit,
         correctChars,
         correctKeystrokes,
         mistakes,
+        extraChars,
+        missedChars,
         backspaces,
         totalChars: typed.length,
         tier,
@@ -292,6 +319,8 @@ export const WorkstationPage = () => {
         wpmGoal,
         wpmGoalPassed: wpmGoal ? netWpm >= wpmGoal : null,
         errorDetails: [...errorHistory],
+        timeline: finalTimeline,
+        startTime,
       };
 
       setSessionResults(results);
@@ -363,6 +392,7 @@ export const WorkstationPage = () => {
         playClick(isError);
         if (isError) {
           setMistakes((m) => m + 1);
+          setCorrectedIndices((prev) => new Set(prev).add(i));
           const textBefore = currentTargetText.slice(0, i);
           const lastSpace = textBefore.lastIndexOf(' ');
           const textAfter = currentTargetText.slice(i);
@@ -378,6 +408,7 @@ export const WorkstationPage = () => {
               expected: expectedChar,
               actual: actualChar,
               word: targetWord,
+              timestamp: Date.now(),
             },
           ]);
         } else {
@@ -411,9 +442,12 @@ export const WorkstationPage = () => {
     setCorrectKeystrokes(0);
     setBackspaces(0);
     setErrorHistory([]);
+    setCorrectedIndices(new Set());
     setIsCompleted(false);
     setSessionResults(null);
     setLastKeystroke(null);
+    secondTimelineRef.current = [];
+    lastSampleSecondRef.current = 0;
     clearInterval(timerRef.current);
     if (viewportRef.current) {
       viewportRef.current.scrollTo({ top: 0, behavior: 'smooth' });
@@ -457,12 +491,26 @@ export const WorkstationPage = () => {
     }
   };
 
-  // Timed countdown effect
+  // Timed countdown & 1-second telemetry sampling effect
   useEffect(() => {
     if (startTime && !isCompleted) {
       timerRef.current = setInterval(() => {
         const elapsed = Math.floor((Date.now() - startTime) / 1000);
         setElapsedSeconds(elapsed);
+
+        // Record 1-second telemetry points for graph and consistency calculation
+        if (elapsed > 0 && elapsed !== lastSampleSecondRef.current) {
+          lastSampleSecondRef.current = elapsed;
+          const currentElapsedMinutes = Math.max(elapsed / 60, 0.016);
+          const currentGrossWpm = Math.round(typed.length / 5 / currentElapsedMinutes);
+          const currentNetWpm = Math.max(0, Math.round((typed.length / 5 - mistakes) / currentElapsedMinutes));
+          secondTimelineRef.current.push({
+            second: elapsed,
+            wpm: currentNetWpm,
+            rawWpm: Math.max(currentNetWpm, currentGrossWpm),
+            errors: mistakes,
+          });
+        }
 
         if (mode === 'timed') {
           const rem = Math.max(0, timeLimit - elapsed);
@@ -474,7 +522,7 @@ export const WorkstationPage = () => {
       }, 250);
     }
     return () => clearInterval(timerRef.current);
-  }, [startTime, isCompleted, mode, timeLimit, handleCompleteSession]);
+  }, [startTime, isCompleted, mode, timeLimit, handleCompleteSession, typed.length, mistakes]);
 
   // Global Keyboard Shortcuts (Alt+C, Alt+F, Alt+H, Alt+S, Alt+K, Esc)
   useEffect(() => {
@@ -622,299 +670,166 @@ export const WorkstationPage = () => {
           />
         )}
 
-        {/* Main Workstation Layout — Expanded Typing Workspace */}
+        {/* Main Workstation Layout — Dedicated Results Screen or Active Practice Area */}
         <div className="w-full space-y-5">
-          {/* Live Telemetry Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-2 text-xs font-mono text-[var(--text-muted)]">
-            <div className="flex items-center gap-3 sm:gap-6">
-              <div className="flex items-center gap-1.5">
-                <Gauge className="w-4 h-4 text-[var(--accent)]" />
-                <span className="text-[11px] uppercase">{t('workstation.liveWpm') || 'Live WPM'}</span>
-                <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveWpm}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Target className="w-4 h-4 text-[var(--ui-success)]" />
-                <span className="text-[11px] uppercase">{t('workstation.accuracy') || 'Accuracy'}</span>
-                <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveAccuracy}%</span>
-              </div>
-              {/* Target Goal Selector */}
-              <div className="flex items-center gap-1.5 pl-1 border-l border-[var(--border)]">
-                <Flag className="w-3.5 h-3.5 text-amber-400" />
-                <span className="text-[10px] uppercase">Goal</span>
-                <select
-                  value={wpmGoal || ''}
-                  onChange={(e) => setWpmGoal(e.target.value ? Number(e.target.value) : null)}
-                  className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[11px] font-mono text-[var(--text-primary)] cursor-pointer"
-                  title="Set Target Speed Goal"
-                >
-                  <option value="">None</option>
-                  <option value="40">40 WPM</option>
-                  <option value="60">60 WPM</option>
-                  <option value="80">80 WPM</option>
-                  <option value="100">100 WPM</option>
-                  <option value="120">120 WPM</option>
-                </select>
-              </div>
-              {mode === 'accuracy' && (
-                <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                  98%+ Goal
-                </span>
-              )}
-              {activeCompetition && (
-                <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <Trophy className="w-3 h-3" />
-                  <span>Room {activeCompetition.competition.code}</span>
-                </span>
-              )}
-            </div>
-
-            <div className="flex items-center gap-4">
-              {mode === 'timed' ? (
-                <div className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-[var(--accent)]" />
-                  <span className="text-base font-bold text-[var(--accent)] font-mono">{remainingTime}s</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <span>{typed.length}</span>
-                  <span>/</span>
-                  <span>{currentTargetText.length} chars</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Controlled Fixed-Height Typing Viewport — Smooth Line-by-Line Progression */}
-          <div
-            ref={viewportRef}
-            onClick={() => inputRef.current && inputRef.current.focus()}
-            className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-text relative select-none leading-relaxed font-mono text-base sm:text-2xl whitespace-pre-wrap break-words overflow-hidden min-h-[160px] h-[160px] sm:h-[180px] max-h-[180px] ${
-              isCompleted ? 'opacity-85 border-[var(--border)]' : 'border-[var(--accent)] shadow-sm'
-            }`}
-            style={{ background: 'var(--bg-surface)', scrollBehavior: 'smooth' }}
-          >
-            {currentTargetText.split('').map((char, idx) => {
-              const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted);
-              const isCurrent = idx === typed.length && !isCompleted;
-              return (
-                <span
-                  key={idx}
-                  ref={isCurrent ? activeCharSpanRef : null}
-                  className={feedback.className}
-                >
-                  {char === '\n' ? '↵\n' : char}
-                </span>
-              );
-            })}
-
-            <input
-              ref={inputRef}
-              type="text"
-              value={typed}
-              onChange={handleInputChange}
-              onKeyDown={(e) => {
-                if (isCompleted) return;
-                if (e.key === 'Escape') return;
-                if (e.key === 'Tab') {
-                  e.preventDefault();
-                  if (currentTargetChar === '\t') {
-                    handleInputChange({ target: { value: typed + '\t' } });
-                  }
-                  return;
-                }
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  handleInputChange({ target: { value: typed + '\n' } });
-                  return;
-                }
-                setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+          {isCompleted && sessionResults ? (
+            <DedicatedResultsScreen
+              results={sessionResults}
+              onRestart={handleReset}
+              onNextTest={() => {
+                setSelectedPassageIndex((prev) => (prev + 1) % PRACTICE_PASSAGES.length);
+                handleReset();
               }}
-              disabled={isCompleted}
-              className="absolute inset-0 opacity-0 cursor-default"
-              autoFocus
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              aria-label="Type the passage text here"
+              onBackToWorkstation={handleReset}
+              // Practice Mistakes Drill
+              onPracticeMistakes={() => {
+                const words = Array.from(
+                  new Set(sessionResults.errorDetails.map((e) => e.word).filter(Boolean))
+                );
+                if (words.length > 0) {
+                  handleApplyCustomText({
+                    prompt: words.join(' '),
+                    mode: 'words',
+                    wordLimit: words.length,
+                    timeLimit: 30,
+                  });
+                }
+              }}
+              onOpenAcademy={() => navigate('/academy')}
+              activeCompetition={activeCompetition}
             />
-          </div>
-
-        {/* Session Complete Results Card */}
-        {isCompleted && sessionResults && (
-          <div className="card-panel p-6 space-y-5 animate-in fade-in duration-200 border-2 border-[var(--accent)] font-mono">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--accent)] text-[var(--accent-fg)] flex items-center justify-center font-extrabold text-xl font-mono shadow-md">
-                  {sessionResults.netWpm}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xl font-bold text-[var(--text-primary)]">
-                      {sessionResults.tier} {t('workstation.summary') || 'Summary'}
-                    </h2>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono uppercase bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--accent)]">
-                      {sessionResults.netWpm} {t('common.wpm') || 'WPM'}
-                    </span>
-                    {sessionResults.wpmGoal && (
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          sessionResults.wpmGoalPassed
-                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-                            : 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                        }`}
-                      >
-                        {sessionResults.wpmGoalPassed
-                          ? `Goal Achieved (${sessionResults.wpmGoal} WPM)`
-                          : `Goal: ${sessionResults.wpmGoal} WPM`}
-                      </span>
-                    )}
+          ) : (
+            <>
+              {/* Live Telemetry Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 px-2 text-xs font-mono text-[var(--text-muted)]">
+                <div className="flex items-center gap-3 sm:gap-6">
+                  <div className="flex items-center gap-1.5">
+                    <Gauge className="w-4 h-4 text-[var(--accent)]" />
+                    <span className="text-[11px] uppercase">{t('workstation.liveWpm') || 'Live WPM'}</span>
+                    <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveWpm}</span>
                   </div>
-                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                    Completed {activeCompetition ? 'competition' : customPrompt ? 'custom' : mode} test in{' '}
-                    {sessionResults.duration}s with {sessionResults.accuracy}% accuracy.
-                    {sessionResults.accuracyTargetPassed !== null && (
-                      <span className="ml-1 font-bold text-emerald-400">
-                        {sessionResults.accuracyTargetPassed ? '• 98%+ Goal Met!' : '• Goal 98% not reached.'}
-                      </span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {activeCompetition && (
-                  <Button
-                    variant="outline"
-                    size="md"
-                    icon={Trophy}
-                    onClick={() => setCompetitionsOpen(true)}
-                  >
-                    View Room Leaderboard
-                  </Button>
-                )}
-                <Button variant="secondary" size="md" icon={RotateCcw} onClick={handleReset}>
-                  {t('workstation.tryAgain') || 'Try Again'}
-                </Button>
-                <Button
-                  variant="primary"
-                  size="md"
-                  icon={ArrowRight}
-                  onClick={() => navigate('/academy')}
-                >
-                  {t('nav.academy') || 'Academy'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Stats Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
-              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">
-                  {t('workstation.netWpm') || 'Net Speed'}
-                </div>
-                <div className="text-2xl font-extrabold font-mono text-[var(--accent)]">
-                  {sessionResults.netWpm} <span className="text-xs text-[var(--text-muted)]">WPM</span>
-                </div>
-              </div>
-              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">
-                  {t('common.accuracy') || 'Accuracy'}
-                </div>
-                <div className="text-2xl font-extrabold font-mono text-[var(--ui-success)]">
-                  {sessionResults.accuracy}%
-                </div>
-              </div>
-              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">
-                  {t('workstation.rawWpm') || 'Raw Speed'}
-                </div>
-                <div className="text-2xl font-extrabold font-mono text-[var(--text-primary)]">
-                  {sessionResults.grossWpm} <span className="text-xs text-[var(--text-muted)]">WPM</span>
-                </div>
-              </div>
-              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">CPM</div>
-                <div className="text-2xl font-extrabold font-mono text-sky-400">
-                  {Math.round(sessionResults.netWpm * 5)} <span className="text-xs text-[var(--text-muted)]">CPM</span>
-                </div>
-              </div>
-              <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
-                <div className="text-[10px] uppercase font-mono text-[var(--text-muted)]">
-                  {t('workstation.mistakes') || 'Mistakes'}
-                </div>
-                <div className="text-2xl font-extrabold font-mono text-[var(--ui-error)]">
-                  {sessionResults.mistakes}
-                </div>
-              </div>
-            </div>
-
-            {/* Post-Test Error Review Section */}
-            {sessionResults.errorDetails && sessionResults.errorDetails.length > 0 && (
-              <div className="p-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] space-y-2.5">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--ui-error)]">
-                    <AlertCircle className="w-4 h-4" />
-                    <span>Mistakes Review ({sessionResults.errorDetails.length} errors)</span>
+                  <div className="flex items-center gap-1.5">
+                    <Target className="w-4 h-4 text-[var(--ui-success)]" />
+                    <span className="text-[11px] uppercase">{t('workstation.accuracy') || 'Accuracy'}</span>
+                    <span className="text-base font-bold text-[var(--text-primary)] font-mono">{liveAccuracy}%</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const words = Array.from(
-                        new Set(sessionResults.errorDetails.map((e) => e.word).filter(Boolean))
-                      );
-                      if (words.length > 0) {
-                        handleApplyCustomText({
-                          prompt: words.join(' '),
-                          mode: 'words',
-                          wordLimit: words.length,
-                          timeLimit: 30,
-                        });
-                      }
-                    }}
-                    className="px-3 py-1 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)] text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Practice Mistakes</span>
-                  </button>
-                </div>
-
-                <div className="flex flex-wrap gap-1.5 text-xs font-mono">
-                  {sessionResults.errorDetails.slice(0, 10).map((err, i) => (
-                    <span
-                      key={i}
-                      className="px-2 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] inline-flex items-center gap-1 text-[11px]"
+                  {/* Target Goal Selector */}
+                  <div className="flex items-center gap-1.5 pl-1 border-l border-[var(--border)]">
+                    <Flag className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-[10px] uppercase">Goal</span>
+                    <select
+                      value={wpmGoal || ''}
+                      onChange={(e) => setWpmGoal(e.target.value ? Number(e.target.value) : null)}
+                      className="bg-[var(--bg-elevated)] border border-[var(--border)] rounded px-1.5 py-0.5 text-[11px] font-mono text-[var(--text-primary)] cursor-pointer"
+                      title="Set Target Speed Goal"
                     >
-                      <span className="text-[var(--ui-error)] line-through">
-                        {err.actual === ' ' ? '␣' : err.actual}
-                      </span>
-                      <span className="text-[var(--text-muted)]">→</span>
-                      <span className="text-[var(--ui-success)] font-bold">
-                        {err.expected === ' ' ? '␣' : err.expected}
-                      </span>
-                      {err.word && (
-                        <span className="text-[var(--text-muted)] text-[10px]">({err.word})</span>
-                      )}
+                      <option value="">None</option>
+                      <option value="40">40 WPM</option>
+                      <option value="60">60 WPM</option>
+                      <option value="80">80 WPM</option>
+                      <option value="100">100 WPM</option>
+                      <option value="120">120 WPM</option>
+                    </select>
+                  </div>
+                  {mode === 'accuracy' && (
+                    <span className="text-[10px] uppercase font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                      98%+ Goal
                     </span>
-                  ))}
+                  )}
+                  {activeCompetition && (
+                    <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <Trophy className="w-3 h-3" />
+                      <span>Room {activeCompetition.competition.code}</span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {mode === 'timed' ? (
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-[var(--accent)]" />
+                      <span className="text-base font-bold text-[var(--accent)] font-mono">{remainingTime}s</span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <span>{typed.length}</span>
+                      <span>/</span>
+                      <span>{currentTargetText.length} chars</span>
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Precision Virtual Keyboard + Realistic Hand Overlay (Hidden in Focus Mode) */}
-        {!focusMode && (keyboardGuideOn || handGuideOn) && (
-          <div className="w-full max-w-[820px] mx-auto flex flex-col items-center pt-2">
-            <KeyboardGuide
-              targetChar={currentTargetChar}
-              lastKeystroke={lastKeystroke}
-              isVisible={keyboardGuideOn}
-              handGuideVisible={handGuideOn}
-            />
-          </div>
-        )}
-      </div>
+              {/* Controlled Fixed-Height Typing Viewport — Smooth Line-by-Line Progression */}
+              <div
+                ref={viewportRef}
+                onClick={() => inputRef.current && inputRef.current.focus()}
+                className={`p-4 sm:p-6 rounded-2xl border transition-all cursor-text relative select-none leading-relaxed font-mono text-base sm:text-2xl whitespace-pre-wrap break-words overflow-hidden min-h-[160px] h-[160px] sm:h-[180px] max-h-[180px] ${
+                  isCompleted ? 'opacity-85 border-[var(--border)]' : 'border-[var(--accent)] shadow-sm'
+                }`}
+                style={{ background: 'var(--bg-surface)', scrollBehavior: 'smooth' }}
+              >
+                {currentTargetText.split('').map((char, idx) => {
+                  const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted, correctedIndices);
+                  const isCurrent = idx === typed.length && !isCompleted;
+                  return (
+                    <span
+                      key={idx}
+                      ref={isCurrent ? activeCharSpanRef : null}
+                      className={feedback.className}
+                    >
+                      {char === '\n' ? '↵\n' : char}
+                    </span>
+                  );
+                })}
+
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={typed}
+                  onChange={handleInputChange}
+                  onKeyDown={(e) => {
+                    if (isCompleted) return;
+                    if (e.key === 'Escape') return;
+                    if (e.key === 'Tab') {
+                      e.preventDefault();
+                      if (currentTargetChar === '\t') {
+                        handleInputChange({ target: { value: typed + '\t' } });
+                      }
+                      return;
+                    }
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleInputChange({ target: { value: typed + '\n' } });
+                      return;
+                    }
+                    setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+                  }}
+                  disabled={isCompleted}
+                  className="absolute inset-0 opacity-0 cursor-default"
+                  autoFocus
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  aria-label="Type the passage text here"
+                />
+              </div>
+
+              {/* Precision Virtual Keyboard + Realistic Hand Overlay (Hidden in Focus Mode) */}
+              {!focusMode && (keyboardGuideOn || handGuideOn) && (
+                <div className="w-full max-w-[820px] mx-auto flex flex-col items-center pt-2">
+                  <KeyboardGuide
+                    targetChar={currentTargetChar}
+                    lastKeystroke={lastKeystroke}
+                    isVisible={keyboardGuideOn}
+                    handGuideVisible={handGuideOn}
+                  />
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Modals & Overlays */}
