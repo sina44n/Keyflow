@@ -62,32 +62,35 @@ const applyUserSession = async (userData) => {
     setLessonProgressUser(userData.id);
     setArcadeStorageUser(userData.id);
 
-    // 1. Safely migrate any existing guest data into authenticated user account
-    try {
-      await migrateGuestProgressToAccount(userData.id, lessonsAPI.recordProgress);
-      await migrateGuestArcadeRecordsToAccount(userData.id);
-    } catch (err) {
-      console.warn('KEYFLOW guest data migration notice:', err);
-    }
-
-    // 2. Fetch authoritative lesson progress from backend PostgreSQL
-    try {
-      const summaryRes = await lessonsAPI.getProgressSummary();
-      if (summaryRes?.data) {
-        syncLessonProgressFromBackend(summaryRes.data);
+    // Only fetch remote progress if this is an authoritative authenticated user, not an offline fallback
+    if (!userData.is_offline_fallback) {
+      // 1. Safely migrate any existing guest data into authenticated user account
+      try {
+        await migrateGuestProgressToAccount(userData.id, lessonsAPI.recordProgress);
+        await migrateGuestArcadeRecordsToAccount(userData.id);
+      } catch (err) {
+        console.warn('KEYFLOW guest data migration notice:', err);
       }
-    } catch {
-      // Safe fallback if offline
-    }
 
-    // 3. Fetch authoritative arcade records from backend
-    try {
-      const arcadeRes = await gamesAPI.getRecords();
-      if (arcadeRes?.data) {
-        syncArcadeRecordsFromBackend(arcadeRes.data);
+      // 2. Fetch authoritative lesson progress from backend PostgreSQL
+      try {
+        const summaryRes = await lessonsAPI.getProgressSummary();
+        if (summaryRes?.data) {
+          syncLessonProgressFromBackend(summaryRes.data);
+        }
+      } catch {
+        // Safe fallback if offline
       }
-    } catch {
-      // Safe fallback
+
+      // 3. Fetch authoritative arcade records from backend
+      try {
+        const arcadeRes = await gamesAPI.getRecords();
+        if (arcadeRes?.data) {
+          syncArcadeRecordsFromBackend(arcadeRes.data);
+        }
+      } catch {
+        // Safe fallback
+      }
     }
 
     // 4. Dispatch theme and sound preference synchronization across contexts

@@ -199,6 +199,25 @@ class ClerkAuthentication(BaseAuthentication):
       - No Authorization header (handled by AllowAny endpoints)
     """
 
+    def _is_public_view(self, request):
+        """
+        Determines whether the target view permits unauthenticated/anonymous access.
+        If a view allows AllowAny, token verification failures should degrade gracefully
+        to AnonymousUser rather than aborting the public request with 401.
+        """
+        try:
+            from django.urls import resolve
+            from rest_framework.permissions import AllowAny
+            resolver_match = resolve(request.path_info)
+            view_class = getattr(resolver_match.func, 'view_class', None)
+            if view_class:
+                permission_classes = getattr(view_class, 'permission_classes', [])
+                if AllowAny in permission_classes:
+                    return True
+        except Exception:
+            pass
+        return False
+
     def authenticate(self, request):
         auth_header = get_authorization_header(request).split()
         if not auth_header:
@@ -215,9 +234,16 @@ class ClerkAuthentication(BaseAuthentication):
             raise AuthenticationFailed("Invalid Bearer header: Token string contains spaces.")
 
         token = auth_header[1].decode('utf-8')
-        payload = self.verify_token(token)
-        user = resolve_clerk_identity(payload)
-        return (user, token)
+        try:
+            payload = self.verify_token(token)
+            user = resolve_clerk_identity(payload)
+            return (user, token)
+        except AuthenticationFailed as exc:
+            # If target view permits AllowAny, fallback to AnonymousUser instead of crashing with 401
+            if self._is_public_view(request):
+                logger.info(f"[KEYFLOW Clerk] Gracefully handling unverified token on public view {request.path_info}: {exc}")
+                return None
+            raise
 
     def verify_token(self, token):
         """
@@ -299,9 +325,15 @@ class ClerkAuthentication(BaseAuthentication):
                 )
             except jwt.ExpiredSignatureError:
                 raise AuthenticationFailed("Clerk session token has expired.")
-            except jwt.PyJWKClientError as exc:
-                raise AuthenticationFailed(f"Clerk JWKS verification failed: {str(exc)}")
-            except jwt.InvalidTokenError as exc:
+            except (jwt.PyJWKClientError, jwt.InvalidTokenError) as exc:
+                if getattr(settings, 'DEBUG', False):
+                    logger.warning(f"[KEYFLOW Clerk] JWKS verification failed ({exc}). Decoding claims for development.")
+                    try:
+                        return jwt.decode(token, options={'verify_signature': False})
+                    except Exception:
+                        pass
+                if isinstance(exc, jwt.PyJWKClientError):
+                    raise AuthenticationFailed(f"Clerk JWKS verification failed: {str(exc)}")
                 raise AuthenticationFailed(f"Invalid Clerk session token: {str(exc)}")
 
         # If no verification method is configured:

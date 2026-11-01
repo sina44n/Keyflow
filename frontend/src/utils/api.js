@@ -56,6 +56,19 @@ api.interceptors.request.use(
     }
     if (!token) {
       token = getStoredToken();
+      // If token in localStorage is an expired JWT, clear it to prevent stale 401s
+      if (token && typeof token === 'string' && token.split('.').length === 3) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          if (payload.exp && (payload.exp * 1000) <= Date.now()) {
+            clearStoredToken();
+            token = null;
+          }
+        } catch {
+          clearStoredToken();
+          token = null;
+        }
+      }
     }
     if (token) {
       // If token is JWT (3 dot-separated segments), use Bearer for Clerk
