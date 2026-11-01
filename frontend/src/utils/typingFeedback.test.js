@@ -316,3 +316,110 @@ describe('Live Character Color Feedback Logic', () => {
     assert.equal(countCorrectChars('hello world extra', 'hello world'), 11);
   });
 });
+
+describe('Position-Based Backspace Yellow Correction Highlighting', () => {
+  it('Requirement 1 & 4: First-attempt correct character renders GREEN', () => {
+    const target = 'FLOW';
+    const typed = 'F';
+    const correctedPositions = new Set();
+
+    const char0 = getCharacterFeedback(0, typed, target, false, correctedPositions);
+    assert.equal(char0.status, 'correct');
+    assert.equal(char0.isCorrect, true);
+    assert.equal(char0.isCorrected, false);
+    assert.equal(char0.className, 'char-correct');
+  });
+
+  it('Requirement 2 & 5: Incorrect character currently present renders RED', () => {
+    const target = 'FLOW';
+    const typed = 'FX';
+    const correctedPositions = new Set([1]); // index 1 had an error
+
+    const char1 = getCharacterFeedback(1, typed, target, false, correctedPositions);
+    assert.equal(char1.status, 'incorrect');
+    assert.equal(char1.isCorrect, false);
+    assert.equal(char1.isIncorrect, true);
+    assert.equal(char1.isCorrected, false);
+    assert.equal(char1.className, 'char-incorrect');
+  });
+
+  it('Requirement 3: Incorrect character removed using Backspace and corrected renders YELLOW', () => {
+    const target = 'FLOW';
+    // User typed 'FX', backspaced 'X', then typed 'L' (correct)
+    const typed = 'FL';
+    const correctedPositions = new Set([1]); // index 1 had an error
+
+    const char0 = getCharacterFeedback(0, typed, target, false, correctedPositions);
+    assert.equal(char0.status, 'correct');
+    assert.equal(char0.className, 'char-correct'); // never had error -> GREEN
+
+    const char1 = getCharacterFeedback(1, typed, target, false, correctedPositions);
+    assert.equal(char1.status, 'corrected');
+    assert.equal(char1.isCorrect, true);
+    assert.equal(char1.isCorrected, true);
+    assert.equal(char1.className, 'char-corrected'); // corrected -> YELLOW
+  });
+
+  it('Requirement 6: Multiple corrected positions maintain independent histories', () => {
+    const target = 'KEYFLOW';
+    // Position 1 ('E') mistyped and corrected -> YELLOW
+    // Position 2 ('Y') never mistyped -> GREEN
+    // Position 4 ('L') mistyped and corrected -> YELLOW
+    const typed = 'KEYFL';
+    const correctedPositions = new Set([1, 4]);
+
+    assert.equal(getCharacterFeedback(0, typed, target, false, correctedPositions).className, 'char-correct');
+    assert.equal(getCharacterFeedback(1, typed, target, false, correctedPositions).className, 'char-corrected');
+    assert.equal(getCharacterFeedback(2, typed, target, false, correctedPositions).className, 'char-correct');
+    assert.equal(getCharacterFeedback(3, typed, target, false, correctedPositions).className, 'char-correct');
+    assert.equal(getCharacterFeedback(4, typed, target, false, correctedPositions).className, 'char-corrected');
+  });
+
+  it('Requirement 7: Repeated mistakes at same position remain RED while wrong and YELLOW when corrected', () => {
+    const target = 'FLOW';
+    const correctedPositions = new Set([1]);
+
+    // Typed wrong second time 'FZ'
+    let typed = 'FZ';
+    let feedback = getCharacterFeedback(1, typed, target, false, correctedPositions);
+    assert.equal(feedback.status, 'incorrect');
+    assert.equal(feedback.className, 'char-incorrect'); // Still RED
+
+    // Corrected again to 'FL'
+    typed = 'FL';
+    feedback = getCharacterFeedback(1, typed, target, false, correctedPositions);
+    assert.equal(feedback.status, 'corrected');
+    assert.equal(feedback.className, 'char-corrected'); // Returns to YELLOW
+  });
+
+  it('KeystrokeTracker tracks mistake indices and backspaces independently', () => {
+    const target = 'REACT';
+    const tracker = createKeystrokeTracker();
+
+    // Type 'R' (correct)
+    tracker.recordChar('R', target[0], 0);
+    // Type 'X' (error at index 1)
+    tracker.recordChar('X', target[1], 1);
+    assert.equal(tracker.hasMistakeAt(1), true);
+    assert.equal(tracker.hasMistakeAt(0), false);
+
+    // Backspace 'X'
+    tracker.recordBackspace();
+
+    // Type 'E' (correct at index 1)
+    tracker.recordChar('E', target[1], 1);
+    // Type 'A' (correct at index 2)
+    tracker.recordChar('A', target[2], 2);
+
+    const stats = tracker.getStats('REA', target);
+    assert.equal(stats.correctEntries, 3);
+    assert.equal(stats.incorrectEntries, 1);
+    assert.equal(stats.backspaceCount, 1);
+    assert.equal(stats.mistakeIndices.has(1), true);
+
+    // Verify feedback for all 3 positions
+    assert.equal(getCharacterFeedback(0, 'REA', target, false, stats.mistakeIndices).className, 'char-correct');
+    assert.equal(getCharacterFeedback(1, 'REA', target, false, stats.mistakeIndices).className, 'char-corrected');
+    assert.equal(getCharacterFeedback(2, 'REA', target, false, stats.mistakeIndices).className, 'char-correct');
+  });
+});

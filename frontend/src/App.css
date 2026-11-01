@@ -182,3 +182,9 @@
     border-right-color: var(--border);
   }
 }
+
+
+/* Typing engine state: Yellow correction highlight */
+.char-corrected {
+  color: var(--typing-corrected, #EAB308);
+}

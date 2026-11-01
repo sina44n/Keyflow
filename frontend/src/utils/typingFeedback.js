@@ -7,33 +7,67 @@
 
 /**
  * Computes live character feedback for a specific character position.
- * Handles spaces, punctuation, uppercase/lowercase letters, and repeated characters.
+ * Handles spaces, punctuation, uppercase/lowercase letters, repeated characters,
+ * and position-based Backspace correction history (Yellow highlighting).
  *
  * @param {number} index - Absolute index of the character in the target text
  * @param {string} typed - Full user-typed string so far
  * @param {string} targetText - Full target passage string
  * @param {boolean} isCompleted - Whether the current typing session has finished
+ * @param {Set<number> | Array<number> | Object} [correctedPositions=null] - Positions where typos previously occurred
  * @returns {{
- *   status: 'correct' | 'incorrect' | 'current' | 'untyped',
+ *   status: 'correct' | 'incorrect' | 'corrected' | 'current' | 'untyped',
  *   isCorrect: boolean,
  *   isIncorrect: boolean,
+ *   isCorrected: boolean,
  *   isCurrent: boolean,
  *   isTyped: boolean,
  *   className: string
  * }}
  */
-export function getCharacterFeedback(index, typed = '', targetText = '', isCompleted = false) {
+export function getCharacterFeedback(index, typed = '', targetText = '', isCompleted = false, correctedPositions = null) {
   const isTyped = index < typed.length;
 
   if (isTyped) {
     const isCorrect = typed[index] === targetText[index];
+    const hadError = correctedPositions && (
+      typeof correctedPositions.has === 'function'
+        ? correctedPositions.has(index)
+        : Boolean(correctedPositions[index])
+    );
+
+    if (!isCorrect) {
+      return {
+        status: 'incorrect',
+        isCorrect: false,
+        isIncorrect: true,
+        isCorrected: false,
+        isCurrent: false,
+        isTyped: true,
+        className: 'char-incorrect',
+      };
+    }
+
+    if (hadError) {
+      return {
+        status: 'corrected',
+        isCorrect: true,
+        isIncorrect: false,
+        isCorrected: true,
+        isCurrent: false,
+        isTyped: true,
+        className: 'char-corrected',
+      };
+    }
+
     return {
-      status: isCorrect ? 'correct' : 'incorrect',
-      isCorrect,
-      isIncorrect: !isCorrect,
+      status: 'correct',
+      isCorrect: true,
+      isIncorrect: false,
+      isCorrected: false,
       isCurrent: false,
       isTyped: true,
-      className: isCorrect ? 'char-correct' : 'char-incorrect',
+      className: 'char-correct',
     };
   }
 
@@ -44,6 +78,7 @@ export function getCharacterFeedback(index, typed = '', targetText = '', isCompl
       status: 'current',
       isCorrect: false,
       isIncorrect: false,
+      isCorrected: false,
       isCurrent: true,
       isTyped: false,
       className: 'char-current',
@@ -54,6 +89,7 @@ export function getCharacterFeedback(index, typed = '', targetText = '', isCompl
     status: 'untyped',
     isCorrect: false,
     isIncorrect: false,
+    isCorrected: false,
     isCurrent: false,
     isTyped: false,
     className: 'char-untyped',
@@ -133,6 +169,7 @@ export function createKeystrokeTracker() {
   let incorrectEntries = 0;
   let backspaceCount = 0;
   const errorDetails = [];
+  const mistakeIndices = new Set();
 
   return {
     recordChar(actualChar, expectedChar, charIndex = 0, targetWord = '') {
@@ -141,6 +178,7 @@ export function createKeystrokeTracker() {
         correctEntries += 1;
       } else {
         incorrectEntries += 1;
+        mistakeIndices.add(charIndex);
         errorDetails.push({
           index: charIndex,
           actual: actualChar,
@@ -156,6 +194,12 @@ export function createKeystrokeTracker() {
       // Backspace removes character from editable text, but does NOT remove previous mistakes
       // and does NOT change correctEntries or incorrectEntries count.
     },
+    getMistakeIndices() {
+      return new Set(mistakeIndices);
+    },
+    hasMistakeAt(charIndex) {
+      return mistakeIndices.has(charIndex);
+    },
     getStats(typed = '', targetText = '', decimals = 0) {
       const rawAccuracy = calculateRawAccuracy(correctEntries, incorrectEntries, decimals);
       const finalTextAccuracy = calculateFinalTextAccuracy(typed, targetText, decimals);
@@ -166,6 +210,7 @@ export function createKeystrokeTracker() {
         totalKeystrokes: correctEntries + incorrectEntries,
         rawAccuracy,
         finalTextAccuracy,
+        mistakeIndices: new Set(mistakeIndices),
         errorDetails: [...errorDetails],
       };
     },
@@ -174,6 +219,7 @@ export function createKeystrokeTracker() {
       incorrectEntries = 0;
       backspaceCount = 0;
       errorDetails.length = 0;
+      mistakeIndices.clear();
     },
   };
 }

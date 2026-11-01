@@ -77,6 +77,7 @@ export const LessonPlayer = ({
   const [correctStrokes, setCorrectStrokes] = useState(0);
   const [mistakes, setMistakes] = useState(0);
   const [backspaces, setBackspaces] = useState(0);
+  const [correctedIndices, setCorrectedIndices] = useState(() => new Set());
   const [streak, setStreak] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
   const [isCompleted, setIsCompleted] = useState(false);
@@ -121,6 +122,7 @@ export const LessonPlayer = ({
     setCorrectStrokes(0);
     setMistakes(0);
     setBackspaces(0);
+    setCorrectedIndices(new Set());
     setStreak(0);
     setMaxStreak(0);
     streakRef.current = 0;
@@ -195,6 +197,7 @@ export const LessonPlayer = ({
       streakRef.current = 0;
       setStreak(0);
       setMistakes(prev => prev + 1);
+      setCorrectedIndices(prev => new Set(prev).add(charIdx));
       playClick(true);
     }
 
@@ -512,7 +515,7 @@ export const LessonPlayer = ({
                   <span key={word.key} className="inline">
                     {word.text.split('').map((sp, spIdx) => {
                       const absoluteIdx = word.startIndex + spIdx;
-                      const feedback = getCharacterFeedback(absoluteIdx, typed, targetText, isCompleted);
+                      const feedback = getCharacterFeedback(absoluteIdx, typed, targetText, isCompleted, correctedIndices);
                       let spCls = 'char-untyped opacity-40';
                       if (feedback.isTyped) {
                         spCls = feedback.className;
@@ -538,7 +541,7 @@ export const LessonPlayer = ({
                 >
                   {word.text.split('').map((char, charIdx) => {
                     const charAbsoluteIdx = word.startIndex + charIdx;
-                    const feedback = getCharacterFeedback(charAbsoluteIdx, typed, targetText, isCompleted);
+                    const feedback = getCharacterFeedback(charAbsoluteIdx, typed, targetText, isCompleted, correctedIndices);
                     const isAtCaret = feedback.isCurrent;
 
                     return (
