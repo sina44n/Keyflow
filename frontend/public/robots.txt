@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /sso-callback
+
+Sitemap: https://keyflow-typing.vercel.app/sitemap.xml
