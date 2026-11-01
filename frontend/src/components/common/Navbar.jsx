@@ -174,8 +174,10 @@ export const Navbar = () => {
         </nav>
 
         {/* Right Action Stack */}
-        <div className="hidden md:flex items-center gap-2 shrink-0">
-          <LanguageSelector compact={true} />
+        <div className="hidden md:flex items-center gap-1.5 lg:gap-2 shrink-0">
+          <div className="hidden lg:block">
+            <LanguageSelector compact={true} />
+          </div>
           <ThemeSwitcher compact={true} />
 
           {isAuthenticated ? (
@@ -334,7 +336,7 @@ export const Navbar = () => {
               <button
                 type="button"
                 onClick={handleContinuePractice}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)] text-xs font-semibold tracking-wide shadow-[0_0_16px_color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all cursor-pointer shrink-0 whitespace-nowrap"
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)] text-xs font-semibold tracking-wide shadow-[0_0_16px_color-mix(in_srgb,var(--accent)_35%,transparent)] transition-all cursor-pointer shrink-0 whitespace-nowrap"
               >
                 <Play className="w-3 h-3 fill-current shrink-0" />
                 <span className="whitespace-nowrap">{t('nav.continuePractice') || 'Continue Practice'}</span>

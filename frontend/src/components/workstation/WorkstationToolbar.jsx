@@ -67,14 +67,14 @@ export const WorkstationToolbar = ({
   return (
     <div className="card-panel p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2.5 text-xs font-mono w-full">
       {/* Left Cluster: Practice Mode Selectors */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 max-w-full">
         {/* Core Modes */}
-        <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)]">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-1 p-1 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] max-w-full">
           {/* Timed Mode */}
           <button
             type="button"
             onClick={() => setMode('timed')}
-            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2 sm:px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
               mode === 'timed' && !customActive && !activeCompetition
                 ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -89,7 +89,7 @@ export const WorkstationToolbar = ({
           <button
             type="button"
             onClick={() => setMode('words')}
-            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2 sm:px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
               mode === 'words' && !customActive && !activeCompetition
                 ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -104,7 +104,7 @@ export const WorkstationToolbar = ({
           <button
             type="button"
             onClick={() => setMode('passage')}
-            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2 sm:px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
               mode === 'passage' && !customActive && !activeCompetition
                 ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -119,7 +119,7 @@ export const WorkstationToolbar = ({
           <button
             type="button"
             onClick={() => setMode('accuracy')}
-            className={`flex items-center gap-1.5 px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-2 sm:px-2.5 h-7 rounded-lg font-medium transition-all cursor-pointer ${
               mode === 'accuracy'
                 ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
                 : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
