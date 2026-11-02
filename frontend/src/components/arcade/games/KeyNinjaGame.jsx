@@ -55,7 +55,8 @@ const BEGINNER_WORDS = [
   'cat', 'sun', 'run', 'fly', 'sky', 'star', 'glow', 'neo', 'zen', 'fox', 'gem', 'key', 'ice', 'arc', 'zap',
 ];
 
-export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
+export const KeyNinjaGame = ({ onExit, onBack, soundEnabled = true }) => {
+  const handleExit = onExit || onBack;
   const { t } = useI18n();
   const [gameState, setGameState] = useState('ready'); // ready, countdown, playing, paused, gameover
   const [countdown, setCountdown] = useState(3);
@@ -393,8 +394,16 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
     };
     window.addEventListener('resize', handleResize);
 
+    const handleVisibility = () => {
+      if (document.hidden && gameStateRef.current === 'playing') {
+        setGameState('paused');
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (threeRef.current.animId) {
         cancelAnimationFrame(threeRef.current.animId);
       }
@@ -591,7 +600,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
             icon={ArrowLeft}
             onClick={() => {
               if (gameState === 'playing') setShowExitConfirm(true);
-              else onExit();
+              else handleExit?.();
             }}
           >
             {t('common.exit') || 'Back'}
@@ -814,7 +823,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
               <Button variant="primary" icon={RotateCcw} onClick={startCountdown} className="bg-rose-600 hover:bg-rose-700">
                 RETRY TRIAL (SPACE)
               </Button>
-              <Button variant="ghost" onClick={onExit}>
+              <Button variant="ghost" onClick={handleExit}>
                 RETURN TO ARCADE
               </Button>
             </div>
@@ -824,7 +833,7 @@ export const KeyNinjaGame = ({ onExit, soundEnabled = true }) => {
 
       <ArcadeExitDialog
         isOpen={showExitConfirm}
-        onConfirm={onExit}
+        onConfirm={handleExit}
         onCancel={() => setShowExitConfirm(false)}
       />
     </div>

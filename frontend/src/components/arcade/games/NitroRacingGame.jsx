@@ -438,8 +438,21 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
 
   useEffect(() => {
     if (gameState !== 'racing' && gameState !== 'countdown') return;
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        threeRef.current.audio?.pauseEngine();
+      } else {
+        threeRef.current.audio?.resumeEngine();
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [gameState, handleKeyDown]);
 
   const isRaceActive = gameState === 'racing' || gameState === 'countdown';
@@ -588,9 +601,6 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
       const isNitro = isNitroActiveRef.current;
 
       const elapsed = Math.max(0.1, (timestamp - threeRef.current.raceStartTime) / 1000);
-      if (isRacing) {
-        setElapsedTime(elapsed);
-      }
 
       // Check Time Attack limit
       if (selectedMode === 'time-attack' && elapsed >= 60 && !threeRef.current.isFinished) {
@@ -624,62 +634,35 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
         playerVehicle.targetSpeed = finalSpeed;
         playerVehicle.distance += playerVehicle.targetSpeed * dt;
 
-        // 1.1 Championship Division Minimum Speed & Fair Elimination System
-        // Grants a 6-second initial reading/warmup period before tracking cadence
-        if (elapsed > 6.0 && tierConfig.eliminationGraceSeconds) {
-          const minWpm = tierConfig.minWpm || 15;
-          if (currentWpmVal < minWpm) {
-            threeRef.current.slowCadenceElapsed = (threeRef.current.slowCadenceElapsed || 0) + dt;
-            const remaining = Math.max(0, tierConfig.eliminationGraceSeconds - threeRef.current.slowCadenceElapsed);
+        // 1.1 Non-blocking Cadence Coaching & Idle Timeout Protection
+        // Only if player is completely inactive/idle for >45s does it time out
+        const idleSeconds = (nowMs - (threeRef.current.lastKeystrokeTime || nowMs)) / 1000;
+        if (idleSeconds > 45.0 && !threeRef.current.isFinished) {
+          threeRef.current.isFinished = true;
+          setEliminatedReason({
+            division: tierConfig.name,
+            minWpm: tierConfig.minWpm || 15,
+            graceSeconds: 45,
+            finalWpm: currentWpmVal,
+          });
+          setGameState('gameover');
+          return;
+        }
 
-            if (!threeRef.current.lastWarnUpdate || nowMs - threeRef.current.lastWarnUpdate > 250) {
-              threeRef.current.lastWarnUpdate = nowMs;
-              setEliminationWarning({
-                remaining: Math.ceil(remaining),
-                minWpm,
-                liveWpm: currentWpmVal,
-                division: tierConfig.name,
-              });
-            }
-
-            if (threeRef.current.slowCadenceElapsed >= tierConfig.eliminationGraceSeconds) {
-              // Fair Elimination triggered
-              setEliminationWarning(null);
-              const elimResults = {
-                isWinner: false,
-                isEliminated: true,
-                placement: 4,
-                finalWpm: currentWpmVal,
-                accuracy: accVal,
-                totalDistance: Math.round(playerVehicle.distance),
-                rewardCoins: 25,
-                standings: [
-                  ...Object.entries(competitors).map(([, v]) => ({
-                    id: v.driverName,
-                    name: v.driverName,
-                    distance: v.distance,
-                    wpm: Math.round((v.currentSpeed / 16.5) * 60),
-                  })),
-                  { id: driverName || 'YOU', name: driverName || 'YOU', distance: playerVehicle.distance, wpm: currentWpmVal },
-                ].sort((a, b) => b.distance - a.distance),
-              };
-              setFinalResults(elimResults);
-              setEliminatedReason({
-                division: tierConfig.name,
-                minWpm,
-                graceSeconds: tierConfig.eliminationGraceSeconds,
-                finalWpm: currentWpmVal,
-              });
-              setGameState('gameover');
-              return;
-            }
-          } else {
-            // Speed restored above division threshold! Reset timer and clear warning
-            if (threeRef.current.slowCadenceElapsed > 0) {
-              threeRef.current.slowCadenceElapsed = 0;
-              setEliminationWarning(null);
-            }
+        // Pacing warning without terminating active gameplay
+        if (elapsed > 8.0 && currentWpmVal < (tierConfig.minWpm || 15)) {
+          if (!threeRef.current.lastWarnUpdate || nowMs - threeRef.current.lastWarnUpdate > 400) {
+            threeRef.current.lastWarnUpdate = nowMs;
+            setEliminationWarning({
+              remaining: 0,
+              minWpm: tierConfig.minWpm || 15,
+              liveWpm: currentWpmVal,
+              division: tierConfig.name,
+            });
           }
+        } else if (threeRef.current.lastWarnUpdate) {
+          threeRef.current.lastWarnUpdate = 0;
+          setEliminationWarning(null);
         }
       } else {
         // Countdown state: cars idling on starting grid
@@ -786,10 +769,17 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
       });
 
       const playerRank = racerList.find((r) => r.isPlayer)?.placement || 1;
-      setCurrentPlacement(playerRank);
-      setLiveWpm(currentWpmVal);
-      setLiveAccuracy(accVal);
-      setTotalDistanceCovered(playerVehicle.distance);
+
+      // 7. Throttled UI Telemetry updates (reduces React re-renders from 60Hz to ~8Hz)
+      if (!threeRef.current.lastHudUpdate || nowMs - threeRef.current.lastHudUpdate > 120) {
+        threeRef.current.lastHudUpdate = nowMs;
+        setCurrentPlacement(playerRank);
+        setLiveWpm(currentWpmVal);
+        setLiveAccuracy(accVal);
+        if (isRacing) {
+          setElapsedTime(elapsed);
+        }
+      }
 
       // 8. Render Frame
       renderer.render(scene, camera);
@@ -863,7 +853,7 @@ export const NitroRacingGame = ({ onExit, soundEnabled = true }) => {
     tierConfig,
     vehicle,
     driverName,
-    multiplayerContext,
+    multiplayerContext?.room?.code,
     soundEnabled,
   ]);
 

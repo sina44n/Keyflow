@@ -10,7 +10,8 @@ import { useI18n } from '../../../i18n/I18nContext';
 import { Matrix3DScene } from '../memory3d/Matrix3DScene';
 import { Matrix3DAudio } from '../memory3d/Matrix3DAudio';
 
-export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
+export const TypingMemoryGame = ({ onExit, onBack, soundEnabled = true }) => {
+  const handleExit = onExit || onBack;
   const { t } = useI18n();
   // Game states: 'ready', 'viewing', 'recalling', 'review', 'gameover'
   const [gameState, setGameState] = useState('ready');
@@ -104,6 +105,17 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
     }
     prevTierRef.current = difficultyInfo.tier;
   }, [difficultyInfo.tier, difficultyInfo.tierName]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && (gameState === 'viewing' || gameState === 'recalling')) {
+        // Stop audio during background tab
+        audio3dRef.current?.stopMemorySound?.();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [gameState]);
 
   // Elapsed active timer
   useEffect(() => {
@@ -284,7 +296,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
     if (gameState === 'viewing' || gameState === 'recalling') {
       setShowExitConfirm(true);
     } else {
-      onExit();
+      handleExit?.();
     }
   };
 
@@ -503,7 +515,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startGame} className="bg-cyan-500 hover:bg-cyan-600 text-white font-bold">
                 {t('arcade.hud.playAgain')}
               </Button>
-              <Button variant="outline" size="md" onClick={onExit}>
+              <Button variant="outline" size="md" onClick={handleExit}>
                 {t('arcade.hud.returnToHub')}
               </Button>
             </div>
@@ -521,7 +533,7 @@ export const TypingMemoryGame = ({ onExit, soundEnabled = true }) => {
       <ArcadeExitDialog
         isOpen={showExitConfirm}
         onCancel={() => setShowExitConfirm(false)}
-        onConfirm={onExit}
+        onConfirm={handleExit}
       />
     </div>
   );

@@ -24,7 +24,8 @@ const ARENA_HEIGHT = 480;
 const DANGER_LINE_Y = 360;
 const PLAYER_MAX_HP = 100;
 
-export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
+export const BossBattleGame = ({ onExit, onBack, soundEnabled = true }) => {
+  const handleExit = onExit || onBack;
   const { t } = useI18n();
   // Game states: 'ready', 'countdown', 'playing', 'wave_cleared', 'boss_alert', 'paused', 'gameover', 'victory'
   const [gameState, setGameState] = useState('ready');
@@ -137,6 +138,16 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
       scene3dRef.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && gameState === 'playing') {
+        setGameState('paused');
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [gameState]);
 
   // Sync soldiers with 3D scene
   useEffect(() => {
@@ -479,7 +490,7 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
     if (gameState === 'playing' || gameState === 'paused' || gameState === 'wave_cleared' || gameState === 'boss_alert') {
       setShowExitConfirm(true);
     } else {
-      onExit();
+      handleExit?.();
     }
   };
 
@@ -899,7 +910,7 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown} className="bg-orange-500 hover:bg-orange-600 text-white font-bold">
                 {t('arcade.hud.playAgain')}
               </Button>
-              <Button variant="outline" size="md" onClick={onExit}>
+              <Button variant="outline" size="md" onClick={handleExit}>
                 {t('arcade.hud.returnToHub')}
               </Button>
             </div>
@@ -917,7 +928,7 @@ export const BossBattleGame = ({ onExit, soundEnabled = true }) => {
       <ArcadeExitDialog
         isOpen={showExitConfirm}
         onCancel={() => setShowExitConfirm(false)}
-        onConfirm={onExit}
+        onConfirm={handleExit}
       />
 
       {/* Global Performance Settings Modal */}

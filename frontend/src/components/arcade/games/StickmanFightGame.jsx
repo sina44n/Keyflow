@@ -34,7 +34,8 @@ import { Stickman2DEnvironment } from '../stickman2d/Stickman2DEnvironment';
 import { Stickman2DCombat } from '../stickman2d/Stickman2DCombat';
 import { Stickman2DEnemies } from '../stickman2d/Stickman2DEnemies';
 
-export function StickmanFightGame({ onBack, onComplete, initialEncounter = 1 }) {
+export function StickmanFightGame({ onBack, onExit, onComplete, soundEnabled = true, initialEncounter = 1 }) {
+  const handleExit = onExit || onBack;
   // Game states: 'ready' | 'playing' | 'paused' | 'encounter_cleared' | 'game_over' | 'victory'
   const [gameState, setGameState] = useState('ready');
   const [currentEncounter, setCurrentEncounter] = useState(initialEncounter);
@@ -126,7 +127,11 @@ export function StickmanFightGame({ onBack, onComplete, initialEncounter = 1 }) 
     enemiesRef.current = enemies;
 
     // Initialize 1v1 Sparring Opponent (Phase 1)
-    const primaryEnemy = enemies.setup1v1 ? enemies.setup1v1(player.x) : enemies.getPrimaryEnemy();
+    const primaryEnemy = typeof enemies.setup1v1 === 'function'
+      ? enemies.setup1v1(player.x)
+      : (typeof enemies.setupEncounter === 'function'
+          ? enemies.setupEncounter(1, player.x)
+          : enemies.getPrimaryEnemy?.());
     if (primaryEnemy) {
       setEnemyHp(primaryEnemy.hp);
       setMaxEnemyHp(primaryEnemy.maxHp);
@@ -249,8 +254,18 @@ export function StickmanFightGame({ onBack, onComplete, initialEncounter = 1 }) 
       }
     };
 
+    const handleVisibility = () => {
+      if (document.hidden && gameState === 'playing') {
+        setGameState('paused');
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [gameState]);
 
   // Main 60 FPS Canvas Game Loop
@@ -347,7 +362,11 @@ export function StickmanFightGame({ onBack, onComplete, initialEncounter = 1 }) 
       p.state = 'neutral';
       p.animator.play('idle');
     }
-    const e = enemiesRef.current?.setup1v1(p ? p.x : 220);
+    const e = typeof enemiesRef.current?.setup1v1 === 'function'
+      ? enemiesRef.current.setup1v1(p ? p.x : 220)
+      : (typeof enemiesRef.current?.setupEncounter === 'function'
+          ? enemiesRef.current.setupEncounter(1, p ? p.x : 220)
+          : enemiesRef.current?.getPrimaryEnemy?.());
     if (e) {
       setEnemyHp(e.hp);
       setMaxEnemyHp(e.maxHp);
@@ -749,7 +768,7 @@ export function StickmanFightGame({ onBack, onComplete, initialEncounter = 1 }) 
         <ArcadeExitDialog
           onConfirm={() => {
             saveScore();
-            if (onBack) onBack();
+            if (handleExit) handleExit();
           }}
           onCancel={() => setShowExitDialog(false)}
         />

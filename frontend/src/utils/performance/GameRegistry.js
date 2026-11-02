@@ -65,8 +65,20 @@ export const GameRegistry = {
 };
 
 // -------------------------------------------------------------
-// PRE-REGISTER ALL 8 EXISTING KEYFLOW ARCADE GAMES
+// PRE-REGISTER ALL 9 KEYFLOW ARCADE GAMES
 // -------------------------------------------------------------
+
+registerGame({
+  id: 'stickman',
+  title: 'Stickman Fight (2D Martial Arts)',
+  renderingTech: RENDERING_TECH.CANVAS_2D,
+  supportedPresets: ['auto', 'ultra', 'high', 'medium', 'performance'],
+  requiresGpu: false,
+  hasFallback: false,
+  mobileSupported: true,
+  mobileTouchControls: true,
+  audioChannels: ['punch', 'kick', 'impact', 'combo', 'sfx'],
+});
 
 registerGame({
   id: 'nitro',
@@ -83,7 +95,7 @@ registerGame({
 
 registerGame({
   id: 'boss',
-  title: 'Boss Battle (Warrior Combat Arena)',
+  title: 'Boss Battle (Mecha Combat Arena)',
   renderingTech: RENDERING_TECH.SVG_DOM,
   supportedPresets: ['auto', 'ultra', 'high', 'medium', 'performance'],
   requiresGpu: false,

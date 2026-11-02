@@ -12,7 +12,8 @@ import { Warp3DAudio } from '../sprint3d/Warp3DAudio';
 
 const TIME_PRESETS = [30, 60, 120];
 
-export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
+export const SpeedSprintGame = ({ onExit, onBack, soundEnabled = true }) => {
+  const handleExit = onExit || onBack;
   const { t } = useI18n();
   const [selectedDuration, setSelectedDuration] = useState(60);
   const [gameState, setGameState] = useState('ready'); // ready, countdown, playing, paused, gameover
@@ -173,6 +174,17 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
     }, 0);
     return () => clearTimeout(t);
   }, [gameState, countdown]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && gameState === 'playing') {
+        setGameState('paused');
+        audio3dRef.current?.stopEngine();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [gameState]);
 
   // Main countdown timer
   useEffect(() => {
@@ -342,7 +354,7 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
     if (gameState === 'playing' || gameState === 'paused') {
       setShowExitConfirm(true);
     } else {
-      onExit();
+      handleExit?.();
     }
   };
 
@@ -628,7 +640,7 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown} className="bg-emerald-500 hover:bg-emerald-600 text-white font-bold">
                 {t('arcade.hud.playAgain')}
               </Button>
-              <Button variant="outline" size="md" onClick={onExit}>
+              <Button variant="outline" size="md" onClick={handleExit}>
                 {t('arcade.hud.returnToHub')}
               </Button>
             </div>
@@ -646,7 +658,7 @@ export const SpeedSprintGame = ({ onExit, soundEnabled = true }) => {
       <ArcadeExitDialog
         isOpen={showExitConfirm}
         onCancel={() => setShowExitConfirm(false)}
-        onConfirm={onExit}
+        onConfirm={handleExit}
       />
     </div>
   );

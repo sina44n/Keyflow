@@ -8,7 +8,7 @@
  * - Energy blast beam rendering for special finishers (Reference A Frame 14/34/44).
  */
 
-import { Stickman2DAnimator } from "./Stickman2DAnimator";
+import { Stickman2DAnimator } from "./Stickman2DAnimator.js";
 
 export class Stickman2DCharacter {
   constructor(options = {}) {

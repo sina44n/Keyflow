@@ -14,7 +14,7 @@
  * - Independent health, hitboxes, hit-reactions, and ground recovery for every fighter.
  */
 
-import { Stickman2DCharacter } from "./Stickman2DCharacter";
+import { Stickman2DCharacter } from "./Stickman2DCharacter.js";
 
 export class Stickman2DEnemies {
   constructor(options = {}) {

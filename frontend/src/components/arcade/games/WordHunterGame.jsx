@@ -13,7 +13,8 @@ import { Sniper3DAudio } from '../hunter3d/Sniper3DAudio';
 const TOTAL_GAME_TIME = 60; // 60s tactical hunt
 const TARGET_LIFETIME = 4.5; // seconds to destroy current target
 
-export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
+export const WordHunterGame = ({ onExit, onBack, soundEnabled = true }) => {
+  const handleExit = onExit || onBack;
   const { t } = useI18n();
   const [gameState, setGameState] = useState('ready');
   const [countdown, setCountdown] = useState(3);
@@ -172,6 +173,16 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
     return () => clearTimeout(t);
   }, [gameState, countdown]);
 
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && gameState === 'playing') {
+        setGameState('paused');
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [gameState]);
+
   // Main session timer
   useEffect(() => {
     if (gameState !== 'playing') {
@@ -283,7 +294,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
     if (gameState === 'playing' || gameState === 'paused') {
       setShowExitConfirm(true);
     } else {
-      onExit();
+      handleExit?.();
     }
   };
 
@@ -591,7 +602,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
               <Button variant="primary" size="md" icon={RotateCcw} onClick={startCountdown} className="bg-sky-500 hover:bg-sky-600 text-white font-bold">
                 {t('arcade.hud.playAgain')}
               </Button>
-              <Button variant="outline" size="md" onClick={onExit}>
+              <Button variant="outline" size="md" onClick={handleExit}>
                 {t('arcade.hud.returnToHub')}
               </Button>
             </div>
@@ -609,7 +620,7 @@ export const WordHunterGame = ({ onExit, soundEnabled = true }) => {
       <ArcadeExitDialog
         isOpen={showExitConfirm}
         onCancel={() => setShowExitConfirm(false)}
-        onConfirm={onExit}
+        onConfirm={handleExit}
       />
     </div>
   );

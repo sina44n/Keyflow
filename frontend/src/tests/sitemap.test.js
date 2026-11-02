@@ -29,7 +29,7 @@ describe('Sitemap & Search Engine Discovery Contract', () => {
       /<urlset\s+xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9">/,
       'Must declare standard sitemaps schema namespace'
     );
-    assert.ok(content.endsWith('</urlset>\n') || content.endsWith('</urlset>'), 'Must close urlset tag');
+    assert.ok(content.trim().endsWith('</urlset>'), 'Must close urlset tag');
   });
 
   test('sitemap.xml contains strictly public, canonical KEYFLOW URLs', () => {

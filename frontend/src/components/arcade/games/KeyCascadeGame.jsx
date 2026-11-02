@@ -14,7 +14,8 @@ import { meteorAudio } from '../cascade3d/Meteor3DAudio';
 
 const INITIAL_LIVES = 3;
 
-export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
+export const KeyCascadeGame = ({ onExit, onBack, soundEnabled = true }) => {
+  const handleExit = onExit || onBack;
   const { t } = useI18n();
   const [gameState, setGameState] = useState('ready'); // ready, countdown, playing, paused, gameover
   const [countdown, setCountdown] = useState(3);
@@ -293,8 +294,16 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
     };
     window.addEventListener('resize', handleResize);
 
+    const handleVisibility = () => {
+      if (document.hidden && gameStateRef.current === 'playing') {
+        setGameState('paused');
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       window.removeEventListener('resize', handleResize);
+      document.removeEventListener('visibilitychange', handleVisibility);
       cancelAnimationFrame(threeRef.current.animId);
       scene.dispose();
     };
@@ -628,7 +637,7 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
             <Button variant="outline" size="md" icon={RotateCcw} onClick={resetGame}>
               Restart
             </Button>
-            <Button variant="outline" size="md" icon={ArrowLeft} onClick={onExit}>
+            <Button variant="outline" size="md" icon={ArrowLeft} onClick={handleExit}>
               Exit
             </Button>
           </div>
@@ -682,7 +691,7 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
             >
               Play Again
             </Button>
-            <Button variant="outline" size="md" icon={ArrowLeft} onClick={onExit}>
+            <Button variant="outline" size="md" icon={ArrowLeft} onClick={handleExit}>
               Exit to Arcade
             </Button>
           </div>
@@ -695,7 +704,7 @@ export const KeyCascadeGame = ({ onExit, soundEnabled = true }) => {
         onCancel={() => setShowExitConfirm(false)}
         onConfirm={() => {
           setShowExitConfirm(false);
-          onExit();
+          handleExit?.();
         }}
       />
     </div>
