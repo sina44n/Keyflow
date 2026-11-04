@@ -12,6 +12,7 @@ const SHORTCUTS = [
     category: 'Test Execution',
     items: [
       { key: 'Escape', description: 'Quick restart active test / exit Focus Mode' },
+      { key: 'Alt + P', description: 'Pause / Resume active typing session' },
       { key: 'Tab + Enter', description: 'Reset test and immediately re-focus typing input' },
     ],
   },

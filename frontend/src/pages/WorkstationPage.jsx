@@ -14,6 +14,8 @@ import {
   Flag,
   AlertCircle,
   User,
+  Pause,
+  Play,
 } from 'lucide-react';
 import { Button } from '../components/common/Button';
 import { KeyboardGuide } from '../components/academy/KeyboardGuide';
@@ -77,6 +79,12 @@ const PRACTICE_PASSAGES = [
     title: 'Quick Velocity Sprint',
     category: 'Pangram',
     text: 'The quick brown fox jumps over the lazy dog while five boxing wizards jump quickly through dark night skies.',
+  },
+  {
+    id: 'deep-cadence-endurance',
+    title: 'Architecture of Velocity (10+ Lines)',
+    category: 'Endurance',
+    text: 'Typing is the disciplined craft of translating thoughts directly into language without friction or hesitation. When your hands rest naturally over the home row anchors, every muscle fiber learns the precise distance to each keycap. Speed is never achieved through frantic exertion; true velocity is born from steady cadence, relaxed breathing, and immaculate precision. As your fingers glide across the rows, keystrokes blend into a continuous mechanical symphony where errors diminish and confidence expands. Notice how maintaining an upright posture and keeping your eyes fixed firmly on the screen frees your conscious mind to focus purely on the flow of concepts. Consistent daily practice rewires neuromuscular pathways until the physical keyboard completely dissolves beneath your fingertips, leaving only the seamless manifestation of pure expression.',
   },
 ];
 
@@ -165,6 +173,7 @@ export const WorkstationPage = () => {
   // Typing session state
   const [typed, setTyped] = useState('');
   const [startTime, setStartTime] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [remainingTime, setRemainingTime] = useState(30);
   const [mistakes, setMistakes] = useState(0);
@@ -172,6 +181,15 @@ export const WorkstationPage = () => {
   const [backspaces, setBackspaces] = useState(0);
   const [errorHistory, setErrorHistory] = useState([]);
   const [correctedIndices, setCorrectedIndices] = useState(() => new Set());
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [sessionResults, setSessionResults] = useState(null);
+  const [lastKeystroke, setLastKeystroke] = useState(null);
+
+  const inputRef = useRef(null);
+  const timerRef = useRef(null);
+  const totalActiveMsRef = useRef(0);
+  const runningSegmentStartRef = useRef(null);
+
   const [wpmGoal, setWpmGoalState] = useState(() => {
     try {
       const saved = localStorage.getItem('keyflow_workstation_wpm_goal');
@@ -180,6 +198,58 @@ export const WorkstationPage = () => {
       return null;
     }
   });
+
+  // Derive explicit session states (Idle, Running, Paused, Completed)
+  const sessionState = isCompleted
+    ? 'completed'
+    : isPaused
+    ? 'paused'
+    : startTime
+    ? 'running'
+    : 'idle';
+  const isRunning = sessionState === 'running';
+
+  const getActiveElapsedMs = useCallback(() => {
+    const runningMs = runningSegmentStartRef.current ? Date.now() - runningSegmentStartRef.current : 0;
+    return totalActiveMsRef.current + runningMs;
+  }, []);
+
+  const getActiveElapsedSeconds = useCallback(() => {
+    return Math.floor(getActiveElapsedMs() / 1000);
+  }, [getActiveElapsedMs]);
+
+  // Pause session handler
+  const handlePause = useCallback(() => {
+    if (isCompleted || isPaused || !startTime) return;
+    if (runningSegmentStartRef.current) {
+      totalActiveMsRef.current += Date.now() - runningSegmentStartRef.current;
+      runningSegmentStartRef.current = null;
+    }
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    setIsPaused(true);
+  }, [isCompleted, isPaused, startTime]);
+
+  // Resume session handler
+  const handleResume = useCallback(() => {
+    if (isCompleted || !isPaused || !startTime) return;
+    runningSegmentStartRef.current = Date.now();
+    setIsPaused(false);
+    setTimeout(() => {
+      if (inputRef.current) inputRef.current.focus();
+    }, 20);
+  }, [isCompleted, isPaused, startTime]);
+
+  // Toggle pause/resume handler
+  const handleTogglePause = useCallback(() => {
+    if (isPaused) {
+      handleResume();
+    } else if (startTime && !isCompleted) {
+      handlePause();
+    }
+  }, [isPaused, startTime, isCompleted, handleResume, handlePause]);
 
   const setWpmGoal = useCallback((val) => {
     const num = val ? Number(val) : null;
@@ -218,10 +288,6 @@ export const WorkstationPage = () => {
     } catch {}
   }, []);
 
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [sessionResults, setSessionResults] = useState(null);
-  const [lastKeystroke, setLastKeystroke] = useState(null);
-
   // Ergonomic preferences (font size, anxiety-free live speed toggle)
   const [fontSize, setFontSizeState] = useState(() => {
     try {
@@ -256,8 +322,6 @@ export const WorkstationPage = () => {
     });
   };
 
-  const inputRef = useRef(null);
-  const timerRef = useRef(null);
   const viewportRef = useRef(null);
   const activeCharSpanRef = useRef(null);
   const pacingLineRef = useRef(null);
@@ -284,13 +348,25 @@ export const WorkstationPage = () => {
       return 'Precision and cadence define velocity. Never rush the stroke; allow your rhythm to guide each finger accurately.';
     }
     // timed mode default
+    if (mode === 'timed') {
+      const p = PRACTICE_PASSAGES[selectedPassageIndex];
+      // For longer timed durations (60s, 120s), chain multiple passages so text never runs out
+      if (timeLimit >= 60) {
+        return PRACTICE_PASSAGES.map((item) => item.text).join(' ');
+      }
+      return p.text;
+    }
     return PRACTICE_PASSAGES[selectedPassageIndex].text;
-  }, [mode, wordLimit, selectedPassageIndex, customPrompt, activeCompetition]);
+  }, [mode, wordLimit, selectedPassageIndex, customPrompt, activeCompetition, timeLimit]);
 
-  // ── Automatic 4-Line Text Scrolling (PHASE 4 & 7) ─────────────────────────
-  // Works with built-in passages, word limits, and multi-paragraph custom text.
+  // ── Precision 4-Line Text Auto-Scrolling ──────────────────────────────────
+  // The viewport strictly displays exactly 4 visible lines at all times.
+  // When active typing progresses into the 3rd visible line (lineIndex >= 2),
+  // smoothly scroll upward by exactly 1 line height so the active line moves to
+  // the 2nd visible position (line slot 1), revealing the next line at bottom.
   useEffect(() => {
-    if (!viewportRef.current) return;
+    if (!viewportRef.current || isCompleted || isPaused) return;
+
     const prefersReducedMotion =
       (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) ||
       (() => {
@@ -303,39 +379,70 @@ export const WorkstationPage = () => {
 
     if (typed.length === 0) {
       lastTargetScrollRef.current = 0;
-      viewportRef.current.scrollTo({ top: 0, behavior: prefersReducedMotion ? 'auto' : 'smooth' });
+      viewportRef.current.scrollTo({ top: 0, behavior: 'instant' });
       return;
     }
+
     const activeSpan = activeCharSpanRef.current;
     if (!activeSpan) return;
 
-    // Use computed line-height or measured span offsetHeight
+    // Accurate rendered line-height
     const computedLineHeight =
       parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
       activeSpan.offsetHeight ||
       38;
 
-    // Relative line top from line 0
+    // Relative vertical position of active character from Line 1 (0-indexed)
     const firstCharSpan = viewportRef.current.querySelector('.typing-char') || viewportRef.current.firstElementChild;
     const baseOffsetTop = firstCharSpan ? firstCharSpan.offsetTop : 0;
     const relativeTop = Math.max(0, activeSpan.offsetTop - baseOffsetTop);
-    const lineIndex = Math.floor((relativeTop + 4) / computedLineHeight);
+    
+    // Accurate 0-indexed line number: Line 0, Line 1, Line 2, Line 3, ...
+    const lineIndex = Math.round(relativeTop / computedLineHeight);
 
-    // Controlled 4-Line Viewport Progression (PHASE 4 & 7):
-    // Lines 0 and 1 stay at scrollTop = 0.
-    // Line 2 and above shifts so the active typing line stays centered on visible row 2 of 4!
+    // Rolling 4-Line Viewport:
+    // - Line 0 (1st visible line): targetScrollLine = 0. Visible lines: [0, 1, 2, 3].
+    // - Line 1 (2nd visible line): targetScrollLine = 0. Visible lines: [0, 1, 2, 3].
+    // - Line 2 (3rd visible line -> TRIGGER): targetScrollLine = 1. Visible lines: [1, 2, 3, 4].
+    //   Active Line 2 is now in the 2nd visible position (slot 1)!
+    // - Line 3 (3rd visible line in [1, 2, 3, 4] -> TRIGGER): targetScrollLine = 2. Visible lines: [2, 3, 4, 5].
+    //   Active Line 3 is now in the 2nd visible position (slot 1)!
+    // - In general for lineIndex >= 2: targetScrollLine = lineIndex - 1.
     const spanHeight = computedLineHeight;
     const spanTop = lineIndex <= 1 ? 0 : (lineIndex * computedLineHeight);
     const targetScrollTop = Math.max(0, spanTop - spanHeight);
 
-    if (Math.abs(targetScrollTop - lastTargetScrollRef.current) >= 4) {
+    // Only scroll when target position changes to a new line threshold
+    if (Math.abs(targetScrollTop - lastTargetScrollRef.current) >= 2) {
       lastTargetScrollRef.current = targetScrollTop;
       viewportRef.current.scrollTo({
         top: targetScrollTop,
         behavior: prefersReducedMotion ? 'auto' : 'smooth',
       });
     }
-  }, [typed.length, currentTargetText]);
+  }, [typed.length, currentTargetText, fontSize, isCompleted, isPaused]);
+
+  // Window resize handler ensures line alignment is preserved on responsive width changes
+  useEffect(() => {
+    const handleResize = () => {
+      if (!viewportRef.current || !activeCharSpanRef.current) return;
+      const computedLineHeight =
+        parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
+        activeCharSpanRef.current.offsetHeight ||
+        38;
+      const firstCharSpan = viewportRef.current.querySelector('.typing-char') || viewportRef.current.firstElementChild;
+      const baseOffsetTop = firstCharSpan ? firstCharSpan.offsetTop : 0;
+      const relativeTop = Math.max(0, activeCharSpanRef.current.offsetTop - baseOffsetTop);
+      const lineIndex = Math.round(relativeTop / computedLineHeight);
+      const targetScrollLine = lineIndex <= 1 ? 0 : lineIndex - 1;
+      const targetScrollTop = targetScrollLine * computedLineHeight;
+      lastTargetScrollRef.current = targetScrollTop;
+      viewportRef.current.scrollTo({ top: targetScrollTop, behavior: 'instant' });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // ── Real WPM Pacing Guide Line Animation (PHASE 6) ─────────────────────────
   // Glides smoothly at the selected target speed (wpmGoal * 5 / 60 chars/sec).
@@ -348,12 +455,17 @@ export const WorkstationPage = () => {
       return;
     }
 
+    if (isPaused) {
+      // Keep pacing line at its current position without running animation frame
+      return;
+    }
+
     let animFrameId = null;
     const targetCharsPerSec = (wpmGoal * 5) / 60; // Standard 5 chars/word
 
     const updatePacingLine = () => {
       if (!viewportRef.current || !pacingLineRef.current) return;
-      const elapsed = (Date.now() - startTime) / 1000;
+      const elapsed = getActiveElapsedMs() / 1000;
       const targetCharIdxFloat = elapsed * targetCharsPerSec;
       const targetCharIdx = Math.min(
         Math.floor(targetCharIdxFloat),
@@ -373,7 +485,7 @@ export const WorkstationPage = () => {
         pacingLineRef.current.style.height = `${height}px`;
       }
 
-      if (!isCompleted && targetCharIdx < currentTargetText.length - 1) {
+      if (!isCompleted && !isPaused && targetCharIdx < currentTargetText.length - 1) {
         animFrameId = requestAnimationFrame(updatePacingLine);
       }
     };
@@ -382,7 +494,7 @@ export const WorkstationPage = () => {
     return () => {
       if (animFrameId) cancelAnimationFrame(animFrameId);
     };
-  }, [wpmGoal, startTime, isCompleted, currentTargetText]);
+  }, [wpmGoal, startTime, isCompleted, isPaused, currentTargetText, getActiveElapsedMs]);
 
   // Next expected character for guide highlight
   const currentTargetChar = useMemo(() => {
@@ -408,7 +520,12 @@ export const WorkstationPage = () => {
   const handleCompleteSession = useCallback(
     (duration) => {
       setIsCompleted(true);
-      clearInterval(timerRef.current);
+      setIsPaused(false);
+      runningSegmentStartRef.current = null;
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
 
       const actualMinutes = Math.max(duration / 60, 0.016);
       const grossWpm = Math.round(typed.length / 5 / actualMinutes);
@@ -523,11 +640,15 @@ export const WorkstationPage = () => {
 
   // Key input handler
   const handleInputChange = (e) => {
-    if (isCompleted) return;
+    if (isCompleted || isPaused) return;
     const val = e.target.value;
 
     if (!startTime && val.length > 0) {
-      setStartTime(Date.now());
+      const now = Date.now();
+      setStartTime(now);
+      totalActiveMsRef.current = 0;
+      runningSegmentStartRef.current = now;
+      setIsPaused(false);
     }
 
     if (val.length > typed.length) {
@@ -573,7 +694,7 @@ export const WorkstationPage = () => {
 
     // End condition for word / passage / custom / accuracy mode
     if (val.length >= currentTargetText.length) {
-      const dur = Math.max(1, Math.round((Date.now() - (startTime || Date.now())) / 1000));
+      const dur = Math.max(1, Math.round(getActiveElapsedMs() / 1000));
       handleCompleteSession(dur);
     }
   };
@@ -582,6 +703,7 @@ export const WorkstationPage = () => {
   const handleReset = useCallback(() => {
     setTyped('');
     setStartTime(null);
+    setIsPaused(false);
     setElapsedSeconds(0);
     setRemainingTime(timeLimit);
     setMistakes(0);
@@ -592,12 +714,17 @@ export const WorkstationPage = () => {
     setIsCompleted(false);
     setSessionResults(null);
     setLastKeystroke(null);
+    totalActiveMsRef.current = 0;
+    runningSegmentStartRef.current = null;
     secondTimelineRef.current = [];
     lastSampleSecondRef.current = 0;
     lastTargetScrollRef.current = 0;
-    clearInterval(timerRef.current);
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     if (viewportRef.current) {
-      viewportRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+      viewportRef.current.scrollTo({ top: 0, behavior: 'instant' });
     }
     setTimeout(() => {
       if (inputRef.current) inputRef.current.focus();
@@ -658,9 +785,9 @@ export const WorkstationPage = () => {
 
   // Timed countdown & 1-second telemetry sampling effect
   useEffect(() => {
-    if (startTime && !isCompleted) {
+    if (startTime && !isCompleted && !isPaused) {
       timerRef.current = setInterval(() => {
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const elapsed = getActiveElapsedSeconds();
         setElapsedSeconds(elapsed);
 
         // Record 1-second telemetry points for graph and consistency calculation
@@ -686,10 +813,26 @@ export const WorkstationPage = () => {
         }
       }, 250);
     }
-    return () => clearInterval(timerRef.current);
-  }, [startTime, isCompleted, mode, timeLimit, handleCompleteSession, typed.length, mistakes]);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
+  }, [startTime, isCompleted, isPaused, mode, timeLimit, handleCompleteSession, typed.length, mistakes, getActiveElapsedSeconds]);
 
-  // Global Keyboard Shortcuts (Alt+C, Alt+F, Alt+H, Alt+S, Alt+K, Esc)
+  // Auto-pause active test when user leaves the browser tab
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden && startTime && !isCompleted && !isPaused) {
+        handlePause();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [startTime, isCompleted, isPaused, handlePause]);
+
+  // Global Keyboard Shortcuts (Alt+C, Alt+F, Alt+H, Alt+S, Alt+K, Alt+P, Esc)
   useEffect(() => {
     const handleKeyDown = (e) => {
       const activeEl = document.activeElement;
@@ -714,7 +857,10 @@ export const WorkstationPage = () => {
 
       if (e.altKey) {
         const key = e.key.toLowerCase();
-        if (key === 'c') {
+        if (key === 'p') {
+          e.preventDefault();
+          handleTogglePause();
+        } else if (key === 'c') {
           e.preventDefault();
           setCustomStudioOpen((v) => !v);
         } else if (key === 'f') {
@@ -734,7 +880,7 @@ export const WorkstationPage = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleReset, focusMode]);
+  }, [handleReset, focusMode, handleTogglePause]);
 
   // Focus on mount or mode change
   useEffect(() => {
@@ -837,6 +983,10 @@ export const WorkstationPage = () => {
             setShowLiveWpm={setShowLiveWpm}
             customGenerationMode={customGenerationMode}
             onTriggerCustomMode={handleTriggerCustomMode}
+            isPaused={isPaused}
+            isRunning={isRunning}
+            sessionState={sessionState}
+            onTogglePause={handleTogglePause}
             t={t}
           />
         )}
@@ -917,6 +1067,16 @@ export const WorkstationPage = () => {
                 </div>
 
                 <div className="flex items-center gap-4">
+                  {isPaused && (
+                    <div
+                      className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-500 font-mono text-[11px] font-bold tracking-wider uppercase animate-pulse shrink-0"
+                      role="status"
+                      aria-live="polite"
+                    >
+                      <Pause className="w-3 h-3 fill-amber-500" />
+                      <span>PAUSED</span>
+                    </div>
+                  )}
                   {mode === 'timed' ? (
                     <div className="flex items-center gap-1.5">
                       <Clock className="w-4 h-4 text-[var(--accent)]" />
@@ -934,12 +1094,34 @@ export const WorkstationPage = () => {
 
               {/* Controlled 4-Line Typing Viewport (PHASE 7) — Smooth Line-by-Line Progression (PHASE 4) */}
               <div
-                onClick={() => inputRef.current && inputRef.current.focus()}
+                onClick={() => {
+                  if (isPaused) {
+                    handleResume();
+                  } else if (inputRef.current) {
+                    inputRef.current.focus();
+                  }
+                }}
                 className={`p-4 sm:p-6 rounded-2xl border min-h-[160px] max-h-[180px] sm:min-h-[190px] sm:max-h-[225px] flex flex-col justify-center transition-all cursor-text relative select-none ${
                   isCompleted ? 'opacity-85 border-[var(--border)]' : 'border-[var(--accent)] shadow-sm'
                 }`}
                 style={{ background: 'var(--bg-surface)' }}
               >
+                {/* Non-intrusive PAUSED badge overlay */}
+                {isPaused && (
+                  <div
+                    className="absolute top-2.5 right-3 z-20 flex items-center gap-2 px-2.5 py-1 rounded-lg bg-[var(--bg-elevated)]/95 backdrop-blur-xs border border-amber-500/40 text-amber-500 font-mono text-xs font-semibold shadow-xs animate-in fade-in select-none cursor-pointer"
+                    role="status"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleResume();
+                    }}
+                    title="Session is paused. Click here, press Resume, or press Space/Enter to continue."
+                  >
+                    <Pause className="w-3.5 h-3.5 fill-amber-500" />
+                    <span>PAUSED</span>
+                    <span className="text-[var(--text-muted)] text-[11px] hidden sm:inline">• Click or Space to Resume</span>
+                  </div>
+                )}
                 <div
                   ref={viewportRef}
                   className={`overflow-hidden relative leading-relaxed font-mono whitespace-pre-wrap break-words ${
@@ -992,6 +1174,15 @@ export const WorkstationPage = () => {
                     onKeyDown={(e) => {
                       if (isCompleted) return;
                       if (e.key === 'Escape') return;
+                      if (isPaused) {
+                        if (e.key === ' ' || e.key === 'Enter') {
+                          e.preventDefault();
+                          handleResume();
+                          return;
+                        }
+                        e.preventDefault();
+                        return;
+                      }
                       if (e.key === 'Tab') {
                         e.preventDefault();
                         if (currentTargetChar === '\t') {
