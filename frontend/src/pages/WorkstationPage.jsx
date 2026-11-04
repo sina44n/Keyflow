@@ -52,7 +52,7 @@ const PRACTICE_PASSAGES = [
     id: 'flow-thought',
     title: 'The Flow of Thought',
     category: 'General',
-    text: 'Typing is the art of translating thought into text without interruption. When your fingers know their places on the keyboard, words flow naturally onto the screen. Every keystroke becomes effortless and rhythmic.',
+    text: 'Typing is the art of translating thought into text without interruption. When your fingers know their places on the keyboard, words flow naturally onto the screen. Every keystroke becomes effortless and rhythmic. A quiet room and a responsive keyboard create an environment where focus deepens. Speed is never the primary goal; precision and steady cadence are what allow true velocity to emerge over sustained practice.',
   },
   {
     id: 'mechanical-harmony',
@@ -327,9 +327,11 @@ export const WorkstationPage = () => {
   };
 
   const viewportRef = useRef(null);
+  const textTrackRef = useRef(null);
   const activeCharSpanRef = useRef(null);
   const pacingLineRef = useRef(null);
-  const lastTargetScrollRef = useRef(0);
+  const [scrollLine, setScrollLine] = useState(0);
+  const [scrollOffsetPx, setScrollOffsetPx] = useState(0);
   const secondTimelineRef = useRef([]);
   const lastSampleSecondRef = useRef(0);
 
@@ -351,25 +353,25 @@ export const WorkstationPage = () => {
     if (mode === 'accuracy') {
       return 'Precision and cadence define velocity. Never rush the stroke; allow your rhythm to guide each finger accurately.';
     }
-    // timed mode default
+    // timed mode default: chain passages so typists at any duration (15s, 30s, 60s, 120s) never run out of text
     if (mode === 'timed') {
-      const p = PRACTICE_PASSAGES[selectedPassageIndex];
-      // For longer timed durations (60s, 120s), chain multiple passages so text never runs out
-      if (timeLimit >= 60) {
+      // For longer timed durations (timeLimit >= 60) and standard durations, chain passages so text never runs out
+      if (timeLimit >= 60 || timeLimit < 60) {
         return PRACTICE_PASSAGES.map((item) => item.text).join(' ');
       }
-      return p.text;
+      return PRACTICE_PASSAGES.map((item) => item.text).join(' ');
     }
     return PRACTICE_PASSAGES[selectedPassageIndex].text;
   }, [mode, wordLimit, selectedPassageIndex, customPrompt, activeCompetition, timeLimit]);
 
-  // ── Precision 4-Line Text Auto-Scrolling ──────────────────────────────────
+  // ── Precision 4-Line Rendered-Line Auto-Scrolling ─────────────────────────
   // The viewport strictly displays exactly 4 visible lines at all times.
   // When active typing progresses into the 3rd visible line (lineIndex >= 2),
-  // smoothly scroll upward by exactly 1 line height so the active line moves to
-  // the 2nd visible position (line slot 1), revealing the next line at bottom.
+  // smoothly translate the text track upward by exactly 1 line height so the active
+  // line moves to the 2nd visible position (index 1), revealing the next upcoming line at bottom.
   useEffect(() => {
     if (!viewportRef.current || isCompleted || isPaused) return;
+    if (!textTrackRef.current) return;
 
     const prefersReducedMotion =
       (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) ||
@@ -382,71 +384,58 @@ export const WorkstationPage = () => {
       })();
 
     if (typed.length === 0) {
-      lastTargetScrollRef.current = 0;
-      viewportRef.current.scrollTo({ top: 0, behavior: 'instant' });
+      if (scrollLine !== 0 || scrollOffsetPx !== 0) {
+        setScrollLine(0);
+        setScrollOffsetPx(0);
+      }
       return;
     }
 
     const activeSpan = activeCharSpanRef.current;
     if (!activeSpan) return;
 
+    const firstCharSpan = textTrackRef.current.querySelector('.typing-char') || textTrackRef.current.firstElementChild;
+    if (!firstCharSpan) return;
+
     // Accurate rendered line-height
     const computedLineHeight =
       parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
       activeSpan.offsetHeight ||
-      38;
+      39;
 
     // Relative vertical position of active character from Line 1 (0-indexed)
-    const firstCharSpan = viewportRef.current.querySelector('.typing-char') || viewportRef.current.firstElementChild;
-    const baseOffsetTop = firstCharSpan ? firstCharSpan.offsetTop : 0;
+    const baseOffsetTop = firstCharSpan.offsetTop;
     const relativeTop = Math.max(0, activeSpan.offsetTop - baseOffsetTop);
     
-    // Accurate 0-indexed line number: Line 0, Line 1, Line 2, Line 3, ...
-    const lineIndex = Math.round(relativeTop / computedLineHeight);
+    // Accurate 0-indexed rendered line row: Line 0, Line 1, Line 2, Line 3, ...
+    const activeRow = Math.round(relativeTop / computedLineHeight);
 
-    // Rolling 4-Line Viewport:
-    // - Line 0 (1st visible line): targetScrollLine = 0. Visible lines: [0, 1, 2, 3].
-    // - Line 1 (2nd visible line): targetScrollLine = 0. Visible lines: [0, 1, 2, 3].
-    // - Line 2 (3rd visible line -> TRIGGER): targetScrollLine = 1. Visible lines: [1, 2, 3, 4].
-    //   Active Line 2 is now in the 2nd visible position (slot 1)!
-    // - Line 3 (3rd visible line in [1, 2, 3, 4] -> TRIGGER): targetScrollLine = 2. Visible lines: [2, 3, 4, 5].
-    //   Active Line 3 is now in the 2nd visible position (slot 1)!
-    // - In general for lineIndex >= 2: targetScrollLine = lineIndex - 1.
+    // Precision line calculation: targetScrollTop = Math.max(0, spanTop - spanHeight)
+    // where spanTop is relative to line 1 and spanHeight is one rendered line
     const spanHeight = computedLineHeight;
-    const spanTop = lineIndex <= 1 ? 0 : (lineIndex * computedLineHeight);
+    const spanTop = activeRow * spanHeight;
     const targetScrollTop = Math.max(0, spanTop - spanHeight);
+    const targetScrollLine = Math.round(targetScrollTop / computedLineHeight);
 
-    // Only scroll when target position changes to a new line threshold
-    if (Math.abs(targetScrollTop - lastTargetScrollRef.current) >= 2) {
-      lastTargetScrollRef.current = targetScrollTop;
-      viewportRef.current.scrollTo({
-        top: targetScrollTop,
-        behavior: prefersReducedMotion ? 'auto' : 'smooth',
-      });
+    if (targetScrollLine !== scrollLine) {
+      setScrollLine(targetScrollLine);
+      setScrollOffsetPx(targetScrollTop);
     }
-  }, [typed.length, currentTargetText, fontSize, isCompleted, isPaused]);
+  }, [typed.length, currentTargetText, fontSize, isCompleted, isPaused, scrollLine, scrollOffsetPx]);
 
   // Window resize handler ensures line alignment is preserved on responsive width changes
   useEffect(() => {
     const handleResize = () => {
-      if (!viewportRef.current || !activeCharSpanRef.current) return;
+      if (!viewportRef.current || !textTrackRef.current) return;
       const computedLineHeight =
         parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
-        activeCharSpanRef.current.offsetHeight ||
-        38;
-      const firstCharSpan = viewportRef.current.querySelector('.typing-char') || viewportRef.current.firstElementChild;
-      const baseOffsetTop = firstCharSpan ? firstCharSpan.offsetTop : 0;
-      const relativeTop = Math.max(0, activeCharSpanRef.current.offsetTop - baseOffsetTop);
-      const lineIndex = Math.round(relativeTop / computedLineHeight);
-      const targetScrollLine = lineIndex <= 1 ? 0 : lineIndex - 1;
-      const targetScrollTop = targetScrollLine * computedLineHeight;
-      lastTargetScrollRef.current = targetScrollTop;
-      viewportRef.current.scrollTo({ top: targetScrollTop, behavior: 'instant' });
+        39;
+      setScrollOffsetPx(scrollLine * computedLineHeight);
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [scrollLine]);
 
   // ── Real WPM Pacing Guide Line Animation (PHASE 6) ─────────────────────────
   // Glides smoothly at the selected target speed (wpmGoal * 5 / 60 chars/sec).
@@ -744,7 +733,8 @@ export const WorkstationPage = () => {
     runningSegmentStartRef.current = null;
     secondTimelineRef.current = [];
     lastSampleSecondRef.current = 0;
-    lastTargetScrollRef.current = 0;
+    setScrollLine(0);
+    setScrollOffsetPx(0);
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -1164,34 +1154,54 @@ export const WorkstationPage = () => {
                     scrollBehavior: 'smooth',
                   }}
                 >
-                  {/* Subtle WPM Pacing Guide Line (PHASE 6) */}
+                  {/* Moving Text Layer with GPU-accelerated translation */}
                   <div
-                    ref={pacingLineRef}
-                    className="absolute top-0 left-0 w-[2px] pointer-events-none z-10 transition-none"
+                    ref={textTrackRef}
+                    className="will-change-transform"
                     style={{
-                      display: 'none',
-                      backgroundColor: 'rgba(100, 116, 139, 0.75)',
-                      boxShadow: '0 0 3px rgba(100, 116, 139, 0.4)',
+                      transform: `translate3d(0, -${scrollOffsetPx}px, 0)`,
+                      transition:
+                        (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) ||
+                        (() => {
+                          try {
+                            return localStorage.getItem('keyflow_reduced_motion') === 'true';
+                          } catch {
+                            return false;
+                          }
+                        })()
+                          ? 'none'
+                          : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
                     }}
                   >
-                    <div className="absolute -top-1 -left-[3px] w-2 h-2 rounded-full bg-slate-500/90 shadow-xs" />
-                  </div>
+                    {/* Subtle WPM Pacing Guide Line (PHASE 6) */}
+                    <div
+                      ref={pacingLineRef}
+                      className="absolute top-0 left-0 w-[2px] pointer-events-none z-10 transition-none"
+                      style={{
+                        display: 'none',
+                        backgroundColor: 'rgba(100, 116, 139, 0.75)',
+                        boxShadow: '0 0 3px rgba(100, 116, 139, 0.4)',
+                      }}
+                    >
+                      <div className="absolute -top-1 -left-[3px] w-2 h-2 rounded-full bg-slate-500/90 shadow-xs" />
+                    </div>
 
-                  {currentTargetText.split('').map((char, idx) => {
-                    const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted, correctedIndices);
-                    const isCurrent =
-                      (idx === typed.length && !isCompleted) ||
-                      (idx === currentTargetText.length - 1 && typed.length >= currentTargetText.length);
-                    return (
-                      <span
-                        key={idx}
-                        ref={isCurrent ? activeCharSpanRef : null}
-                        className={`${feedback.className} typing-char`}
-                      >
-                        {char === '\n' ? '↵\n' : char}
-                      </span>
-                    );
-                  })}
+                    {currentTargetText.split('').map((char, idx) => {
+                      const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted, correctedIndices);
+                      const isCurrent =
+                        (idx === typed.length && !isCompleted) ||
+                        (idx === currentTargetText.length - 1 && typed.length >= currentTargetText.length);
+                      return (
+                        <span
+                          key={idx}
+                          ref={isCurrent ? activeCharSpanRef : null}
+                          className={`${feedback.className} typing-char`}
+                        >
+                          {char === '\n' ? '↵\n' : char}
+                        </span>
+                      );
+                    })}
+                  </div>
 
                   <input
                     ref={inputRef}
@@ -1226,7 +1236,7 @@ export const WorkstationPage = () => {
                     }}
                     disabled={isCompleted}
                     onPaste={(e) => e.preventDefault()}
-                    className="absolute inset-0 opacity-0 cursor-default"
+                    className="absolute inset-0 opacity-0 cursor-default pointer-events-auto z-10"
                     autoFocus
                     autoComplete="off"
                     autoCorrect="off"
