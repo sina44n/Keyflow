@@ -50,6 +50,7 @@ export const PracticeHistoryModal = ({ isOpen, onClose, userId = null }) => {
               correctKeystrokes: s.correct_chars || 0,
               incorrectKeystrokes: s.incorrect_chars || s.error_count || 0,
               sessionType: s.session_type || 'workstation',
+              metricVersion: s.metric_version || 'legacy',
             }));
             // Merge deduplicating by approximate timestamp
             const existingTimestamps = new Set(local.map((l) => Math.round(l.timestamp / 1000)));
@@ -219,6 +220,11 @@ export const PracticeHistoryModal = ({ isOpen, onClose, userId = null }) => {
                       <span className="font-bold text-sm text-[var(--accent)] font-mono">
                         {s.wpm} <span className="text-[10px] text-[var(--text-muted)] font-normal">WPM</span>
                       </span>
+                      {Boolean(s.grossWpm && s.grossWpm !== s.wpm) && (
+                        <span className="text-[10px] text-[var(--text-muted)]">
+                          (raw: {s.grossWpm})
+                        </span>
+                      )}
                       <span className="text-[var(--text-muted)]">•</span>
                       <span className="font-semibold text-[var(--ui-success)]">{s.accuracy}% ACC</span>
                       <span className="text-[10px] uppercase px-1.5 py-0.2 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)]">

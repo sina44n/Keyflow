@@ -23,8 +23,12 @@ import { getGuidePreferences, saveGuidePreferences } from '../utils/lessonProgre
 import {
   getCharacterFeedback,
   countCorrectChars,
+  countUncorrectedErrors,
+  calculateGrossWpm,
+  calculateNetWpm,
   calculateRawAccuracy,
   calculateFinalTextAccuracy,
+  createAuthoritativeSessionResult,
 } from '../utils/typingFeedback';
 import { useKeyboardSound } from '../context/SoundContext';
 import { useI18n } from '../i18n/I18nContext';
@@ -507,12 +511,15 @@ export const WorkstationPage = () => {
     return countCorrectChars(typed, currentTargetText);
   }, [typed, currentTargetText]);
 
-  const elapsedMinutes = Math.max((elapsedSeconds || 1) / 60, 0.016);
-  const liveWpm = startTime ? Math.max(0, Math.round(correctChars / 5 / elapsedMinutes)) : 0;
+  const totalKeystrokesTyped = correctKeystrokes + mistakes;
+  const liveGrossWpm = startTime ? calculateGrossWpm(totalKeystrokesTyped, elapsedSeconds) : 0;
+  const liveUncorrected = countUncorrectedErrors(typed, currentTargetText);
+  const liveNetWpm = startTime ? calculateNetWpm(liveGrossWpm, liveUncorrected, elapsedSeconds) : 0;
+  const liveWpm = liveNetWpm;
   // Live Raw Keystroke Accuracy: Correct Entries / (Correct Entries + Incorrect Entries) * 100
   // Backspace does NOT reset or erase mistakes from this calculation!
   const liveAccuracy =
-    (correctKeystrokes + mistakes) > 0
+    totalKeystrokesTyped > 0
       ? calculateRawAccuracy(correctKeystrokes, mistakes)
       : 100;
 
@@ -527,9 +534,12 @@ export const WorkstationPage = () => {
         timerRef.current = null;
       }
 
-      const actualMinutes = Math.max(duration / 60, 0.016);
-      const grossWpm = Math.round(typed.length / 5 / actualMinutes);
-      const netWpm = Math.max(0, Math.round((typed.length / 5 - mistakes) / actualMinutes));
+      const testDurationSec = Math.max(1, Math.round(duration));
+      const totalValidEntries = correctKeystrokes + mistakes;
+      const grossWpm = calculateGrossWpm(totalValidEntries, testDurationSec);
+      const remainingErrors = countUncorrectedErrors(typed, currentTargetText);
+      const correctedMistakes = Math.max(0, mistakes - remainingErrors);
+      const netWpm = calculateNetWpm(grossWpm, remainingErrors, testDurationSec);
       const rawAccuracy = calculateRawAccuracy(correctKeystrokes, mistakes);
       const finalTextAccuracy = calculateFinalTextAccuracy(typed, currentTargetText);
       const accuracy = rawAccuracy;
@@ -542,7 +552,6 @@ export const WorkstationPage = () => {
 
       // Ensure final timeline point exists
       const finalTimeline = [...secondTimelineRef.current];
-      const testDurationSec = Math.max(1, Math.round(duration));
       if (finalTimeline.length === 0 || finalTimeline[finalTimeline.length - 1].second !== testDurationSec) {
         finalTimeline.push({
           second: testDurationSec,
@@ -557,24 +566,33 @@ export const WorkstationPage = () => {
       const extraChars = Math.max(0, typed.length - currentTargetText.length);
       const missedChars = Math.max(0, currentTargetText.length - typed.length);
 
+      const canonicalSessionId = `sess_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
       const results = {
+        sessionId: canonicalSessionId,
         netWpm,
         grossWpm,
+        wpm: netWpm,
+        rawWpm: grossWpm,
         accuracy: rawAccuracy,
         rawAccuracy,
         finalTextAccuracy,
         consistency,
         duration: testDurationSec,
+        durationSeconds: testDurationSec,
         mode,
         timeLimit,
         wordLimit,
         correctChars,
         correctKeystrokes,
         mistakes,
+        correctedMistakes,
+        remainingErrors,
         extraChars,
         missedChars,
         backspaces,
-        totalChars: typed.length,
+        totalChars: totalValidEntries,
+        totalKeystrokes: totalValidEntries,
         tier,
         isCompetition: Boolean(activeCompetition),
         competitionCode: activeCompetition?.competition?.code || null,
@@ -584,6 +602,7 @@ export const WorkstationPage = () => {
         errorDetails: [...errorHistory],
         timeline: finalTimeline,
         startTime,
+        metricVersion: '2.0',
       };
 
       setSessionResults(results);
@@ -591,32 +610,39 @@ export const WorkstationPage = () => {
       // Record in scientific telemetry engine
       recordTelemetrySession({
         userId: user?.id || null,
+        sessionId: canonicalSessionId,
         wpm: netWpm,
+        netWpm,
+        grossWpm,
         accuracy: rawAccuracy,
         rawAccuracy,
         finalTextAccuracy,
-        durationSeconds: duration,
-        totalKeystrokes: correctKeystrokes + mistakes,
+        durationSeconds: testDurationSec,
+        totalKeystrokes: totalValidEntries,
+        totalChars: totalValidEntries,
         correctKeystrokes,
         incorrectKeystrokes: mistakes,
+        mistakes,
+        correctedMistakes,
+        remainingErrors,
         backspaces,
         status: rawAccuracy >= 70 ? 'passed' : 'failed',
         sessionType: activeCompetition ? 'competition' : customPrompt ? 'custom' : mode,
         typedText: typed,
       });
 
-      // Async backend sync via practiceAPI
+      // Async backend sync via practiceAPI with validated canonical numbers
       practiceAPI
         .recordSession({
           session_type: activeCompetition ? 'competition' : customPrompt ? 'custom' : mode,
-          duration_seconds: duration,
-          total_chars: typed.length,
-          correct_chars: correctChars,
+          duration_seconds: testDurationSec,
+          total_chars: totalValidEntries,
+          correct_chars: correctKeystrokes,
           incorrect_chars: mistakes,
           gross_wpm: grossWpm,
           net_wpm: netWpm,
           accuracy: rawAccuracy,
-          error_count: mistakes,
+          error_count: remainingErrors,
         })
         .catch(() => {});
 
@@ -628,8 +654,8 @@ export const WorkstationPage = () => {
             net_wpm: netWpm,
             gross_wpm: grossWpm,
             accuracy: rawAccuracy,
-            duration_seconds: duration,
-            correct_chars: correctChars,
+            duration_seconds: testDurationSec,
+            correct_chars: correctKeystrokes,
             incorrect_chars: mistakes,
           })
           .catch(() => {});
@@ -793,9 +819,10 @@ export const WorkstationPage = () => {
         // Record 1-second telemetry points for graph and consistency calculation
         if (elapsed > 0 && elapsed !== lastSampleSecondRef.current) {
           lastSampleSecondRef.current = elapsed;
-          const currentElapsedMinutes = Math.max(elapsed / 60, 0.016);
-          const currentGrossWpm = Math.round(typed.length / 5 / currentElapsedMinutes);
-          const currentNetWpm = Math.max(0, Math.round((typed.length / 5 - mistakes) / currentElapsedMinutes));
+          const totalValid = correctKeystrokes + mistakes;
+          const currentGrossWpm = calculateGrossWpm(totalValid, elapsed);
+          const currentUncorrected = countUncorrectedErrors(typed, currentTargetText);
+          const currentNetWpm = calculateNetWpm(currentGrossWpm, currentUncorrected, elapsed);
           secondTimelineRef.current.push({
             second: elapsed,
             wpm: currentNetWpm,
@@ -819,7 +846,7 @@ export const WorkstationPage = () => {
         timerRef.current = null;
       }
     };
-  }, [startTime, isCompleted, isPaused, mode, timeLimit, handleCompleteSession, typed.length, mistakes, getActiveElapsedSeconds]);
+  }, [startTime, isCompleted, isPaused, mode, timeLimit, handleCompleteSession, typed, mistakes, correctKeystrokes, currentTargetText, getActiveElapsedSeconds]);
 
   // Auto-pause active test when user leaves the browser tab
   useEffect(() => {
@@ -1198,6 +1225,7 @@ export const WorkstationPage = () => {
                       setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
                     }}
                     disabled={isCompleted}
+                    onPaste={(e) => e.preventDefault()}
                     className="absolute inset-0 opacity-0 cursor-default"
                     autoFocus
                     autoComplete="off"

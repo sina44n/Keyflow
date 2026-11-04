@@ -14,6 +14,13 @@
 
 import { KEY_FINGER_MAP, resolveKeyToFinger } from './touchTypingMap.js';
 import { getLessonProgress } from './lessonProgress.js';
+import {
+  calculateGrossWpm,
+  calculateNetWpm,
+  calculateRawAccuracy,
+  calculateFinalTextAccuracy,
+  countUncorrectedErrors,
+} from './typingFeedback.js';
 
 // Standard 52-character standard touch typing coverage denominator
 export const STANDARD_COVERAGE_CHARS = [
@@ -172,10 +179,10 @@ export function getAllMergedSessions(explicitUserId = null) {
 
         const date = lesson.completedAt ? new Date(lesson.completedAt) : new Date();
         const duration = lesson.lastDuration || 60;
-        const wpm = lesson.bestWpm || 25;
-        const accuracy = lesson.bestAccuracy || 95;
-        const mistakes = lesson.lastMistakes || 2;
-        const totalChars = Math.round((wpm * 5 * duration) / 60) || 50;
+        const wpm = typeof lesson.bestWpm === 'number' ? lesson.bestWpm : (lesson.wpm || 0);
+        const accuracy = typeof lesson.bestAccuracy === 'number' ? lesson.bestAccuracy : (lesson.accuracy || 0);
+        const mistakes = typeof lesson.lastMistakes === 'number' ? lesson.lastMistakes : (lesson.mistakes || 0);
+        const totalChars = Math.round((wpm * 5 * duration) / 60) || 0;
         const correctChars = Math.max(0, totalChars - mistakes);
 
         synthesized.push({
@@ -221,31 +228,41 @@ export function recordTelemetrySession(data) {
   const incorrectChars = Math.max(0, Math.round(data.incorrectChars || data.error_count || data.mistakes || 0));
   const backspaces = Math.max(0, Math.round(data.backspaces || 0));
 
-  const minutes = Math.max(duration / 60, 0.016);
-  const grossWpm = Math.round(totalChars / 5 / minutes);
-  const netWpm = typeof data.wpm === 'number'
-    ? Math.round(data.wpm)
-    : Math.max(0, Math.round((totalChars / 5 - incorrectChars) / minutes));
+  const grossWpm = typeof data.grossWpm === 'number'
+    ? Math.round(data.grossWpm)
+    : calculateGrossWpm(totalChars, duration);
+
+  const remainingErrors = data.remainingErrors !== undefined
+    ? Number(data.remainingErrors)
+    : (data.typedText && data.targetText
+        ? countUncorrectedErrors(data.typedText, data.targetText)
+        : incorrectChars);
+
+  const netWpm = typeof data.netWpm === 'number'
+    ? Math.round(data.netWpm)
+    : typeof data.wpm === 'number'
+      ? Math.round(data.wpm)
+      : calculateNetWpm(grossWpm, remainingErrors, duration);
 
   const accuracy = typeof data.rawAccuracy === 'number'
     ? Math.max(0, Math.min(100, Math.round(data.rawAccuracy)))
     : typeof data.accuracy === 'number'
       ? Math.max(0, Math.min(100, Math.round(data.accuracy)))
       : (correctChars + incorrectChars) > 0
-        ? Math.min(100, Math.max(0, Math.round((correctChars / (correctChars + incorrectChars)) * 100)))
+        ? calculateRawAccuracy(correctChars, incorrectChars)
         : totalChars > 0
           ? Math.min(100, Math.max(0, Math.round((correctChars / Math.max(totalChars, 1)) * 100)))
-          : 100;
+          : 0;
 
   const realAccuracy = (correctChars + incorrectChars) > 0
-    ? Math.min(100, Math.max(0, Math.round((correctChars / Math.max(correctChars + incorrectChars, 1)) * 100)))
+    ? calculateRawAccuracy(correctChars, incorrectChars)
     : accuracy;
 
   const finalTextAccuracy = typeof data.finalTextAccuracy === 'number'
     ? Math.max(0, Math.min(100, Math.round(data.finalTextAccuracy)))
     : totalChars > 0
       ? Math.min(100, Math.max(0, Math.round((correctChars / Math.max(totalChars, 1)) * 100)))
-      : 100;
+      : 0;
 
   const status = data.status || (accuracy >= 85 ? 'passed' : 'failed');
 

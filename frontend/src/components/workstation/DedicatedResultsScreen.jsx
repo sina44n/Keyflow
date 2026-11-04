@@ -60,13 +60,18 @@ export const DedicatedResultsScreen = ({
     netWpm = 0,
     grossWpm = 0,
     accuracy = 100,
+    rawAccuracy,
+    finalTextAccuracy,
     consistency = 100,
     duration = 15,
     mode = 'timed',
     timeLimit = 30,
     wordLimit = 25,
     correctChars = 0,
+    correctKeystrokes = 0,
     mistakes = 0,
+    correctedMistakes = 0,
+    remainingErrors = 0,
     extraChars = 0,
     missedChars = 0,
     backspaces = 0,
@@ -77,6 +82,10 @@ export const DedicatedResultsScreen = ({
     errorDetails = [],
     timeline = [],
   } = results || {};
+
+  const displayedAccuracy = rawAccuracy !== undefined ? rawAccuracy : accuracy;
+  const correctEntries = correctKeystrokes || correctChars;
+  const incorrectEntries = mistakes;
 
   // Construct chart timeline (fallback to 1-second intervals if timeline is minimal)
   const chartData = useMemo(() => {
@@ -349,22 +358,40 @@ export const DedicatedResultsScreen = ({
         <div className="lg:col-span-3 flex lg:flex-col justify-around lg:justify-center gap-6 text-left">
           {/* Net WPM */}
           <div>
-            <div className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">
-              wpm
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">
+                net wpm
+              </span>
+              <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] font-bold">
+                speed
+              </span>
             </div>
             <div className="text-6xl sm:text-7xl font-extrabold text-[var(--accent)] tracking-tight mt-1">
               {netWpm}
+            </div>
+            <div className="text-[11px] text-[var(--text-muted)] mt-0.5 font-mono">
+              gross: <span className="text-[var(--text-primary)] font-bold">{grossWpm}</span> wpm
             </div>
           </div>
 
           {/* Accuracy */}
           <div>
-            <div className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">
-              acc
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">
+                accuracy
+              </span>
+              <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-[var(--ui-success)]/10 text-[var(--ui-success)] font-bold">
+                keystrokes
+              </span>
             </div>
             <div className="text-6xl sm:text-7xl font-extrabold text-[var(--accent)] tracking-tight mt-1">
-              {accuracy}%
+              {displayedAccuracy}%
             </div>
+            {finalTextAccuracy !== undefined && (
+              <div className="text-[11px] text-[var(--text-muted)] mt-0.5 font-mono">
+                final text: <span className="text-[var(--text-primary)] font-bold">{finalTextAccuracy}%</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -586,12 +613,12 @@ export const DedicatedResultsScreen = ({
             characters
           </div>
           <div className="text-xl sm:text-2xl font-bold text-[var(--accent)]">
-            <span className="text-[var(--ui-success)]">{correctChars}</span>/
-            <span className="text-[var(--ui-error)]">{mistakes}</span>/
-            <span className="text-amber-400">{extraChars}</span>/
-            <span className="text-[var(--text-muted)]">{missedChars}</span>
+            <span className="text-[var(--ui-success)]" title="Correct character entries">{correctEntries}</span>/
+            <span className="text-[var(--ui-error)]" title="Incorrect attempts">{incorrectEntries}</span>/
+            <span className="text-amber-400" title="Corrected mistakes (fixed with Backspace)">{correctedMistakes}</span>/
+            <span className="text-rose-400" title="Remaining uncorrected errors">{remainingErrors}</span>
           </div>
-          <div className="text-[10px] text-[var(--text-muted)]">corr/inc/extra/miss</div>
+          <div className="text-[10px] text-[var(--text-muted)]">corr/inc/fixed/uncorr</div>
         </div>
 
         {/* 4. Consistency */}

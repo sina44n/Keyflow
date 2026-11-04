@@ -87,6 +87,7 @@ class PracticeSession(models.Model):
         blank=True,
         related_name='practice_sessions',
     )
+    metric_version = models.CharField(max_length=20, default='2.0')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

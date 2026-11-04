@@ -41,9 +41,10 @@ class PracticeSessionSerializer(serializers.ModelSerializer):
             'error_count',
             'passage',
             'lesson',
+            'metric_version',
             'created_at',
         ]
-        read_only_fields = ['id', 'user', 'username', 'created_at']
+        read_only_fields = ['id', 'user', 'username', 'metric_version', 'created_at']
 
 
 class CompetitionParticipantSerializer(serializers.ModelSerializer):

@@ -57,6 +57,7 @@ class RecordPracticeSessionView(APIView):
     """
     POST /api/practice/sessions/
     Record typing test result. Accepts requests from authenticated users or guests.
+    Scientifically validates and computes authentic Gross WPM, Net WPM, and Raw Accuracy.
     """
     permission_classes = [AllowAny]
 
@@ -64,16 +65,54 @@ class RecordPracticeSessionView(APIView):
         user = request.user if request.user and request.user.is_authenticated else None
         data = request.data
 
-        duration = int(data.get('duration_seconds', 0))
-        total_chars = int(data.get('total_chars', 0))
-        correct_chars = int(data.get('correct_chars', 0))
-        incorrect_chars = int(data.get('incorrect_chars', 0))
-        gross_wpm = float(data.get('gross_wpm', 0))
-        net_wpm = float(data.get('net_wpm', 0))
-        accuracy = float(data.get('accuracy', 0))
-        error_count = int(data.get('error_count', 0))
+        duration = max(1, int(data.get('duration_seconds', 0)))
+        total_chars = max(0, int(data.get('total_chars', 0)))
+        correct_chars = max(0, int(data.get('correct_chars', 0)))
+        incorrect_chars = max(0, int(data.get('incorrect_chars', 0)))
+        error_count = max(0, int(data.get('error_count', 0)))
         session_type = data.get('session_type', 'timed')
         passage_id = data.get('passage_id')
+
+        # Total valid character entries = correct_chars + incorrect_chars if total_chars is 0 or less
+        if total_chars < (correct_chars + incorrect_chars):
+            total_chars = correct_chars + incorrect_chars
+
+        minutes = max(duration / 60.0, 0.001)
+
+        # Standard Gross WPM: Total Valid Character Entries / 5 / Minutes
+        computed_gross = round(total_chars / 5.0 / minutes, 2) if total_chars > 0 else 0.0
+
+        # Uncorrected Errors per Minute = Remaining Uncorrected Errors / Minutes
+        uncorrected_errors = min(error_count, incorrect_chars) if error_count > 0 else 0
+        uncorrected_per_min = uncorrected_errors / minutes
+        computed_net = max(0.0, round(computed_gross - uncorrected_per_min, 2))
+
+        # Raw Keystroke Accuracy: Correct Character Entries / Total Valid Character Entries * 100
+        if total_chars > 0:
+            computed_acc = round(min(100.0, max(0.0, (correct_chars / total_chars) * 100.0)), 2)
+        elif (correct_chars + incorrect_chars) > 0:
+            computed_acc = round(min(100.0, max(0.0, (correct_chars / (correct_chars + incorrect_chars)) * 100.0)), 2)
+        else:
+            computed_acc = 0.0
+
+        # Accept client-provided values if consistent with authoritative formulas within integer rounding
+        try:
+            raw_gross = float(data.get('gross_wpm', computed_gross))
+            gross_wpm = raw_gross if abs(raw_gross - computed_gross) <= 2.0 else computed_gross
+        except (ValueError, TypeError):
+            gross_wpm = computed_gross
+
+        try:
+            raw_net = float(data.get('net_wpm', computed_net))
+            net_wpm = raw_net if (abs(raw_net - computed_net) <= 2.0 and raw_net <= (gross_wpm + 0.5)) else computed_net
+        except (ValueError, TypeError):
+            net_wpm = computed_net
+
+        try:
+            raw_acc = float(data.get('accuracy', computed_acc))
+            accuracy = raw_acc if (abs(raw_acc - computed_acc) <= 2.0 and 0.0 <= raw_acc <= 100.0) else computed_acc
+        except (ValueError, TypeError):
+            accuracy = computed_acc
 
         passage = None
         if passage_id:
@@ -92,7 +131,7 @@ class RecordPracticeSessionView(APIView):
             gross_wpm=gross_wpm,
             net_wpm=net_wpm,
             accuracy=accuracy,
-            error_count=error_count,
+            error_count=uncorrected_errors,
             passage=passage,
         )
 
@@ -340,12 +379,36 @@ class CompetitionSubmitView(APIView):
 
         from django.utils import timezone
 
-        net_wpm = max(0.0, float(request.data.get('net_wpm', 0.0)))
-        gross_wpm = max(0.0, float(request.data.get('gross_wpm', 0.0)))
-        accuracy = min(100.0, max(0.0, float(request.data.get('accuracy', 0.0))))
         duration = max(1, int(request.data.get('duration_seconds', 0)))
         correct_chars = max(0, int(request.data.get('correct_chars', 0)))
         incorrect_chars = max(0, int(request.data.get('incorrect_chars', 0)))
+        total_chars = max(correct_chars + incorrect_chars, int(request.data.get('total_chars', correct_chars + incorrect_chars)))
+
+        minutes = max(duration / 60.0, 0.001)
+        computed_gross = round(total_chars / 5.0 / minutes, 2) if total_chars > 0 else 0.0
+
+        try:
+            client_gross = max(0.0, float(request.data.get('gross_wpm', computed_gross)))
+            gross_wpm = client_gross if abs(client_gross - computed_gross) <= 2.0 else computed_gross
+        except (ValueError, TypeError):
+            gross_wpm = computed_gross
+
+        try:
+            client_net = max(0.0, float(request.data.get('net_wpm', gross_wpm)))
+            net_wpm = client_net if client_net <= (gross_wpm + 0.5) else gross_wpm
+        except (ValueError, TypeError):
+            net_wpm = gross_wpm
+
+        if total_chars > 0:
+            computed_acc = round(min(100.0, max(0.0, (correct_chars / total_chars) * 100.0)), 2)
+        else:
+            computed_acc = 0.0
+
+        try:
+            client_acc = min(100.0, max(0.0, float(request.data.get('accuracy', computed_acc))))
+            accuracy = client_acc if abs(client_acc - computed_acc) <= 2.0 else computed_acc
+        except (ValueError, TypeError):
+            accuracy = computed_acc
 
         participant.net_wpm = net_wpm
         participant.gross_wpm = gross_wpm
