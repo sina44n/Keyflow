@@ -3,6 +3,7 @@ export default {
   "nav.academy": "Academia",
   "nav.arcade": "Arcade",
   "nav.themes": "Temas",
+  "nav.leaderboard": "Clasificación",
   "nav.telemetry": "Telemetría",
   "nav.features": "Características",
   "nav.howItWorks": "Cómo funciona",

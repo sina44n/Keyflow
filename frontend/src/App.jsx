@@ -20,6 +20,7 @@ import { AcademyPage } from './pages/AcademyPage';
 import { WorkstationPage } from './pages/WorkstationPage';
 import { ArcadePage } from './pages/ArcadePage';
 import TelemetryPage from './pages/TelemetryPage';
+import LeaderboardPage from './pages/LeaderboardPage';
 import { ThemesPage } from './pages/ThemesPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 
@@ -103,6 +104,7 @@ function App() {
                       }
                     />
                     <Route path="/telemetry" element={<TelemetryPage />} />
+                    <Route path="/leaderboard" element={<LeaderboardPage />} />
                     <Route path="/analytics" element={<Navigate to="/telemetry" replace />} />
                     <Route path="/themes" element={<ThemesPage />} />
 

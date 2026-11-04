@@ -3,6 +3,7 @@ export default {
   "nav.academy": "அகாடமி",
   "nav.arcade": "ஆர்கேட்",
   "nav.themes": "தீம்கள்",
+  "nav.leaderboard": "லீடர்போர்டு",
   "nav.telemetry": "டெலிமெட்ரி",
   "nav.features": "அம்சங்கள்",
   "nav.howItWorks": "எப்படி செயல்படுகிறது",

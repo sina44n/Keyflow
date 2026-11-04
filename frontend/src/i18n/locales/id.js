@@ -3,6 +3,7 @@ export default {
   "nav.academy": "Akademi",
   "nav.arcade": "Arkade",
   "nav.themes": "Tema",
+  "nav.leaderboard": "Papan Peringkat",
   "nav.telemetry": "Telemetri",
   "nav.features": "Fitur",
   "nav.howItWorks": "Cara Kerja",

@@ -3,6 +3,7 @@ export default {
   "nav.academy": "アカデミー",
   "nav.arcade": "アーケード",
   "nav.themes": "テーマ",
+  "nav.leaderboard": "リーダーボード",
   "nav.telemetry": "テレメトリ",
   "nav.features": "特徴",
   "nav.howItWorks": "仕組み",

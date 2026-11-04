@@ -25,6 +25,7 @@ import {
   LogOut,
   Sparkles,
   BarChart3,
+  Trophy,
   ChevronDown,
   Target,
   Sliders,
@@ -83,7 +84,7 @@ export const Navbar = () => {
     { label: t('nav.academy') || 'Academy', href: '/academy', isInternal: true, icon: BookOpen, primary: true },
     { label: t('nav.arcade') || 'Arcade', href: '/arcade', isInternal: true, icon: Gamepad2, primary: true },
     { label: t('nav.telemetry') || 'Telemetry', href: '/telemetry', isInternal: true, icon: BarChart3, primary: false },
-    { label: t('nav.features') || 'Features', href: '/#features', isInternal: false, icon: Sparkles, primary: false },
+    { label: t('nav.leaderboard') || 'Leaderboard', href: '/leaderboard', isInternal: true, icon: Trophy, primary: false },
     { label: t('nav.themes') || 'Themes', href: '/#themes', isInternal: false, icon: Palette, primary: false },
   ];
 

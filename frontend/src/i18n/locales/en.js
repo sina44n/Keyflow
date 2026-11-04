@@ -4,6 +4,7 @@ export default {
   "nav.arcade": "Arcade",
   "nav.themes": "Themes",
   "nav.telemetry": "Telemetry",
+  "nav.leaderboard": "Leaderboard",
   "nav.features": "Features",
   "nav.howItWorks": "How It Works",
   "nav.about": "Why KEYFLOW",

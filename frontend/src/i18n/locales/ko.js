@@ -3,6 +3,7 @@ export default {
   "nav.academy": "아카데미",
   "nav.arcade": "아케이드",
   "nav.themes": "테마",
+  "nav.leaderboard": "리더보드",
   "nav.telemetry": "원격 측정",
   "nav.features": "기능",
   "nav.howItWorks": "작동 방식",

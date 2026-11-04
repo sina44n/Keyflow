@@ -3,6 +3,7 @@ export default {
   "nav.academy": "学院",
   "nav.arcade": "街机",
   "nav.themes": "主题",
+  "nav.leaderboard": "排行榜",
   "nav.telemetry": "遥测",
   "nav.features": "特性",
   "nav.howItWorks": "工作原理",

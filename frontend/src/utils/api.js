@@ -198,4 +198,12 @@ export const quotesAPI = {
   rotate: (lang) => api.post('/quotes/rotate/', {}, { params: lang ? { lang } : {} }),
 };
 
+// ---------------------------------------------------------------------------
+// Leaderboard API Methods
+// ---------------------------------------------------------------------------
+export const leaderboardAPI = {
+  getLeaderboard: (params) => api.get('/leaderboard/', { params }),
+  getHealth: () => api.get('/leaderboard/health/'),
+};
+
 export default api;

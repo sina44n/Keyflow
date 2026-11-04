@@ -3,6 +3,7 @@ export default {
   "nav.academy": "الأكاديمية",
   "nav.arcade": "أركيد",
   "nav.themes": "السمات",
+  "nav.leaderboard": "لوحة المتصدرين",
   "nav.telemetry": "القياس عن بُعد",
   "nav.features": "المميزات",
   "nav.howItWorks": "كيف يعمل",
