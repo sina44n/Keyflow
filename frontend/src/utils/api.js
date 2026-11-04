@@ -103,7 +103,14 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       clearStoredToken();
       // Dispatch a custom event so AuthContext can react
-      window.dispatchEvent(new CustomEvent('keyflow-auth-expired'));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('keyflow-auth-expired'));
+      }
+    } else if (error.response?.status === 502) {
+      console.warn(
+        `[KEYFLOW 502 Bad Gateway] Backend service is currently unreachable for ${error.config?.url}. ` +
+        `Ensure Django backend process is running and healthy on the target server.`
+      );
     }
     return Promise.reject(error);
   }
