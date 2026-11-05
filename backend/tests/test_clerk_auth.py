@@ -245,6 +245,42 @@ class ClerkAuthenticationTests(TestCase):
         self.assertTrue(user.is_email_verified)
         self.assertEqual(user.profile.display_name, "Updated Typist Name")
 
+    def test_unauthenticated_request_rejected_with_401(self):
+        """Unauthenticated requests without Authorization header are cleanly rejected with HTTP 401."""
+        self.client.credentials()  # Clear credentials
+        res_me = self.client.get("/api/auth/me/")
+        self.assertEqual(res_me.status_code, status.HTTP_401_UNAUTHORIZED)
+
+        res_sync = self.client.post("/api/auth/clerk-sync/", {"display_name": "Ghost"}, format="json")
+        self.assertEqual(res_sync.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_duplicate_account_creation_prevention_is_idempotent(self):
+        """Consecutive requests with the same Clerk JWT reuse the existing user and do not spawn duplicates."""
+        token = make_test_clerk_token(
+            sub="user_idempotent_test_444",
+            email="idempotent@keyflow.app",
+            name="Idempotent Typist",
+        )
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
+
+        initial_count = User.objects.filter(clerk_id="user_idempotent_test_444").count()
+        self.assertEqual(initial_count, 0)
+
+        # First request provisions the user
+        res1 = self.client.get("/api/auth/me/")
+        self.assertEqual(res1.status_code, status.HTTP_200_OK)
+        user_id_1 = res1.data["id"]
+
+        # Second request reuses the exact same user
+        res2 = self.client.get("/api/auth/me/")
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+        user_id_2 = res2.data["id"]
+
+        self.assertEqual(user_id_1, user_id_2)
+        total_count = User.objects.filter(clerk_id="user_idempotent_test_444").count()
+        self.assertEqual(total_count, 1)
+
+
 
 @override_settings(CLERK_TEST_PUBLIC_KEY=TEST_PUBLIC_KEY)
 class CompetitionOwnershipSecurityTests(TestCase):
