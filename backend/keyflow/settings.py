@@ -31,6 +31,11 @@ ALLOWED_HOSTS = config(
     default='localhost,127.0.0.1,testserver,.railway.app,.onrender.com,.vercel.app',
     cast=Csv()
 )
+_allowed_hosts_list = [h.strip() for h in ALLOWED_HOSTS if h.strip()]
+for _h in ['localhost', '127.0.0.1', 'testserver']:
+    if _h not in _allowed_hosts_list:
+        _allowed_hosts_list.append(_h)
+ALLOWED_HOSTS = _allowed_hosts_list
 
 # ---------------------------------------------------------------------------
 # Applications

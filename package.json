@@ -3,6 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "scripts": {
-    "build": "npm --prefix frontend run build"
+    "dev": "powershell -ExecutionPolicy Bypass -File ./scripts/dev.ps1",
+    "dev:backend": "powershell -ExecutionPolicy Bypass -File ./scripts/backend.ps1",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix frontend test"
   }
 }
