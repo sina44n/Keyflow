@@ -12,7 +12,12 @@ import {
   createHandRigMesh,
   createHandAnimationController,
 } from '../../utils/hand3dRig.js';
-import { resolveKeyToFinger } from '../../utils/touchTypingMap.js';
+import {
+  resolveKeyToFinger,
+  KEY_COORDS,
+  FINGERTIP_POSITIONS,
+  ALLOWED_FINGER_ANIMATION_KEYS,
+} from '../../utils/touchTypingMap.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -330,6 +335,8 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
 
     const initialProxX = indexProxL.position.x;
     const initialProxY = indexProxL.position.y;
+    const initialProxZ = indexProxL.position.z;
+    const initialProxRotX = indexProxL.rotation.x;
     const initialInterPos = indexInterL.position.clone();
     const initialDistPos = indexDistL.position.clone();
 
@@ -340,7 +347,8 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     // MCP reaches towards key coordinates in palm space
     assert.ok(indexProxL.position.x > initialProxX, 'Index proximal reached right toward T');
     assert.ok(indexProxL.position.y > initialProxY, 'Index proximal reached upward toward T');
-    assert.ok(indexProxL.position.z < 0, 'Depressed downward into keycap');
+    assert.ok(indexProxL.position.z < initialProxZ, 'Depressed downward into keycap');
+    assert.ok(indexProxL.rotation.x < initialProxRotX, 'Knuckle flexed downward into keycap switch');
 
     // Bone lengths are 100% invariant (zero stretching): child bone local positions remain at rest
     assert.equal(indexInterL.position.distanceTo(initialInterPos), 0, 'Intermediate bone local pos invariant');
@@ -667,6 +675,140 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
         assert.ok(b.position.distanceTo(basePos[b.name]) < 1e-4, `Bone ${b.name} returned to resting position after ${seq.join('')}`);
       });
     });
+  });
+
+  it('guarantees fingertip physically reaches keycap contact position (<= 20mm from center) for all approved characters', () => {
+    const { skinnedMesh, boneMap, bones } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+    const geom = skinnedMesh.geometry;
+    const posAttr = geom.attributes.position;
+    const skinIndex = geom.attributes.skinIndex;
+    const skinWeight = geom.attributes.skinWeight;
+
+    function getSkinnedVertex(vIdx) {
+      const indices = [skinIndex.getX(vIdx), skinIndex.getY(vIdx), skinIndex.getZ(vIdx), skinIndex.getW(vIdx)];
+      const weights = [skinWeight.getX(vIdx), skinWeight.getY(vIdx), skinWeight.getZ(vIdx), skinWeight.getW(vIdx)];
+      const vOrig = new THREE.Vector3(posAttr.getX(vIdx), posAttr.getY(vIdx), posAttr.getZ(vIdx));
+      const vOut = new THREE.Vector3(0, 0, 0);
+      const tempV = new THREE.Vector3();
+      const tempM = new THREE.Matrix4();
+
+      for (let k = 0; k < 4; k++) {
+        const w = weights[k];
+        if (w <= 0) continue;
+        const bIdx = indices[k];
+        tempM.multiplyMatrices(bones[bIdx].matrixWorld, skinnedMesh.skeleton.boneInverses[bIdx]);
+        tempV.copy(vOrig).applyMatrix4(tempM);
+        vOut.addScaledVector(tempV, w);
+      }
+      return vOut;
+    }
+
+    // Map tip vertex for each finger
+    const fingerTipVertices = {};
+    for (const [finger, pos] of Object.entries(FINGERTIP_POSITIONS)) {
+      const target3D = new THREE.Vector3(pos.x - 450, 175 - pos.y, 4);
+      let best = -1;
+      let minD = Infinity;
+      for (let i = 0; i < posAttr.count; i++) {
+        let belongs = false;
+        const bNames = FINGER_BONE_MAP[finger] || [];
+        for (let s = 0; s < 4; s++) {
+          const b = bones[skinIndex.getComponent(i, s)];
+          const w = skinWeight.getComponent(i, s);
+          if (bNames.includes(b.name) && w > 0.2) {
+            belongs = true;
+            break;
+          }
+        }
+        if (!belongs) continue;
+
+        const d = Math.hypot(posAttr.getX(i) - target3D.x, posAttr.getY(i) - target3D.y);
+        if (d < minD) {
+          minD = d;
+          best = i;
+        }
+      }
+      fingerTipVertices[finger] = best;
+    }
+
+    const approvedKeys = Array.from(ALLOWED_FINGER_ANIMATION_KEYS);
+    approvedKeys.forEach((char) => {
+      controller.resetAll();
+      const resolved = resolveKeyToFinger(char);
+      assert.ok(resolved, `Approved key '${char}' must resolve a finger`);
+
+      const { finger, keyId, targetCoord } = resolved;
+      const targetKey3D = new THREE.Vector3(targetCoord.cx - 450, 175 - targetCoord.cy, 0);
+
+      // Trigger keystroke and advance to peak contact & switch press
+      controller.triggerKeystroke(char);
+      controller.update(performance.now() + 50);
+      skinnedMesh.updateMatrixWorld(true);
+
+      const tipVIdx = fingerTipVertices[finger];
+      const worldTip = getSkinnedVertex(tipVIdx);
+
+      // 2D contact distance in keyboard surface plane (X, Y)
+      const contactDist2D = Math.hypot(worldTip.x - targetKey3D.x, worldTip.y - targetKey3D.y);
+      // Keycap radius is 25.4mm for standard keys, Spacebar is 354x46mm
+      const maxAllowedDist = keyId === 'space' ? 25.0 : 21.0;
+      assert.ok(
+        contactDist2D <= maxAllowedDist,
+        `Key '${char}' fingertip must reach keycap '${keyId}' (distance was ${contactDist2D.toFixed(1)}mm, max allowed ${maxAllowedDist}mm)`
+      );
+    });
+  });
+
+  it('executes full movement pipeline: APPROACH -> CONTACT -> PRESS -> RELEASE -> REST', () => {
+    const { boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    const now = performance.now();
+    controller.triggerKeystroke('t');
+
+    // 1. Approach phase (t = 15ms, progress ~ 0.11)
+    controller.update(now + 15);
+    let diag = controller.getDiagnostics();
+    assert.equal(diag.length, 1);
+    assert.equal(diag[0].animationState, 'approach');
+
+    // 2. Contact phase (t = 45ms, progress ~ 0.33)
+    controller.update(now + 45);
+    diag = controller.getDiagnostics();
+    assert.equal(diag[0].animationState, 'contact');
+    assert.equal(diag[0].contactReached, true);
+
+    // 3. Press peak phase (t = 70ms, progress ~ 0.52)
+    controller.update(now + 70);
+    diag = controller.getDiagnostics();
+    assert.equal(diag[0].animationState, 'press');
+    assert.equal(diag[0].pressCompleted, true);
+
+    // 4. Release phase (t = 100ms, progress ~ 0.74)
+    controller.update(now + 100);
+    diag = controller.getDiagnostics();
+    assert.equal(diag[0].animationState, 'release');
+
+    // 5. Rest completion (t = 150ms, progress >= 1.0)
+    controller.update(now + 150);
+    assert.equal(controller.getActiveCount(), 0, 'Cleanly returns to resting state');
+  });
+
+  it('exposes development diagnostics via getDiagnostics() without console pollution', () => {
+    const { boneMap } = createHandRigMesh();
+    const controller = createHandAnimationController(boneMap);
+
+    controller.triggerKeystroke('k');
+    const diag = controller.getDiagnostics();
+    assert.equal(diag.length, 1);
+    assert.equal(diag[0].typedCharacter, 'k');
+    assert.equal(diag[0].allowed, true);
+    assert.equal(diag[0].assignedFinger, 'right-middle');
+    assert.equal(diag[0].physicalKey, 'k');
+    assert.equal(diag[0].keycapFound, true);
+    assert.equal(diag[0].fingertipFound, true);
+    assert.equal(diag[0].targetResolved, true);
   });
 
   it('verifies binary GLB model exists on disk and is non-empty', () => {

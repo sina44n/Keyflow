@@ -94,6 +94,9 @@ export function Hand3DGuide({
     const skeleton = rig.skeleton;
     const animController = createHandAnimationController(rig.boneMap);
     controllerRef.current = animController;
+    if (typeof window !== 'undefined') {
+      window.__KEYFLOW_HAND_CONTROLLER__ = animController;
+    }
 
     scene.add(handMesh);
 
@@ -187,6 +190,9 @@ export function Hand3DGuide({
       }
       renderer.dispose();
       controllerRef.current = null;
+      if (typeof window !== 'undefined' && window.__KEYFLOW_HAND_CONTROLLER__ === animController) {
+        window.__KEYFLOW_HAND_CONTROLLER__ = null;
+      }
       rendererRef.current = null;
       sceneRef.current = null;
       cameraRef.current = null;

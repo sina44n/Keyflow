@@ -22,6 +22,7 @@ import { Hand3DGuide } from './Hand3DGuide';
 import {
   SHIFT_MAP,
   CALIBRATED_KEYS,
+  resolveKeyToFinger,
 } from '../../utils/touchTypingMap.js';
 
 export { SHIFT_MAP, CALIBRATED_KEYS };
@@ -50,7 +51,7 @@ export function KeyboardGuide({
     return { targetKeyId: targetChar.toLowerCase(), needsShift: false };
   }, [targetChar]);
 
-  // Track active pressed key with physical mechanical spring recovery
+  // Track active pressed key with physical mechanical spring recovery synchronized with finger contact
   const [activePressedKeyId, setActivePressedKeyId] = useState(null);
 
   useEffect(() => {
@@ -58,24 +59,31 @@ export function KeyboardGuide({
       setActivePressedKeyId(null);
       return;
     }
-    const raw = typeof lastKeystroke === 'string' ? lastKeystroke : lastKeystroke.key;
-    const resolvedId =
-      raw === ' '
-        ? 'space'
-        : raw && SHIFT_MAP[raw]
-          ? SHIFT_MAP[raw]
-          : raw
-            ? raw.toLowerCase()
-            : null;
 
-    if (resolvedId) {
-      setActivePressedKeyId(resolvedId);
-      const timer = setTimeout(() => {
-        setActivePressedKeyId((curr) => (curr === resolvedId ? null : curr));
-      }, 125);
-      return () => clearTimeout(timer);
+    // Strict allowlist validation: unsupported keys produce ZERO keycap press response
+    const resolved = resolveKeyToFinger(lastKeystroke, { spaceThumb });
+    if (!resolved) {
+      setActivePressedKeyId(null);
+      return;
     }
-  }, [lastKeystroke]);
+
+    const keyId = resolved.keyId;
+
+    // Synchronize mechanical switch downstroke with fingertip contact at ~30ms
+    const contactTimer = setTimeout(() => {
+      setActivePressedKeyId(keyId);
+    }, 30);
+
+    // Release keycap as finger begins release phase at ~90ms (stroke ~135ms total)
+    const releaseTimer = setTimeout(() => {
+      setActivePressedKeyId((curr) => (curr === keyId ? null : curr));
+    }, 90);
+
+    return () => {
+      clearTimeout(contactTimer);
+      clearTimeout(releaseTimer);
+    };
+  }, [lastKeystroke, spaceThumb]);
 
   // If both keyboard and hand guide are disabled, render nothing
   if (!isVisible && !handGuideVisible) return null;

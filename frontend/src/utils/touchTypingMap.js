@@ -565,13 +565,19 @@ export function resolveKeyToFinger(keyOrEvent, options = {}) {
 
   const keyId = entry.keyId;
   const restingTip = FINGERTIP_POSITIONS[finger];
-  const targetCoord = KEY_COORDS[keyId];
+  let targetCoord = KEY_COORDS[keyId];
+
+  // Ergonomic spacebar contact: typist thumbs strike their respective side of the 6.25u bar
+  if (keyId === 'space' && targetCoord) {
+    const thumbX = finger === 'left-thumb' ? 380 : 460;
+    targetCoord = { ...targetCoord, cx: thumbX, cy: 251 };
+  }
 
   let reachX = 0;
   let reachY = 0;
   if (restingTip && targetCoord) {
-    reachX = targetCoord.cx - restingTip.x;
-    reachY = targetCoord.cy - restingTip.y;
+    reachX = +(targetCoord.cx - restingTip.x).toFixed(1);
+    reachY = +(targetCoord.cy - restingTip.y).toFixed(1);
   }
 
   return {

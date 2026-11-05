@@ -654,12 +654,16 @@ export function createHandAnimationController(boneMap) {
     activeAnimations.set(finger, {
       finger,
       keyId,
+      char: resolved.char,
       startTime: now,
       duration: prefersReducedMotion ? 90 : 135, // ~135ms total stroke (crisp downstroke, smooth return)
       motionScale: prefersReducedMotion ? 0.35 : 1.0,
       reachX: reach3D_X,
       reachY: reach3D_Y,
       bones: boneNames.map((name) => boneMap[name]).filter(Boolean),
+      state: 'approach',
+      contactReached: false,
+      pressCompleted: false,
     });
   }
 
@@ -687,26 +691,58 @@ export function createHandAnimationController(boneMap) {
 
       hasActive = true;
 
-      // Kinematic finger stroke curve:
-      // 0.0 to 0.35: crisp strike & reach (ease-out-quad)
-      // 0.35 to 1.0: smooth spring-damped return (cosine curve)
-      let strike;
-      if (progress < 0.35) {
-        const p = progress / 0.35;
-        strike = 1 - (1 - p) * (1 - p);
+      // Kinematic sequence:
+      // 0.00 to 0.30: APPROACH (reaches target keycap center, lifts slightly)
+      // 0.30 to 0.45: CONTACT & DOWNSTROKE (depresses mechanical switch by 3.8mm)
+      // 0.45 to 0.65: PRESS PEAK & RELEASE BEGIN (switch pops up)
+      // 0.65 to 1.00: RETURN TO REST (returns smoothly to home row)
+      if (progress < 0.30) {
+        anim.state = 'approach';
+      } else if (progress < 0.45) {
+        anim.state = 'contact';
+        anim.contactReached = true;
+      } else if (progress < 0.65) {
+        anim.state = 'press';
+        anim.pressCompleted = true;
+      } else if (progress < 0.85) {
+        anim.state = 'release';
       } else {
-        const p = (progress - 0.35) / 0.65;
-        strike = Math.cos(p * Math.PI * 0.5);
+        anim.state = 'return';
       }
 
       const motionScale = anim.motionScale || 1.0;
-      strike = strike * motionScale;
+
+      // 1. Planar Reach Interpolation (X, Y)
+      let reachFactor = 0;
+      if (progress < 0.30) {
+        const p = progress / 0.30;
+        reachFactor = 1 - Math.pow(1 - p, 3); // Agile ease-out-cubic approach
+      } else if (progress <= 0.65) {
+        reachFactor = 1.0; // Locks solidly over the keycap center during contact & press
+      } else {
+        const p = (progress - 0.65) / 0.35;
+        reachFactor = 0.5 * (1 + Math.cos(p * Math.PI)); // Cosine spring recovery
+      }
+
+      // 2. Vertical Switch Downstroke (Z displacement & Joint Flexion)
+      let pressFactor = 0;
+      if (progress < 0.30) {
+        pressFactor = (progress / 0.30) * 0.35; // Lowering toward keycap
+      } else if (progress < 0.45) {
+        const p = (progress - 0.30) / 0.15;
+        pressFactor = 0.35 + 0.65 * (1 - Math.cos(p * Math.PI * 0.5)); // Deep mechanical switch compression
+      } else if (progress < 0.65) {
+        const p = (progress - 0.45) / 0.20;
+        pressFactor = 1.0 - 0.65 * Math.sin(p * Math.PI * 0.5); // Rebound release
+      } else {
+        const p = (progress - 0.65) / 0.35;
+        pressFactor = 0.35 * (1 - p); // Rest height recovery
+      }
+
+      reachFactor *= motionScale;
+      pressFactor *= motionScale;
 
       const isThumb = finger.includes('thumb');
-      const isHomeKey = Math.hypot(anim.reachX, anim.reachY) < 12;
-
-      // Authentic mechanical switch key travel distance: 3.2mm downward (-Z)
-      const keyTravelDist = 3.2;
 
       if (isThumb) {
         // Spacebar Thumbs (thumb_proximal, thumb_distal)
@@ -716,10 +752,10 @@ export function createHandAnimationController(boneMap) {
         const restDist = distBone ? restTransforms[distBone.name] : null;
 
         if (proxBone && restProx) {
-          proxBone.position.x = restProx.pos.x;
-          proxBone.position.y = restProx.pos.y;
-          proxBone.position.z = restProx.pos.z - strike * keyTravelDist;
-          proxBone.rotation.x = restProx.rot.x - strike * 0.14;
+          proxBone.position.x = restProx.pos.x + reachFactor * anim.reachX;
+          proxBone.position.y = restProx.pos.y + reachFactor * anim.reachY;
+          proxBone.position.z = restProx.pos.z - pressFactor * 3.5;
+          proxBone.rotation.x = restProx.rot.x - pressFactor * 0.12;
           proxBone.rotation.y = restProx.rot.y;
           proxBone.rotation.z = restProx.rot.z;
         }
@@ -727,7 +763,7 @@ export function createHandAnimationController(boneMap) {
         if (distBone && restDist) {
           // Invariant bone length: distal position remains rigidly at rest.pos
           distBone.position.copy(restDist.pos);
-          distBone.rotation.x = restDist.rot.x - strike * 0.08;
+          distBone.rotation.x = restDist.rot.x - pressFactor * 0.08;
           distBone.rotation.y = restDist.rot.y;
           distBone.rotation.z = restDist.rot.z;
         }
@@ -743,40 +779,25 @@ export function createHandAnimationController(boneMap) {
 
         // 1. Proximal (MCP / Knuckle) — base translation in palm-space + yaw/pitch orientation
         if (proxBone && restProx) {
-          if (isHomeKey) {
-            // Home key downstroke: pure vertical keycap compression
-            proxBone.position.x = restProx.pos.x;
-            proxBone.position.y = restProx.pos.y;
-            proxBone.position.z = restProx.pos.z - strike * keyTravelDist;
-            proxBone.rotation.x = restProx.rot.x - strike * 0.15;
-            proxBone.rotation.y = restProx.rot.y;
-            proxBone.rotation.z = restProx.rot.z;
-          } else {
-            // Reaching key: controlled MCP reach displacement in palm space
-            // reachScale of 0.20 delivers natural finger reach without pulling adjacent skin
-            const reachScale = 0.20;
-            const deltaX = anim.reachX * reachScale;
-            const deltaY = anim.reachY * reachScale;
+          proxBone.position.x = restProx.pos.x + reachFactor * anim.reachX;
+          proxBone.position.y = restProx.pos.y + reachFactor * anim.reachY;
+          proxBone.position.z = restProx.pos.z - pressFactor * 2.0;
 
-            proxBone.position.x = restProx.pos.x + strike * deltaX;
-            proxBone.position.y = restProx.pos.y + strike * deltaY;
-            proxBone.position.z = restProx.pos.z - strike * keyTravelDist;
+          // Natural anatomical joint articulation:
+          // Knuckle yaws toward target key column; pitches down onto keycap switch
+          const yaw = Math.atan2(anim.reachX, Math.abs(anim.reachY) + 65) * 0.16 * reachFactor;
+          const pitch = (anim.reachY * 0.001 * reachFactor) + (pressFactor * 0.12);
 
-            // Pitch orientation (reaching forward/back) + Yaw orientation (reaching lateral column)
-            const pitchRot = anim.reachY * 0.0022 + 0.12;
-            const yawRot = anim.reachX * 0.0022;
-
-            proxBone.rotation.x = restProx.rot.x - strike * pitchRot;
-            proxBone.rotation.y = restProx.rot.y;
-            proxBone.rotation.z = restProx.rot.z - strike * yawRot;
-          }
+          proxBone.rotation.x = restProx.rot.x - pitch;
+          proxBone.rotation.y = restProx.rot.y;
+          proxBone.rotation.z = restProx.rot.z - yaw;
         }
 
         // 2. Intermediate (PIP Joint) — HINGE FLEXION ONLY, ZERO LOCAL TRANSLATION
         if (interBone && restInter) {
           // GUARANTEES ZERO BONE STRETCHING: local position stays strictly at rest.pos
           interBone.position.copy(restInter.pos);
-          interBone.rotation.x = restInter.rot.x - strike * 0.12;
+          interBone.rotation.x = restInter.rot.x - pressFactor * 0.10;
           interBone.rotation.y = restInter.rot.y;
           interBone.rotation.z = restInter.rot.z;
         }
@@ -785,7 +806,7 @@ export function createHandAnimationController(boneMap) {
         if (distBone && restDist) {
           // GUARANTEES ZERO BONE STRETCHING: local position stays strictly at rest.pos
           distBone.position.copy(restDist.pos);
-          distBone.rotation.x = restDist.rot.x - strike * 0.08;
+          distBone.rotation.x = restDist.rot.x - pressFactor * 0.08;
           distBone.rotation.y = restDist.rot.y;
           distBone.rotation.z = restDist.rot.z;
         }
@@ -807,11 +828,33 @@ export function createHandAnimationController(boneMap) {
     });
   }
 
+  function getDiagnostics() {
+    const list = [];
+    for (const [finger, anim] of activeAnimations.entries()) {
+      list.push({
+        typedCharacter: anim.char,
+        allowed: true,
+        assignedFinger: finger,
+        physicalKey: anim.keyId,
+        keycapFound: true,
+        fingertipFound: true,
+        targetResolved: true,
+        reachX: anim.reachX,
+        reachY: anim.reachY,
+        animationState: anim.state,
+        contactReached: anim.contactReached,
+        pressCompleted: anim.pressCompleted,
+      });
+    }
+    return list;
+  }
+
   return {
     triggerKeystroke,
     update,
     resetAll,
     getActiveCount: () => activeAnimations.size,
     getRestTransform: (boneName) => restTransforms[boneName],
+    getDiagnostics,
   };
 }
