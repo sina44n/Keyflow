@@ -12,12 +12,13 @@ import React from 'react';
 import { Users, Target, Zap, Flame, TrendingUp, Clock } from 'lucide-react';
 
 export const LeaderboardOverview = ({ stats, period }) => {
+  const hasStats = Boolean(stats);
   const {
-    registered_typists = 0,
-    active_competitors = 0,
-    top_speed = 0,
+    registered_typists = null,
+    active_competitors = null,
+    top_speed = null,
     top_speed_user = null,
-    avg_accuracy = 0,
+    avg_accuracy = null,
     period_time_remaining = null,
   } = stats || {};
 
@@ -31,7 +32,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
               Total Registered
             </p>
             <p className="mt-2 text-3xl font-extrabold font-mono text-[var(--text-primary)] tracking-tight">
-              {registered_typists.toLocaleString()}
+              {hasStats && registered_typists !== null ? registered_typists.toLocaleString() : '--'}
             </p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] transition-transform group-hover:scale-105">
@@ -39,8 +40,8 @@ export const LeaderboardOverview = ({ stats, period }) => {
           </div>
         </div>
         <p className="mt-3 text-xs text-[var(--text-secondary)] font-mono flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Verified account holders
+          <span className={`w-1.5 h-1.5 rounded-full ${hasStats ? 'bg-emerald-500 animate-pulse' : 'bg-[var(--text-muted)]'}`} />
+          {hasStats ? 'Verified account holders' : 'Awaiting live telemetry'}
         </p>
       </div>
 
@@ -52,7 +53,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
               Total Participated
             </p>
             <p className="mt-2 text-3xl font-extrabold font-mono text-[var(--text-primary)] tracking-tight">
-              {active_competitors.toLocaleString()}
+              {hasStats && active_competitors !== null ? active_competitors.toLocaleString() : '--'}
             </p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] transition-transform group-hover:scale-105">
@@ -73,7 +74,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
             </p>
             <div className="mt-2 flex items-baseline gap-1.5">
               <span className="text-3xl font-extrabold font-mono text-[var(--accent)] tracking-tight">
-                {top_speed > 0 ? top_speed.toFixed(1) : '--'}
+                {hasStats && top_speed && top_speed > 0 ? top_speed.toFixed(1) : '--'}
               </span>
               <span className="text-xs font-mono text-[var(--text-muted)] font-semibold">WPM</span>
             </div>
@@ -123,7 +124,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
                 </p>
                 <div className="mt-2 flex items-baseline gap-1">
                   <span className="text-3xl font-extrabold font-mono text-[var(--text-primary)] tracking-tight">
-                    {avg_accuracy > 0 ? avg_accuracy.toFixed(1) : '95.0'}%
+                    {hasStats && avg_accuracy && avg_accuracy > 0 ? `${avg_accuracy.toFixed(1)}%` : '--'}
                   </span>
                 </div>
               </div>

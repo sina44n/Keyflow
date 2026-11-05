@@ -35,12 +35,12 @@ $backendAlreadyRunning = $false
 $backendProcess = $null
 
 try {
-    $conn = Get-NetTCPConnection -LocalPort 8000 -ErrorAction SilentlyContinue | Select-Object -First 1
+    $conn = Get-NetTCPConnection -LocalPort 8000 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($conn) {
         $backendAlreadyRunning = $true
     }
 } catch {
-    $netstat = netstat -ano | findstr :8000
+    $netstat = netstat -ano | Select-String -Pattern ':8000\s+.*LISTENING'
     if ($netstat) {
         $backendAlreadyRunning = $true
     }
@@ -110,21 +110,51 @@ Write-Host "  [Academy]    http://localhost:5173/academy" -ForegroundColor White
 Write-Host "  [Workstation]http://localhost:5173/workstation" -ForegroundColor White
 Write-Host "  [Arcade]     http://localhost:5173/arcade" -ForegroundColor White
 
-# 5. Launch Vite Frontend
-Write-Host "`n[4/5] Launching Vite development server..." -ForegroundColor Gray
-Write-Host "Press Ctrl+C to terminate the development session.`n" -ForegroundColor Yellow
-
+# 5. Check & Launch Vite Frontend
+Write-Host "`n[4/5] Checking Vite frontend status..." -ForegroundColor Gray
+$frontendAlreadyRunning = $false
 try {
-    Push-Location $FrontendDir
-    & npm run dev
-} finally {
-    Pop-Location
-    Write-Host "`n[5/5] Shutting down development environment..." -ForegroundColor Gray
-    if ($backendProcess -and -not $backendProcess.HasExited) {
-        Write-Host "Stopping spawned Django backend (PID: $($backendProcess.Id))..." -ForegroundColor DarkGray
-        try {
-            Stop-Process -Id $backendProcess.Id -Force -ErrorAction SilentlyContinue
-        } catch {}
-    }
-    Write-Host "KEYFLOW shutdown complete." -ForegroundColor Green
+    $vConn = Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($vConn) { $frontendAlreadyRunning = $true }
+} catch {
+    $vNetstat = netstat -ano | Select-String -Pattern ':5173\s+.*LISTENING'
+    if ($vNetstat) { $frontendAlreadyRunning = $true }
 }
+
+if ($frontendAlreadyRunning) {
+    Write-Host "[OK] Vite frontend is already active on http://localhost:5173 (reusing instance)." -ForegroundColor Green
+    Write-Host "Both Django and Vite are fully operational and connected." -ForegroundColor Cyan
+    Write-Host "Press Ctrl+C to exit launcher.`n" -ForegroundColor Yellow
+
+    try {
+        while ($true) {
+            Start-Sleep -Seconds 2
+        }
+    } finally {
+        Write-Host "`n[5/5] Shutting down development session..." -ForegroundColor Gray
+        if ($backendProcess -and -not $backendProcess.HasExited) {
+            Write-Host "Stopping spawned Django backend (PID: $($backendProcess.Id))..." -ForegroundColor DarkGray
+            try { Stop-Process -Id $backendProcess.Id -Force -ErrorAction SilentlyContinue } catch {}
+        }
+        Write-Host "KEYFLOW shutdown complete." -ForegroundColor Green
+    }
+} else {
+    Write-Host "Launching Vite development server..." -ForegroundColor Gray
+    Write-Host "Press Ctrl+C to terminate the development session.`n" -ForegroundColor Yellow
+
+    try {
+        Push-Location $FrontendDir
+        & npm run dev
+    } finally {
+        Pop-Location
+        Write-Host "`n[5/5] Shutting down development environment..." -ForegroundColor Gray
+        if ($backendProcess -and -not $backendProcess.HasExited) {
+            Write-Host "Stopping spawned Django backend (PID: $($backendProcess.Id))..." -ForegroundColor DarkGray
+            try {
+                Stop-Process -Id $backendProcess.Id -Force -ErrorAction SilentlyContinue
+            } catch {}
+        }
+        Write-Host "KEYFLOW shutdown complete." -ForegroundColor Green
+    }
+}
+

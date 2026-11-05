@@ -103,10 +103,22 @@ export const LeaderboardPage = () => {
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-[var(--border)]">
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-xs font-mono text-[var(--accent)] font-semibold mb-3">
-              <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-ping" />
-              <span>Verified Global Telemetry</span>
-            </div>
+            {error ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-xs font-mono text-red-500 dark:text-red-400 font-semibold mb-3">
+                <span className="w-2 h-2 rounded-full bg-red-500" />
+                <span>Telemetry Offline — Backend Unreachable</span>
+              </div>
+            ) : isLoading && !leaderboardData ? (
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-mono text-[var(--text-muted)] font-semibold mb-3">
+                <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse" />
+                <span>Connecting to Telemetry Network...</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-xs font-mono text-[var(--accent)] font-semibold mb-3">
+                <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-ping" />
+                <span>Verified Global Telemetry</span>
+              </div>
+            )}
             <h1 className="text-3xl sm:text-4xl font-extrabold font-mono tracking-tight text-[var(--text-primary)] flex items-center gap-3">
               <Trophy className="w-8 h-8 text-[var(--accent)] shrink-0" />
               <span>Leaderboard</span>
