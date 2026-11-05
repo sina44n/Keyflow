@@ -75,6 +75,28 @@ export function calculateNetWpm(grossWpm = 0, uncorrectedErrors = 0, durationSec
 }
 
 /**
+ * Calculates consistency percentage from an array of 1-second WPM values
+ * using standard deviation relative to the mean.
+ *
+ * @param {Array<number>} wpmValues
+ * @returns {number} Consistency percentage (0 - 100)
+ */
+export function calculateConsistency(wpmValues = []) {
+  if (!Array.isArray(wpmValues)) return 100;
+  const valid = wpmValues.filter((v) => typeof v === 'number' && !isNaN(v) && v > 0);
+  if (valid.length < 2) return valid.length === 1 ? 100 : 0;
+
+  const mean = valid.reduce((a, b) => a + b, 0) / valid.length;
+  if (mean === 0) return 100;
+
+  const variance = valid.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / valid.length;
+  const stdDev = Math.sqrt(variance);
+  const cv = stdDev / mean;
+  const consistency = Math.max(0, Math.min(100, Math.round(100 * (1 - cv))));
+  return consistency;
+}
+
+/**
  * Computes live character feedback for a specific character position.
  * Handles spaces, punctuation, uppercase/lowercase letters, repeated characters,
  * and position-based Backspace correction history (Yellow highlighting).
@@ -214,7 +236,14 @@ export function calculateRawAccuracy(correctEntries = 0, incorrectEntries = 0, d
 }
 
 /**
- * Computes Final Text Accuracy: the match percentage of the final text against target.
+ * Computes Final Text Accuracy: the match percentage of the user's final typed buffer
+ * against target positions for the completed text.
+ *
+ * Requirements:
+ * - Compares the final typed buffer strictly against corresponding target positions.
+ * - Denominator is the relevant completed buffer length (typed.length), NOT the entire untyped passage.
+ * - Handles incomplete tests without fabricating a 100% score for empty input.
+ * - Mathematically consistent with character breakdown (correct / (correct + uncorrected)).
  *
  * @param {string} typed - Final user-typed string
  * @param {string} targetText - Full target passage string
@@ -222,12 +251,16 @@ export function calculateRawAccuracy(correctEntries = 0, incorrectEntries = 0, d
  * @returns {number} Final text accuracy percentage (0 to 100)
  */
 export function calculateFinalTextAccuracy(typed = '', targetText = '', decimals = 0) {
-  if (!targetText || targetText.length === 0) return 100;
-  if (!typed || typed.length === 0) return 0;
+  if (!targetText || targetText.length === 0) {
+    return (!typed || typed.length === 0) ? 100 : 0;
+  }
+  if (!typed || typeof typed !== 'string' || typed.length === 0) return 0;
+
   const correct = countCorrectChars(typed, targetText);
-  const baseline = Math.max(typed.length, targetText.length);
-  if (baseline <= 0) return 0;
-  const raw = (correct / baseline) * 100;
+  const relevantLength = typed.length;
+  if (relevantLength <= 0) return 0;
+
+  const raw = (correct / relevantLength) * 100;
   const clamped = Math.max(0, Math.min(100, raw));
   if (decimals > 0) {
     const factor = Math.pow(10, decimals);
@@ -308,10 +341,10 @@ export function createAuthoritativeSessionResult(params = {}) {
   const missedChars = Math.max(0, targetText.length - typed.length);
 
   let tier = 'Typist';
-  if (netWpm >= 100) tier = 'Godspeed';
-  else if (netWpm >= 80) tier = 'Master';
-  else if (netWpm >= 60) tier = 'Expert';
-  else if (netWpm >= 40) tier = 'Proficient';
+  if (grossWpm >= 100) tier = 'Godspeed';
+  else if (grossWpm >= 80) tier = 'Master';
+  else if (grossWpm >= 60) tier = 'Expert';
+  else if (grossWpm >= 40) tier = 'Proficient';
 
   return {
     sessionId,
@@ -342,14 +375,15 @@ export function createAuthoritativeSessionResult(params = {}) {
     missedChars,
     grossWpm,
     netWpm,
-    wpm: netWpm,
+    wpm: grossWpm,
     rawWpm: grossWpm,
+    speed: grossWpm,
     accuracy: rawAccuracy,
     rawAccuracy,
     finalTextAccuracy,
     tier,
     wpmGoal,
-    wpmGoalPassed: wpmGoal ? netWpm >= wpmGoal : null,
+    wpmGoalPassed: wpmGoal ? grossWpm >= wpmGoal : null,
     errorDetails: errorHistory,
     timeline,
     completionStatus: 'completed',

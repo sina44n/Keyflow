@@ -18,6 +18,7 @@ import { useKeyboardSound } from '../../context/SoundContext';
 import {
   getCharacterFeedback,
   countCorrectChars,
+  calculateGrossWpm,
   calculateRawAccuracy,
   calculateFinalTextAccuracy,
 } from '../../utils/typingFeedback';
@@ -103,8 +104,8 @@ export const LessonPlayer = ({
     return countCorrectChars(typed, targetText);
   }, [typed, targetText]);
 
-  const elapsedMinutes = Math.max((elapsedSeconds || 1) / 60, 0.016);
-  const currentWpm = startTime ? Math.max(0, Math.round((correctChars / 5) / elapsedMinutes)) : 0;
+  const totalValidStrokes = (correctStrokes + mistakes) > 0 ? (correctStrokes + mistakes) : (totalStrokes || correctChars);
+  const currentWpm = startTime && elapsedSeconds >= 0.5 ? calculateGrossWpm(totalValidStrokes, elapsedSeconds) : 0;
   // Live Raw Keystroke Accuracy: Correct Entries / (Correct Entries + Incorrect Entries) * 100
   // Backspace does NOT reset or erase mistakes from this calculation!
   const currentAccuracy = (correctStrokes + mistakes) > 0
@@ -231,12 +232,11 @@ export const LessonPlayer = ({
       clearInterval(timerRef.current);
 
       const finalDuration = Math.max(1, Math.floor((Date.now() - (startTime || Date.now())) / 1000));
-      const finalMinutes = finalDuration / 60;
-      const finalCorrect = countCorrectChars(value, targetText);
-      const finalWpm = Math.max(0, Math.round((finalCorrect / 5) / Math.max(finalMinutes, 0.016)));
       const finalStrokes = totalStrokes + addedStrokes;
       const finalCorrectStrokes = runningCorrectStrokes;
       const finalMistakes = runningMistakes;
+      const finalTotalValid = (finalCorrectStrokes + finalMistakes) > 0 ? (finalCorrectStrokes + finalMistakes) : (finalStrokes || countCorrectChars(value, targetText));
+      const finalWpm = calculateGrossWpm(finalTotalValid, finalDuration);
       const finalAccuracy = calculateRawAccuracy(finalCorrectStrokes, finalMistakes);
       const finalTextAccuracy = calculateFinalTextAccuracy(value, targetText);
       const finalStars = calculateStars(finalAccuracy, lesson?.targetAccuracy || 90, finalWpm, lesson?.targetWpm || 20);
@@ -244,6 +244,7 @@ export const LessonPlayer = ({
 
       const result = {
         wpm: finalWpm,
+        grossWpm: finalWpm,
         accuracy: finalAccuracy,
         rawAccuracy: finalAccuracy,
         finalTextAccuracy,
@@ -253,6 +254,7 @@ export const LessonPlayer = ({
         passed,
         maxStreak: Math.max(maxStreak, currentStreakVal),
         totalStrokes: finalStrokes,
+        totalKeystrokes: finalTotalValid,
         correctStrokes: finalCorrectStrokes,
       };
       setCompletedResult(result);

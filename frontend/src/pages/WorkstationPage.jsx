@@ -558,7 +558,7 @@ export const WorkstationPage = () => {
   const liveNetWpm = startTime && activeElapsedSec >= 0.5
     ? calculateNetWpm(liveGrossWpm, liveUncorrected, activeElapsedSec)
     : 0;
-  const liveWpm = liveNetWpm;
+  const liveWpm = liveGrossWpm;
   // Live Raw Keystroke Accuracy: Correct Entries / (Correct Entries + Incorrect Entries) * 100
   // Backspace does NOT reset or erase mistakes from this calculation!
   const liveAccuracy =
@@ -605,17 +605,17 @@ export const WorkstationPage = () => {
       const finalTextAccuracy = calculateFinalTextAccuracy(finalTyped, currentTargetText);
 
       let tier = 'Typist';
-      if (netWpm >= 100) tier = 'Godspeed';
-      else if (netWpm >= 80) tier = 'Master';
-      else if (netWpm >= 60) tier = 'Expert';
-      else if (netWpm >= 40) tier = 'Proficient';
+      if (grossWpm >= 100) tier = 'Godspeed';
+      else if (grossWpm >= 80) tier = 'Master';
+      else if (grossWpm >= 60) tier = 'Expert';
+      else if (grossWpm >= 40) tier = 'Proficient';
 
-      // Ensure final timeline point exists
+      // Ensure final timeline point exists with authentic Gross WPM
       const finalTimeline = [...(tracker.secondTimeline?.length ? tracker.secondTimeline : secondTimelineRef.current)];
       if (finalTimeline.length === 0 || finalTimeline[finalTimeline.length - 1].second !== testDurationSec) {
         finalTimeline.push({
           second: testDurationSec,
-          wpm: netWpm,
+          wpm: grossWpm,
           rawWpm: grossWpm,
           errors: finalMistakes,
         });
@@ -673,7 +673,7 @@ export const WorkstationPage = () => {
         userId: user?.id || null,
         id: canonicalSessionId,
         sessionId: canonicalSessionId,
-        wpm: netWpm,
+        wpm: grossWpm,
         netWpm,
         grossWpm,
         accuracy: rawAccuracy,
@@ -925,8 +925,8 @@ export const WorkstationPage = () => {
           const currentNetWpm = calculateNetWpm(currentGrossWpm, currentUncorrected, elapsed);
           const pt = {
             second: elapsed,
-            wpm: currentNetWpm,
-            rawWpm: Math.max(currentNetWpm, currentGrossWpm),
+            wpm: currentGrossWpm,
+            rawWpm: currentGrossWpm,
             errors: tracker.mistakes,
           };
           secondTimelineRef.current.push(pt);

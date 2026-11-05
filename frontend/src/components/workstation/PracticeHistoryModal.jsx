@@ -42,7 +42,7 @@ export const PracticeHistoryModal = ({ isOpen, onClose, userId = null }) => {
             const backendSessions = res.data.map((s) => ({
               id: `api_${s.id}`,
               timestamp: new Date(s.created_at).getTime(),
-              wpm: parseFloat(s.net_wpm) || 0,
+              wpm: parseFloat(s.gross_wpm) || parseFloat(s.net_wpm) || 0,
               grossWpm: parseFloat(s.gross_wpm) || 0,
               accuracy: parseFloat(s.accuracy) || 0,
               durationSeconds: s.duration_seconds || 0,

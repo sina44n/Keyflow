@@ -21,26 +21,8 @@ import {
   Share2,
 } from 'lucide-react';
 
-/**
- * Calculates consistency percentage from an array of 1-second WPM values
- * using standard deviation relative to the mean.
- *
- * @param {Array<number>} wpmValues
- * @returns {number} Consistency percentage (0 - 100)
- */
-export function calculateConsistency(wpmValues = []) {
-  const valid = wpmValues.filter((v) => typeof v === 'number' && !isNaN(v) && v > 0);
-  if (valid.length <= 1) return 100;
-
-  const mean = valid.reduce((a, b) => a + b, 0) / valid.length;
-  if (mean === 0) return 100;
-
-  const variance = valid.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / valid.length;
-  const stdDev = Math.sqrt(variance);
-  const cv = stdDev / mean;
-  const consistency = Math.max(0, Math.min(100, Math.round(100 * (1 - cv))));
-  return consistency;
-}
+import { calculateConsistency } from '../../utils/typingFeedback';
+export { calculateConsistency };
 
 export const DedicatedResultsScreen = ({
   results,
@@ -136,6 +118,7 @@ export const DedicatedResultsScreen = ({
     timeline = [],
   } = activeResults;
 
+  const displayedWpm = Math.max(0, Math.round(grossWpm || activeResults?.wpm || 0));
   const actualDuration = durationSeconds || duration || 1;
   const displayedAccuracy = rawAccuracy !== undefined ? rawAccuracy : accuracy;
   const correctEntries = correctKeystrokes || correctChars;
@@ -144,26 +127,29 @@ export const DedicatedResultsScreen = ({
   // Construct chart timeline (fallback to 1-second intervals if timeline is minimal)
   const chartData = useMemo(() => {
     if (timeline && timeline.length >= 2) {
-      return timeline;
+      return timeline.map((pt) => ({
+        ...pt,
+        wpm: pt.rawWpm || pt.wpm || displayedWpm,
+        rawWpm: pt.rawWpm || pt.wpm || displayedWpm,
+      }));
     }
     // Generate honest timeline interpolation from session parameters
     const totalSec = Math.max(1, Math.round(actualDuration));
     const points = [];
     for (let s = 1; s <= totalSec; s++) {
       const progress = s / totalSec;
-      // Slight smooth progression curve converging to final netWpm
-      const w = Math.round(netWpm * (0.85 + 0.15 * progress));
-      const raw = Math.round(grossWpm * (0.88 + 0.12 * progress));
+      // Slight smooth progression curve converging to final gross WPM
+      const w = Math.round(displayedWpm * (0.88 + 0.12 * progress));
       const secErrors = errorDetails.filter((e) => Math.round(e.timestamp ? ((e.timestamp - (activeResults.startTime || activeResults.startedAt || 0)) / 1000) : 0) === s).length;
       points.push({
         second: s,
         wpm: w,
-        rawWpm: Math.max(w, raw),
+        rawWpm: w,
         errors: secErrors,
       });
     }
     return points;
-  }, [timeline, actualDuration, netWpm, grossWpm, errorDetails, activeResults?.startTime, activeResults?.startedAt]);
+  }, [timeline, actualDuration, displayedWpm, errorDetails, activeResults?.startTime, activeResults?.startedAt]);
 
   // SVG Chart Geometry
   const svgWidth = 720;
@@ -173,9 +159,9 @@ export const DedicatedResultsScreen = ({
   const graphHeight = svgHeight - padding.top - padding.bottom;
 
   const maxWpmValue = useMemo(() => {
-    const highest = Math.max(...chartData.map((d) => Math.max(d.wpm || 0, d.rawWpm || 0)), netWpm, grossWpm, 40);
+    const highest = Math.max(...chartData.map((d) => Math.max(d.wpm || 0, d.rawWpm || 0)), displayedWpm, 40);
     return Math.ceil(highest / 20) * 20;
-  }, [chartData, netWpm, grossWpm]);
+  }, [chartData, displayedWpm]);
 
   const maxErrors = useMemo(() => {
     const highest = Math.max(...chartData.map((d) => d.errors || 0), mistakes > 0 ? 1 : 0);
@@ -277,7 +263,7 @@ export const DedicatedResultsScreen = ({
 
       ctx.fillStyle = '#C48A5A';
       ctx.font = 'bold 96px monospace';
-      ctx.fillText(`${netWpm}`, 80, 255);
+      ctx.fillText(`${displayedWpm}`, 80, 255);
 
       ctx.fillStyle = '#7A6B65';
       ctx.font = '16px monospace';
@@ -365,7 +351,7 @@ export const DedicatedResultsScreen = ({
       const statsY = 510;
       const cols = [
         { label: 'test type', value: `${mode} ${mode === 'timed' ? timeLimit : wordLimit}` },
-        { label: 'raw', value: `${grossWpm}` },
+        { label: 'raw', value: `${displayedWpm}` },
         { label: 'characters', value: `${correctEntries}/${mistakes}/${correctedMistakes}/${remainingErrors}` },
         { label: 'consistency', value: `${consistency}%` },
         { label: 'time', value: `${actualDuration}s` },
@@ -385,7 +371,7 @@ export const DedicatedResultsScreen = ({
 
       // Export file
       const link = document.createElement('a');
-      link.download = `KEYFLOW-Results-${netWpm}-WPM.png`;
+      link.download = `KEYFLOW-Results-${displayedWpm}-WPM.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) {
@@ -397,7 +383,7 @@ export const DedicatedResultsScreen = ({
 
   const handleCopyLink = () => {
     try {
-      const summaryText = `KEYFLOW Precision Typing Result:\n⚡ Speed: ${netWpm} WPM (Raw: ${grossWpm} WPM)\n🎯 Accuracy: ${accuracy}%\n📊 Consistency: ${consistency}%\n⏱️ Duration: ${duration}s in ${mode} mode`;
+      const summaryText = `KEYFLOW Precision Typing Result:\n⚡ Speed: ${displayedWpm} WPM\n🎯 Accuracy: ${displayedAccuracy}%\n📊 Consistency: ${consistency}%\n⏱️ Duration: ${actualDuration}s in ${mode} mode`;
       navigator.clipboard.writeText(summaryText);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
@@ -410,21 +396,21 @@ export const DedicatedResultsScreen = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[var(--bg-surface)] p-6 sm:p-8 rounded-3xl border border-[var(--border)] shadow-xl relative overflow-hidden">
         {/* Left Column: Big Net WPM & Accuracy */}
         <div className="lg:col-span-3 flex lg:flex-col justify-around lg:justify-center gap-6 text-left">
-          {/* Net WPM */}
+          {/* Primary Speed (Gross WPM) */}
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">
-                net wpm
+                wpm
               </span>
               <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] font-bold">
                 speed
               </span>
             </div>
             <div className="text-6xl sm:text-7xl font-extrabold text-[var(--accent)] tracking-tight mt-1">
-              {netWpm}
+              {displayedWpm}
             </div>
             <div className="text-[11px] text-[var(--text-muted)] mt-0.5 font-mono">
-              gross: <span className="text-[var(--text-primary)] font-bold">{grossWpm}</span> wpm
+              gross: <span className="text-[var(--text-primary)] font-bold">{displayedWpm}</span> wpm
             </div>
           </div>
 
@@ -656,9 +642,9 @@ export const DedicatedResultsScreen = ({
             raw
           </div>
           <div className="text-xl sm:text-2xl font-bold text-[var(--accent)]">
-            {grossWpm}
+            {displayedWpm}
           </div>
-          <div className="text-[10px] text-[var(--text-muted)]">{Math.round(grossWpm * 5)} cpm</div>
+          <div className="text-[10px] text-[var(--text-muted)]">{Math.round(displayedWpm * 5)} cpm</div>
         </div>
 
         {/* 3. Characters Breakdown */}
@@ -681,7 +667,7 @@ export const DedicatedResultsScreen = ({
             consistency
           </div>
           <div className="text-xl sm:text-2xl font-bold text-[var(--accent)]">
-            {consistency}%
+            {actualDuration < 2 || (timeline && timeline.length < 2 && consistency === 0) ? '—' : `${consistency}%`}
           </div>
           <div className="text-[10px] text-[var(--text-muted)]">flow stability</div>
         </div>

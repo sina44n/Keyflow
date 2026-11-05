@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Gauge,
   Crosshair,
+  Keyboard,
   Activity,
   AlertTriangle,
   Clock,
@@ -56,6 +57,7 @@ export const AcademyResultsScreen = ({
   const mistakes = Math.max(0, result?.mistakes || 0);
   const duration = Math.max(1, result?.duration || 1);
   const passed = Boolean(result?.passed);
+  const totalKeystrokes = Math.max(0, result?.totalKeystrokes || result?.totalStrokes || result?.totalChars || Math.round(wpm * 5 * (duration / 60)));
 
   // Net WPM calculation: Gross WPM - Uncorrected Errors / Minutes
   const netWpm = Math.max(
@@ -529,16 +531,16 @@ export const AcademyResultsScreen = ({
             </div>
           </div>
 
-          {/* 3. NET WPM */}
+          {/* 3. KEYSTROKES */}
           <div className="flex flex-col items-center justify-center py-3.5 sm:py-4 px-3 sm:border-r border-slate-800/80 text-center">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/15 flex items-center justify-center mb-1.5 text-[#A855F7]">
-              <Activity className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center mb-1.5 text-[#38BDF8]">
+              <Keyboard className="w-4 h-4" />
             </div>
             <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
-              {netWpm}
+              {totalKeystrokes}
             </div>
             <div className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
-              NET WPM
+              KEYSTROKES
             </div>
           </div>
 
