@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Button } from '../common/Button';
 import { KeyboardGuide } from './KeyboardGuide';
+import { AcademyResultsScreen } from './AcademyResultsScreen';
 import { ThemeSwitcher } from '../common/ThemeSwitcher';
 import { getLesson } from '../../data/curriculumEngine';
 import {
@@ -333,6 +334,29 @@ export const LessonPlayer = ({
         <p className="text-sm font-mono text-[var(--text-muted)]">{t('common.loading')}</p>
         {onBack && <Button variant="secondary" onClick={onBack}>{t('lesson.backToAcademy')}</Button>}
       </div>
+    );
+  }
+
+  // ── Dedicated Full-Page Performance Result Dashboard ─────────────────────
+  if (isCompleted && completedResult) {
+    return (
+      <AcademyResultsScreen
+        lesson={lesson}
+        result={completedResult}
+        onRetry={handleReset}
+        onBack={onBack}
+        onNext={
+          completedResult.passed
+            ? hasNextLesson
+              ? onNextLesson
+              : hasNextStage
+              ? onNextStage
+              : undefined
+            : undefined
+        }
+        hasNextLesson={hasNextLesson}
+        hasNextStage={hasNextStage}
+      />
     );
   }
 
@@ -792,127 +816,6 @@ export const LessonPlayer = ({
           <span>Relax your hands</span>
           <div className="hidden sm:block w-12 sm:w-16 h-px bg-[var(--border,#1e293b)] opacity-60" />
         </div>
-
-        {/* ── COMPLETION RESULTS MODAL ───────────────────────────────── */}
-        {isCompleted && completedResult && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md bg-black/75"
-          >
-            <div
-              className="w-full max-w-md rounded-2xl p-6 space-y-5 animate-in fade-in zoom-in-95 duration-200 border bg-[var(--bg-surface)] shadow-2xl"
-              style={{
-                borderColor: completedResult.passed
-                  ? 'var(--ui-success, #22c55e)'
-                  : 'var(--ui-warning, #f59e0b)',
-              }}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{
-                      background: completedResult.passed
-                        ? 'color-mix(in srgb, var(--ui-success, #22c55e) 20%, transparent)'
-                        : 'color-mix(in srgb, var(--ui-warning, #f59e0b) 20%, transparent)',
-                      color: completedResult.passed
-                        ? 'var(--ui-success, #22c55e)'
-                        : 'var(--ui-warning, #f59e0b)',
-                    }}
-                  >
-                    {completedResult.passed ? (
-                      <CheckCircle2 className="w-6 h-6" />
-                    ) : (
-                      <AlertCircle className="w-6 h-6" />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-[var(--text-primary)]">
-                      {completedResult.passed ? t('lesson.passed') : t('lesson.failed')}
-                    </h3>
-                    <p className="text-xs text-[var(--text-secondary)]">
-                      {completedResult.passed
-                        ? `${completedResult.wpm} WPM at ${completedResult.accuracy}% accuracy`
-                        : `Goal: ${lesson.targetWpm} WPM & ${lesson.targetAccuracy}% accuracy`}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-0.5" aria-label={`Rating: ${completedResult.passed ? completedResult.stars : 0} of 5 stars`}>
-                  {[1, 2, 3, 4, 5].map(star => (
-                    <span
-                      key={star}
-                      className="text-xl"
-                      style={{
-                        color:
-                          completedResult.passed && star <= completedResult.stars
-                            ? '#FFC247'
-                            : 'var(--border)',
-                      }}
-                    >
-                      ★
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Stats grid */}
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { label: 'WPM', value: completedResult.wpm, color: 'var(--accent)' },
-                  { label: 'ACC', value: `${completedResult.accuracy}%`, color: 'var(--ui-success, #22c55e)' },
-                  { label: 'TYPOS', value: completedResult.mistakes, color: 'var(--text-primary)' },
-                  { label: 'TIME', value: `${completedResult.duration}s`, color: 'var(--text-primary)' },
-                ].map(stat => (
-                  <div
-                    key={stat.label}
-                    className="rounded-xl p-3 text-center border border-[var(--border)] bg-[var(--bg-elevated)]"
-                  >
-                    <div className="text-[9px] uppercase font-mono tracking-wider mb-1 text-[var(--text-muted)]">{stat.label}</div>
-                    <div className="text-lg font-bold font-mono" style={{ color: stat.color }}>{stat.value}</div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Grandmaster Capstone Final Graduation Banner on Stage 7 Level 600 */}
-              {completedResult.passed && !hasNextLesson && !hasNextStage && (lesson.stageId === 7 || lesson.id === 'S7-L600') && (
-                <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-[var(--accent)]/15 to-emerald-500/15 border border-amber-500/50 text-center space-y-1">
-                  <div className="text-xs font-bold font-mono text-amber-400 uppercase tracking-widest flex items-center justify-center gap-1.5">
-                    <span>🏆</span>
-                    <span>ACADEMY GRANDMASTER GRADUATION</span>
-                    <span>🏆</span>
-                  </div>
-                  <div className="text-[11px] text-[var(--text-secondary)]">
-                    You have mastered all 4,200 lessons across all 7 stages of the KEYFLOW Academy. True neuromuscular flow achieved!
-                  </div>
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                <Button variant="secondary" size="sm" icon={RotateCcw} onClick={handleReset}>
-                  {t('lesson.retry')}
-                </Button>
-                <div className="flex items-center gap-2">
-                  {onBack && (
-                    <Button variant="outline" size="sm" onClick={onBack}>
-                      {t('lesson.backToAcademy')}
-                    </Button>
-                  )}
-                  {completedResult.passed && hasNextLesson && onNextLesson && (
-                    <Button variant="primary" size="sm" icon={ArrowRight} onClick={onNextLesson}>
-                      {t('lesson.nextLesson')}
-                    </Button>
-                  )}
-                  {completedResult.passed && hasNextStage && onNextStage && !hasNextLesson && (
-                    <Button variant="primary" size="sm" icon={ArrowRight} onClick={onNextStage}>
-                      {t('lesson.nextStage')}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </main>
     </div>
   );
