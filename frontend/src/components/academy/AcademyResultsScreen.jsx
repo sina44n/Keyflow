@@ -2,18 +2,22 @@
  * KEYFLOW Academy Performance Results Screen
  * ==========================================
  * Full-page, automotive-style Typing Performance Dashboard.
- * Replaces the previous modal-based result popup with a dedicated,
- * cinematic performance evaluation view inspired by high-end vehicle telemetry.
+ * Faithfully reproduces the high-end instrument-cluster speedometer reference image.
  *
- * Core Capabilities:
- * - 5-zone semicircular speedometer (EXCELLENT, GOOD, FAIR, POOR, VERY POOR)
- * - Mathematically calibrated needle rotation mapping actual WPM to exact angles
- * - Smooth left-to-right needle sweep animation with deceleration easing
- * - Delayed Typing Identity reveal (Precision Master, Speed Performer, etc.)
- * - 5 horizontal metric cards (WPM, Accuracy, Net WPM, Errors, Time)
- * - 3 action buttons: TRY AGAIN, BACK TO ACADEMY, NEXT
- * - Keyboard ENTER shortcut (gated until needle settles, guarded against spamming)
- * - Prefers-reduced-motion accessibility support
+ * Core Specifications:
+ * - 5-zone semicircular speedometer (EXCELLENT, GOOD, FAIR, POOR, VERY POOR from left to right)
+ * - True curved category labels along the outer arc perimeter via SVG <textPath>
+ * - Thick, vibrant colored arc with dark dividing segment seams
+ * - Chiseled 3D metallic silver/chrome needle with two-tone bevel & central ridge
+ * - Multi-ring concentric chrome pivot hub
+ * - Inner dial with evenly spaced major and minor radial tick marks
+ * - Central WPM readout ("OUT OF 100") with dynamic active category highlight
+ * - Smooth sweep animation from rightmost VERY POOR (+105°) to actual WPM position
+ * - Delayed Typing Identity reveal upon needle settling
+ * - 5 horizontal telemetry metric cards (WPM, ACCURACY, NET WPM, ERRORS, TIME)
+ * - 3 prominent action buttons: TRY AGAIN, BACK TO ACADEMY, NEXT LESSON
+ * - Keyboard ENTER shortcut (active after needle settles, without visible hint text)
+ * - Strict full-viewport fitting with zero page scrolling and zero footer visibility
  */
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
@@ -23,14 +27,11 @@ import {
   ArrowRight,
   Gauge,
   Crosshair,
-  Keyboard,
   Activity,
   AlertTriangle,
   Clock,
   Sparkles,
   Trophy,
-  CheckCircle2,
-  XCircle,
 } from 'lucide-react';
 
 import {
@@ -38,9 +39,9 @@ import {
   getSpeedCategory,
   wpmToNeedleRotation,
   getTypingIdentity,
-  calculateNetWpm,
   polarToCartesian,
   describeArc,
+  describeRibbonSegment,
 } from '../../utils/speedometerEngine';
 
 export const AcademyResultsScreen = ({
@@ -52,14 +53,14 @@ export const AcademyResultsScreen = ({
   hasNextLesson = false,
   hasNextStage = false,
 }) => {
+  // Extract authenticated metrics
   const wpm = Math.max(0, Math.round(result?.wpm || 0));
   const accuracy = Math.max(0, Math.min(100, Math.round(result?.accuracy || 100)));
   const mistakes = Math.max(0, result?.mistakes || 0);
   const duration = Math.max(1, result?.duration || 1);
   const passed = Boolean(result?.passed);
-  const totalKeystrokes = Math.max(0, result?.totalKeystrokes || result?.totalStrokes || result?.totalChars || Math.round(wpm * 5 * (duration / 60)));
 
-  // Net WPM calculation: Gross WPM - Uncorrected Errors / Minutes
+  // Net WPM (retained accurately per Phase 8)
   const netWpm = Math.max(
     0,
     result?.netWpm !== undefined
@@ -71,45 +72,83 @@ export const AcademyResultsScreen = ({
   const identity = useMemo(() => getTypingIdentity(wpm, accuracy), [wpm, accuracy]);
   const targetRotation = useMemo(() => wpmToNeedleRotation(wpm), [wpm]);
 
-  // Starting position: far left (-105° rotation)
-  const [needleRotation, setNeedleRotation] = useState(-105);
+  // Phase 5: Needle starts from VERY POOR (rightmost end, +105°)
+  const [needleRotation, setNeedleRotation] = useState(105);
+  const [displayedWpm, setDisplayedWpm] = useState(0);
   const [isNeedleSettled, setIsNeedleSettled] = useState(false);
   const isNavigatingRef = useRef(false);
 
-  // Check for prefers-reduced-motion
+  // Check prefers-reduced-motion
   const prefersReducedMotion = typeof window !== 'undefined'
     && window.matchMedia
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // Animate needle on mount
+  // Phase 7: Strict full-viewport lock (no vertical/horizontal scroll, no footer peek)
+  useEffect(() => {
+    const origOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = origOverflow;
+    };
+  }, []);
+
+  // Needle and WPM counter animation
   useEffect(() => {
     if (prefersReducedMotion) {
       setNeedleRotation(targetRotation);
+      setDisplayedWpm(wpm);
       setIsNeedleSettled(true);
       return;
     }
 
-    // Set starting position
-    setNeedleRotation(-105);
+    // Initialize at rightmost end (+105°)
+    setNeedleRotation(105);
+    setDisplayedWpm(0);
     setIsNeedleSettled(false);
 
-    // Trigger smooth transition to target rotation
+    // Start needle sweep towards target
     const startTimer = setTimeout(() => {
       setNeedleRotation(targetRotation);
-    }, 120);
+    }, 100);
 
-    // Settle identity & shortcut after animation duration (1600ms transition + delay)
+    // Number counter interpolation
+    const animDuration = 1200;
+    const startTime = performance.now() + 100;
+    let animFrame;
+
+    const updateCounter = (now) => {
+      if (now < startTime) {
+        animFrame = requestAnimationFrame(updateCounter);
+        return;
+      }
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / animDuration);
+      // Easing out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setDisplayedWpm(Math.round(eased * wpm));
+
+      if (progress < 1) {
+        animFrame = requestAnimationFrame(updateCounter);
+      } else {
+        setDisplayedWpm(wpm);
+      }
+    };
+
+    animFrame = requestAnimationFrame(updateCounter);
+
+    // Settle identity & Enter shortcut after animation finishes
     const settleTimer = setTimeout(() => {
       setIsNeedleSettled(true);
-    }, 1800);
+    }, 1350);
 
     return () => {
       clearTimeout(startTimer);
       clearTimeout(settleTimer);
+      cancelAnimationFrame(animFrame);
     };
-  }, [targetRotation, prefersReducedMotion]);
+  }, [targetRotation, wpm, prefersReducedMotion]);
 
-  // Handle action triggers with navigation lock to prevent double-calls
+  // Handle action triggers with navigation lock
   const handleNextAction = useCallback(() => {
     if (isNavigatingRef.current) return;
     if (onNext) {
@@ -121,525 +160,475 @@ export const AcademyResultsScreen = ({
     }
   }, [onNext, onRetry, passed]);
 
-  const handleRetryAction = useCallback(() => {
-    if (isNavigatingRef.current) return;
-    if (onRetry) {
-      isNavigatingRef.current = true;
-      onRetry();
-    }
-  }, [onRetry]);
-
-  const handleBackAction = useCallback(() => {
-    if (isNavigatingRef.current) return;
-    if (onBack) {
-      isNavigatingRef.current = true;
-      onBack();
-    }
-  }, [onBack]);
-
-  // Keyboard ENTER shortcut: only active after needle animation finishes
+  // Phase 6 & Phase 8: Enter shortcut (active only after needle settles, without visible text hint)
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key !== 'Enter') return;
-
-      // Ignore if needle is still animating
-      if (!isNeedleSettled) return;
-
-      // Ignore if user is inside an input, textarea, or contentEditable element
-      const tag = document.activeElement?.tagName?.toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || document.activeElement?.isContentEditable) {
-        return;
+      if (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+        const activeTag = document.activeElement?.tagName?.toLowerCase();
+        if (activeTag === 'input' || activeTag === 'textarea') return;
+        if (!isNeedleSettled) return;
+        e.preventDefault();
+        handleNextAction();
       }
-
-      e.preventDefault();
-      handleNextAction();
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isNeedleSettled, handleNextAction]);
 
-  // Gauge center & radii
-  const cx = 270;
-  const cy = 245;
-  const arcRadius = 190;
-  const labelRadius = 225;
+  // SVG Geometry Dimensions
+  const cx = 300;
+  const cy = 255;
+  const rOuter = 186;
+  const rInner = 146;
+  const rLabel = 210;
 
-  // Generate radial ticks inside the dial
-  const ticks = useMemo(() => {
-    const tickList = [];
-    const totalTicks = 21; // every 5% from 0 to 100
-    for (let i = 0; i <= totalTicks; i++) {
-      const wpmVal = (i / totalTicks) * 100;
-      const polar = 195 - (100 - wpmVal) * 2.1;
-      const isMajor = i % 5 === 0;
-      const rInner = isMajor ? 154 : 160;
-      const rOuter = 168;
-      const p1 = polarToCartesian(cx, cy, rInner, polar);
-      const p2 = polarToCartesian(cx, cy, rOuter, polar);
-      tickList.push({
-        id: i,
-        x1: p1.x.toFixed(2),
-        y1: p1.y.toFixed(2),
-        x2: p2.x.toFixed(2),
-        y2: p2.y.toFixed(2),
+  // Generate radial tick marks pointing toward (cx, cy)
+  const tickMarks = useMemo(() => {
+    const ticks = [];
+    const totalTicks = 41; // Every 5.25 degrees across the 210° arc (from 195° down to -15°)
+    const startAngle = 195;
+    const endAngle = -15;
+
+    for (let i = 0; i < totalTicks; i++) {
+      const angle = startAngle - (i / (totalTicks - 1)) * (startAngle - endAngle);
+      const isMajor = i % 4 === 0;
+      const r1 = 142;
+      const r2 = isMajor ? 128 : 134;
+      const p1 = polarToCartesian(cx, cy, r1, angle);
+      const p2 = polarToCartesian(cx, cy, r2, angle);
+
+      ticks.push({
+        x1: p1.x.toFixed(1),
+        y1: p1.y.toFixed(1),
+        x2: p2.x.toFixed(1),
+        y2: p2.y.toFixed(1),
         isMajor,
       });
     }
-    return tickList;
+    return ticks;
   }, [cx, cy]);
+
+  // Category Label Paths for <textPath> (Curving clockwise around the outer arc)
+  // Angles in polar coords: EXCELLENT (195 -> 153), GOOD (153 -> 111), FAIR (111 -> 69), POOR (69 -> 27), VERY POOR (27 -> -15)
+  const labelArcPaths = useMemo(() => ({
+    EXCELLENT: describeArc(cx, cy, rLabel, 195, 153),
+    GOOD: describeArc(cx, cy, rLabel, 153, 111),
+    FAIR: describeArc(cx, cy, rLabel, 111, 69),
+    POOR: describeArc(cx, cy, rLabel, 69, 27),
+    'VERY POOR': describeArc(cx, cy, rLabel, 27, -15),
+  }), [cx, cy, rLabel]);
 
   return (
     <div
-      className="min-h-screen w-full bg-[#070B14] text-slate-100 flex flex-col justify-between items-center py-6 px-4 sm:px-8 select-none relative overflow-x-hidden font-sans"
+      className="fixed inset-x-0 bottom-0 top-14 sm:top-16 z-30 bg-[#070B14] overflow-hidden flex flex-col items-center justify-between px-3 sm:px-6 py-2 select-none"
       style={{
-        backgroundImage: `
-          radial-gradient(circle at 50% 32%, rgba(26, 46, 88, 0.28) 0%, rgba(7, 11, 20, 0.98) 72%),
-          radial-gradient(circle at 20% 80%, rgba(16, 28, 54, 0.2) 0%, transparent 50%),
-          radial-gradient(circle at 80% 80%, rgba(16, 28, 54, 0.2) 0%, transparent 50%)
-        `,
+        background: 'radial-gradient(ellipse 70% 45% at 50% 20%, #101728 0%, #070B14 100%)',
       }}
     >
-      {/* ── Top Header ─────────────────────────────────────────────────── */}
-      <div className="w-full max-w-4xl text-center pt-2 sm:pt-4 z-10">
-        <h1 className="text-2xl sm:text-3xl font-black text-white tracking-[0.2em] uppercase font-mono drop-shadow-md">
-          KEYFLOW PERFORMANCE
-        </h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1 tracking-wider font-medium">
-          Your typing performance at a glance
-        </p>
-      </div>
+      {/* ── Main Speedometer Viewport ───────────────────────────────────── */}
+      <div className="flex-1 min-h-0 w-full max-w-2xl flex items-center justify-center relative">
+        <svg
+          viewBox="0 0 600 425"
+          className="w-full h-full max-h-[50vh] sm:max-h-[54vh] overflow-visible drop-shadow-[0_15px_35px_rgba(0,0,0,0.85)]"
+        >
+          <defs>
+            {/* Outer Bezel Radial Gradient */}
+            <radialGradient id="bezelGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="65%" stopColor="#0B101D" />
+              <stop offset="88%" stopColor="#151D2E" />
+              <stop offset="96%" stopColor="#25324A" />
+              <stop offset="100%" stopColor="#080C14" />
+            </radialGradient>
 
-      {/* ── Main Speedometer Container ─────────────────────────────────── */}
-      <div className="w-full max-w-[620px] flex flex-col items-center justify-center my-auto py-2 z-10">
-        <div className="relative w-full aspect-[540/330] max-h-[380px] flex items-center justify-center">
-          <svg
-            viewBox="0 0 540 330"
-            className="w-full h-full overflow-visible drop-shadow-[0_15px_35px_rgba(0,0,0,0.85)]"
-          >
-            <defs>
-              {/* Outer Bezel Radial Gradient */}
-              <radialGradient id="bezelGradient" cx="50%" cy="50%" r="50%">
-                <stop offset="70%" stopColor="#0B132B" stopOpacity="0.9" />
-                <stop offset="95%" stopColor="#1E293B" stopOpacity="0.95" />
-                <stop offset="100%" stopColor="#334155" stopOpacity="0.6" />
-              </radialGradient>
+            {/* Inner Dial Face Gradient */}
+            <radialGradient id="dialGrad" cx="50%" cy="40%" r="60%">
+              <stop offset="0%" stopColor="#141C2E" />
+              <stop offset="70%" stopColor="#0D1322" />
+              <stop offset="100%" stopColor="#080C14" />
+            </radialGradient>
 
-              {/* Inner Dial Shadow Gradient */}
-              <radialGradient id="dialGradient" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="#0E1626" />
-                <stop offset="75%" stopColor="#0A101D" />
-                <stop offset="100%" stopColor="#060A14" />
-              </radialGradient>
+            {/* Needle 3D Bevel: Specular Left Face */}
+            <linearGradient id="needleSpecular" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="40%" stopColor="#F1F5F9" />
+              <stop offset="100%" stopColor="#CBD5E1" />
+            </linearGradient>
 
-              {/* Metallic Chrome Pivot - Outer */}
-              <linearGradient id="pivotChromeOuter" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#E2E8F0" />
-                <stop offset="35%" stopColor="#94A3B8" />
-                <stop offset="70%" stopColor="#475569" />
-                <stop offset="100%" stopColor="#1E293B" />
-              </linearGradient>
+            {/* Needle 3D Bevel: Shaded Right Face */}
+            <linearGradient id="needleShade" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#94A3B8" />
+              <stop offset="50%" stopColor="#64748B" />
+              <stop offset="100%" stopColor="#334155" />
+            </linearGradient>
 
-              {/* Metallic Chrome Pivot - Inner Center */}
-              <linearGradient id="pivotChromeInner" x1="0%" y1="100%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#0F172A" />
-                <stop offset="50%" stopColor="#334155" />
-                <stop offset="100%" stopColor="#64748B" />
-              </linearGradient>
+            {/* Metallic Pivot Hub Gradients */}
+            <linearGradient id="pivotChromeOuter" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#E2E8F0" />
+              <stop offset="45%" stopColor="#94A3B8" />
+              <stop offset="100%" stopColor="#1E293B" />
+            </linearGradient>
 
-              {/* Needle 3D Bevel: Specular Left */}
-              <linearGradient id="needleSpecular" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#FFFFFF" />
-                <stop offset="60%" stopColor="#E2E8F0" />
-                <stop offset="100%" stopColor="#CBD5E1" />
-              </linearGradient>
+            <linearGradient id="pivotCore" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#0A0E1A" />
+              <stop offset="50%" stopColor="#1E293B" />
+              <stop offset="100%" stopColor="#475569" />
+            </linearGradient>
 
-              {/* Needle 3D Bevel: Shaded Right */}
-              <linearGradient id="needleShade" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#94A3B8" />
-                <stop offset="70%" stopColor="#64748B" />
-                <stop offset="100%" stopColor="#475569" />
-              </linearGradient>
+            {/* Drop Shadows & Glows */}
+            <filter id="needleGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="3" dy="6" stdDeviation="4" floodColor="#000000" floodOpacity="0.8" />
+            </filter>
 
-              {/* Active Segment Ambient Glow Filter */}
-              <filter id="activeGlow" x="-20%" y="-20%" width="140%" height="140%">
-                <feGaussianBlur stdDeviation="6" result="blur" />
-                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-              </filter>
-            </defs>
+            <filter id="activeCategoryGlow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="0" stdDeviation="5" floodColor="currentColor" floodOpacity="0.9" />
+            </filter>
 
-            {/* Dark Outer Frame & Bezel */}
-            <circle
-              cx={cx}
-              cy={cy}
-              r={208}
-              fill="url(#bezelGradient)"
-              stroke="#1E293B"
-              strokeWidth="2.5"
-              strokeOpacity="0.7"
-            />
+            {/* Curved Text Paths for Category Labels */}
+            <path id="pathExcellent" d={labelArcPaths.EXCELLENT} fill="none" />
+            <path id="pathGood" d={labelArcPaths.GOOD} fill="none" />
+            <path id="pathFair" d={labelArcPaths.FAIR} fill="none" />
+            <path id="pathPoor" d={labelArcPaths.POOR} fill="none" />
+            <path id="pathVeryPoor" d={labelArcPaths['VERY POOR']} fill="none" />
+          </defs>
 
-            {/* Inner Dial Base */}
-            <circle
-              cx={cx}
-              cy={cy}
-              r={164}
-              fill="url(#dialGradient)"
-              stroke="#0F172A"
-              strokeWidth="1.5"
-            />
+          {/* ── Outer Metallic Bezel Hood ───────────────────────────────── */}
+          <path
+            d="M 64 325 A 244 244 0 1 1 536 325 L 490 315 A 198 198 0 1 0 110 315 Z"
+            fill="url(#bezelGrad)"
+            stroke="rgba(255,255,255,0.08)"
+            strokeWidth="1.5"
+          />
 
-            {/* Dark Track Background under Arc */}
-            <path
-              d={describeArc(cx, cy, arcRadius, 195, -15)}
-              fill="none"
-              stroke="#0A0F1C"
-              strokeWidth="32"
-              strokeLinecap="round"
-            />
+          {/* ── Dark Recessed Channel under Arc ─────────────────────────── */}
+          <path
+            d="M 116.5 304 A 190 190 0 1 1 483.5 304 L 440.4 293 A 145 145 0 1 0 159.9 293 Z"
+            fill="#070A12"
+            stroke="#101726"
+            strokeWidth="2"
+          />
 
-            {/* ── 5 Colored Gauge Arc Segments ───────────────────────────── */}
-            {SPEED_CATEGORIES.map((cat) => {
-              const isActive = isNeedleSettled && category.name === cat.name;
-              const pathData = describeArc(cx, cy, arcRadius, cat.startAngle, cat.endAngle);
+          {/* ── Inner Dial Face ─────────────────────────────────────────── */}
+          <circle cx={cx} cy={cy} r="142" fill="url(#dialGrad)" stroke="#151D2E" strokeWidth="1.5" />
 
-              return (
-                <path
-                  key={cat.name}
-                  d={pathData}
-                  fill="none"
-                  stroke={cat.color}
-                  strokeWidth={isActive ? '30' : '28'}
-                  strokeLinecap="butt"
-                  filter={isActive ? 'url(#activeGlow)' : undefined}
-                  opacity={isActive ? 1 : 0.88}
-                  className="transition-all duration-300"
-                />
-              );
-            })}
+          {/* ── 5 Thick Colored Semicircular Arc Segments ───────────────── */}
+          {/* Segment 1: EXCELLENT (#39D353) 195° -> 153° */}
+          <path
+            d={describeRibbonSegment(cx, cy, rOuter, rInner, 195, 153)}
+            fill="#39D353"
+            filter="drop-shadow(0 0 6px rgba(57,211,83,0.4))"
+          />
 
-            {/* ── Radial Dial Tick Marks ─────────────────────────────────── */}
-            {ticks.map((t) => (
+          {/* Segment 2: GOOD (#A3E635) 153° -> 111° */}
+          <path
+            d={describeRibbonSegment(cx, cy, rOuter, rInner, 153, 111)}
+            fill="#A3E635"
+            filter="drop-shadow(0 0 6px rgba(163,230,53,0.4))"
+          />
+
+          {/* Segment 3: FAIR (#FACC15) 111° -> 69° */}
+          <path
+            d={describeRibbonSegment(cx, cy, rOuter, rInner, 111, 69)}
+            fill="#FACC15"
+            filter="drop-shadow(0 0 6px rgba(250,204,21,0.4))"
+          />
+
+          {/* Segment 4: POOR (#F97316) 69° -> 27° */}
+          <path
+            d={describeRibbonSegment(cx, cy, rOuter, rInner, 69, 27)}
+            fill="#F97316"
+            filter="drop-shadow(0 0 6px rgba(249,115,22,0.4))"
+          />
+
+          {/* Segment 5: VERY POOR (#EF4444) 27° -> -15° */}
+          <path
+            d={describeRibbonSegment(cx, cy, rOuter, rInner, 27, -15)}
+            fill="#EF4444"
+            filter="drop-shadow(0 0 6px rgba(239,68,68,0.4))"
+          />
+
+          {/* ── Dark Dividing Boundaries between Segments ───────────────── */}
+          {/* Dividers at 153°, 111°, 69°, 27° */}
+          {[153, 111, 69, 27].map((angle) => {
+            const pOuter = polarToCartesian(cx, cy, rOuter + 1, angle);
+            const pInner = polarToCartesian(cx, cy, rInner - 1, angle);
+            return (
               <line
-                key={t.id}
+                key={angle}
+                x1={pOuter.x.toFixed(1)}
+                y1={pOuter.y.toFixed(1)}
+                x2={pInner.x.toFixed(1)}
+                y2={pInner.y.toFixed(1)}
+                stroke="#080C14"
+                strokeWidth="3"
+              />
+            );
+          })}
+
+          {/* ── Inner Radial Tick Marks ─────────────────────────────────── */}
+          <g strokeLinecap="round">
+            {tickMarks.map((t, idx) => (
+              <line
+                key={idx}
                 x1={t.x1}
                 y1={t.y1}
                 x2={t.x2}
                 y2={t.y2}
-                stroke={t.isMajor ? '#94A3B8' : '#334155'}
-                strokeWidth={t.isMajor ? 2.5 : 1.5}
-                strokeLinecap="round"
-                opacity={t.isMajor ? 0.9 : 0.6}
+                stroke={t.isMajor ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.22)'}
+                strokeWidth={t.isMajor ? '2' : '1'}
               />
             ))}
+          </g>
 
-            {/* ── Outer Category Labels ──────────────────────────────────── */}
-            {SPEED_CATEGORIES.map((cat) => {
-              const isActive = isNeedleSettled && category.name === cat.name;
-              const pos = polarToCartesian(cx, cy, labelRadius, cat.midAngle);
-
-              return (
-                <text
-                  key={cat.name}
-                  x={pos.x}
-                  y={pos.y}
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fill={isActive ? cat.color : '#64748B'}
-                  className={`font-mono text-[11px] font-bold tracking-wider transition-all duration-300 ${
-                    isActive ? 'scale-110 drop-shadow-[0_0_8px_currentColor]' : 'opacity-80'
-                  }`}
-                  style={{
-                    textShadow: isActive ? `0 0 10px ${cat.glow}` : 'none',
-                  }}
-                >
-                  {cat.name}
-                </text>
-              );
-            })}
-
-            {/* ── Realistic 3D Metallic Needle ───────────────────────────── */}
-            <g
-              transform={`rotate(${needleRotation}, ${cx}, ${cy})`}
-              style={{
-                transition: prefersReducedMotion
-                  ? 'none'
-                  : 'transform 1.6s cubic-bezier(0.2, 0.9, 0.3, 1)',
-              }}
+          {/* ── Curved Category Labels (Hugging the Outer Perimeter) ─────── */}
+          <g font-family="system-ui, -apple-system, sans-serif" fontWeight="800" fontSize="12" letterSpacing="1.8">
+            {/* EXCELLENT */}
+            <text
+              fill="#39D353"
+              opacity={category.name === 'EXCELLENT' && isNeedleSettled ? 1 : 0.85}
+              filter={category.name === 'EXCELLENT' && isNeedleSettled ? 'url(#activeCategoryGlow)' : undefined}
             >
-              {/* Needle Drop Shadow */}
-              <polygon
-                points={`${cx - 7},${cy} ${cx},${cy - 175} ${cx + 7},${cy}`}
-                fill="rgba(0, 0, 0, 0.65)"
-                transform="translate(4, 6)"
-              />
+              <textPath href="#pathExcellent" startOffset="50%" textAnchor="middle">
+                EXCELLENT
+              </textPath>
+            </text>
 
-              {/* Left Specular Face */}
-              <polygon
-                points={`${cx - 7},${cy} ${cx},${cy - 175} ${cx},${cy}`}
-                fill="url(#needleSpecular)"
-              />
+            {/* GOOD */}
+            <text
+              fill="#A3E635"
+              opacity={category.name === 'GOOD' && isNeedleSettled ? 1 : 0.85}
+              filter={category.name === 'GOOD' && isNeedleSettled ? 'url(#activeCategoryGlow)' : undefined}
+            >
+              <textPath href="#pathGood" startOffset="50%" textAnchor="middle">
+                GOOD
+              </textPath>
+            </text>
 
-              {/* Right Shaded Face */}
-              <polygon
-                points={`${cx},${cy} ${cx},${cy - 175} ${cx + 7},${cy}`}
-                fill="url(#needleShade)"
-              />
+            {/* FAIR */}
+            <text
+              fill="#FACC15"
+              opacity={category.name === 'FAIR' && isNeedleSettled ? 1 : 0.85}
+              filter={category.name === 'FAIR' && isNeedleSettled ? 'url(#activeCategoryGlow)' : undefined}
+            >
+              <textPath href="#pathFair" startOffset="50%" textAnchor="middle">
+                FAIR
+              </textPath>
+            </text>
 
-              {/* Center Specular Ridge Line */}
-              <line
-                x1={cx}
-                y1={cy}
-                x2={cx}
-                y2={cy - 175}
-                stroke="#FFFFFF"
-                strokeWidth="1.2"
-                opacity="0.95"
-              />
-            </g>
+            {/* POOR */}
+            <text
+              fill="#F97316"
+              opacity={category.name === 'POOR' && isNeedleSettled ? 1 : 0.85}
+              filter={category.name === 'POOR' && isNeedleSettled ? 'url(#activeCategoryGlow)' : undefined}
+            >
+              <textPath href="#pathPoor" startOffset="50%" textAnchor="middle">
+                POOR
+              </textPath>
+            </text>
 
-            {/* ── Central Metallic Pivot Assembly ────────────────────────── */}
-            {/* Outer Beveled Chrome Ring */}
-            <circle
-              cx={cx}
-              cy={cy}
-              r={24}
-              fill="url(#pivotChromeOuter)"
-              stroke="#64748B"
-              strokeWidth="1.5"
-              className="drop-shadow-md"
-            />
-            {/* Middle Recessed Dark Bevel */}
-            <circle
-              cx={cx}
-              cy={cy}
-              r={15}
-              fill="#0F172A"
-              stroke="#334155"
-              strokeWidth="1"
-            />
-            {/* Center Chrome Cap */}
-            <circle
-              cx={cx}
-              cy={cy}
-              r={7}
-              fill="url(#pivotChromeInner)"
-              stroke="#94A3B8"
-              strokeWidth="0.8"
-            />
+            {/* VERY POOR */}
+            <text
+              fill="#EF4444"
+              opacity={category.name === 'VERY POOR' && isNeedleSettled ? 1 : 0.85}
+              filter={category.name === 'VERY POOR' && isNeedleSettled ? 'url(#activeCategoryGlow)' : undefined}
+            >
+              <textPath href="#pathVeryPoor" startOffset="50%" textAnchor="middle">
+                VERY POOR
+              </textPath>
+            </text>
+          </g>
 
-            {/* ── Center Digital Score Display (Inside Dial) ─────────────── */}
-            <g transform={`translate(${cx}, ${cy + 42})`}>
-              {/* Numerical Score / WPM Value */}
-              <text
-                x="0"
-                y="0"
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill="#FFFFFF"
-                className="font-mono font-black text-5xl tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
-              >
-                {wpm}
-              </text>
+          {/* ── Realistic 3D Chiseled Metallic Needle ────────────────────── */}
+          <g
+            transform={`rotate(${needleRotation}, ${cx}, ${cy})`}
+            style={{
+              transition: prefersReducedMotion
+                ? 'none'
+                : 'transform 1.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            filter="url(#needleGlow)"
+          >
+            {/* Left Specular Chrome Face */}
+            <polygon points={`${cx - 9},${cy} ${cx},${cy - 146} ${cx},${cy}`} fill="url(#needleSpecular)" />
+            {/* Right Shaded Gunmetal Face */}
+            <polygon points={`${cx},${cy} ${cx},${cy - 146} ${cx + 9},${cy}`} fill="url(#needleShade)" />
+            {/* Sharp Specular Ridge Line */}
+            <line x1={cx} y1={cy - 146} x2={cx} y2={cy} stroke="#FFFFFF" strokeWidth="1.2" opacity="0.9" />
+          </g>
 
-              {/* "OUT OF 100" Label */}
-              <text
-                x="0"
-                y="26"
-                textAnchor="middle"
-                dominantBaseline="central"
-                fill="#94A3B8"
-                className="font-mono text-[10px] font-bold tracking-[0.25em] uppercase"
-              >
-                OUT OF 100
-              </text>
+          {/* ── Concentric Metallic Chrome Pivot Hub Assembly ────────────── */}
+          <circle cx={cx} cy={cy + 3} r="25" fill="rgba(0,0,0,0.6)" filter="blur(3px)" />
+          <circle cx={cx} cy={cy} r="23" fill="url(#pivotChromeOuter)" stroke="#334155" strokeWidth="1.5" />
+          <circle cx={cx} cy={cy} r="17" fill="#0A0E1A" stroke="#1E293B" strokeWidth="1" />
+          <circle cx={cx} cy={cy} r="12" fill="url(#pivotCore)" stroke="#64748B" strokeWidth="0.8" />
+          <circle cx={cx - 4} cy={cy - 4} r="3" fill="#FFFFFF" opacity="0.65" />
 
-              {/* Active Category Indicator Tag */}
-              {isNeedleSettled && (
-                <text
-                  x="0"
-                  y="45"
-                  textAnchor="middle"
-                  dominantBaseline="central"
-                  fill={category.color}
-                  className="font-mono text-[11px] font-extrabold tracking-widest uppercase transition-opacity duration-300 drop-shadow-[0_0_6px_currentColor]"
-                >
-                  {category.name}
-                </text>
-              )}
-            </g>
-          </svg>
-        </div>
+          {/* ── Central Digital Score Display ───────────────────────────── */}
+          <g transform={`translate(${cx}, ${cy + 52})`} textAnchor="middle">
+            <text
+              y="0"
+              fill="#FFFFFF"
+              fontSize="52"
+              fontWeight="900"
+              fontFamily="system-ui, -apple-system, sans-serif"
+              letterSpacing="-1"
+            >
+              {displayedWpm}
+            </text>
+            <text
+              y="22"
+              fill="#64748B"
+              fontSize="11"
+              fontWeight="700"
+              letterSpacing="2"
+              fontFamily="system-ui, -apple-system, sans-serif"
+            >
+              OUT OF 100
+            </text>
+            <text
+              y="42"
+              fill={category.color}
+              fontSize="13"
+              fontWeight="900"
+              letterSpacing="2"
+              fontFamily="system-ui, -apple-system, sans-serif"
+            >
+              {category.name}
+            </text>
+          </g>
+        </svg>
+      </div>
 
-        {/* ── Typing Identity Reveal (Revealed After Needle Animation) ── */}
+      {/* ── Typing Identity Reveal Badge ─────────────────────────────────── */}
+      <div
+        className={`w-full max-w-md my-1 transition-all duration-500 transform ${
+          isNeedleSettled ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+        }`}
+      >
         <div
-          className={`w-full max-w-xl text-center mt-3 sm:mt-4 p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-slate-900/90 via-[#0B132B]/90 to-slate-900/90 border border-slate-800/80 shadow-xl transition-all duration-700 ${
-            isNeedleSettled
-              ? 'opacity-100 translate-y-0'
-              : 'opacity-0 translate-y-3 pointer-events-none'
-          }`}
-          style={{
-            borderColor: isNeedleSettled
-              ? `color-mix(in srgb, ${identity.badgeColor} 40%, #1e293b)`
-              : undefined,
-          }}
+          className="px-4 py-1.5 sm:py-2 rounded-xl bg-slate-900/60 border text-center shadow-lg backdrop-blur-md"
+          style={{ borderColor: `${identity.badgeColor}55` }}
         >
-          <div className="flex items-center justify-center gap-2 mb-1">
-            <Sparkles className="w-4 h-4" style={{ color: identity.badgeColor }} />
-            <span
-              className="text-xs sm:text-sm font-black font-mono tracking-widest uppercase"
-              style={{ color: identity.badgeColor }}
-            >
-              {identity.title}
-            </span>
-            <Sparkles className="w-4 h-4" style={{ color: identity.badgeColor }} />
+          <div
+            className="text-xs font-mono font-black tracking-widest uppercase flex items-center justify-center gap-1.5"
+            style={{ color: identity.badgeColor }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>{identity.title}</span>
+            <Sparkles className="w-3.5 h-3.5" />
           </div>
-          <p className="text-xs text-slate-300 leading-relaxed font-sans max-w-md mx-auto">
+          <p className="text-[11px] text-slate-300 mt-0.5 font-medium line-clamp-1">
             {identity.description}
           </p>
         </div>
       </div>
 
-      {/* ── 5 Horizontal Metric Cards (Matches Reference Image 2) ───── */}
-      <div className="w-full max-w-3xl my-2 z-10">
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-0 rounded-2xl bg-[#0B1120]/90 border border-slate-800/80 shadow-2xl backdrop-blur-md overflow-hidden">
-          {/* 1. WPM */}
-          <div className="flex flex-col items-center justify-center py-3.5 sm:py-4 px-3 sm:border-r border-slate-800/80 text-center">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-1.5 text-[#39D353]">
-              <Gauge className="w-4 h-4" />
+      {/* ── 5 Horizontal Telemetry Metrics Cards ─────────────────────────── */}
+      <div className="w-full max-w-3xl my-1">
+        <div className="grid grid-cols-5 rounded-2xl bg-[#0D121F] border border-slate-800/80 shadow-2xl py-2.5 sm:py-3 px-1 sm:px-2 divide-x divide-slate-800/60 text-center">
+          {/* 1. GROSS WPM */}
+          <div className="flex flex-col items-center justify-center px-1">
+            <div className="w-7 h-7 rounded-lg bg-emerald-500/15 flex items-center justify-center mb-1 text-[#39D353]">
+              <Gauge className="w-3.5 h-3.5" />
             </div>
-            <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+            <div className="text-lg sm:text-xl font-black font-mono text-white tracking-tight">
               {wpm}
             </div>
-            <div className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
+            <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
               WPM
             </div>
           </div>
 
           {/* 2. ACCURACY */}
-          <div className="flex flex-col items-center justify-center py-3.5 sm:py-4 px-3 sm:border-r border-slate-800/80 text-center">
-            <div className="w-8 h-8 rounded-lg bg-sky-500/15 flex items-center justify-center mb-1.5 text-[#38BDF8]">
-              <Crosshair className="w-4 h-4" />
+          <div className="flex flex-col items-center justify-center px-1">
+            <div className="w-7 h-7 rounded-lg bg-sky-500/15 flex items-center justify-center mb-1 text-[#38BDF8]">
+              <Crosshair className="w-3.5 h-3.5" />
             </div>
-            <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+            <div className="text-lg sm:text-xl font-black font-mono text-white tracking-tight">
               {accuracy}%
             </div>
-            <div className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
+            <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
               ACCURACY
             </div>
           </div>
 
-          {/* 3. KEYSTROKES */}
-          <div className="flex flex-col items-center justify-center py-3.5 sm:py-4 px-3 sm:border-r border-slate-800/80 text-center">
-            <div className="w-8 h-8 rounded-lg bg-cyan-500/15 flex items-center justify-center mb-1.5 text-[#38BDF8]">
-              <Keyboard className="w-4 h-4" />
+          {/* 3. NET WPM */}
+          <div className="flex flex-col items-center justify-center px-1">
+            <div className="w-7 h-7 rounded-lg bg-purple-500/15 flex items-center justify-center mb-1 text-[#A855F7]">
+              <Activity className="w-3.5 h-3.5" />
             </div>
-            <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
-              {totalKeystrokes}
+            <div className="text-lg sm:text-xl font-black font-mono text-white tracking-tight">
+              {netWpm}
             </div>
-            <div className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
-              KEYSTROKES
+            <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
+              NET WPM
             </div>
           </div>
 
           {/* 4. ERRORS */}
-          <div className="flex flex-col items-center justify-center py-3.5 sm:py-4 px-3 sm:border-r border-slate-800/80 text-center">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/15 flex items-center justify-center mb-1.5 text-[#F59E0B]">
-              <AlertTriangle className="w-4 h-4" />
+          <div className="flex flex-col items-center justify-center px-1">
+            <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center mb-1 text-[#F59E0B]">
+              <AlertTriangle className="w-3.5 h-3.5" />
             </div>
-            <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+            <div className="text-lg sm:text-xl font-black font-mono text-white tracking-tight">
               {mistakes}
             </div>
-            <div className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
+            <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
               ERRORS
             </div>
           </div>
 
           {/* 5. TIME */}
-          <div className="col-span-2 sm:col-span-1 flex flex-col items-center justify-center py-3.5 sm:py-4 px-3 text-center border-t sm:border-t-0 border-slate-800/80">
-            <div className="w-8 h-8 rounded-lg bg-rose-500/15 flex items-center justify-center mb-1.5 text-[#F43F5E]">
-              <Clock className="w-4 h-4" />
+          <div className="flex flex-col items-center justify-center px-1">
+            <div className="w-7 h-7 rounded-lg bg-rose-500/15 flex items-center justify-center mb-1 text-[#F43F5E]">
+              <Clock className="w-3.5 h-3.5" />
             </div>
-            <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+            <div className="text-lg sm:text-xl font-black font-mono text-white tracking-tight">
               {duration}s
             </div>
-            <div className="text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
+            <div className="text-[9px] sm:text-[10px] font-mono font-bold tracking-wider uppercase text-slate-400 mt-0.5">
               TIME
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Grandmaster Capstone Graduation Banner (Stage 7 Level 600) ─ */}
-      {passed && !hasNextLesson && !hasNextStage && (lesson?.stageId === 7 || lesson?.id === 'S7-L600') && (
-        <div className="w-full max-w-2xl my-2 p-3.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-emerald-500/20 border border-amber-500/50 text-center space-y-1 shadow-lg z-10 animate-pulse">
-          <div className="text-xs font-bold font-mono text-amber-300 uppercase tracking-widest flex items-center justify-center gap-1.5">
-            <Trophy className="w-4 h-4 text-amber-400" />
-            <span>ACADEMY GRANDMASTER GRADUATION</span>
-            <Trophy className="w-4 h-4 text-amber-400" />
-          </div>
-          <div className="text-[11px] text-slate-300">
-            You have mastered all 4,200 lessons across all 7 stages of the KEYFLOW Academy. True neuromuscular flow achieved!
-          </div>
-        </div>
-      )}
+      {/* ── 3 Action Buttons ────────────────────────────────────────────── */}
+      <div className="w-full max-w-xl flex items-center justify-center gap-3 pt-1 pb-1 sm:pb-2">
+        {/* TRY AGAIN */}
+        <button
+          type="button"
+          onClick={onRetry}
+          className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-bold font-mono text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-md"
+        >
+          <RotateCcw className="w-4 h-4 text-slate-400" />
+          <span>Try Again</span>
+        </button>
 
-      {/* ── Three Action Navigation Buttons ───────────────────────────── */}
-      <div className="w-full max-w-2xl flex flex-col items-center pb-2 pt-1 z-10">
-        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 w-full">
-          {/* BUTTON 1 — TRY AGAIN */}
-          <button
-            type="button"
-            onClick={handleRetryAction}
-            className="flex-1 sm:flex-initial min-w-[140px] px-5 py-3 rounded-xl font-bold font-mono text-xs tracking-wider uppercase bg-slate-800/90 hover:bg-slate-700/90 text-slate-200 border border-slate-700/80 hover:border-slate-600 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <RotateCcw className="w-4 h-4 text-slate-300" />
-            <span>TRY AGAIN</span>
-          </button>
+        {/* BACK TO ACADEMY */}
+        <button
+          type="button"
+          onClick={onBack}
+          className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-bold font-mono text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-md"
+        >
+          <LayoutGrid className="w-4 h-4 text-slate-400" />
+          <span>Back to Academy</span>
+        </button>
 
-          {/* BUTTON 2 — BACK TO ACADEMY */}
-          <button
-            type="button"
-            onClick={handleBackAction}
-            className="flex-1 sm:flex-initial min-w-[160px] px-5 py-3 rounded-xl font-bold font-mono text-xs tracking-wider uppercase bg-slate-900/60 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700 transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-          >
-            <LayoutGrid className="w-4 h-4 text-slate-400" />
-            <span>BACK TO ACADEMY</span>
-          </button>
-
-          {/* BUTTON 3 — NEXT */}
-          {passed && (hasNextLesson || hasNextStage) ? (
-            <button
-              type="button"
-              onClick={handleNextAction}
-              className="w-full sm:w-auto flex-1 sm:flex-initial min-w-[160px] px-7 py-3 rounded-xl font-black font-mono text-xs tracking-widest uppercase bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white transition-all shadow-lg shadow-emerald-500/25 active:scale-95 flex items-center justify-center gap-2 cursor-pointer border border-emerald-400/30"
-            >
-              <span>{hasNextLesson ? 'NEXT LESSON' : 'NEXT STAGE'}</span>
-              <ArrowRight className="w-4 h-4 text-white" />
-            </button>
-          ) : !passed ? (
-            <div className="w-full sm:w-auto px-4 py-2 text-center text-xs text-amber-400/90 font-mono">
-              Goal: {lesson?.targetWpm || 20} WPM & {lesson?.targetAccuracy || 90}% Acc required to advance
-            </div>
-          ) : null}
-        </div>
-
-        {/* Keyboard Enter Hint */}
-        {passed && (hasNextLesson || hasNextStage) && (
-          <div
-            className={`mt-2.5 flex items-center gap-1.5 text-[11px] font-mono text-slate-400 transition-opacity duration-300 ${
-              isNeedleSettled ? 'opacity-85' : 'opacity-0'
-            }`}
-          >
-            <span>Press</span>
-            <kbd className="px-1.5 py-0.5 text-[10px] font-bold text-slate-200 bg-slate-800 border border-slate-700 rounded shadow-sm">
-              ENTER ↵
-            </kbd>
-            <span>to continue</span>
-          </div>
-        )}
+        {/* NEXT LESSON / NEXT STAGE */}
+        <button
+          type="button"
+          onClick={handleNextAction}
+          disabled={!passed && !onNext}
+          className={`flex-[1.2] py-2.5 px-4 rounded-xl font-black font-mono text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-2 shadow-lg ${
+            passed || onNext
+              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 hover:brightness-110 shadow-emerald-500/25 cursor-pointer active:scale-98'
+              : 'bg-slate-800/60 text-slate-500 border border-slate-700/40 cursor-not-allowed'
+          }`}
+        >
+          <span>{hasNextStage && !hasNextLesson ? 'Next Stage' : 'Next Lesson'}</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
       </div>
     </div>
   );

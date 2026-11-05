@@ -158,3 +158,22 @@ export function describeArc(cx, cy, r, startAngle, endAngle) {
     'A', r, r, 0, arcSweep, 1, end.x.toFixed(2), end.y.toFixed(2),
   ].join(' ');
 }
+
+/**
+ * Generates an SVG path for an annular ribbon segment (thick colored arc).
+ */
+export function describeRibbonSegment(cx, cy, rOuter, rInner, startAngle, endAngle) {
+  const p1 = polarToCartesian(cx, cy, rOuter, startAngle);
+  const p2 = polarToCartesian(cx, cy, rOuter, endAngle);
+  const p3 = polarToCartesian(cx, cy, rInner, endAngle);
+  const p4 = polarToCartesian(cx, cy, rInner, startAngle);
+  const arcSweep = Math.abs(startAngle - endAngle) <= 180 ? 0 : 1;
+  return [
+    'M', p1.x.toFixed(2), p1.y.toFixed(2),
+    'A', rOuter, rOuter, 0, arcSweep, 1, p2.x.toFixed(2), p2.y.toFixed(2),
+    'L', p3.x.toFixed(2), p3.y.toFixed(2),
+    'A', rInner, rInner, 0, arcSweep, 0, p4.x.toFixed(2), p4.y.toFixed(2),
+    'Z'
+  ].join(' ');
+}
+
