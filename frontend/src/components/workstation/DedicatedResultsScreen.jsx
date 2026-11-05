@@ -56,7 +56,58 @@ export const DedicatedResultsScreen = ({
   const [downloading, setDownloading] = useState(false);
   const chartSvgRef = useRef(null);
 
+  // Authoritative session snapshot resolution with persistent fallback
+  const activeResults = useMemo(() => {
+    if (results && typeof results === 'object' && Object.keys(results).length > 0) {
+      if (results.netWpm !== undefined || results.totalCharacterEntries !== undefined || results.grossWpm !== undefined) {
+        return results;
+      }
+    }
+    // Attempt recovery from verified localStorage snapshot
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const stored = localStorage.getItem('keyflow_last_session_result');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && typeof parsed === 'object') {
+            return parsed;
+          }
+        }
+      }
+    } catch {}
+    return results || null;
+  }, [results]);
+
+  if (!activeResults || activeResults.isLoading) {
+    return (
+      <div className="w-full max-w-2xl mx-auto py-12 px-6 bg-[var(--bg-surface)] border border-[var(--border)] rounded-3xl text-center space-y-5 font-mono shadow-xl">
+        <AlertCircle className="w-10 h-10 text-[var(--accent)] mx-auto opacity-80 animate-pulse" />
+        <div className="space-y-1">
+          <h2 className="text-xl font-bold text-[var(--text-primary)]">
+            {activeResults?.isLoading ? 'Finalizing Typing Performance...' : 'No Completed Session Available'}
+          </h2>
+          <p className="text-xs text-[var(--text-muted)] max-w-md mx-auto">
+            {activeResults?.isLoading
+              ? 'Computing authentic WPM, raw keystroke accuracy, and biomechanical telemetry...'
+              : 'Complete a typing test in the Workstation to review your verified typing velocity and error forensics.'}
+          </p>
+        </div>
+        {!(activeResults?.isLoading) && (
+          <button
+            type="button"
+            onClick={onRestart || onBackToWorkstation}
+            className="px-5 py-2.5 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] font-bold text-sm cursor-pointer hover:opacity-95 transition-all shadow-md inline-flex items-center gap-2"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>Start Practice Drill</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
   const {
+    sessionId = null,
     netWpm = 0,
     grossWpm = 0,
     accuracy = 100,
@@ -64,6 +115,7 @@ export const DedicatedResultsScreen = ({
     finalTextAccuracy,
     consistency = 100,
     duration = 15,
+    durationSeconds = 15,
     mode = 'timed',
     timeLimit = 30,
     wordLimit = 25,
@@ -76,13 +128,15 @@ export const DedicatedResultsScreen = ({
     missedChars = 0,
     backspaces = 0,
     totalChars = 0,
+    totalCharacterEntries = 0,
     tier = 'Proficient',
     wpmGoal = null,
     wpmGoalPassed = null,
     errorDetails = [],
     timeline = [],
-  } = results || {};
+  } = activeResults;
 
+  const actualDuration = durationSeconds || duration || 1;
   const displayedAccuracy = rawAccuracy !== undefined ? rawAccuracy : accuracy;
   const correctEntries = correctKeystrokes || correctChars;
   const incorrectEntries = mistakes;
@@ -93,14 +147,14 @@ export const DedicatedResultsScreen = ({
       return timeline;
     }
     // Generate honest timeline interpolation from session parameters
-    const totalSec = Math.max(1, Math.round(duration));
+    const totalSec = Math.max(1, Math.round(actualDuration));
     const points = [];
     for (let s = 1; s <= totalSec; s++) {
       const progress = s / totalSec;
       // Slight smooth progression curve converging to final netWpm
       const w = Math.round(netWpm * (0.85 + 0.15 * progress));
       const raw = Math.round(grossWpm * (0.88 + 0.12 * progress));
-      const secErrors = errorDetails.filter((e) => Math.round(e.timestamp ? ((e.timestamp - (results.startTime || 0)) / 1000) : 0) === s).length;
+      const secErrors = errorDetails.filter((e) => Math.round(e.timestamp ? ((e.timestamp - (activeResults.startTime || activeResults.startedAt || 0)) / 1000) : 0) === s).length;
       points.push({
         second: s,
         wpm: w,
@@ -109,7 +163,7 @@ export const DedicatedResultsScreen = ({
       });
     }
     return points;
-  }, [timeline, duration, netWpm, grossWpm, errorDetails, results?.startTime]);
+  }, [timeline, actualDuration, netWpm, grossWpm, errorDetails, activeResults?.startTime, activeResults?.startedAt]);
 
   // SVG Chart Geometry
   const svgWidth = 720;
@@ -312,9 +366,9 @@ export const DedicatedResultsScreen = ({
       const cols = [
         { label: 'test type', value: `${mode} ${mode === 'timed' ? timeLimit : wordLimit}` },
         { label: 'raw', value: `${grossWpm}` },
-        { label: 'characters', value: `${correctChars}/${mistakes}/${extraChars}/${missedChars}` },
+        { label: 'characters', value: `${correctEntries}/${mistakes}/${correctedMistakes}/${remainingErrors}` },
         { label: 'consistency', value: `${consistency}%` },
-        { label: 'time', value: `${duration}s` },
+        { label: 'time', value: `${actualDuration}s` },
       ];
 
       const colWidth = (width - 160) / cols.length;
@@ -638,7 +692,7 @@ export const DedicatedResultsScreen = ({
             time
           </div>
           <div className="text-xl sm:text-2xl font-bold text-[var(--accent)]">
-            {duration}s
+            {actualDuration}s
           </div>
           <div className="text-[10px] text-[var(--text-muted)]">
             {backspaces} backspaces

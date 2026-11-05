@@ -63,7 +63,14 @@ class RecordPracticeSessionView(APIView):
 
     def post(self, request):
         user = request.user if request.user and request.user.is_authenticated else None
-        data = request.data
+        data = request.data or {}
+
+        # Idempotency check: prevent duplicate session creation on retries
+        client_session_id = str(data.get('session_id') or data.get('sessionId') or data.get('id') or '').strip() or None
+        if client_session_id:
+            existing = PracticeSession.objects.filter(client_session_id=client_session_id).first()
+            if existing:
+                return Response(PracticeSessionSerializer(existing).data, status=status.HTTP_200_OK)
 
         duration = max(1, int(data.get('duration_seconds', 0)))
         total_chars = max(0, int(data.get('total_chars', 0)))
@@ -133,6 +140,7 @@ class RecordPracticeSessionView(APIView):
             accuracy=accuracy,
             error_count=uncorrected_errors,
             passage=passage,
+            client_session_id=client_session_id,
         )
 
         return Response(PracticeSessionSerializer(session).data, status=status.HTTP_201_CREATED)

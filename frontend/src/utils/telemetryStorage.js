@@ -287,12 +287,12 @@ export function recordTelemetrySession(data) {
     fingerStats: data.fingerStats || {},
   };
 
-  const existing = loadRawTelemetrySessions();
+  const existing = loadRawTelemetrySessions(data.userId);
   // Filter out any collision
   const updated = [session, ...existing.filter((s) => s.id !== session.id)];
   // Cap at 1000 detailed local sessions to maintain performance
   const trimmed = updated.slice(0, 1000);
-  saveRawTelemetrySessions(trimmed);
+  saveRawTelemetrySessions(trimmed, data.userId);
   return session;
 }
 

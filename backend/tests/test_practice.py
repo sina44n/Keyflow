@@ -81,3 +81,30 @@ class PracticeAPITests(TestCase):
         self.assertEqual(hist_response.status_code, 200)
         hist_data = hist_response.json()
         self.assertGreaterEqual(len(hist_data.get('results', hist_data)), 1)
+
+    def test_record_practice_session_idempotent(self):
+        """Verify duplicate submission with client_session_id returns existing session without duplication."""
+        payload = {
+            'session_id': 'sess_idem_test_999',
+            'session_type': 'timed',
+            'duration_seconds': 30,
+            'total_chars': 150,
+            'correct_chars': 148,
+            'incorrect_chars': 2,
+            'gross_wpm': 60.0,
+            'net_wpm': 56.0,
+            'accuracy': 98.67,
+            'error_count': 2,
+        }
+        res1 = self.client.post('/api/practice/sessions/', payload, content_type='application/json')
+        self.assertEqual(res1.status_code, 201)
+        data1 = res1.json()
+
+        # Resend identical session ID
+        res2 = self.client.post('/api/practice/sessions/', payload, content_type='application/json')
+        self.assertEqual(res2.status_code, 200)
+        data2 = res2.json()
+        self.assertEqual(data1['id'], data2['id'])
+        self.assertEqual(data2['client_session_id'], 'sess_idem_test_999')
+        # Total sessions with this client_session_id must be exactly 1
+        self.assertEqual(PracticeSession.objects.filter(client_session_id='sess_idem_test_999').count(), 1)

@@ -250,4 +250,58 @@ describe('KEYFLOW — Authentic Typing Speed & Accuracy (Phases 1-10)', () => {
     assert.equal(session.wpm, 46);
     assert.equal(session.accuracy, 96);
   });
+
+  // Test J — Completed Session Persistence & Survives Refresh
+  it('Test J: createAuthoritativeSessionResult creates immutable snapshot that preserves non-zero WPM', () => {
+    const result = createAuthoritativeSessionResult({
+      sessionId: 'sess_test_survive_001',
+      userId: 'user_test_99',
+      testMode: 'timed',
+      targetText: 'The quick brown fox jumps over the lazy dog',
+      typed: 'The quick brown fox jumps over the lazy dog',
+      durationSeconds: 30,
+      correctKeystrokes: 43,
+      mistakes: 0,
+      backspaces: 0,
+    });
+
+    assert.equal(result.netWpm, 17); // (43 / 5) / 0.5 = 17.2 -> 17 WPM
+    assert.equal(result.grossWpm, 17);
+    assert.equal(result.rawAccuracy, 100);
+    assert.equal(result.finalTextAccuracy, 100);
+    assert.equal(result.durationSeconds, 30);
+    assert.ok(result.completedAt > 0);
+
+    // Simulated localStorage persistence
+    const serialized = JSON.stringify(result);
+    const recovered = JSON.parse(serialized);
+    assert.equal(recovered.netWpm, 17);
+    assert.equal(recovered.grossWpm, 17);
+    assert.notEqual(recovered.netWpm, 0); // Never 0 WPM!
+  });
+
+  // Test K — Backspace Does Not Alter Denominator of Raw Keystroke Accuracy
+  it('Test K: Backspace does not pollute raw accuracy denominator with control keystrokes', () => {
+    // 5 characters typed: 'H', 'E', 'L', 'L', 'O'
+    // User made 1 typo: 'X' at position 1, pressed Backspace, then 'E'
+    // Total entries = 6 (5 correct, 1 incorrect). Backspaces = 1.
+    const tracker = createKeystrokeTracker();
+    tracker.recordChar('H', 'H');
+    tracker.recordChar('X', 'E'); // mistake
+    tracker.recordBackspace();
+    tracker.recordChar('E', 'E');
+    tracker.recordChar('L', 'L');
+    tracker.recordChar('L', 'L');
+    tracker.recordChar('O', 'O');
+
+    const stats = tracker.getStats('HELLO', 'HELLO');
+    assert.equal(stats.correctEntries, 5);
+    assert.equal(stats.incorrectEntries, 1);
+    assert.equal(stats.backspaceCount, 1);
+    assert.equal(stats.totalKeystrokes, 6);
+    // Raw accuracy = 5 / 6 * 100 = 83.33 -> 83%
+    assert.equal(stats.rawAccuracy, 83);
+    assert.equal(stats.finalTextAccuracy, 100);
+  });
 });
+
