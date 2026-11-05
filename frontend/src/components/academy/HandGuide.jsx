@@ -18,24 +18,25 @@ import {
   KEY_COORDS,
   KEY_FINGER_MAP,
   FINGERTIP_POSITIONS,
+  resolveKeyToFinger,
 } from '../../utils/touchTypingMap.js';
 
 export { KEY_COORDS };
 
 export function HandGuide({ targetChar, isVisible = true, standalone = false, hideHandsImage = false }) {
-  // Resolve active finger and key target
+  // Resolve active finger and key target using strict allowlist resolution
   const { activeFinger, targetPos, isHomeRowTarget } = useMemo(() => {
     if (!targetChar) return { activeFinger: null, targetPos: null, isHomeRowTarget: false };
-    const key = targetChar === ' ' ? ' ' : targetChar;
-    const mapping = KEY_FINGER_MAP[key] || KEY_FINGER_MAP[key.toLowerCase()];
-    if (!mapping) return { activeFinger: null, targetPos: null, isHomeRowTarget: false };
+
+    const resolved = resolveKeyToFinger(targetChar);
+    if (!resolved) return { activeFinger: null, targetPos: null, isHomeRowTarget: false };
 
     const homeKeys = ['a', 's', 'd', 'f', 'j', 'k', 'l', ';', ' '];
-    const isHome = homeKeys.includes(key.toLowerCase());
+    const isHome = homeKeys.includes(targetChar.toLowerCase());
 
     return {
-      activeFinger: mapping.finger,
-      targetPos: { x: mapping.x, y: mapping.y },
+      activeFinger: resolved.finger,
+      targetPos: { x: resolved.targetCoord.cx, y: resolved.targetCoord.cy },
       isHomeRowTarget: isHome,
     };
   }, [targetChar]);

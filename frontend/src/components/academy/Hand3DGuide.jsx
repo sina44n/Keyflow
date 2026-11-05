@@ -201,7 +201,7 @@ export function Hand3DGuide({
     const controller = controllerRef.current;
     if (controller) {
       controller.triggerKeystroke(lastKeystroke, { spaceThumb });
-      if (rendererRef.current?._startLoop) {
+      if (rendererRef.current?._startLoop && controller.getActiveCount() > 0) {
         rendererRef.current._startLoop();
       }
     }

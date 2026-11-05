@@ -177,9 +177,13 @@ describe('Redragon K617 Fizz 60% Mechanical Keyboard & Finger Mapping Engine', (
     assert.ok(tResolved);
     assert.equal(tResolved.finger, 'left-index');
 
+    const questionResolved = resolveKeyToFinger('?');
+    assert.ok(questionResolved);
+    assert.equal(questionResolved.keyId, '/');
+    assert.equal(questionResolved.finger, 'right-pinky');
+
+    // Unsupported character returns null
     const shiftResolved = resolveKeyToFinger('!');
-    assert.ok(shiftResolved);
-    assert.equal(shiftResolved.keyId, '!');
-    assert.equal(shiftResolved.finger, 'left-pinky');
+    assert.equal(shiftResolved, null);
   });
 });

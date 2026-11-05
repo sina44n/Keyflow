@@ -160,6 +160,128 @@ export function generateLayout() {
 export const CALIBRATED_KEYS = generateLayout();
 
 // Touch-typing finger assignments
+export const ALLOWED_FINGER_ANIMATION_KEYS = new Set([
+  // Top letter row
+  'q', 'w', 'e', 'r', 't',
+  'y', 'u', 'i', 'o', 'p',
+
+  // Apostrophe and quotation mark
+  "'", '"',
+
+  // Semicolon and colon
+  ';', ':',
+
+  // Home letter row
+  'l', 'k', 'j', 'h', 'g',
+  'f', 'd', 's', 'a',
+
+  // Bottom letter row
+  'z', 'x', 'c', 'v', 'b',
+  'n', 'm',
+
+  // Approved punctuation
+  ',', '<', '.', '>', '/', '?',
+
+  // Spacebar
+  ' '
+]);
+
+/**
+ * Strict Authoritative 1:1 Mapping of Approved Characters to Physical Keys & Fingers.
+ * Follows clinical touch-typing standard:
+ * - Left Pinky: Q, A, Z
+ * - Left Ring: W, S, X
+ * - Left Middle: E, D, C
+ * - Left Index: R, F, V, T, G, B
+ * - Right Index: Y, H, N, U, J, M
+ * - Right Middle: I, K, ',', '<'
+ * - Right Ring: O, L, '.', '>'
+ * - Right Pinky: P, ';', ':', "'", '"', '/', '?'
+ * - Assigned Thumb: Spacebar
+ */
+export const APPROVED_KEY_FINGER_MAP = {
+  // Left Pinky
+  'q': { finger: 'left-pinky', keyId: 'q' },
+  'Q': { finger: 'left-pinky', keyId: 'q' },
+  'a': { finger: 'left-pinky', keyId: 'a' },
+  'A': { finger: 'left-pinky', keyId: 'a' },
+  'z': { finger: 'left-pinky', keyId: 'z' },
+  'Z': { finger: 'left-pinky', keyId: 'z' },
+
+  // Left Ring
+  'w': { finger: 'left-ring', keyId: 'w' },
+  'W': { finger: 'left-ring', keyId: 'w' },
+  's': { finger: 'left-ring', keyId: 's' },
+  'S': { finger: 'left-ring', keyId: 's' },
+  'x': { finger: 'left-ring', keyId: 'x' },
+  'X': { finger: 'left-ring', keyId: 'x' },
+
+  // Left Middle
+  'e': { finger: 'left-middle', keyId: 'e' },
+  'E': { finger: 'left-middle', keyId: 'e' },
+  'd': { finger: 'left-middle', keyId: 'd' },
+  'D': { finger: 'left-middle', keyId: 'd' },
+  'c': { finger: 'left-middle', keyId: 'c' },
+  'C': { finger: 'left-middle', keyId: 'c' },
+
+  // Left Index
+  'r': { finger: 'left-index', keyId: 'r' },
+  'R': { finger: 'left-index', keyId: 'r' },
+  'f': { finger: 'left-index', keyId: 'f' },
+  'F': { finger: 'left-index', keyId: 'f' },
+  'v': { finger: 'left-index', keyId: 'v' },
+  'V': { finger: 'left-index', keyId: 'v' },
+  't': { finger: 'left-index', keyId: 't' },
+  'T': { finger: 'left-index', keyId: 't' },
+  'g': { finger: 'left-index', keyId: 'g' },
+  'G': { finger: 'left-index', keyId: 'g' },
+  'b': { finger: 'left-index', keyId: 'b' },
+  'B': { finger: 'left-index', keyId: 'b' },
+
+  // Right Index
+  'y': { finger: 'right-index', keyId: 'y' },
+  'Y': { finger: 'right-index', keyId: 'y' },
+  'h': { finger: 'right-index', keyId: 'h' },
+  'H': { finger: 'right-index', keyId: 'h' },
+  'n': { finger: 'right-index', keyId: 'n' },
+  'N': { finger: 'right-index', keyId: 'n' },
+  'u': { finger: 'right-index', keyId: 'u' },
+  'U': { finger: 'right-index', keyId: 'u' },
+  'j': { finger: 'right-index', keyId: 'j' },
+  'J': { finger: 'right-index', keyId: 'j' },
+  'm': { finger: 'right-index', keyId: 'm' },
+  'M': { finger: 'right-index', keyId: 'm' },
+
+  // Right Middle
+  'i': { finger: 'right-middle', keyId: 'i' },
+  'I': { finger: 'right-middle', keyId: 'i' },
+  'k': { finger: 'right-middle', keyId: 'k' },
+  'K': { finger: 'right-middle', keyId: 'k' },
+  ',': { finger: 'right-middle', keyId: ',' },
+  '<': { finger: 'right-middle', keyId: ',' },
+
+  // Right Ring
+  'o': { finger: 'right-ring', keyId: 'o' },
+  'O': { finger: 'right-ring', keyId: 'o' },
+  'l': { finger: 'right-ring', keyId: 'l' },
+  'L': { finger: 'right-ring', keyId: 'l' },
+  '.': { finger: 'right-ring', keyId: '.' },
+  '>': { finger: 'right-ring', keyId: '.' },
+
+  // Right Pinky
+  'p': { finger: 'right-pinky', keyId: 'p' },
+  'P': { finger: 'right-pinky', keyId: 'p' },
+  ';': { finger: 'right-pinky', keyId: ';' },
+  ':': { finger: 'right-pinky', keyId: ';' },
+  "'": { finger: 'right-pinky', keyId: "'" },
+  '"': { finger: 'right-pinky', keyId: "'" },
+  '/': { finger: 'right-pinky', keyId: '/' },
+  '?': { finger: 'right-pinky', keyId: '/' },
+
+  // Spacebar
+  ' ': { finger: 'thumb', keyId: 'space' },
+};
+
 export const KEY_FINGER_MAP = {
   // Left Pinky
   '`': { finger: 'left-pinky', x: KEY_COORDS['`'].cx, y: KEY_COORDS['`'].cy },
@@ -398,46 +520,52 @@ export const FINGERTIP_POSITIONS = {
 };
 
 /**
- * Resolves any key string, event code, or event object to touch-typing finger and calibrated target coordinate.
+ * Resolves an approved key string or event object to its authoritative finger assignment
+ * and calibrated target coordinates.
+ * 
+ * STRICT DIRECTIVE ENFORCEMENT:
+ * - Only keys in ALLOWED_FINGER_ANIMATION_KEYS (and their uppercase equivalents) are permitted.
+ * - Any unsupported character (numbers 0-9, special symbols, Backspace, Enter, Tab, Shift, Esc, arrows, etc.)
+ *   strictly returns null (zero finger movement).
+ * - Shift is never an independent target.
  */
 export function resolveKeyToFinger(keyOrEvent, options = {}) {
   if (!keyOrEvent) return null;
 
-  let rawKey = typeof keyOrEvent === 'string' ? keyOrEvent : keyOrEvent.key;
-  let rawCode = typeof keyOrEvent === 'object' ? keyOrEvent.code : null;
+  // Extract raw character
+  let char = typeof keyOrEvent === 'string' ? keyOrEvent : keyOrEvent.key;
 
-  let keyId = null;
-  let mapping = null;
-
-  // 1. Try physical KeyboardEvent.code first
-  if (rawCode && CODE_TO_KEY_ID[rawCode]) {
-    keyId = CODE_TO_KEY_ID[rawCode];
-    mapping = KEY_FINGER_MAP[keyId];
+  // Support Spacebar from KeyboardEvent code if key is missing or ' '
+  if (!char && typeof keyOrEvent === 'object' && keyOrEvent.code === 'Space') {
+    char = ' ';
+  } else if (char === 'space' || char === 'Space') {
+    char = ' ';
   }
 
-  // 2. Try raw key string (direct or case-insensitive)
-  if (!mapping && rawKey) {
-    if (rawKey === ' ') rawKey = 'space';
-    mapping = KEY_FINGER_MAP[rawKey] || KEY_FINGER_MAP[rawKey.toLowerCase()];
-    keyId = rawKey.toLowerCase();
+  if (!char) return null;
+
+  // 1. Strict Allowlist Verification
+  const isApproved =
+    ALLOWED_FINGER_ANIMATION_KEYS.has(char) ||
+    (char.length === 1 && ALLOWED_FINGER_ANIMATION_KEYS.has(char.toLowerCase()));
+
+  if (!isApproved) {
+    // Unsupported character = absolutely NO finger movement
+    return null;
   }
 
-  // 3. Fallback for shifted symbols
-  if (!mapping && rawKey && SHIFT_MAP[rawKey]) {
-    const unshiftedKey = SHIFT_MAP[rawKey];
-    mapping = KEY_FINGER_MAP[unshiftedKey];
-    keyId = unshiftedKey;
-  }
+  // 2. Resolve mapped finger and physical key ID from authoritative touch-typing map
+  const entry = APPROVED_KEY_FINGER_MAP[char] || APPROVED_KEY_FINGER_MAP[char.toLowerCase()];
+  if (!entry) return null;
 
-  if (!mapping) return null;
-
-  let finger = mapping.finger;
+  let finger = entry.finger;
   if (finger === 'thumb') {
     finger = options.spaceThumb || 'right-thumb';
   }
 
+  const keyId = entry.keyId;
   const restingTip = FINGERTIP_POSITIONS[finger];
-  const targetCoord = KEY_COORDS[keyId] || { cx: mapping.x, cy: mapping.y };
+  const targetCoord = KEY_COORDS[keyId];
 
   let reachX = 0;
   let reachY = 0;
@@ -448,6 +576,7 @@ export function resolveKeyToFinger(keyOrEvent, options = {}) {
 
   return {
     keyId,
+    char,
     finger,
     targetCoord,
     restingTip,

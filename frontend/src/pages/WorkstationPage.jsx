@@ -1232,6 +1232,9 @@ export const WorkstationPage = () => {
                         handleInputChange({ target: { value: typed + '\n' } });
                         return;
                       }
+                      if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Escape'].includes(e.key)) {
+                        return;
+                      }
                       setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
                     }}
                     disabled={isCompleted}

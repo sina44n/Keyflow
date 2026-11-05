@@ -188,25 +188,34 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     controller.resetAll();
   });
 
-  it('handles uppercase letters, shifted symbols, and punctuation', () => {
+  it('handles uppercase letters, approved punctuation, and strictly rejects unsupported symbols', () => {
     const { boneMap } = createHandRigMesh();
     const controller = createHandAnimationController(boneMap);
 
-    controller.triggerKeystroke('S'); // uppercase S
-    assert.equal(controller.getActiveCount(), 1);
+    // Uppercase letters are approved
+    controller.triggerKeystroke('S');
+    assert.equal(controller.getActiveCount(), 1, 'Uppercase S is animated');
     controller.resetAll();
 
-    controller.triggerKeystroke('!'); // shifted 1 (pinky)
-    assert.equal(controller.getActiveCount(), 1);
-    controller.resetAll();
+    // Approved punctuation symbols
+    const approvedPunctuation = ["'", '"', ';', ':', ',', '<', '.', '>', '/', '?'];
+    approvedPunctuation.forEach((punc) => {
+      controller.triggerKeystroke(punc);
+      assert.equal(controller.getActiveCount(), 1, `Approved punctuation ${punc} is animated`);
+      controller.resetAll();
+    });
 
-    controller.triggerKeystroke('?'); // shifted / (pinky)
-    assert.equal(controller.getActiveCount(), 1);
-    controller.resetAll();
+    // Unsupported symbols MUST NOT trigger any animation (active count === 0)
+    const unsupported = ['!', '@', '#', '$', '%', '^', '&', '*', '(', ')', '_', '+', '[', ']', '{', '}', '\\', '|', '`', '~'];
+    unsupported.forEach((char) => {
+      controller.triggerKeystroke(char);
+      assert.equal(controller.getActiveCount(), 0, `Unsupported symbol ${char} produced zero animation`);
+      controller.resetAll();
+    });
 
-    controller.triggerKeystroke('backspace'); // backspace (pinky)
-    assert.equal(controller.getActiveCount(), 1);
-    controller.resetAll();
+    // Control keys MUST NOT trigger any animation
+    controller.triggerKeystroke('backspace');
+    assert.equal(controller.getActiveCount(), 0, 'Backspace produced zero animation');
   });
 
   it('articulates every key on the entire QWERTY letter layout across both hands', () => {
@@ -238,7 +247,7 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     });
   });
 
-  it('articulates every key on the number row with reaching movement', () => {
+  it('strictly ignores number row, producing ZERO finger animations', () => {
     const { boneMap } = createHandRigMesh();
     const controller = createHandAnimationController(boneMap);
 
@@ -246,73 +255,96 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     numRow.forEach((k) => {
       controller.resetAll();
       controller.triggerKeystroke(k);
-      assert.equal(controller.getActiveCount(), 1, `Number row key ${k} triggered active animation`);
+      assert.equal(controller.getActiveCount(), 0, `Number row key ${k} produced zero animation`);
     });
   });
 
-  it('articulates all modifier and control keys across both hands', () => {
+  it('strictly ignores all modifier and control keys across both hands', () => {
     const { boneMap } = createHandRigMesh();
     const controller = createHandAnimationController(boneMap);
 
     const controlKeys = [
       'Tab', 'tab',
       'CapsLock', 'caps',
-      'ShiftLeft', 'shift-left',
+      'ShiftLeft', 'shift-left', 'Shift',
       'ShiftRight', 'shift-right',
       'Backspace', 'backspace',
       'Enter', 'enter',
-      'Space', 'space', ' ',
-      'control-left', 'option-left', 'option-right', 'control-right'
+      'Escape', 'escape',
+      'control-left', 'option-left', 'option-right', 'control-right',
+      'Alt', 'Control', 'Meta'
     ];
 
     controlKeys.forEach((k) => {
       controller.resetAll();
       controller.triggerKeystroke(k);
-      assert.equal(controller.getActiveCount(), 1, `Control key ${k} triggered active animation`);
+      assert.equal(controller.getActiveCount(), 0, `Control key ${k} produced zero animation`);
     });
   });
 
-  it('supports KeyboardEvent code objects for physical key mapping', () => {
+  it('supports KeyboardEvent objects for approved keys and rejects unapproved keys', () => {
     const { boneMap } = createHandRigMesh();
     const controller = createHandAnimationController(boneMap);
 
-    const eventObjects = [
+    const approvedEvents = [
       { key: 'q', code: 'KeyQ' },
       { key: 'T', code: 'KeyT' },
+      { key: ' ', code: 'Space' },
+      { key: ';', code: 'Semicolon' },
+      { key: '?', code: 'Slash' },
+      { key: '.', code: 'Period' },
+    ];
+
+    approvedEvents.forEach((evt) => {
+      controller.resetAll();
+      controller.triggerKeystroke(evt);
+      assert.equal(controller.getActiveCount(), 1, `Approved event key ${evt.key} triggered active animation`);
+    });
+
+    const unapprovedEvents = [
       { key: '!', code: 'Digit1' },
+      { key: '1', code: 'Digit1' },
       { key: 'Tab', code: 'Tab' },
       { key: 'CapsLock', code: 'CapsLock' },
       { key: 'Shift', code: 'ShiftLeft' },
       { key: 'Shift', code: 'ShiftRight' },
       { key: 'Backspace', code: 'Backspace' },
       { key: 'Enter', code: 'Enter' },
-      { key: ' ', code: 'Space' },
+      { key: 'Escape', code: 'Escape' },
     ];
 
-    eventObjects.forEach((evt) => {
+    unapprovedEvents.forEach((evt) => {
       controller.resetAll();
       controller.triggerKeystroke(evt);
-      assert.equal(controller.getActiveCount(), 1, `Event code ${evt.code} triggered active animation`);
+      assert.equal(controller.getActiveCount(), 0, `Unapproved event key ${evt.key} produced zero animation`);
     });
   });
 
-  it('displaces fingertip toward physical key coordinates instead of rotating in place', () => {
+  it('displaces proximal joint toward physical key coordinates and depresses switch while preserving bone lengths', () => {
     const { boneMap } = createHandRigMesh();
     const controller = createHandAnimationController(boneMap);
 
     const indexProxL = boneMap['index_proximal_L'];
+    const indexInterL = boneMap['index_intermediate_L'];
     const indexDistL = boneMap['index_distal_L'];
 
-    const initialTipX = indexDistL.position.x;
-    const initialTipY = indexDistL.position.y;
+    const initialProxX = indexProxL.position.x;
+    const initialProxY = indexProxL.position.y;
+    const initialInterPos = indexInterL.position.clone();
+    const initialDistPos = indexDistL.position.clone();
 
     // Type 't' (left index reaches right and up)
     controller.triggerKeystroke('t');
     controller.update(performance.now() + 45); // downstroke peak
 
-    assert.ok(indexDistL.position.x > initialTipX, 'Index fingertip reached right toward T');
-    assert.ok(indexDistL.position.y > initialTipY, 'Index fingertip reached upward toward T');
+    // MCP reaches towards key coordinates in palm space
+    assert.ok(indexProxL.position.x > initialProxX, 'Index proximal reached right toward T');
+    assert.ok(indexProxL.position.y > initialProxY, 'Index proximal reached upward toward T');
     assert.ok(indexProxL.position.z < 0, 'Depressed downward into keycap');
+
+    // Bone lengths are 100% invariant (zero stretching): child bone local positions remain at rest
+    assert.equal(indexInterL.position.distanceTo(initialInterPos), 0, 'Intermediate bone local pos invariant');
+    assert.equal(indexDistL.position.distanceTo(initialDistPos), 0, 'Distal bone local pos invariant');
   });
 
   it('supports rapid repeated keystrokes on the same finger without getting stuck', () => {
@@ -400,17 +432,13 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     });
   });
 
-  it('strictly isolates bone transforms for number row, punctuation, spacebar, and modifiers', () => {
+  it('strictly isolates bone transforms for approved punctuation and spacebar, and verifies unsupported keys leave all bones static', () => {
     const { bones, boneMap } = createHandRigMesh();
     const controller = createHandAnimationController(boneMap);
 
-    const nonLetterKeys = [
-      '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=',
-      ';', '\'', ',', '.', '/', '[', ']',
-      'Tab', 'CapsLock', 'ShiftLeft', 'ShiftRight', 'Backspace', 'Enter'
-    ];
+    const approvedPunctuation = [';', "'", ',', '.', '/', ':', '"', '<', '>', '?'];
 
-    nonLetterKeys.forEach((key) => {
+    approvedPunctuation.forEach((key) => {
       controller.resetAll();
       const resolved = resolveKeyToFinger(key);
       assert.ok(resolved, `Resolved finger for '${key}'`);
@@ -446,7 +474,6 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
     controller.resetAll();
     controller.triggerKeystroke(' ', { spaceThumb: 'left-thumb' });
     controller.update(performance.now() + 50);
-    assert.ok(boneMap['thumb_proximal_L'].position.distanceTo(boneMap['thumb_proximal_L'].position) === 0);
     bones.forEach((b) => {
       const isTarget = FINGER_BONE_MAP['left-thumb'].includes(b.name);
       if (!isTarget) {
@@ -463,6 +490,32 @@ describe('Interactive 3D Hand Skeletal Rig & Kinematic Animation Engine', () => 
       if (!isTarget) {
         assert.equal(b.rotation.x, 0);
       }
+    });
+
+    // Verify unsupported keys produce strictly zero movement on any bone
+    const unsupportedKeys = ['1', '2', '3', '0', '!', '@', '#', '$', 'Tab', 'CapsLock', 'Shift', 'Backspace', 'Enter'];
+    unsupportedKeys.forEach((key) => {
+      controller.resetAll();
+      const resolved = resolveKeyToFinger(key);
+      assert.equal(resolved, null, `Key '${key}' must not resolve a finger`);
+
+      const baselinePos = {};
+      const baselineRot = {};
+      bones.forEach((b) => {
+        baselinePos[b.name] = b.position.clone();
+        baselineRot[b.name] = b.rotation.clone();
+      });
+
+      controller.triggerKeystroke(key);
+      controller.update(performance.now() + 50);
+
+      bones.forEach((b) => {
+        const dPos = b.position.distanceTo(baselinePos[b.name]);
+        const dRot = Math.abs(b.rotation.x - baselineRot[b.name].x) +
+                     Math.abs(b.rotation.y - baselineRot[b.name].y) +
+                     Math.abs(b.rotation.z - baselineRot[b.name].z);
+        assert.ok(dPos < 1e-5 && dRot < 1e-5, `Bone ${b.name} must remain 100% motionless for unsupported key '${key}'`);
+      });
     });
   });
 
