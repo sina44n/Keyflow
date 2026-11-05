@@ -23,6 +23,10 @@ from django.db import transaction
 from rest_framework.authentication import BaseAuthentication, get_authorization_header
 from rest_framework.exceptions import AuthenticationFailed
 import jwt
+from accounts.clerk_env import (
+    get_clerk_domain_from_publishable_key,
+    validate_clerk_backend_configuration,
+)
 
 User = get_user_model()
 logger = logging.getLogger(__name__)

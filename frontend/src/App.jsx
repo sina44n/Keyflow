@@ -27,13 +27,15 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { ClerkProvider } from '@clerk/react';
 import { AuthenticateWithRedirectCallback } from '@clerk/react';
 import { Footer } from './components/common/Footer';
+import { getClerkPublishableKey, getClerkEnvironmentStatus } from './utils/clerkEnv';
 
 const CLERK_PUBLISHABLE_KEY =
   typeof import.meta !== 'undefined' && import.meta.env?.VITE_CLERK_PUBLISHABLE_KEY
-    ? String(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY).trim()
+    ? getClerkPublishableKey(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY)
     : '';
 
-const isClerkConfigured = Boolean(CLERK_PUBLISHABLE_KEY);
+const clerkEnvStatus = getClerkEnvironmentStatus(CLERK_PUBLISHABLE_KEY);
+const isClerkConfigured = Boolean(CLERK_PUBLISHABLE_KEY) && !clerkEnvStatus.validationError;
 
 const AcademyStageRoute = () => {
   const { stageId } = useParams();
