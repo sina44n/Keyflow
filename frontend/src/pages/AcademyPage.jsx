@@ -18,7 +18,6 @@ import { LessonPlayer } from '../components/academy/LessonPlayer';
 import { ProgressStats } from '../components/academy/ProgressStats';
 import { LessonMap } from '../components/academy/LessonMap';
 import { ShortcutBar } from '../components/academy/ShortcutBar';
-import { Button } from '../components/common/Button';
 import { useI18n } from '../i18n/I18nContext';
 import {
   Lock,
@@ -26,7 +25,6 @@ import {
   Zap,
   Grid,
   Layers,
-  ArrowLeft,
 } from 'lucide-react';
 
 const VIEW = {
@@ -270,18 +268,6 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
         {/* Top Control Bar (Navigation & Mode Toggles) */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
           <div className="flex items-center gap-2 sm:gap-3">
-            {onExit && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onExit}
-                className="border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-card)] rounded-xl text-xs"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-                {t('nav.home')}
-              </Button>
-            )}
-
             {/* View Mode Toggle: By Unit (20) vs All 600 Levels */}
             <div className="flex items-center rounded-xl bg-[var(--bg-card)] border border-[var(--border)] p-0.5">
               <button
@@ -374,7 +360,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                       <span className="font-bold">Curriculum Stages (7)</span>
                       <span className="text-[var(--accent)] font-bold">4,200 Levels Total</span>
                     </div>
-                    <div className="space-y-1 mt-1 max-h-72 overflow-y-auto pr-1 scrollbar-thin">
+                    <div className="space-y-1 mt-1 max-h-72 overflow-y-auto pr-1 no-scrollbar">
                       {STAGE_META.map((st) => {
                         const isStUnlocked = isStageUnlocked(st.stageId);
                         const isStActive = st.stageId === activeStageId;

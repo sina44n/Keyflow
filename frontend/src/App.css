@@ -188,3 +188,16 @@
 .char-corrected {
   color: var(--typing-corrected, #EAB308);
 }
+
+/* Invisible Scrollbar Utility (hides visible bar while preserving full mouse-wheel, touch & trackpad scrolling) */
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none !important; /* IE and Edge */
+  scrollbar-width: none !important; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}

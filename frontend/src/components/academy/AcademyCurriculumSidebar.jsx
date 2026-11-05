@@ -41,7 +41,7 @@ export const AcademyCurriculumSidebar = ({
       </div>
 
       {/* Units List Container with Independent Smooth Scrolling */}
-      <div className="space-y-1.5 max-h-[660px] overflow-y-auto pr-1 scrollbar-thin">
+      <div className="space-y-1.5 max-h-[660px] overflow-y-auto pr-1 no-scrollbar">
         {units.map((u) => {
           const isSelected = u.unitNumber === activeUnit;
           const isUnlocked = u.unitNumber <= unlockedUnitCount;
