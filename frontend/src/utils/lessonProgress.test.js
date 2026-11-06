@@ -231,15 +231,22 @@ describe('KEYFLOW Lesson Progress & Progression System (7,000 Levels)', () => {
     assert.notEqual(state.lessons['S1-L001'].bestWpm, state.lessons['S2-L001'].bestWpm);
   });
 
-  it('correctly calculates star ratings (0 to 3 stars)', () => {
+  it('correctly calculates authentic star ratings (0 to 5 stars)', () => {
     // Failing: 0 stars
     assert.equal(calculateStars(80, 90, 15, 20), 0);
+    assert.equal(calculateStars(80, 90, 25, 20), 0); // Accuracy failed
+    assert.equal(calculateStars(95, 90, 15, 20), 0); // WPM failed
     // Baseline pass: 1 star
     assert.equal(calculateStars(90, 90, 20, 20), 1);
     // Strong pass: 2 stars (+5 WPM, +2% Acc)
     assert.equal(calculateStars(92, 90, 25, 20), 2);
     // Mastery: 3 stars (+10 WPM, +4% Acc)
     assert.equal(calculateStars(94, 90, 30, 20), 3);
+    // Advanced: 4 stars (+15 WPM, +6% Acc)
+    assert.equal(calculateStars(96, 90, 35, 20), 4);
+    // Elite: 5 stars (+20 WPM, +8% Acc)
+    assert.equal(calculateStars(98, 90, 40, 20), 5);
+    assert.equal(calculateStars(100, 90, 50, 20), 5);
   });
 
   it('calculates genuine dashboard stats across 7,000 levels without fabricated values', () => {

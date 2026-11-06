@@ -202,6 +202,10 @@ class Command(BaseCommand):
                             stars = 2
                         if wpm >= (target_level.target_wpm + 10) and acc >= min(100, target_level.target_accuracy + 4):
                             stars = 3
+                        if wpm >= (target_level.target_wpm + 15) and acc >= min(100, target_level.target_accuracy + 6):
+                            stars = 4
+                        if wpm >= (target_level.target_wpm + 20) and acc >= min(100, target_level.target_accuracy + 8):
+                            stars = 5
 
                         CurriculumLessonProgress.objects.update_or_create(
                             user=u,
@@ -262,3 +266,4 @@ class Command(BaseCommand):
         self.stdout.write(f"  Archived Only (No Direct Equivalent/Unfinished): {stats['archived_only']}")
         self.stdout.write(f"  Total Users Processed: {distinct_users}")
         self.stdout.write(self.style.SUCCESS("Legacy migration completed safely and idempotently."))
+

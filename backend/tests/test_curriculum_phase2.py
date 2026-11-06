@@ -251,6 +251,20 @@ class CurriculumAPITests(TestCase):
         self.assertEqual(res3.data['stars'], 3)
         self.assertEqual(res3.data['attempts'], 3)
 
+        # Attempt 4: Advanced velocity (WPM 36, Acc 96) -> 4 stars
+        res4 = self.client.post(url, {'wpm': 36, 'accuracy': 96})
+        self.assertEqual(res4.status_code, status.HTTP_200_OK)
+        self.assertTrue(res4.data['is_completed'])
+        self.assertEqual(res4.data['stars'], 4)
+        self.assertEqual(res4.data['attempts'], 4)
+
+        # Attempt 5: Mastery velocity (WPM 42, Acc 98) -> 5 stars
+        res5 = self.client.post(url, {'wpm': 42, 'accuracy': 98})
+        self.assertEqual(res5.status_code, status.HTTP_200_OK)
+        self.assertTrue(res5.data['is_completed'])
+        self.assertEqual(res5.data['stars'], 5)
+        self.assertEqual(res5.data['attempts'], 5)
+
     def test_manual_explore_unlock_does_not_fabricate_completion(self):
         """POST /api/lessons/curriculum/stages/2/unlock/ unlocks stage 2 with 0 completions."""
         url = '/api/lessons/curriculum/stages/2/unlock/'

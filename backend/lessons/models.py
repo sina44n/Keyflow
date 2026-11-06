@@ -276,7 +276,7 @@ class CurriculumLessonProgress(models.Model):
         related_name='progress_records'
     )
     is_completed = models.BooleanField(default=False)
-    stars = models.PositiveSmallIntegerField(default=0)  # 0 to 3
+    stars = models.PositiveSmallIntegerField(default=0)  # 0 to 5
     best_wpm = models.DecimalField(max_digits=6, decimal_places=2, default=0.0)
     best_accuracy = models.DecimalField(max_digits=5, decimal_places=2, default=0.0)
     attempts = models.PositiveIntegerField(default=0)

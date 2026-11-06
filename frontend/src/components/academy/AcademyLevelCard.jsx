@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Star, Lock, Search, Check, Play } from 'lucide-react';
 import { AcademyIllustrationEngine } from './AcademyIllustrationEngine';
 import { useI18n } from '../../i18n/I18nContext';
+import { calculateStars } from '../../utils/lessonProgress';
 
 /**
  * AcademyLevelCard
@@ -29,10 +30,32 @@ export const AcademyLevelCard = React.forwardRef(({
   const isUnlocked = Boolean(lesson.unlocked);
   const isLocked = !isUnlocked;
 
-  // Star calculation (0 to 5) — Real earned performance only
-  const starsEarned = isCompleted && typeof lesson.record?.stars === 'number'
-    ? Math.max(0, Math.min(5, lesson.record.stars))
-    : (isCompleted && lesson.record?.passed ? 3 : 0);
+  // Authentic 0 to 5 Star calculation — Real earned performance only, strictly non-fabricated
+  let starsEarned = 0;
+  if (isCompleted) {
+    if (typeof lesson.record?.stars === 'number' && !isNaN(lesson.record.stars)) {
+      starsEarned = Math.max(0, Math.min(5, Math.floor(lesson.record.stars)));
+    } else if (
+      typeof lesson.record?.bestAccuracy === 'number' &&
+      typeof lesson.record?.bestWpm === 'number' &&
+      lesson.record.bestAccuracy > 0 &&
+      lesson.record.bestWpm > 0
+    ) {
+      // Historical recovery without fabrication: recalculate from genuine recorded metrics
+      starsEarned = calculateStars(
+        lesson.record.bestAccuracy,
+        lesson.targetAccuracy || 85,
+        lesson.record.bestWpm,
+        lesson.targetWpm || 20
+      );
+    } else if (lesson.record?.passed) {
+      // Historical pass record with no telemetry metrics: minimum honest pass baseline (1 star), NEVER fabricated 3 stars
+      starsEarned = 1;
+    } else {
+      // Missing historical performance data: safe honest fallback of 0 stars
+      starsEarned = 0;
+    }
+  }
 
   // Check if review/focus lesson
   const lowerTitle = (lesson.title || '').toLowerCase();

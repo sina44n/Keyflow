@@ -438,12 +438,26 @@ export function getNextRecommendedLesson(preferredStageId = 1) {
 }
 
 /**
- * Computes star rating (0 to 3) based on accuracy and WPM thresholds.
- * Strictly pedagogical: 1 star = baseline pass, 2 stars = strong pass, 3 stars = mastery.
+ * Computes authentic star rating (0 to 5) based on accuracy and WPM thresholds.
+ * Strictly pedagogical and progressive:
+ * 0 stars = failed minimum threshold
+ * 1 star  = baseline pass (wpm >= targetWpm && accuracy >= targetAccuracy)
+ * 2 stars = targetWpm + 5 && accuracy >= targetAccuracy + 2%
+ * 3 stars = targetWpm + 10 && accuracy >= targetAccuracy + 4%
+ * 4 stars = targetWpm + 15 && accuracy >= targetAccuracy + 6%
+ * 5 stars = targetWpm + 20 && accuracy >= min(100, targetAccuracy + 8%)
  */
 export function calculateStars(accuracy, targetAccuracy, wpm, targetWpm) {
   if (accuracy < targetAccuracy || wpm < targetWpm) {
     return 0; // Failed minimum threshold
+  }
+  // 5 Stars: Target WPM + 20 and Target Accuracy + 8% (or 100% accuracy)
+  if (wpm >= targetWpm + 20 && accuracy >= Math.min(100, targetAccuracy + 8)) {
+    return 5;
+  }
+  // 4 Stars: Target WPM + 15 and Target Accuracy + 6%
+  if (wpm >= targetWpm + 15 && accuracy >= Math.min(100, targetAccuracy + 6)) {
+    return 4;
   }
   // 3 Stars: Target WPM + 10 and Target Accuracy + 4%
   if (wpm >= targetWpm + 10 && accuracy >= Math.min(100, targetAccuracy + 4)) {

@@ -317,10 +317,12 @@ class CurriculumRecordProgressView(APIView):
             wpm = 0.0
             accuracy = 0.0
 
-        # Calculate genuine stars
+        # Calculate genuine stars (0 to 5)
         # 1 Star: Reached baseline target WPM and target Accuracy
         # 2 Stars: Target WPM + 5 and Target Accuracy + 2%
         # 3 Stars: Target WPM + 10 and Target Accuracy + 4%
+        # 4 Stars: Target WPM + 15 and Target Accuracy + 6%
+        # 5 Stars: Target WPM + 20 and Target Accuracy + 8% (or 100% precision)
         is_passed = (wpm >= level.target_wpm and accuracy >= level.target_accuracy)
         stars = 0
         if is_passed:
@@ -329,6 +331,10 @@ class CurriculumRecordProgressView(APIView):
                 stars = 2
             if wpm >= (level.target_wpm + 10) and accuracy >= min(100, level.target_accuracy + 4):
                 stars = 3
+            if wpm >= (level.target_wpm + 15) and accuracy >= min(100, level.target_accuracy + 6):
+                stars = 4
+            if wpm >= (level.target_wpm + 20) and accuracy >= min(100, level.target_accuracy + 8):
+                stars = 5
 
         now = timezone.now()
         progress, created = CurriculumLessonProgress.objects.get_or_create(
