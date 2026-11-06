@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
+const proxyTarget = process.env.VITE_API_URL
+  ? process.env.VITE_API_URL.replace(/\/api\/?$/, '')
+  : 'http://127.0.0.1:8000';
+
 export default defineConfig({
   plugins: [
     react(),
@@ -11,16 +15,17 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: proxyTarget,
         changeOrigin: true,
         configure: (proxy) => {
           proxy.on('error', (err, _req, res) => {
-            console.error('[Vite Proxy Error] Django backend at 127.0.0.1:8000 is unreachable:', err.message);
+            console.error(`[Vite Proxy Error] Backend at ${proxyTarget} is unreachable:`, err.message);
             if (!res.headersSent && typeof res.writeHead === 'function') {
               res.writeHead(502, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({
-                error: 'Backend service unreachable. Ensure Django is running on 127.0.0.1:8000 (manage.py runserver).',
-                code: 'BACKEND_OFFLINE'
+                error: `Backend service unreachable at ${proxyTarget}. In local development, ensure Django is running (manage.py runserver).`,
+                code: 'BACKEND_OFFLINE',
+                target: proxyTarget
               }));
             }
           });
@@ -31,16 +36,17 @@ export default defineConfig({
   preview: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8000',
+        target: proxyTarget,
         changeOrigin: true,
         configure: (proxy) => {
           proxy.on('error', (err, _req, res) => {
-            console.error('[Vite Preview Proxy Error] Django backend at 127.0.0.1:8000 is unreachable:', err.message);
+            console.error(`[Vite Preview Proxy Error] Backend at ${proxyTarget} is unreachable:`, err.message);
             if (!res.headersSent && typeof res.writeHead === 'function') {
               res.writeHead(502, { 'Content-Type': 'application/json' });
               res.end(JSON.stringify({
-                error: 'Backend service unreachable. Ensure Django is running on 127.0.0.1:8000.',
-                code: 'BACKEND_OFFLINE'
+                error: `Backend service unreachable at ${proxyTarget}. Ensure backend is running.`,
+                code: 'BACKEND_OFFLINE',
+                target: proxyTarget
               }));
             }
           });

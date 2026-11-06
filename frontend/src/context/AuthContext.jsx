@@ -35,7 +35,12 @@ import {
   migrateGuestArcadeRecordsToAccount,
   resetGuestArcadeRecords,
 } from '../utils/arcadeStorage';
-import { syncTelemetrySessionsFromBackend } from '../utils/telemetryStorage';
+import {
+  syncTelemetrySessionsFromBackend,
+  setPracticeGoal,
+  setWeeklyPracticeGoal,
+  setWeekStartPreference,
+} from '../utils/telemetryStorage';
 
 // Wire up asynchronous backend lesson progress synchronization
 registerBackendSyncHandler((data) => {
@@ -125,6 +130,17 @@ const applyUserSession = async (userData) => {
           },
         })
       );
+    }
+
+    // 6. Synchronize persistent practice targets and calendar week start
+    if (userData.preferences?.daily_goal_minutes) {
+      setPracticeGoal(Number(userData.preferences.daily_goal_minutes), userData.id);
+    }
+    if (userData.preferences?.weekly_goal_minutes) {
+      setWeeklyPracticeGoal(Number(userData.preferences.weekly_goal_minutes), userData.id);
+    }
+    if (userData.preferences?.first_day_of_week !== undefined && userData.preferences?.first_day_of_week !== null) {
+      setWeekStartPreference(Number(userData.preferences.first_day_of_week), userData.id);
     }
   } else {
     try {

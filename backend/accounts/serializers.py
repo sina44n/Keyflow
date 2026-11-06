@@ -103,6 +103,8 @@ class UserPreferencesSerializer(serializers.ModelSerializer):
         fields = [
             'theme_preset',
             'daily_goal_minutes',
+            'weekly_goal_minutes',
+            'first_day_of_week',
             'preferred_duration',
             'preferred_word_count',
             'preferred_mode',

@@ -125,6 +125,14 @@ class UserPreferences(models.Model):
     daily_goal_minutes = models.PositiveSmallIntegerField(
         default=10
     )
+    weekly_goal_minutes = models.PositiveIntegerField(
+        default=180,
+        help_text='Weekly practice target in minutes (e.g. 180m = 3 hours)'
+    )
+    first_day_of_week = models.PositiveSmallIntegerField(
+        default=0,
+        help_text='0 = Sunday, 1 = Monday, ..., 6 = Saturday'
+    )
     preferred_duration = models.PositiveSmallIntegerField(
         default=60
     )

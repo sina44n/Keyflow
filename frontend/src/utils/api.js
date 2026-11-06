@@ -9,9 +9,15 @@
 import axios from 'axios';
 
 export const getApiBaseUrl = (customEnvUrl) => {
-  const envUrl = customEnvUrl !== undefined
-    ? String(customEnvUrl || '').trim()
-    : (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL ? String(import.meta.env.VITE_API_URL).trim() : '');
+  let envUrl = '';
+  if (customEnvUrl !== undefined) {
+    envUrl = String(customEnvUrl || '').trim();
+  } else if (typeof window !== 'undefined' && window.__KEYFLOW_API_URL__) {
+    envUrl = String(window.__KEYFLOW_API_URL__).trim();
+  } else if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
+    envUrl = String(import.meta.env.VITE_API_URL).trim();
+  }
+
   if (envUrl) {
     const cleanUrl = envUrl.replace(/\/+$/, '');
     return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;

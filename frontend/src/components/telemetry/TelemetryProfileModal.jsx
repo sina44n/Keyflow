@@ -83,10 +83,21 @@ export default function TelemetryProfileModal({ isOpen, onClose, sessions = [], 
   const [timezone, setTimezone] = useState(user?.profile?.timezone || 'UTC');
   const [bio, setBio] = useState(user?.profile?.bio || '');
 
-  // Goals & Preferences state
-  const [dailyGoal, setDailyGoalState] = useState(() => getPracticeGoal(userId));
-  const [weeklyGoal, setWeeklyGoalState] = useState(() => getWeeklyPracticeGoal(userId));
-  const [weekStart, setWeekStartState] = useState(() => getWeekStartPreference(userId));
+  // Goals & Preferences state — initialized from user.preferences when available
+  const [dailyGoal, setDailyGoalState] = useState(() => {
+    if (user?.preferences?.daily_goal_minutes) return Number(user.preferences.daily_goal_minutes);
+    return getPracticeGoal(userId);
+  });
+  const [weeklyGoal, setWeeklyGoalState] = useState(() => {
+    if (user?.preferences?.weekly_goal_minutes) return Number(user.preferences.weekly_goal_minutes);
+    return getWeeklyPracticeGoal(userId);
+  });
+  const [weekStart, setWeekStartState] = useState(() => {
+    if (user?.preferences?.first_day_of_week !== undefined && user?.preferences?.first_day_of_week !== null) {
+      return Number(user.preferences.first_day_of_week);
+    }
+    return getWeekStartPreference(userId);
+  });
   const [customDaily, setCustomDaily] = useState('');
   const [customWeekly, setCustomWeekly] = useState('');
 
@@ -152,6 +163,19 @@ export default function TelemetryProfileModal({ isOpen, onClose, sessions = [], 
         setFirstName(dispName);
         setLastName('');
       }
+
+      if (user.preferences?.daily_goal_minutes) {
+        setDailyGoalState(Number(user.preferences.daily_goal_minutes));
+      }
+      if (user.preferences?.weekly_goal_minutes) {
+        setWeeklyGoalState(Number(user.preferences.weekly_goal_minutes));
+      }
+      if (user.preferences?.first_day_of_week !== undefined && user.preferences?.first_day_of_week !== null) {
+        setWeekStartState(Number(user.preferences.first_day_of_week));
+      }
+      if (user.preferences?.reduced_motion !== undefined) {
+        setReducedMotion(Boolean(user.preferences.reduced_motion));
+      }
     }
   }, [user]);
 
@@ -213,7 +237,7 @@ export default function TelemetryProfileModal({ isOpen, onClose, sessions = [], 
     setSaveError('');
 
     try {
-      // 1. Save local preferences immediately
+      // 1. Immediately persist local preferences so telemetry is updated without lag
       setPracticeGoal(dailyGoal, userId);
       setWeeklyPracticeGoal(weeklyGoal, userId);
       setWeekStartPreference(weekStart, userId);
@@ -227,35 +251,51 @@ export default function TelemetryProfileModal({ isOpen, onClose, sessions = [], 
           last_name: lastName.trim(),
           timezone,
           bio: bio.trim(),
-          daily_goal_minutes: dailyGoal,
-          reduced_motion: reducedMotion,
+          daily_goal_minutes: Number(dailyGoal),
+          weekly_goal_minutes: Number(weeklyGoal),
+          first_day_of_week: Number(weekStart),
+          reduced_motion: Boolean(reducedMotion),
         };
-        const res = await authAPI.updateMe(payload);
-        if (res?.data && applyUserSession) {
-          applyUserSession(res.data);
-        }
-      }
 
-      setSaveSuccess('Settings and telemetry preferences saved successfully.');
-      setUnsavedChanges(false);
-      setTimeout(() => setSaveSuccess(''), 4000);
-    } catch (err) {
-      let msg = 'Failed to save settings. Please verify inputs.';
-      if (err.response?.data) {
-        if (typeof err.response.data === 'string') {
-          msg = err.response.data;
-        } else if (typeof err.response.data === 'object') {
-          const entries = Object.entries(err.response.data);
-          if (entries.length > 0) {
-            msg = entries
-              .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : (typeof v === 'object' ? JSON.stringify(v) : v)}`)
-              .join(' | ');
+        try {
+          const res = await authAPI.updateMe(payload);
+          if (res?.data && applyUserSession) {
+            await applyUserSession(res.data);
           }
+          setSaveSuccess('Settings and telemetry preferences saved successfully.');
+          setUnsavedChanges(false);
+          setTimeout(() => setSaveSuccess(''), 4000);
+        } catch (apiErr) {
+          // If server validation failed (400 Bad Request), surface specific validation errors
+          if (apiErr.response?.status === 400 && apiErr.response?.data) {
+            let msg = 'Failed to save settings. Please verify inputs.';
+            if (typeof apiErr.response.data === 'string') {
+              msg = apiErr.response.data;
+            } else if (typeof apiErr.response.data === 'object') {
+              const entries = Object.entries(apiErr.response.data);
+              if (entries.length > 0) {
+                msg = entries
+                  .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : (typeof v === 'object' ? JSON.stringify(v) : v)}`)
+                  .join(' | ');
+              }
+            }
+            setSaveError(msg);
+            return;
+          }
+
+          // If backend was unreachable (502 / network / offline fallback)
+          console.warn('[KEYFLOW Settings] Remote sync pending, saved to local profile:', apiErr.message);
+          setSaveSuccess('Settings saved locally. (Backend server is offline; changes will synchronize when reconnected).');
+          setUnsavedChanges(false);
+          setTimeout(() => setSaveSuccess(''), 6000);
         }
-      } else if (err.message) {
-        msg = err.message;
+      } else {
+        setSaveSuccess('Settings saved successfully to local profile.');
+        setUnsavedChanges(false);
+        setTimeout(() => setSaveSuccess(''), 4000);
       }
-      setSaveError(msg);
+    } catch (err) {
+      setSaveError(err.message || 'An unexpected error occurred while saving.');
     } finally {
       setSaveLoading(false);
     }

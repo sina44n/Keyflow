@@ -305,6 +305,28 @@ class CurrentUserView(APIView):
                 prefs.daily_goal_minutes = max(1, min(1440, int(data['daily_goal_minutes'])))
             except (ValueError, TypeError):
                 pass
+        if 'weekly_goal_minutes' in data:
+            try:
+                prefs.weekly_goal_minutes = max(5, min(10080, int(data['weekly_goal_minutes'])))
+            except (ValueError, TypeError):
+                pass
+        elif 'weekly_goal' in data:
+            try:
+                wg_val = float(data['weekly_goal'])
+                # If value is small (e.g. <= 40), treat as hours and convert to minutes
+                prefs.weekly_goal_minutes = int(wg_val * 60) if wg_val <= 40 else int(wg_val)
+            except (ValueError, TypeError):
+                pass
+        if 'first_day_of_week' in data:
+            try:
+                prefs.first_day_of_week = max(0, min(6, int(data['first_day_of_week'])))
+            except (ValueError, TypeError):
+                pass
+        elif 'week_start' in data:
+            try:
+                prefs.first_day_of_week = max(0, min(6, int(data['week_start'])))
+            except (ValueError, TypeError):
+                pass
         if 'reduced_motion' in data:
             prefs.reduced_motion = bool(data['reduced_motion'])
         if 'theme_preset' in data and data['theme_preset']:
@@ -338,6 +360,9 @@ class CurrentUserView(APIView):
         user.save()
         profile.save()
         prefs.save()
+
+        user.profile = profile
+        user.preferences = prefs
 
         return Response(FullUserSerializer(user).data, status=status.HTTP_200_OK)
 
