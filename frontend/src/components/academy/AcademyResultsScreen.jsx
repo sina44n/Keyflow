@@ -70,7 +70,7 @@ export const AcademyResultsScreen = ({
   const targetRotation = useMemo(() => wpmToNeedleRotation(wpm), [wpm]);
 
   // Needle animation state
-  const [needleRotation, setNeedleRotation] = useState(105);
+  const [needleRotation, setNeedleRotation] = useState(targetRotation);
   const [displayedWpm, setDisplayedWpm] = useState(0);
   const [isNeedleSettled, setIsNeedleSettled] = useState(false);
   const isNavigatingRef = useRef(false);
@@ -96,7 +96,7 @@ export const AcademyResultsScreen = ({
     }
   }, [isNeedleSettled]);
 
-  // Needle and WPM counter animation
+  // Needle and WPM counter synchronized animation
   useEffect(() => {
     if (prefersReducedMotion) {
       setNeedleRotation(targetRotation);
@@ -105,53 +105,43 @@ export const AcademyResultsScreen = ({
       return;
     }
 
-    // Initialize at rightmost end (+105°)
-    setNeedleRotation(105);
+    const startRot = 105; // 0 WPM (rightmost end of gauge)
+    setNeedleRotation(startRot);
     setDisplayedWpm(0);
     setIsNeedleSettled(false);
 
-    // Start needle sweep towards target
-    const startTimer = setTimeout(() => {
-      setNeedleRotation(targetRotation);
-    }, 60);
-
-    // Number counter interpolation (crisp 600ms count-up)
-    const animDuration = 600;
-    const startTime = performance.now() + 50;
+    const animDuration = 800; // 800ms authentic automotive sweep
     let animFrame;
+    const startTime = performance.now() + 60;
 
-    const updateCounter = (now) => {
+    const updateAnimation = (now) => {
       if (now < startTime) {
-        animFrame = requestAnimationFrame(updateCounter);
+        animFrame = requestAnimationFrame(updateAnimation);
         return;
       }
       const elapsed = now - startTime;
       const progress = Math.min(1, elapsed / animDuration);
-      // Easing out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
-      const val = Math.round(eased * wpm);
+      // Authentic automotive gauge easing: cubic-bezier(0.16, 1, 0.3, 1) quartic ease out
+      const eased = 1 - Math.pow(1 - progress, 4);
+
+      const currentWpm = Math.round(eased * wpm);
+      const currentRot = startRot + eased * (targetRotation - startRot);
+
+      setDisplayedWpm(currentWpm);
+      setNeedleRotation(Number(currentRot.toFixed(2)));
 
       if (progress < 1) {
-        setDisplayedWpm(val);
-        animFrame = requestAnimationFrame(updateCounter);
+        animFrame = requestAnimationFrame(updateAnimation);
       } else {
         setDisplayedWpm(wpm);
+        setNeedleRotation(targetRotation);
         setIsNeedleSettled(true);
       }
     };
 
-    animFrame = requestAnimationFrame(updateCounter);
-
-    // Settle needle & Enter shortcut after animation finishes
-    const settleTimer = setTimeout(() => {
-      setIsNeedleSettled(true);
-      setNeedleRotation(targetRotation);
-      setDisplayedWpm(wpm);
-    }, 700);
+    animFrame = requestAnimationFrame(updateAnimation);
 
     return () => {
-      clearTimeout(startTimer);
-      clearTimeout(settleTimer);
       cancelAnimationFrame(animFrame);
     };
   }, [targetRotation, wpm, prefersReducedMotion]);
@@ -331,25 +321,37 @@ export const AcademyResultsScreen = ({
 
             {/* Metallic Pivot Hub Gradients */}
             <linearGradient id="pivotChromeOuter" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#F8FAFC" />
-              <stop offset="40%" stopColor="#94A3B8" />
-              <stop offset="100%" stopColor="#334155" />
+              <stop offset="0%" stopColor="#FFFFFF" />
+              <stop offset="35%" stopColor="#E2E8F0" />
+              <stop offset="70%" stopColor="#94A3B8" />
+              <stop offset="100%" stopColor="#475569" />
             </linearGradient>
 
-            <linearGradient id="pivotCore" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#0A0E1A" />
-              <stop offset="50%" stopColor="#1E293B" />
+            <linearGradient id="pivotCavity" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#0B0F19" />
+              <stop offset="50%" stopColor="#111827" />
+              <stop offset="100%" stopColor="#1E293B" />
+            </linearGradient>
+
+            <linearGradient id="pivotChromeInner" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#E2E8F0" />
+              <stop offset="50%" stopColor="#94A3B8" />
               <stop offset="100%" stopColor="#475569" />
             </linearGradient>
 
             {/* Drop Shadows & Glows */}
-            <filter id="needleShadow" x="-30%" y="-30%" width="160%" height="160%">
-              <feDropShadow dx="6" dy="12" stdDeviation="6" floodColor="#000000" floodOpacity="0.85" />
+            <filter id="needleShadow" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow dx="6" dy="10" stdDeviation="6" floodColor="#000000" floodOpacity="0.75" />
             </filter>
 
             <filter id="activeCategoryGlow" x="-20%" y="-20%" width="140%" height="140%">
               <feDropShadow dx="0" dy="0" stdDeviation="7" floodColor="currentColor" floodOpacity="0.95" />
             </filter>
+
+            {/* Clean Dome Clip Boundary tucked behind stats dock */}
+            <clipPath id="domeClip">
+              <rect x="0" y="0" width="720" height="315" />
+            </clipPath>
 
             {/* Curved Text Paths for Category Labels */}
             <path id="pathExcellent" d={labelArcPaths.EXCELLENT} fill="none" />
@@ -359,21 +361,25 @@ export const AcademyResultsScreen = ({
             <path id="pathVeryPoor" d={labelArcPaths['VERY POOR']} fill="none" />
           </defs>
 
-          {/* ── Outer Bezel Semicircular Dome Housing ───────────────────── */}
-          <path
-            d={bezelDomePath}
-            fill="url(#bezelGrad)"
-            stroke="rgba(255,255,255,0.08)"
-            strokeWidth="1.5"
-          />
-
-          {/* ── Inner Dial Face Dome ────────────────────────────────────── */}
-          <path
-            d={innerDialDomePath}
-            fill="url(#dialGrad)"
-            stroke="#121828"
-            strokeWidth="1.5"
-          />
+          {/* ── Outer Bezel & Inner Dial Circular Housing ───────────────── */}
+          <g clipPath="url(#domeClip)">
+            <circle
+              cx={cx}
+              cy={cy}
+              r={rOuterBezel}
+              fill="url(#bezelGrad)"
+              stroke="rgba(255,255,255,0.08)"
+              strokeWidth="1.5"
+            />
+            <circle
+              cx={cx}
+              cy={cy}
+              r={rInnerDial}
+              fill="url(#dialGrad)"
+              stroke="#121828"
+              strokeWidth="1.5"
+            />
+          </g>
 
           {/* ── 5 Semicircular Arc Segments with Colored Glows ───────────── */}
           {/* Segment 1: EXCELLENT (#22C55E) */}
@@ -504,27 +510,41 @@ export const AcademyResultsScreen = ({
           {/* ── Realistic 3D Chiseled Metallic Needle ────────────────────── */}
           <g
             transform={`rotate(${needleRotation}, ${cx}, ${cy})`}
-            style={{
-              transition: prefersReducedMotion
-                ? 'none'
-                : 'transform 0.9s cubic-bezier(0.16, 1, 0.3, 1)',
-            }}
             filter="url(#needleShadow)"
           >
             {/* Left Specular Chrome Face */}
-            <polygon points={`${cx - 12},${cy} ${cx},${cy - 146} ${cx},${cy}`} fill="url(#needleSpecular)" />
+            <polygon
+              points={`${cx - 10},${cy - 20} ${cx},${cy - 144} ${cx},${cy - 20}`}
+              fill="url(#needleSpecular)"
+            />
             {/* Right Shaded Gunmetal Face */}
-            <polygon points={`${cx},${cy} ${cx},${cy - 146} ${cx + 12},${cy}`} fill="url(#needleShade)" />
+            <polygon
+              points={`${cx},${cy - 20} ${cx},${cy - 144} ${cx + 10},${cy - 20}`}
+              fill="url(#needleShade)"
+            />
             {/* Sharp Specular Ridge Line */}
-            <line x1={cx} y1={cy - 146} x2={cx} y2={cy} stroke="#FFFFFF" strokeWidth="1.5" opacity="0.95" />
+            <line
+              x1={cx}
+              y1={cy - 144}
+              x2={cx}
+              y2={cy - 20}
+              stroke="#FFFFFF"
+              strokeWidth="1.2"
+              opacity="0.95"
+            />
           </g>
 
           {/* ── Concentric Metallic Chrome Pivot Hub Assembly ────────────── */}
-          <circle cx={cx} cy={cy + 3} r="28" fill="rgba(0,0,0,0.6)" filter="blur(3px)" />
-          <circle cx={cx} cy={cy} r="26" fill="url(#pivotChromeOuter)" stroke="#475569" strokeWidth="2" />
-          <circle cx={cx} cy={cy} r="18" fill="#0B0F19" stroke="#1E293B" strokeWidth="1.5" />
-          <circle cx={cx} cy={cy} r="12" fill="url(#pivotCore)" stroke="#64748B" strokeWidth="1" />
-          <circle cx={cx - 4} cy={cy - 4} r="3" fill="#FFFFFF" opacity="0.85" />
+          {/* Ambient Contact Shadow */}
+          <circle cx={cx} cy={cy + 4} r="32" fill="rgba(0,0,0,0.6)" filter="blur(4px)" />
+          {/* Outer Brushed Chrome Bevel Ring */}
+          <circle cx={cx} cy={cy} r="28" fill="url(#pivotChromeOuter)" stroke="#475569" strokeWidth="1.5" />
+          {/* Inner Recessed Dark Cavity */}
+          <circle cx={cx} cy={cy} r="19" fill="url(#pivotCavity)" stroke="#1E293B" strokeWidth="1.5" />
+          {/* Center Chrome Bearing */}
+          <circle cx={cx} cy={cy} r="11" fill="url(#pivotChromeInner)" stroke="#334155" strokeWidth="1" />
+          {/* Specular Highlight Dot */}
+          <circle cx={cx - 3.5} cy={cy - 3.5} r="2.5" fill="#FFFFFF" opacity="0.9" />
 
           {/* ── Central Digital Score Display ───────────────────────────── */}
           <g transform={`translate(${cx}, ${cy + 46})`} textAnchor="middle">
@@ -540,7 +560,7 @@ export const AcademyResultsScreen = ({
             </text>
             <text
               y="24"
-              fill="#64748B"
+              fill="#7E8D9F"
               fontSize="12"
               fontWeight="800"
               letterSpacing="3"
@@ -565,7 +585,7 @@ export const AcademyResultsScreen = ({
       {/* ── Large Balanced Statistics Dashboard matching Reference Image ─ */}
       <div className="w-full max-w-[740px] sm:max-w-[820px] px-2 z-10">
         <div className="rounded-2xl sm:rounded-3xl bg-[#0B0F19]/95 border border-slate-700/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] py-3.5 sm:py-4 px-4 sm:px-8 backdrop-blur-md">
-          <div className="grid grid-cols-5 gap-2 text-center divide-x divide-slate-800/60">
+          <div className="grid grid-cols-5 gap-1 sm:gap-2 text-center">
             {/* 1. GROSS WPM */}
             <div className="flex flex-col items-center justify-center px-1">
               <div className="text-[#00E676] mb-1">
