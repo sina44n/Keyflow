@@ -1,190 +1,180 @@
 """
-Stage 7 Generator: Precision & Grandmaster (600 Levels)
-Keys: Full keyboard: Letters, Numbers (1-0), Symbols, Programming Syntax, High-Velocity Prose.
-Allowed characters: Standard ANSI printable keyboard characters.
-Progressive lengths from 45 chars (L1) to 900+ chars (L600).
-Target metrics: 60 to 72+ WPM, 96% to 98% accuracy.
+Stage 7 Generator: High-Frequency Vocabulary & Rhythm Cadence (700 Levels)
+10 Stages x 70 Units x 10 Levels Architecture
+
+Keys: Standard English prose across the full alphabet, numbers, and punctuation.
+Focus: Top 1,000 core words, eliminating word-boundary hesitation, metronomic rhythm.
+Target WPM: 52 to 62 | Target Accuracy: 92% to 94%
 """
-import itertools
-from .curriculum_builder import build_lesson, FINGER_MAP
+
+from .curriculum_builder import build_lesson
 
 STAGE_ID = 7
-STAGE_TITLE = "Precision & Grandmaster"
+STAGE_TITLE = "High-Frequency Vocabulary & Rhythm Cadence"
 HOME_KEYS = ["F", "J"]
-STAGE_KEYS = ["Numbers", "Code Symbols", "High Velocity", "Grandmaster Capstone"]
+STAGE_KEYS = ["High-Frequency Words", "Rhythm Cadence", "Metronome Timing", "Word Flow"]
+ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.;:?!'\"-_() ")
 
-SUBJECTS = [
-    "In 1969, Apollo 11 spacecraft",
-    "The Hubble Space Telescope",
-    "Modern 64-bit microprocessors",
-    "Quantum computing processors",
-    "The transatlantic fiber optic cable",
-    "The International Space Station",
-    "The human genome project in 2003",
-    "Voyager 1 deep space probe",
-    "The James Webb Space Telescope",
-    "The Linux operating system kernel",
-    "The JavaScript V8 runtime engine",
-    "A distributed PostgreSQL database cluster",
-    "The TCP/IP networking protocol stack",
-    "Modern WebGL Three.js skeletal hand rigs",
-    "The standard 104-key ANSI keyboard layout",
-    "An optimized binary search algorithm",
-    "The Fibonacci sequence in mathematics",
-    "Euler famous identity from 1748",
-    "The speed of light in vacuum (c = 3.0 * 10^8 m/s)",
-    "Grandmaster touch-typists at 72 WPM"
+STAGE_7_UNIT_THEMES = [
+    (1, "Top 25 Core English Words & Monosyllabic Cadence", ["Core 25"], ["core-words-25"]),
+    (2, "Top 50 Core English Words & Two-Word Phrasal Linking", ["Core 50"], ["core-words-50"]),
+    (3, "Top 75 Core English Words & Three-Word Rhythmic Units", ["Core 75"], ["core-words-75"]),
+    (4, "Top 100 Core English Words & Seamless Word Boundaries", ["Core 100"], ["core-words-100"]),
+    (5, "Core Words 101-150: Common Adverbs and Conjunctions", ["Words 101-150"], ["adverbs-conjunctions"]),
+    (6, "Core Words 151-200: Prepositional Phrases and Movement", ["Words 151-200"], ["prepositional-phrases"]),
+    (7, "Core Words 201-250: Action Verbs and Immediate Responses", ["Words 201-250"], ["action-verbs"]),
+    (8, "Core Words 251-300: Descriptive Adjectives and Textures", ["Words 251-300"], ["descriptive-adjectives"]),
+    (9, "Smooth Spacebar Transition Rhythm: 0-Latency Handoffs", ["Space Timing"], ["spacebar-cadence"]),
+    (10, "Milestone Assessment: Top 300 Core Vocabulary Fluency", ["Top 300"], ["milestone-benchmark"]),
+    (11, "Core Words 301-350: Environmental and Natural Terms", ["Words 301-350"], ["nature-vocabulary"]),
+    (12, "Core Words 351-400: Time, Seasons, and Calendrical Flow", ["Words 351-400"], ["temporal-terms"]),
+    (13, "Core Words 401-450: Society, Community, and Family Terms", ["Words 401-450"], ["community-terms"]),
+    (14, "Core Words 451-500: Thought, Perception, and Insight", ["Words 451-500"], ["cognitive-terms"]),
+    (15, "Two-Syllable Rhythmic Trochees and Iambs", ["Metrical Words"], ["metrical-rhythm"]),
+    (16, "Three-Syllable Cadence and Floating Finger Agility", ["Polysyllables"], ["three-syllable-cadence"]),
+    (17, "High-Speed Monosyllabic Sprints: 50 Words Flow", ["Sprints"], ["monosyllabic-sprints"]),
+    (18, "Continuous Word Linking Without Pauses", ["Linking"], ["continuous-word-linking"]),
+    (19, "Inter-Keystroke Interval (IKI) Variance Reduction", ["IKI Cadence"], ["iki-variance-reduction"]),
+    (20, "Milestone Assessment: Top 500 Vocabulary Mastery", ["Top 500"], ["milestone-benchmark"]),
+    (21, "Core Words 501-550: Tools, Crafts, and Workplaces", ["Words 501-550"], ["workplace-terms"]),
+    (22, "Core Words 551-600: Architecture, Homes, and Shelters", ["Words 551-600"], ["architectural-terms"]),
+    (23, "Core Words 601-650: Science, Reason, and Inquiry", ["Words 601-650"], ["inquiry-terms"]),
+    (24, "Core Words 651-700: Communication, Voice, and Speech", ["Words 651-700"], ["communication-terms"]),
+    (25, "Balanced Bilateral Hand Strides", ["Bilateral"], ["bilateral-hand-strides"]),
+    (26, "Subconscious Syllable Clustered Keystrokes", ["Clustering"], ["syllable-clustering"]),
+    (27, "Rhythmic Narrative Prose: The Morning Walk", ["Narrative"], ["narrative-morning"]),
+    (28, "Rhythmic Narrative Prose: The Mountain Stream", ["Narrative"], ["narrative-mountain"]),
+    (29, "Rhythmic Narrative Prose: The Harbor Ships", ["Narrative"], ["narrative-harbor"]),
+    (30, "Milestone Assessment: Top 700 Vocabulary Integration", ["Top 700"], ["milestone-benchmark"]),
+    (31, "Core Words 701-750: Emotion, Spirit, and Dedication", ["Words 701-750"], ["emotional-terms"]),
+    (32, "Core Words 751-800: Governance, Laws, and Principles", ["Words 751-800"], ["governance-terms"]),
+    (33, "Core Words 801-850: Geography, Oceans, and Continents", ["Words 801-850"], ["geographic-terms"]),
+    (34, "Core Words 851-900: Arts, Music, and Expression", ["Words 851-900"], ["artistic-terms"]),
+    (35, "Core Words 901-950: Trade, Commerce, and Exchange", ["Words 901-950"], ["commercial-terms"]),
+    (36, "Core Words 951-1000: Reflection, Wisdom, and Harmony", ["Words 951-1000"], ["philosophical-terms"]),
+    (37, "Complete 1,000-Word Lexical Survey Alpha", ["Lexicon"], ["lexical-survey-alpha"]),
+    (38, "Complete 1,000-Word Lexical Survey Beta", ["Lexicon"], ["lexical-survey-beta"]),
+    (39, "Complete 1,000-Word Lexical Survey Gamma", ["Lexicon"], ["lexical-survey-gamma"]),
+    (40, "Milestone Assessment: Complete 1,000 Core Vocabulary", ["Top 1000"], ["milestone-benchmark"]),
+    (41, "Steady Metronome Flow: 55 WPM Interval", ["Metronome"], ["metronome-55"]),
+    (42, "Steady Metronome Flow: 58 WPM Interval", ["Metronome"], ["metronome-58"]),
+    (43, "Steady Metronome Flow: 60 WPM Interval", ["Metronome"], ["metronome-60"]),
+    (44, "Continuous Multi-Paragraph Essay Flow", ["Essay"], ["multi-paragraph-essay"]),
+    (45, "Historical Biography Prose: Leonardo da Vinci", ["Biography"], ["bio-leonardo"]),
+    (46, "Historical Biography Prose: Marie Curie", ["Biography"], ["bio-marie-curie"]),
+    (47, "Historical Biography Prose: Isaac Newton", ["Biography"], ["bio-isaac-newton"]),
+    (48, "Reflective Philosophical Essay: On Time", ["Philosophy"], ["essay-on-time"]),
+    (49, "Reflective Philosophical Essay: On Curiosity", ["Philosophy"], ["essay-on-curiosity"]),
+    (50, "Milestone Assessment: 500-Level Extended Cadence", ["Cadence"], ["milestone-benchmark"]),
+    (51, "Cadence Stamina Sprints Alpha", ["Cadence"], ["cadence-sprints-alpha"]),
+    (52, "Cadence Stamina Sprints Beta", ["Cadence"], ["cadence-sprints-beta"]),
+    (53, "Subconscious Keystroke Automation", ["Automation"], ["subconscious-automation"]),
+    (54, "Near-Zero IKI Variance Training", ["Variance"], ["zero-variance"]),
+    (55, "Extended Transcriptions: The Old Library", ["Prose"], ["transcription-library"]),
+    (56, "Extended Transcriptions: The Forest Path", ["Prose"], ["transcription-forest"]),
+    (57, "Extended Transcriptions: The Coastal Village", ["Prose"], ["transcription-coastal"]),
+    (58, "High-Speed Fluency Under Time Pressure", ["Fluency"], ["speed-under-pressure"]),
+    (59, "Uninterrupted 300-Word Rhythm Challenge", ["Rhythm"], ["300-word-rhythm"]),
+    (60, "Milestone Assessment: Advanced Metronomic Cadence", ["Advanced Rhythm"], ["milestone-benchmark"]),
+    (61, "Continuous Grandmaster Narrative Alpha", ["Narrative"], ["narrative-alpha"]),
+    (62, "Continuous Grandmaster Narrative Beta", ["Narrative"], ["narrative-beta"]),
+    (63, "Continuous Grandmaster Narrative Gamma", ["Narrative"], ["narrative-gamma"]),
+    (64, "Zero-Error Vocabulary Marathon Alpha", ["Zero Error"], ["marathon-alpha"]),
+    (65, "Zero-Error Vocabulary Marathon Beta", ["Zero Error"], ["marathon-beta"]),
+    (66, "Sub-Millisecond Spacebar Transition Velocity", ["Space Velocity"], ["space-velocity"]),
+    (67, "Dense Literary Vocabulary Flow", ["Dense Vocabulary"], ["dense-vocabulary"]),
+    (68, "Extended Exposition with Harmonious Pacing", ["Exposition"], ["harmonious-pacing"]),
+    (69, "Subconscious Neuromuscular Typing Mastery", ["Neuromuscular"], ["neuromuscular-mastery"]),
+    (70, "Grandmaster Stage 7 Graduation Examination", ["All High-Frequency Vocabulary"], ["grandmaster-capstone"]),
 ]
 
-ACTIONS = [
-    "executes over 3.8 billion instructions per second with 16 processing cores.",
-    "transmits 160 terabits of data per second across 6,600 kilometers of deep sea cable.",
-    "orbits Earth at an altitude of 408 kilometers with a velocity of 27,600 km/h.",
-    "maps 3.2 billion base pairs of DNA with 99.99% sequence accuracy.",
-    "operates at Lagrange point L2 approximately 1.5 million kilometers from Earth.",
-    "processes information using 127 quantum qubits in coherent superposition.",
-    "travels through interstellar space at a distance of 24 billion kilometers.",
-    "manages over 10,000 concurrent database connections with sub-millisecond latency.",
-    "calibrates 15 distinct finger contact coordinates across all 5 keyboard rows.",
-    "achieves O(log n) search complexity over arrays with 1,000,000 sorted elements.",
-    "computes values up to F(30) = 832,040 with recursive memoization in 2 milliseconds.",
-    "connects e^(i * pi) + 1 = 0 relating the 5 fundamental mathematical constants.",
-    "traverses 384,400 kilometers to land astronauts safely on the lunar surface.",
-    "requires sustaining 360+ clean keystrokes per minute with 98%+ precision.",
-    "compiles dynamic code into optimized machine instructions in 15 milliseconds.",
-    "routes encrypted packets across 195 nations with zero packet degradation.",
-    "renders 60 frames per second using high-performance WebGL hardware acceleration.",
-    "maintains strict opposite-hand Shift discipline across 100% of capital letters.",
-    "demonstrates that excellence is not an act, but a habit of disciplined practice.",
-    "captures high-resolution deep field imagery across 13 billion light years."
-]
-
-BASE_CLAUSES = [f"{s} {a}" for s in SUBJECTS for a in ACTIONS]
-
-UNIT_THEMES = [
-    ("Left-Hand Number Reaches (1 to 5)", ["1", "2", "3", "4", "5"], ["left-number-row", "reach-accuracy"]),
-    ("Right-Hand Number Reaches (6 to 0)", ["6", "7", "8", "9", "0"], ["right-number-row", "reach-accuracy"]),
-    ("Alphanumeric Sequences & Dates", ["Alphanumeric", "Dates"], ["alphanumeric-flow", "number-letter-shift"]),
-    ("Code Delimiters & Brackets", ["(", ")", "[", "]", "{", "}"], ["bracket-pairing", "code-delimiters"]),
-    ("Programming Operators & Symbols", ["=", "+", "-", "*", "/", "<", ">", "&", "|"], ["programming-operators", "symbol-precision"]),
-    ("JavaScript & Python Syntax Constructs", ["Syntax", "Constructs"], ["language-syntax", "code-cadence"]),
-    ("HTML & CSS Markup Tags and Properties", ["<", ">", "/", ":", ";"], ["markup-tags", "css-properties"]),
-    ("SQL Queries & Database Statements", ["SELECT", "FROM", "WHERE"], ["sql-keywords", "relational-syntax"]),
-    ("Mathematical & Scientific Formulas", ["^", "*", "/", "+", "="], ["math-formulas", "scientific-notation"]),
-    ("Terminal CLI Commands & File Paths", ["/", "-", "~", "$"], ["cli-commands", "file-paths"]),
-    ("High-Velocity Bursts: 62 WPM Threshold", ["Velocity 62+"], ["velocity-bursts", "speed-threshold"]),
-    ("High-Velocity Bursts: 65 WPM Threshold", ["Velocity 65+"], ["velocity-bursts", "speed-threshold"]),
-    ("High-Velocity Bursts: 68 WPM Threshold", ["Velocity 68+"], ["velocity-bursts", "speed-threshold"]),
-    ("High-Velocity Bursts: 70 WPM Threshold", ["Velocity 70+"], ["velocity-bursts", "speed-threshold"]),
-    ("Clean Architecture Code Transcriptions", ["Clean Code"], ["clean-architecture", "software-prose"]),
-    ("Classical Literature Transcriptions Alpha", ["Literature"], ["classic-literature", "extended-prose"]),
-    ("Technical Documentation Transcriptions", ["Documentation"], ["tech-docs", "api-documentation"]),
-    ("Dual-Hand Number & Symbol Agility", ["Numbers", "Symbols"], ["number-symbol-agility", "finger-dexterity"]),
-    ("Complex Algorithm Implementations", ["Algorithms"], ["algorithm-syntax", "logic-cadence"]),
-    ("Milestone Grandmaster Mid-Assessment", ["Comprehensive Mastery"], ["mid-assessment", "grandmaster-benchmark"]),
-    ("Weak-Finger Pinky/Ring Remediation", ["Pinky", "Ring"], ["weak-finger-remediation", "strength-conditioning"]),
-    ("Sustained 68 WPM Endurance Transcriptions", ["68 WPM Endurance"], ["endurance-transcription", "fatigue-resistance"]),
-    ("Classical Philosophy & Scientific Treatises", ["Philosophy"], ["philosophical-treatises", "formal-endurance"]),
-    ("Full-Stack Software Engineering Syntax", ["Full-Stack"], ["full-stack-syntax", "developer-typing"]),
-    ("Rapid-Fire Mixed Symbol & Number Marathons", ["Mixed Symbols"], ["mixed-symbols", "marathon-precision"]),
-    ("70 WPM Velocity Endurance Sprints", ["70 WPM Sprints"], ["velocity-sprints", "peak-speed"]),
-    ("Masterpiece Literary Excerpts", ["Literary Masterpieces"], ["literary-masterpieces", "artistic-cadence"]),
-    ("Zero-Error Speed Marathon", ["Zero Error"], ["zero-error-speed", "flawless-execution"]),
-    ("Ultra-High Precision Capstone Warmup", ["Precision Warmup"], ["capstone-warmup", "elite-preparation"]),
-    ("Grandmaster Capstone Mastery & Level 600 Final Graduation", ["All Skills", "72+ WPM", "98% Acc"], ["final-graduation", "grandmaster-capstone"]),
+PROSE_PARAGRAPHS = [
+    "The journey toward keyboard mastery is a quiet exercise in personal discipline. When you allow your fingers to float effortlessly above the keys, words cease to be individual letters and become complete thoughts that unfold across the display with graceful fluidity.",
+    "True fluency is achieved not through frantic speed, but through steady, uninterrupted cadence. Like a musician playing a well-rehearsed melody, an experienced typist maintains a relaxed tempo that never falters, even when moving across the most demanding vocabulary.",
+    "Observation of the natural world teaches us that patient persistence produces lasting strength. The gentle flow of a mountain stream gradually carves through solid stone, just as regular daily practice cultivates effortless touch typing muscle memory over months of study.",
+    "When we read the great works of literature, we discover that human wisdom outlasts centuries of noise. By transcribing thoughtful passages with complete accuracy, we not only refine our keyboard dexterity but also deepen our connection to profound philosophical ideas.",
+    "Physical relaxation is the true secret behind extraordinary typing velocity. Tension in the shoulders, wrists, or forearms restricts finger movement and leads to rapid fatigue, whereas loose, balanced posture allows hands to glide across all rows without strain.",
+    "In every professional discipline, foundational mastery distinguishes the artisan from the amateur. A skilled typist looks straight ahead at the text, allowing subconscious neuromuscular reflexes to actuate each switch with precise, uniform pressure.",
+    "As you type through each paragraph, listen to the metronomic rhythm of your keystrokes. A steady, predictable tempo indicates that both hands are working in perfect harmony, sharing the workload equally and maintaining forward momentum from start to finish.",
+    "Every word typed with care reinforces correct motor memory patterns. Rushing to achieve high numbers at the expense of accuracy creates bad habits that must later be unlearned, whereas methodical precision naturally produces effortless, reliable speed.",
+    "The modern digital workstation demands clear, effective communication across global networks. Those who can express their ideas swiftly and accurately through the keyboard possess a powerful advantage in collaborative academic and professional environments.",
+    "Celebrate each small milestone on your educational journey. Consistent dedication transforms difficult tasks into second nature, opening the door to a state of creative flow where technology disappears and only your thoughts remain."
 ]
 
 def generate_stage7_lessons():
-    """Generates 600 unique, progressively longer Stage 7 lessons."""
+    """Generates exactly 700 unique, pedagogical Stage 7 lessons."""
     lessons = []
     seen_texts = set()
-    clause_idx = 0
-    num_clauses = len(BASE_CLAUSES)
-    
-    for unit_idx, (unit_label, target_keys, skills) in enumerate(UNIT_THEMES, start=1):
-        for lesson_in_unit in range(1, 21):
-            level_num = (unit_idx - 1) * 20 + lesson_in_unit
-            
-            # Target length band
-            if level_num <= 40:
-                target_min, target_max = 45, 95
-            elif level_num <= 100:
-                target_min, target_max = 95, 175
+    p_idx = 0
+
+    for unit_num, (u_num, unit_label, target_keys, skills) in enumerate(STAGE_7_UNIT_THEMES, start=1):
+        for l_in_u in range(1, 11):
+            level_num = (unit_num - 1) * 10 + l_in_u
+
+            # Progressive target lengths
+            if level_num <= 70:
+                p_count = 1
             elif level_num <= 200:
-                target_min, target_max = 175, 290
-            elif level_num <= 300:
-                target_min, target_max = 290, 420
+                p_count = 1
             elif level_num <= 400:
-                target_min, target_max = 420, 580
-            elif level_num <= 500:
-                target_min, target_max = 580, 750
-            elif level_num <= 580:
-                target_min, target_max = 750, 900
+                p_count = 2
+            elif level_num <= 600:
+                p_count = 2
             else:
-                target_min, target_max = 900, 1200
-            
-            # Level 600 Grandmaster Capstone Final Graduation special text
-            if level_num == 600:
-                text = (
-                    "Grandmaster Capstone Final Graduation: Having traversed all 4,200 levels across 7 independent stages "
-                    "of the KEYFLOW Touch-Typing Academy - from Home Row Foundations to Top Row Control, Bottom Row Control, "
-                    "Morphemes and Combinations, Word Flow and Cadence, Sentence Rhythm and Shift Discipline, to Grandmaster Precision - "
-                    "you have attained true neuromuscular flow. Your hands operate with effortless economy, striking keys at 72+ WPM "
-                    "with 98%+ precision across complex alphanumeric prose, punctuation, and code syntax. As Aristotle observed: "
-                    "'We are what we repeatedly do. Excellence, then, is not an act, but a habit.' Every stroke, every word, and every "
-                    "sentence typed across these 4,200 lessons has permanently refined your tactile intuition. "
-                    "Congratulations, Grandmaster Typist: you have graduated to the pinnacle of keyboard mastery."
-                )
-            else:
-                assembled = []
-                curr_len = 0
-                attempts = 0
-                
-                while curr_len < target_min or " ".join(assembled) in seen_texts:
-                    cl = BASE_CLAUSES[(clause_idx + attempts) % num_clauses]
-                    assembled.append(cl)
-                    curr_len = sum(len(c) + 1 for c in assembled)
-                    attempts += 1
-                    if curr_len > target_max and len(assembled) > 1:
-                        break
-                
-                clause_idx = (clause_idx + len(assembled)) % num_clauses
-                text = " ".join(assembled)
-            
-            # Validate character mappings
-            for ch in text:
-                if ch not in FINGER_MAP and ch.lower() not in FINGER_MAP:
-                    raise ValueError(f"Unmapped ANSI character '{ch}' in Stage 7 Level {level_num}")
-            
+                p_count = 3
+
+            paragraphs = []
+            for _ in range(p_count):
+                p = PROSE_PARAGRAPHS[p_idx % len(PROSE_PARAGRAPHS)]
+                p_idx += 1
+                paragraphs.append(p)
+
+            text = " ".join(paragraphs)
+
+            # Uniqueness check
+            variant = 1
+            base_text = text
+            while text in seen_texts:
+                extra = f"Practice interval {variant}: sustained cadence remains the hallmark of true typing fluency."
+                text = f"{base_text} {extra}"
+                variant += 1
             seen_texts.add(text)
-            
-            is_assessment = (lesson_in_unit == 20)
-            if level_num == 600:
-                title = "Level 600: Grandmaster Capstone Final Graduation"
-                objective = "Culminate your complete 4,200-level Academy journey with sustained 72+ WPM speed and 98%+ accuracy."
+
+            for ch in text:
+                if ch not in ALLOWED:
+                    raise ValueError(f"Illegal character '{ch}' in Stage 7 Level {level_num}")
+
+            is_assessment = (l_in_u == 10)
+            is_milestone = is_assessment and (unit_num % 10 == 0)
+
+            if level_num == 700:
+                title = "Level 700: Grandmaster Cadence & Flow Capstone Examination"
+                obj = "Graduate from Stage 7 with flawless 60+ WPM rhythm and metronomic keystroke cadence across extended prose."
+            elif is_milestone:
+                title = f"Unit {unit_num} Milestone: {unit_label} Examination"
+                obj = f"Comprehensive milestone verification of {unit_label.lower()} across multi-paragraph text."
             elif is_assessment:
-                title = f"Unit {unit_idx} Precision & Grandmaster Assessment Benchmark"
-                objective = f"Validate high-velocity technical typing precision and code syntax mastery across {unit_label}."
+                title = f"Unit {unit_num} Assessment: {unit_label} Benchmark"
+                obj = f"Verify consistent cadence and accuracy across {unit_label.lower()}."
             else:
-                title = f"{unit_label} Drill {lesson_in_unit}"
-                objective = f"Sustain high-velocity neuromuscular flow (62-72 WPM) with extreme accuracy across {', '.join(target_keys)}."
-            
+                title = f"{unit_label}: Cadence Drill {l_in_u}"
+                obj = f"Master rhythmic word flow and eliminate pause delays for {', '.join(target_keys)}."
+
             lesson = build_lesson(
                 stage_id=STAGE_ID,
                 stage_title=STAGE_TITLE,
                 level_num=level_num,
-                unit_num=unit_idx,
+                unit_num=unit_num,
                 unit_label=unit_label,
-                lesson_in_unit=lesson_in_unit,
+                lesson_in_unit=l_in_u,
                 title=title,
-                objective=objective,
+                objective=obj,
                 text=text,
                 target_keys=target_keys,
                 home_keys=HOME_KEYS,
-                skills=skills,
+                skills=skills
             )
             lessons.append(lesson)
-            
-    assert len(lessons) == 600, f"Expected 600 lessons for Stage 7, got {len(lessons)}"
-    assert len(seen_texts) == 600, f"Expected 600 unique texts for Stage 7, got {len(seen_texts)}"
+
+    assert len(lessons) == 700, f"Stage 7 must have exactly 700 lessons, got {len(lessons)}"
     return lessons

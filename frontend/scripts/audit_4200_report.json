@@ -6,40 +6,40 @@
       "stageId": 1,
       "stageTitle": "Home Row Foundations",
       "lessonCount": 600,
-      "minLength": 26,
-      "maxLength": 601,
-      "avgLength": 238.0,
+      "minLength": 39,
+      "maxLength": 643,
+      "avgLength": 269.2,
       "minWpm": 20,
       "maxWpm": 28,
       "minAccuracy": 92,
       "maxAccuracy": 94,
       "bands": {
-        "L1-L50_avgLen": 44.2,
-        "L51-L150_avgLen": 87.2,
-        "L151-L300_avgLen": 149.9,
-        "L301-L450_avgLen": 282.8,
-        "L451-L580_avgLen": 424.2,
-        "L581-L600_avgLen": 591.0
+        "L1-L50_avgLen": 48.8,
+        "L51-L150_avgLen": 116.2,
+        "L151-L300_avgLen": 182.0,
+        "L301-L450_avgLen": 316.8,
+        "L451-L580_avgLen": 462.6,
+        "L581-L600_avgLen": 625.7
       }
     },
     "2": {
       "stageId": 2,
       "stageTitle": "Top Row Control",
       "lessonCount": 600,
-      "minLength": 31,
-      "maxLength": 637,
-      "avgLength": 266.7,
+      "minLength": 39,
+      "maxLength": 813,
+      "avgLength": 291.5,
       "minWpm": 26,
       "maxWpm": 36,
       "minAccuracy": 93,
       "maxAccuracy": 95,
       "bands": {
-        "L1-L50_avgLen": 55.8,
-        "L51-L150_avgLen": 113.3,
-        "L151-L300_avgLen": 178.8,
-        "L301-L450_avgLen": 316.5,
-        "L451-L580_avgLen": 455.9,
-        "L581-L600_avgLen": 617.1
+        "L1-L50_avgLen": 51.6,
+        "L51-L150_avgLen": 90.1,
+        "L151-L300_avgLen": 212.7,
+        "L301-L450_avgLen": 345.3,
+        "L451-L580_avgLen": 518.0,
+        "L581-L600_avgLen": 613.4
       }
     },
     "3": {

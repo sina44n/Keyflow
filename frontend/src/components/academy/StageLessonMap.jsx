@@ -43,7 +43,7 @@ export const StageLessonMap = ({ stageId, onSelectLesson }) => {
       <div className="card-panel p-5 space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">Stage {stageId} of 7</div>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">Stage {stageId} of 10</div>
             <h2 className="text-lg font-bold text-[var(--text-primary)]">{stageMeta.title}</h2>
           </div>
           <div className="text-right">

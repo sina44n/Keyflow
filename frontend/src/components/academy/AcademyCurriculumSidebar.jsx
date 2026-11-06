@@ -20,7 +20,7 @@ export const AcademyCurriculumSidebar = ({
   unlockedUnitCount = 1,
 }) => {
   const units = unitsData.length > 0 ? unitsData : [];
-  const totalUnits = units.length || 30;
+  const totalUnits = units.length || 70;
 
   return (
     <aside
@@ -45,7 +45,7 @@ export const AcademyCurriculumSidebar = ({
         {units.map((u) => {
           const isSelected = u.unitNumber === activeUnit;
           const isUnlocked = u.unitNumber <= unlockedUnitCount;
-          const defaultTotal = u.lessonsCount || 20;
+          const defaultTotal = u.lessonsCount || 10;
           const progress = unitProgress[u.unitNumber] || { completed: false, count: 0, total: defaultTotal };
           const completedRatio = Math.min(1, (progress.count || 0) / (progress.total || defaultTotal));
 

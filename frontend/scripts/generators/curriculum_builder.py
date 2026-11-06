@@ -1,6 +1,8 @@
 """
-Curriculum Builder Utilities for KEYFLOW 4,200 Masterpiece Curriculum
-Provides shared helpers, validation, and length scaling across all 7 stages.
+Curriculum Builder Utilities for KEYFLOW 7,000 Masterpiece Curriculum
+(10 Stages x 70 Units x 10 Levels = 7,000 Real, Pedagogical Lessons)
+
+Provides shared helpers, validation, and length scaling across all 10 stages.
 """
 
 # Standard ANSI finger map
@@ -30,71 +32,85 @@ FINGER_MAP = {
     '[': 'right-pinky', '{': 'right-pinky', ']': 'right-pinky', '}': 'right-pinky',
     '\\': 'right-pinky', '|': 'right-pinky', ';': 'right-pinky', ':': 'right-pinky',
     "'": 'right-pinky', '"': 'right-pinky', '/': 'right-pinky', '?': 'right-pinky',
+    '—': 'right-pinky',
 }
 
 def get_target_wpm(stage_id, level_num):
-    """Calculates progressive target WPM from beginner to master."""
+    """Calculates progressive target WPM from beginner to expert grandmaster."""
     base_wpms = {
-        1: 20,
-        2: 26,
+        1: 15,
+        2: 25,
         3: 32,
         4: 38,
-        5: 46,
-        6: 52,
-        7: 60,
+        5: 42,
+        6: 46,
+        7: 52,
+        8: 60,
+        9: 68,
+        10: 75,
     }
     max_wpms = {
-        1: 28,
-        2: 36,
-        3: 42,
-        4: 50,
-        5: 58,
-        6: 64,
-        7: 72,
+        1: 24,
+        2: 34,
+        3: 40,
+        4: 46,
+        5: 50,
+        6: 55,
+        7: 62,
+        8: 72,
+        9: 80,
+        10: 95,
     }
     base = base_wpms.get(stage_id, 20)
     top = max_wpms.get(stage_id, 30)
-    # Smooth progression over 600 levels
-    progress = (level_num - 1) / 599.0
+    progress = max(0.0, min(1.0, (level_num - 1) / 699.0))
     return int(round(base + (top - base) * progress))
 
 def get_target_accuracy(stage_id, level_num):
-    """Calculates progressive target accuracy."""
+    """Calculates progressive target accuracy per pedagogical specifications."""
     base_acc = {
-        1: 92,
-        2: 93,
-        3: 93,
-        4: 94,
-        5: 95,
-        6: 95,
-        7: 96,
+        1: 75,
+        2: 85,
+        3: 88,
+        4: 90,
+        5: 90,
+        6: 91,
+        7: 92,
+        8: 93,
+        9: 94,
+        10: 95,
     }
     max_acc = {
-        1: 94,
-        2: 95,
-        3: 95,
-        4: 96,
-        5: 96,
-        6: 97,
-        7: 98,
+        1: 85,
+        2: 88,
+        3: 90,
+        4: 92,
+        5: 92,
+        6: 93,
+        7: 94,
+        8: 95,
+        9: 96,
+        10: 97,
     }
-    base = base_acc.get(stage_id, 92)
-    top = max_acc.get(stage_id, 96)
-    progress = (level_num - 1) / 599.0
+    base = base_acc.get(stage_id, 80)
+    top = max_acc.get(stage_id, 95)
+    progress = max(0.0, min(1.0, (level_num - 1) / 699.0))
     return int(round(base + (top - base) * progress))
 
 def get_difficulty(stage_id, level_num):
-    """Returns pedagogical difficulty level."""
+    """Returns pedagogical difficulty level classification."""
     if stage_id == 1:
-        return 'beginner' if level_num <= 400 else 'intermediate'
+        return 'beginner'
     elif stage_id in [2, 3]:
-        return 'intermediate' if level_num <= 500 else 'advanced'
+        return 'beginner' if level_num <= 350 else 'intermediate'
     elif stage_id in [4, 5]:
-        return 'intermediate' if level_num <= 200 else ('advanced' if level_num <= 500 else 'expert')
-    elif stage_id == 6:
-        return 'advanced' if level_num <= 400 else 'expert'
+        return 'intermediate'
+    elif stage_id in [6, 7]:
+        return 'intermediate' if level_num <= 350 else 'advanced'
+    elif stage_id in [8, 9]:
+        return 'advanced'
     else:
-        return 'advanced' if level_num <= 200 else 'expert'
+        return 'expert'
 
 def extract_finger_map(text):
     """Extracts finger mappings for all characters in the text."""
@@ -108,20 +124,22 @@ def extract_finger_map(text):
 
 def build_lesson(stage_id, stage_title, level_num, unit_num, unit_label, lesson_in_unit,
                  title, objective, text, target_keys, home_keys, skills):
-    """Constructs a fully populated, standard Lesson dictionary."""
-    is_assessment = (lesson_in_unit == 20)
-    is_milestone = is_assessment and (unit_num in [5, 10, 15, 20, 25, 30])
+    """Constructs a fully populated, standard Lesson dictionary for 10-level units."""
+    # Lesson 10 of every unit is the Unit Assessment
+    is_assessment = (lesson_in_unit == 10)
+    # Milestone assessments occur at units 10, 20, 30, 40, 50, 60, 70
+    is_milestone = is_assessment and (unit_num % 10 == 0)
     wpm = get_target_wpm(stage_id, level_num)
     acc = get_target_accuracy(stage_id, level_num)
     diff = get_difficulty(stage_id, level_num)
     
-    # Calculate estimated seconds (assume words per minute typing pace + buffer)
+    # Calculate estimated seconds based on target pace
     word_count = max(1, len(text.split()))
     estimated_seconds = max(30, int(round((word_count / max(10, wpm * 0.7)) * 60)))
     
     stable_id = f"S{stage_id}-L{str(level_num).zfill(3)}"
     prereq_level = level_num - 1 if level_num > 1 else None
-    prereq_id = f"S{stage_id}-L{str(level_num - 1).zfill(3)}" if level_num > 1 else (f"S{stage_id - 1}-L600" if stage_id > 1 else None)
+    prereq_id = f"S{stage_id}-L{str(level_num - 1).zfill(3)}" if level_num > 1 else (f"S{stage_id - 1}-L700" if stage_id > 1 else None)
     
     guidance = (
         f"Stage {stage_id} — Unit {str(unit_num).zfill(2)}: {unit_label}. "

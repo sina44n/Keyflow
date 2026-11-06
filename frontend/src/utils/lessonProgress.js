@@ -1,14 +1,15 @@
 /**
- * KEYFLOW — Lesson-Level Progress & Progression Manager (4,200 Levels)
+ * KEYFLOW — Lesson-Level Progress & Progression Manager (7,000 Levels)
  * ======================================================================
  * Tracks user progress, unlock gates, star ratings, and performance metrics
- * across all 7 independent stages (600 levels per stage = 4,200 total levels).
+ * across all 10 independent stages (700 levels per stage = 7,000 total levels).
  * 
  * Guarantees:
  * 1. Strict stage and level isolation (Stage 2 Level 1 never collides with Stage 1 Level 1).
- * 2. Unambiguous stable keying (S1-L001 to S7-L600).
- * 3. Automatic progression across lessons (N -> N+1) and stages (S-L600 -> S+1-L001).
+ * 2. Unambiguous stable keying (S1-L001 to S10-L700).
+ * 3. Automatic progression across lessons (N -> N+1) and stages (S-L700 -> S+1-L001).
  * 4. Zero artificial statistics and full preservation of existing records.
+ * 5. Three distinct learning paths: Guided Sequential, Placement Access, and Manual Self-Paced.
  */
 
 function getInitialUserId() {
@@ -66,9 +67,13 @@ const DEFAULT_STATE = {
   // lesson progress: key = "S{stage}-L{level}" and "s{stage}_l{level}" => { completed, bestWpm, bestAccuracy, stars, attempts, completedAt }
   lessons: {},
   // highest level reached per stage: stageId => levelNum
-  stageProgress: { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 },
+  stageProgress: { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 },
   // unlocked stages: array of stage IDs [1, 2, ...]
   unlockedStages: [1],
+  // stage access types: { 1: 'guided_unlock', ... }
+  stageAccessTypes: { 1: 'guided_unlock' },
+  // full-stage unlocked levels for manual exploration: { [stageId]: true }
+  unlockedLevelsAll: {},
   // overall Academy completion flag
   academyCompleted: false,
   // keyboard guide preference
@@ -87,15 +92,22 @@ function loadState() {
         lessons: {},
         stageProgress: { ...DEFAULT_STATE.stageProgress },
         unlockedStages: [1],
+        stageAccessTypes: { 1: 'guided_unlock' },
+        unlockedLevelsAll: {},
       };
     }
     const parsed = JSON.parse(raw);
     return {
       lessons: parsed.lessons || {},
-      stageProgress: parsed.stageProgress || { ...DEFAULT_STATE.stageProgress },
+      stageProgress: {
+        ...DEFAULT_STATE.stageProgress,
+        ...(parsed.stageProgress || {}),
+      },
       unlockedStages: Array.isArray(parsed.unlockedStages) && parsed.unlockedStages.length > 0
         ? parsed.unlockedStages
         : [1],
+      stageAccessTypes: parsed.stageAccessTypes || { 1: 'guided_unlock' },
+      unlockedLevelsAll: parsed.unlockedLevelsAll || {},
       academyCompleted: Boolean(parsed.academyCompleted),
       keyboardGuide: parsed.keyboardGuide !== undefined ? parsed.keyboardGuide : true,
       handGuide: parsed.handGuide !== undefined ? parsed.handGuide : true,
@@ -106,6 +118,8 @@ function loadState() {
       lessons: {},
       stageProgress: { ...DEFAULT_STATE.stageProgress },
       unlockedStages: [1],
+      stageAccessTypes: { 1: 'guided_unlock' },
+      unlockedLevelsAll: {},
     };
   }
 }
@@ -147,17 +161,21 @@ export function syncLessonProgressFromBackend(backendSummary) {
 
   if (backendSummary.stageProgress) {
     state.stageProgress = {
-      1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0,
+      ...DEFAULT_STATE.stageProgress,
       ...backendSummary.stageProgress,
     };
   } else {
-    state.stageProgress = { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 };
+    state.stageProgress = { ...DEFAULT_STATE.stageProgress };
   }
 
   if (Array.isArray(backendSummary.unlockedStages) && backendSummary.unlockedStages.length > 0) {
     state.unlockedStages = [...backendSummary.unlockedStages].sort((a, b) => a - b);
   } else {
     state.unlockedStages = [1];
+  }
+
+  if (backendSummary.stageAccessTypes) {
+    state.stageAccessTypes = { ...state.stageAccessTypes, ...backendSummary.stageAccessTypes };
   }
 
   saveState(state);
@@ -218,8 +236,9 @@ export function getLessonProgress() {
 /**
  * Checks whether a specific lesson (stageId, lessonNum) is unlocked.
  * Stage 1 Level 1 is always unlocked by default.
- * Level N unlocks when Level N - 1 within that stage is completed.
- * Stage S Level 1 unlocks when Stage S - 1 Level 600 is completed.
+ * In Manual Self-Paced mode, all 700 levels of the unlocked stage are accessible.
+ * In Guided / Placement mode, Level N unlocks when Level N - 1 within that stage is completed.
+ * Stage S Level 1 unlocks when Stage S is in unlockedStages or Stage S - 1 Level 700 is completed.
  */
 export function isLessonUnlocked(stageId, lessonNum) {
   const sId = parseInt(stageId, 10) || 1;
@@ -228,6 +247,11 @@ export function isLessonUnlocked(stageId, lessonNum) {
 
   // Stage 1 Level 1 is always unlocked
   if (sId === 1 && lNum === 1) return true;
+
+  // Path 03: If stage is unlocked for manual self-paced exploration, all levels in it are unlocked
+  if (state.unlockedLevelsAll && state.unlockedLevelsAll[sId]) {
+    return true;
+  }
 
   // Check if this specific lesson is already completed
   const stableKey = `S${sId}-L${String(lNum).padStart(3, '0')}`;
@@ -251,14 +275,14 @@ export function isLessonUnlocked(stageId, lessonNum) {
   }
 
   // If lNum === 1 for stage sId > 1:
-  // Unlocked if stage is in unlockedStages OR previous stage final level (600) is completed
+  // Unlocked if stage is in unlockedStages OR previous stage final level (700) is completed
   if (sId > 1 && lNum === 1) {
     if (state.unlockedStages.includes(sId)) {
       return true;
     }
     const prevStageId = sId - 1;
-    const prevFinalStable = `S${prevStageId}-L600`;
-    const prevFinalDirect = `s${prevStageId}_l600`;
+    const prevFinalStable = `S${prevStageId}-L700`;
+    const prevFinalDirect = `s${prevStageId}_l700`;
     if (state.lessons[prevFinalStable]?.completed || state.lessons[prevFinalDirect]?.completed) {
       return true;
     }
@@ -268,7 +292,7 @@ export function isLessonUnlocked(stageId, lessonNum) {
 }
 
 /**
- * Checks whether an entire stage (1 through 7) is unlocked.
+ * Checks whether an entire stage (1 through 10) is unlocked.
  */
 export function isStageUnlocked(stageId) {
   const sId = parseInt(stageId, 10) || 1;
@@ -276,11 +300,61 @@ export function isStageUnlocked(stageId) {
   const state = loadState();
   if (state.unlockedStages.includes(sId)) return true;
 
-  // Check if Level 600 of previous stage is completed
+  // Check if Level 700 of previous stage is completed
   const prevStageId = sId - 1;
-  const prevFinalStable = `S${prevStageId}-L600`;
-  const prevFinalDirect = `s${prevStageId}_l600`;
+  const prevFinalStable = `S${prevStageId}-L700`;
+  const prevFinalDirect = `s${prevStageId}_l700`;
   return Boolean(state.lessons[prevFinalStable]?.completed || state.lessons[prevFinalDirect]?.completed);
+}
+
+/**
+ * Path 03: Manual Self-Paced Unlock ("Explore Levels").
+ * Unlocks all 700 levels of the selected stage independently.
+ * DOES NOT fabricate lesson completion, attempts, or stars.
+ */
+export function unlockStageManual(stageId) {
+  const sId = parseInt(stageId, 10) || 1;
+  const state = loadState();
+
+  if (!state.unlockedStages.includes(sId)) {
+    state.unlockedStages.push(sId);
+    state.unlockedStages.sort((a, b) => a - b);
+  }
+
+  if (!state.stageAccessTypes) state.stageAccessTypes = {};
+  state.stageAccessTypes[sId] = 'self_paced';
+
+  if (!state.unlockedLevelsAll) state.unlockedLevelsAll = {};
+  state.unlockedLevelsAll[sId] = true;
+
+  saveState(state);
+  return state;
+}
+
+/**
+ * Path 02: Placement Test Access Grant.
+ * Unlocks stages 1 through recommendedStageId.
+ * Sets access type to 'placement_unlock'.
+ * DOES NOT fabricate lesson completion, attempts, or stars.
+ */
+export function applyPlacementAccess(recommendedStageId) {
+  const targetStage = Math.max(1, Math.min(10, parseInt(recommendedStageId, 10) || 1));
+  const state = loadState();
+
+  if (!state.stageAccessTypes) state.stageAccessTypes = {};
+  for (let s = 1; s <= targetStage; s++) {
+    if (!state.unlockedStages.includes(s)) {
+      state.unlockedStages.push(s);
+    }
+    if (!state.stageAccessTypes[s]) {
+      state.stageAccessTypes[s] = 'placement_unlock';
+    }
+  }
+  state.stageAccessTypes[targetStage] = 'placement_unlock';
+  state.unlockedStages.sort((a, b) => a - b);
+
+  saveState(state);
+  return state;
 }
 
 /**
@@ -301,13 +375,13 @@ export function getLessonRecord(stageId, lessonNum) {
 }
 
 /**
- * Counts completed lessons in a specific stage (out of 600).
+ * Counts completed lessons in a specific stage (out of 700).
  */
 export function getStageCompletedCount(stageId) {
   const sId = parseInt(stageId, 10) || 1;
   const state = loadState();
   let count = 0;
-  for (let l = 1; l <= 600; l++) {
+  for (let l = 1; l <= 700; l++) {
     const stableKey = `S${sId}-L${String(l).padStart(3, '0')}`;
     const directKey = `s${sId}_l${l}`;
     if (
@@ -329,7 +403,7 @@ export function getNextRecommendedLesson(preferredStageId = 1) {
   const state = loadState();
 
   // First check preferred stage
-  for (let l = 1; l <= 600; l++) {
+  for (let l = 1; l <= 700; l++) {
     const stableKey = `S${sId}-L${String(l).padStart(3, '0')}`;
     const directKey = `s${sId}_l${l}`;
     const isDone = Boolean(
@@ -343,9 +417,9 @@ export function getNextRecommendedLesson(preferredStageId = 1) {
   }
 
   // Then check other unlocked stages in order
-  for (let s = 1; s <= 7; s++) {
+  for (let s = 1; s <= 10; s++) {
     if (s === sId || !isStageUnlocked(s)) continue;
-    for (let l = 1; l <= 600; l++) {
+    for (let l = 1; l <= 700; l++) {
       const stableKey = `S${s}-L${String(l).padStart(3, '0')}`;
       const directKey = `s${s}_l${l}`;
       const isDone = Boolean(
@@ -359,37 +433,27 @@ export function getNextRecommendedLesson(preferredStageId = 1) {
     }
   }
 
-  // All 4,200 lessons completed: return final capstone
-  return { stageId: 7, lessonNum: 600, id: 'S7-L600' };
+  // All 7,000 lessons completed: return final capstone
+  return { stageId: 10, lessonNum: 700, id: 'S10-L700' };
 }
 
 /**
- * Computes star rating (0 to 5) based on accuracy and WPM thresholds.
+ * Computes star rating (0 to 3) based on accuracy and WPM thresholds.
+ * Strictly pedagogical: 1 star = baseline pass, 2 stars = strong pass, 3 stars = mastery.
  */
 export function calculateStars(accuracy, targetAccuracy, wpm, targetWpm) {
   if (accuracy < targetAccuracy || wpm < targetWpm) {
     return 0; // Failed minimum threshold
   }
-  // 5 Stars: Elite performance (99%+ acc & 25%+ speed, or 98%+ with 30%+)
-  if ((accuracy >= 99 && wpm >= targetWpm * 1.25) || (accuracy >= 98 && wpm >= targetWpm * 1.3)) {
-    return 5;
-  }
-  // 4 Stars: High mastery (97%+ acc & 15%+ speed)
-  if (accuracy >= 97 && wpm >= targetWpm * 1.15) {
-    return 4;
-  }
-  // 3 Stars: Solid pass (95%+ acc & 10%+ speed)
-  if ((accuracy >= 95 && wpm >= targetWpm * 1.1) || (accuracy >= 98 && wpm >= targetWpm)) {
+  // 3 Stars: Target WPM + 10 and Target Accuracy + 4%
+  if (wpm >= targetWpm + 10 && accuracy >= Math.min(100, targetAccuracy + 4)) {
     return 3;
   }
-  // 2 Stars: Good pass
-  if (
-    (accuracy >= targetAccuracy + 2 && wpm >= targetWpm) ||
-    (accuracy >= targetAccuracy && wpm >= targetWpm * 1.05)
-  ) {
+  // 2 Stars: Target WPM + 5 and Target Accuracy + 2%
+  if (wpm >= targetWpm + 5 && accuracy >= Math.min(100, targetAccuracy + 2)) {
     return 2;
   }
-  // 1 Star: Passed minimum standard
+  // 1 Star: Passed minimum baseline
   return 1;
 }
 
@@ -458,14 +522,16 @@ export function recordLessonResult(stageId, lessonNum, options = {}) {
   // Update highest level reached in stage
   state.stageProgress[sId] = Math.max(state.stageProgress[sId] || 0, lNum);
 
-  // If passed Level 600 of a stage, unlock the next stage
-  if (passed && lNum >= 600) {
-    if (sId < 7) {
+  // If passed Level 700 of a stage, unlock the next stage
+  if (passed && lNum >= 700) {
+    if (sId < 10) {
       const nextStage = sId + 1;
       if (!state.unlockedStages.includes(nextStage)) {
         state.unlockedStages.push(nextStage);
       }
-    } else if (sId === 7) {
+      if (!state.stageAccessTypes) state.stageAccessTypes = {};
+      state.stageAccessTypes[nextStage] = 'guided_unlock';
+    } else if (sId === 10) {
       state.academyCompleted = true;
     }
   }
@@ -492,20 +558,20 @@ export function recordLessonResult(stageId, lessonNum, options = {}) {
 }
 
 /**
- * Computes dashboard statistics for the Academy (4,200 lessons total).
+ * Computes dashboard statistics for the Academy (7,000 lessons total).
  */
 export function getAcademyDashboardStats(stageId = 1) {
   const sId = parseInt(stageId, 10) || 1;
   const state = loadState();
 
   const stageDone = getStageCompletedCount(sId);
-  const stagePercent = Math.round((stageDone / 600) * 100);
+  const stagePercent = Math.round((stageDone / 700) * 100);
 
-  // Count genuinely completed units in current stage (all 20 lessons completed)
+  // Count genuinely completed units in current stage (all 10 lessons completed)
   let stageCompletedUnits = 0;
-  for (let u = 1; u <= 30; u++) {
-    const startL = (u - 1) * 20 + 1;
-    const endL = u * 20;
+  for (let u = 1; u <= 70; u++) {
+    const startL = (u - 1) * 10 + 1;
+    const endL = u * 10;
     let unitLessonsDone = 0;
     for (let l = startL; l <= endL; l++) {
       const stableKey = `S${sId}-L${String(l).padStart(3, '0')}`;
@@ -515,7 +581,7 @@ export function getAcademyDashboardStats(stageId = 1) {
         unitLessonsDone++;
       }
     }
-    if (unitLessonsDone >= 20) {
+    if (unitLessonsDone >= 10) {
       stageCompletedUnits++;
     }
   }
@@ -525,8 +591,8 @@ export function getAcademyDashboardStats(stageId = 1) {
   let accuracyCount = 0;
   const completionDates = new Set();
 
-  for (let s = 1; s <= 7; s++) {
-    for (let l = 1; l <= 600; l++) {
+  for (let s = 1; s <= 10; s++) {
+    for (let l = 1; l <= 700; l++) {
       const stableKey = `S${s}-L${String(l).padStart(3, '0')}`;
       const directKey = `s${s}_l${l}`;
       const rec = state.lessons[stableKey] || state.lessons[directKey] || (s === 1 ? state.lessons[`level_${l}`] : null);
@@ -580,8 +646,8 @@ export function getAcademyDashboardStats(stageId = 1) {
     }
   }
 
-  // Unit-based progress for the 30-unit curriculum
-  const unitProgressPercent = Math.round((stageCompletedUnits / 30) * 100);
+  // Unit-based progress for the 70-unit curriculum
+  const unitProgressPercent = Math.round((stageCompletedUnits / 70) * 100);
   const avgAccuracy = accuracyCount > 0 ? Math.round(totalAccuracySum / accuracyCount) : 0;
   const accuracyChange = accuracyCount > 1 ? '+1.5%' : null;
 
@@ -589,10 +655,10 @@ export function getAcademyDashboardStats(stageId = 1) {
     overallProgress: unitProgressPercent,
     stageProgress: stagePercent,
     completedUnits: stageCompletedUnits,
-    totalUnits: 30,
+    totalUnits: 70,
     completedLessons: stageDone,
-    totalStageLessons: 600,
-    totalAcademyLessons: 4200,
+    totalStageLessons: 700,
+    totalAcademyLessons: 7000,
     totalAcademyCompleted: totalDone,
     streak,
     accuracy: avgAccuracy,
@@ -603,8 +669,10 @@ export function getAcademyDashboardStats(stageId = 1) {
 export function resetAllProgress() {
   saveState({
     lessons: {},
-    stageProgress: { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0 },
+    stageProgress: { 1: 1, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0 },
     unlockedStages: [1],
+    stageAccessTypes: { 1: 'guided_unlock' },
+    unlockedLevelsAll: {},
     academyCompleted: false,
     keyboardGuide: true,
     handGuide: true,

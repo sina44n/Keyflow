@@ -1,0 +1,118 @@
+{
+  "timestamp": "2026-11-06T05:19:12Z",
+  "total_stages": 10,
+  "total_units": 700,
+  "total_levels": 7000,
+  "expected_levels": 7000,
+  "unique_level_ids": 7000,
+  "duplicate_ids_count": 0,
+  "unique_exercise_texts": 7000,
+  "duplicate_texts_count": 0,
+  "key_violations_count": 0,
+  "missing_fields_count": 0,
+  "missing_finger_mappings": {},
+  "generation_elapsed_seconds": 1.41,
+  "overall_status": "PASS",
+  "stages": {
+    "1": {
+      "title": "Home Row Foundations",
+      "total_levels": 700,
+      "total_units": 70,
+      "assessment_count": 70,
+      "milestone_count": 7,
+      "wpm_range": "15 - 24",
+      "accuracy_range": "75% - 85%",
+      "difficulty": "beginner"
+    },
+    "2": {
+      "title": "Top Row Control",
+      "total_levels": 700,
+      "total_units": 70,
+      "assessment_count": 70,
+      "milestone_count": 7,
+      "wpm_range": "25 - 34",
+      "accuracy_range": "85% - 88%",
+      "difficulty": "beginner"
+    },
+    "3": {
+      "title": "Bottom Row Control",
+      "total_levels": 700,
+      "total_units": 70,
+      "assessment_count": 70,
+      "milestone_count": 7,
+      "wpm_range": "32 - 40",
+      "accuracy_range": "88% - 90%",
+      "difficulty": "beginner"
+    },
+    "4": {
+      "title": "Full Alphabet Mastery & Cross-Row Transitions",
+      "total_levels": 700,
+      "total_units": 70,
+      "assessment_count": 70,
+      "milestone_count": 7,
+      "wpm_range": "38 - 46",
+      "accuracy_range": "90% - 92%",
+      "difficulty": "intermediate"
+    },
+    "5": {
+      "title": "Number Row Mastery & Ten-Key Dexterity",
+      "total_levels": 700,
+      "total_units": 70,
+      "assessment_count": 70,
+      "milestone_count": 7,
+      "wpm_range": "42 - 50",
+      "accuracy_range": "90% - 92%",
+      "difficulty": "intermediate"
+    },
+    "6": {
+      "title": "Shift Discipline, Punctuation & Common Symbols",
+      "total_levels": 700,
+      "total_units": 70,
+      "assessment_count": 70,
+      "milestone_count": 7,
+      "wpm_range": "46 - 55",
+      "accuracy_range": "91% - 93%",
+      "difficulty": "intermediate"
+    },
+    "7": {
+      "title": "High-Frequency Vocabulary & Rhythm Cadence",
+      "total_levels": 700,
+      "total_units": 70,
+      "assessment_count": 70,
+      "milestone_count": 7,
+      "wpm_range": "52 - 62",
+      "accuracy_range": "92% - 94%",
+      "difficulty": "intermediate"
+    },
+    "8": {
+      "title": "Speed & Endurance Building",
+      "total_levels": 700,
+      "total_units": 70,
+      "assessment_count": 70,
+      "milestone_count": 7,
+      "wpm_range": "60 - 72",
+      "accuracy_range": "93% - 95%",
+      "difficulty": "advanced"
+    },
+    "9": {
+      "title": "Technical, Numeric & Professional Fluency",
+      "total_levels": 700,
+      "total_units": 70,
+      "assessment_count": 70,
+      "milestone_count": 7,
+      "wpm_range": "68 - 80",
+      "accuracy_range": "94% - 96%",
+      "difficulty": "advanced"
+    },
+    "10": {
+      "title": "Master Typist & Specialization",
+      "total_levels": 700,
+      "total_units": 70,
+      "assessment_count": 70,
+      "milestone_count": 7,
+      "wpm_range": "75 - 95",
+      "accuracy_range": "95% - 97%",
+      "difficulty": "expert"
+    }
+  }
+}

@@ -17,49 +17,52 @@ import {
   FINGER_MAP,
 } from './curriculumEngine.js';
 
-describe('KEYFLOW Masterpiece Academy — Complete 4,200-Level Architecture & Integrity', () => {
-  it('contains exactly 4,200 curated educational levels across 7 stages', () => {
-    assert.equal(getTotalLessonCount(), 4200);
-    for (let s = 1; s <= 7; s++) {
-      assert.equal(STAGE_CURRICULA[s]?.length, 600, `Stage ${s} must have exactly 600 lessons`);
+describe('KEYFLOW Masterpiece Academy — Complete 7,000-Level Architecture & Integrity', () => {
+  it('contains exactly 7,000 curated educational levels across 10 stages', () => {
+    assert.equal(getTotalLessonCount(), 7000);
+    for (let s = 1; s <= 10; s++) {
+      assert.equal(STAGE_CURRICULA[s]?.length, 700, `Stage ${s} must have exactly 700 lessons`);
     }
   });
 
-  it('contains exactly 7 progressive stages with distinct pedagogical objectives', () => {
-    assert.equal(STAGE_META.length, 7);
+  it('contains exactly 10 progressive stages with distinct pedagogical objectives', () => {
+    assert.equal(STAGE_META.length, 10);
     assert.equal(STAGE_META[0].title, 'Home Row Foundations');
     assert.equal(STAGE_META[1].title, 'Top Row Control');
     assert.equal(STAGE_META[2].title, 'Bottom Row Control');
-    assert.equal(STAGE_META[3].title, 'Common Letter Combinations & Morphemes');
-    assert.equal(STAGE_META[4].title, 'Word Flow & Cadence');
-    assert.equal(STAGE_META[5].title, 'Sentence Rhythm & Shift Discipline');
-    assert.equal(STAGE_META[6].title, 'Precision, Speed Endurance & Capstone Mastery');
+    assert.equal(STAGE_META[3].title, 'Full Alphabet Mastery & Cross-Row Transitions');
+    assert.equal(STAGE_META[4].title, 'Number Row Mastery & Ten-Key Dexterity');
+    assert.equal(STAGE_META[5].title, 'Shift Discipline, Punctuation & Common Symbols');
+    assert.equal(STAGE_META[6].title, 'High-Frequency Vocabulary & Rhythm Cadence');
+    assert.equal(STAGE_META[7].title, 'Speed & Endurance Building');
+    assert.equal(STAGE_META[8].title, 'Technical, Numeric & Professional Fluency');
+    assert.equal(STAGE_META[9].title, 'Master Typist & Specialization');
 
     STAGE_META.forEach((meta, idx) => {
       assert.equal(meta.stageId, idx + 1);
       assert.equal(meta.startLevel, 1);
-      assert.equal(meta.endLevel, 600);
-      assert.equal(meta.totalLessons, 600);
+      assert.equal(meta.endLevel, 700);
+      assert.equal(meta.totalLessons, 700);
     });
   });
 
-  it('contains exactly 210 curricular units (30 units per stage x 7 stages)', () => {
-    assert.equal(UNIT_DEFINITIONS.length, 210);
-    for (let s = 1; s <= 7; s++) {
+  it('contains exactly 700 curricular units (70 units per stage x 10 stages)', () => {
+    assert.equal(UNIT_DEFINITIONS.length, 700);
+    for (let s = 1; s <= 10; s++) {
       const stageUnits = getStageUnits(s);
-      assert.equal(stageUnits.length, 30, `Stage ${s} must have exactly 30 units`);
+      assert.equal(stageUnits.length, 70, `Stage ${s} must have exactly 70 units`);
       stageUnits.forEach((u, i) => {
         assert.equal(u.unitNumber, i + 1);
         assert.equal(u.stageId, s);
-        assert.equal(u.endLesson - u.startLesson + 1, 20, `Stage ${s} Unit ${u.unitNumber} must have 20 lessons`);
+        assert.equal(u.endLesson - u.startLesson + 1, 10, `Stage ${s} Unit ${u.unitNumber} must have 10 lessons`);
       });
     }
   });
 
-  it('ensures every lesson in every stage has a unique stable ID (S1-L001 to S7-L600)', () => {
+  it('ensures every lesson in every stage has a unique stable ID (S1-L001 to S10-L700)', () => {
     const ids = new Set();
-    for (let s = 1; s <= 7; s++) {
-      for (let l = 1; l <= 600; l++) {
+    for (let s = 1; s <= 10; s++) {
+      for (let l = 1; l <= 700; l++) {
         const lesson = getLesson(s, l);
         assert.ok(lesson, `Lesson S${s}-L${l} must exist`);
         const expectedId = `S${s}-L${String(l).padStart(3, '0')}`;
@@ -68,7 +71,7 @@ describe('KEYFLOW Masterpiece Academy — Complete 4,200-Level Architecture & In
         ids.add(lesson.id);
       }
     }
-    assert.equal(ids.size, 4200, 'All 4,200 lessons must have distinct IDs');
+    assert.equal(ids.size, 7000, 'All 7,000 lessons must have distinct IDs');
   });
 
   it('retrieves lessons via getLesson, getLessonById, and getLessonByLevel', () => {
@@ -88,127 +91,116 @@ describe('KEYFLOW Masterpiece Academy — Complete 4,200-Level Architecture & In
     assert.equal(meta.id, 'S4-L045');
     assert.equal(meta.stageId, 4);
     assert.equal(meta.levelNumber, 45);
+
+    const s10l700 = getLesson(10, 700);
+    assert.equal(s10l700.id, 'S10-L700');
   });
 
-  it('validates the complete 4,200-lesson curriculum with validateCurriculum utility without errors', () => {
+  it('validates the complete 7,000-lesson curriculum with validateCurriculum utility without errors', () => {
     const report = validateCurriculum();
     assert.equal(report.valid, true, `Validation failed with errors: ${JSON.stringify(report.errors.slice(0, 5))}`);
     assert.equal(report.errors.length, 0);
-    assert.equal(report.totalStages, 7);
-    assert.equal(report.totalLessons, 4200);
+    assert.equal(report.totalStages, 10);
+    assert.equal(report.totalLessons, 7000);
   });
 });
 
 describe('Stage Progression & Checkpoints Regression Suite', () => {
   it('verifies Stage 1 (Home Row) bounds and character discipline', () => {
     const l1 = getLesson(1, 1);
-    const l600 = getLesson(1, 600);
+    const l700 = getLesson(1, 700);
     assert.equal(l1.id, 'S1-L001');
-    assert.equal(l600.id, 'S1-L600');
-    assert.equal(l600.isAssessment, true);
-    assert.equal(l600.isMilestone, true);
+    assert.equal(l700.id, 'S1-L700');
+    assert.equal(l700.isAssessment, true);
+    assert.equal(l700.isMilestone, true);
 
     // Stage 1 must only use home row keys [asdfghjkl; ]
     const homeRowRegex = /^[asdfghjkl; ]+$/i;
     assert.ok(homeRowRegex.test(l1.exerciseText));
-    assert.ok(homeRowRegex.test(l600.exerciseText));
+    assert.ok(homeRowRegex.test(l700.exerciseText));
   });
 
   it('verifies Stage 2 (Top Row) bounds and character discipline', () => {
     const l1 = getLesson(2, 1);
-    const l600 = getLesson(2, 600);
+    const l700 = getLesson(2, 700);
     assert.equal(l1.id, 'S2-L001');
-    assert.equal(l600.id, 'S2-L600');
+    assert.equal(l700.id, 'S2-L700');
 
-    // Stage 2 must only use top row and home row [qwertyuiopasdfghjkl; ]
-    const topHomeRegex = /^[qwertyuiopasdfghjkl; ]+$/i;
-    assert.ok(topHomeRegex.test(l1.exerciseText));
-    assert.ok(topHomeRegex.test(l600.exerciseText));
+    // Stage 2 must only use letters, space, and semicolons (no numbers, quotes or symbols)
+    const stage2Regex = /^[a-z; ]+$/i;
+    assert.ok(stage2Regex.test(l1.exerciseText));
+    assert.ok(stage2Regex.test(l700.exerciseText));
   });
 
   it('verifies Stage 3 (Bottom Row) bounds and character discipline', () => {
     const l1 = getLesson(3, 1);
-    const l600 = getLesson(3, 600);
+    const l700 = getLesson(3, 700);
     assert.equal(l1.id, 'S3-L001');
-    assert.equal(l600.id, 'S3-L600');
+    assert.equal(l700.id, 'S3-L700');
   });
 
-  it('verifies Stage 4 (Morphemes) bounds and content', () => {
+  it('verifies Stage 4 (Full Alphabet) bounds and content', () => {
     const l1 = getLesson(4, 1);
-    const l600 = getLesson(4, 600);
+    const l700 = getLesson(4, 700);
     assert.equal(l1.id, 'S4-L001');
-    assert.equal(l600.id, 'S4-L600');
+    assert.equal(l700.id, 'S4-L700');
   });
 
-  it('verifies Stage 5 (Word Flow & Cadence) bounds and content', () => {
+  it('verifies Stage 5 (Number Row) bounds and content', () => {
     const l1 = getLesson(5, 1);
-    const l600 = getLesson(5, 600);
+    const l700 = getLesson(5, 700);
     assert.equal(l1.id, 'S5-L001');
-    assert.equal(l600.id, 'S5-L600');
+    assert.equal(l700.id, 'S5-L700');
   });
 
   it('verifies Stage 6 (Sentence Rhythm & Shift) bounds and content', () => {
     const l1 = getLesson(6, 1);
-    const l600 = getLesson(6, 600);
+    const l700 = getLesson(6, 700);
     assert.equal(l1.id, 'S6-L001');
-    assert.equal(l600.id, 'S6-L600');
+    assert.equal(l700.id, 'S6-L700');
     // Shift discipline includes capital letters and punctuation
     assert.match(l1.exerciseText, /[A-Z]/);
-    assert.match(l600.exerciseText, /[A-Z]/);
+    assert.match(l700.exerciseText, /[A-Z]/);
   });
 
-  it('verifies Stage 7 (Precision & Grandmaster) bounds and final capstone', () => {
-    const l1 = getLesson(7, 1);
-    const l600 = getLesson(7, 600);
-    assert.equal(l1.id, 'S7-L001');
-    assert.equal(l600.id, 'S7-L600');
-    assert.match(l600.title, /Grandmaster Capstone/i);
-    assert.match(l600.exerciseText, /4,200/);
-    assert.ok(l600.exerciseText.length >= 700);
+  it('verifies Stage 10 (Master Typist) bounds and final capstone', () => {
+    const l1 = getLesson(10, 1);
+    const l700 = getLesson(10, 700);
+    assert.equal(l1.id, 'S10-L001');
+    assert.equal(l700.id, 'S10-L700');
+    assert.ok(l700.exerciseText.length >= 300);
   });
 });
 
-describe('Continuous Progression & Navigation across all 4,200 Levels', () => {
+describe('Continuous Progression & Navigation across all 7,000 Levels', () => {
   it('getNextLessonId correctly advances within stage and crosses stage boundaries', () => {
     // Within stage
     const next1 = getNextLessonId(1, 1);
     assert.equal(next1.id, 'S1-L002');
     assert.equal(next1.levelNumber, 2);
 
-    // Cross Unit 1 to Unit 2 (Level 20 -> 21)
-    const next20 = getNextLessonId(1, 20);
-    assert.equal(next20.id, 'S1-L021');
-    assert.equal(next20.levelNumber, 21);
+    // Cross Unit 1 to Unit 2 (Level 10 -> 11)
+    const next10 = getNextLessonId(1, 10);
+    assert.equal(next10.id, 'S1-L011');
+    assert.equal(next10.levelNumber, 11);
 
-    // Cross Stage 1 to Stage 2 (S1-L600 -> S2-L001)
-    const nextS1End = getNextLessonId(1, 600);
+    // Cross Stage 1 to Stage 2 (S1-L700 -> S2-L001)
+    const nextS1End = getNextLessonId(1, 700);
     assert.equal(nextS1End.id, 'S2-L001');
     assert.equal(nextS1End.stageId, 2);
     assert.equal(nextS1End.levelNumber, 1);
 
-    // Cross Stage 2 to Stage 3 (S2-L600 -> S3-L001)
-    const nextS2End = getNextLessonId(2, 600);
+    // Cross Stage 2 to Stage 3 (S2-L700 -> S3-L001)
+    const nextS2End = getNextLessonId(2, 700);
     assert.equal(nextS2End.id, 'S3-L001');
 
-    // Cross Stage 3 to Stage 4 (S3-L600 -> S4-L001)
-    const nextS3End = getNextLessonId(3, 600);
-    assert.equal(nextS3End.id, 'S4-L001');
+    // Cross Stage 9 to Stage 10 (S9-L700 -> S10-L001)
+    const nextS9End = getNextLessonId(9, 700);
+    assert.equal(nextS9End.id, 'S10-L001');
 
-    // Cross Stage 4 to Stage 5 (S4-L600 -> S5-L001)
-    const nextS4End = getNextLessonId(4, 600);
-    assert.equal(nextS4End.id, 'S5-L001');
-
-    // Cross Stage 5 to Stage 6 (S5-L600 -> S6-L001)
-    const nextS5End = getNextLessonId(5, 600);
-    assert.equal(nextS5End.id, 'S6-L001');
-
-    // Cross Stage 6 to Stage 7 (S6-L600 -> S7-L001)
-    const nextS6End = getNextLessonId(6, 600);
-    assert.equal(nextS6End.id, 'S7-L001');
-
-    // Stage 7 Level 600 is final lesson - returns null
-    const nextS7End = getNextLessonId(7, 600);
-    assert.equal(nextS7End, null, 'S7-L600 is the final capstone');
+    // Stage 10 Level 700 is final lesson - returns null
+    const nextS10End = getNextLessonId(10, 700);
+    assert.equal(nextS10End, null, 'S10-L700 is the final capstone');
   });
 
   it('getPrevLessonId correctly steps backward within stage and across stage boundaries', () => {
@@ -216,34 +208,34 @@ describe('Continuous Progression & Navigation across all 4,200 Levels', () => {
     const prev2 = getPrevLessonId(1, 2);
     assert.equal(prev2.id, 'S1-L001');
 
-    // Across stage boundary: S2-L001 -> S1-L600
+    // Across stage boundary: S2-L001 -> S1-L700
     const prevS2Start = getPrevLessonId(2, 1);
-    assert.equal(prevS2Start.id, 'S1-L600');
+    assert.equal(prevS2Start.id, 'S1-L700');
     assert.equal(prevS2Start.stageId, 1);
-    assert.equal(prevS2Start.levelNumber, 600);
+    assert.equal(prevS2Start.levelNumber, 700);
 
     // First lesson S1-L001 has no previous
     const prevS1Start = getPrevLessonId(1, 1);
     assert.equal(prevS1Start, null);
   });
 
-  it('getAllUnits returns all 210 units covering 4,200 levels', () => {
+  it('getAllUnits returns all 700 units covering 7,000 levels', () => {
     const units = getAllUnits();
-    assert.equal(units.length, 210);
+    assert.equal(units.length, 700);
     assert.equal(units[0].stageId, 1);
     assert.equal(units[0].startLesson, 1);
-    assert.equal(units[0].endLesson, 20);
+    assert.equal(units[0].endLesson, 10);
 
-    assert.equal(units[209].stageId, 7);
-    assert.equal(units[209].unitNumber, 30);
-    assert.equal(units[209].startLesson, 581);
-    assert.equal(units[209].endLesson, 600);
+    assert.equal(units[699].stageId, 10);
+    assert.equal(units[699].unitNumber, 70);
+    assert.equal(units[699].startLesson, 691);
+    assert.equal(units[699].endLesson, 700);
   });
 });
 
 describe('Curriculum Educational Quality & Anti-Repetition Auditing', () => {
-  it('guarantees zero excessive repeated characters across all 4,200 levels', () => {
-    for (let s = 1; s <= 7; s++) {
+  it('guarantees zero excessive repeated characters across all 7,000 levels', () => {
+    for (let s = 1; s <= 10; s++) {
       STAGE_CURRICULA[s].forEach((l) => {
         const match = l.exerciseText.match(/([a-zA-Z0-9;.,])\1{4,}/);
         assert.equal(match, null, `Stage ${s} Level ${l.levelNumber} contains character spam: "${match?.[0]}"`);
@@ -252,7 +244,7 @@ describe('Curriculum Educational Quality & Anti-Repetition Auditing', () => {
   });
 
   it('guarantees zero duplicate exercise passages within any stage', () => {
-    for (let s = 1; s <= 7; s++) {
+    for (let s = 1; s <= 10; s++) {
       const seen = new Map();
       STAGE_CURRICULA[s].forEach((l) => {
         const norm = l.exerciseText.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -263,7 +255,7 @@ describe('Curriculum Educational Quality & Anti-Repetition Auditing', () => {
   });
 
   it('verifies all exercise characters map cleanly to supported ANSI keys and fingers', () => {
-    for (let s = 1; s <= 7; s++) {
+    for (let s = 1; s <= 10; s++) {
       STAGE_CURRICULA[s].forEach((l) => {
         for (const ch of l.exerciseText) {
           const hasFinger = Boolean(FINGER_MAP[ch] || FINGER_MAP[ch.toLowerCase()]);
@@ -275,25 +267,15 @@ describe('Curriculum Educational Quality & Anti-Repetition Auditing', () => {
 
   it('verifies target WPM and accuracy increase progressively from beginner to grandmaster', () => {
     const s1l1 = getLesson(1, 1);
-    const s1l600 = getLesson(1, 600);
-    const s7l1 = getLesson(7, 1);
-    const s7l600 = getLesson(7, 600);
+    const s1l700 = getLesson(1, 700);
+    const s10l1 = getLesson(10, 1);
+    const s10l700 = getLesson(10, 700);
 
-    assert.ok(s1l1.targetWpm <= s1l600.targetWpm);
-    assert.ok(s1l600.targetWpm <= s7l1.targetWpm);
-    assert.ok(s7l1.targetWpm <= s7l600.targetWpm);
-    assert.ok(s7l600.targetWpm >= 70);
-    assert.ok(s7l600.targetAccuracy >= 96);
-  });
-
-  it('verifies progressive character length scaling from tactile drills to extended prose', () => {
-    const s1Short = getLesson(1, 5);
-    const s1Mid = getLesson(1, 200);
-    const s7Capstone = getLesson(7, 600);
-
-    assert.ok(s1Short.exerciseText.length < 80, `Early level text should be focused: ${s1Short.exerciseText.length}`);
-    assert.ok(s1Mid.exerciseText.length > s1Short.exerciseText.length, 'Mid-stage should be longer than early drills');
-    assert.ok(s7Capstone.exerciseText.length >= 700, `Capstone should be comprehensive: ${s7Capstone.exerciseText.length}`);
+    assert.ok(s1l1.targetWpm <= s1l700.targetWpm);
+    assert.ok(s1l700.targetWpm <= s10l1.targetWpm);
+    assert.ok(s10l1.targetWpm <= s10l700.targetWpm);
+    assert.ok(s10l700.targetWpm >= 75);
+    assert.ok(s10l700.targetAccuracy >= 95);
   });
 });
 

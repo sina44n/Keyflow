@@ -1,12 +1,12 @@
 /**
  * KEYFLOW - Comprehensive Touch-Typing Curriculum Engine
  * ========================================================
- * Complete 4,200-Level Masterpiece Curriculum across 7 Stages
- * (7 Stages x 600 Levels = 4,200 real educational lessons).
+ * Complete 7,000-Level Masterpiece Curriculum across 10 Stages
+ * (10 Stages x 70 Units x 10 Levels = 7,000 real educational lessons).
  * 
- * Every stage is an independent curriculum with 600 levels (30 Units x 20 Lessons).
+ * Every stage is an independent curriculum with 700 levels (70 Units x 10 Lessons).
  * Strictly validated, progressive lengths from tactile drills to extended prose,
- * zero character spam, and unambiguous stable lesson identities (S1-L001 to S7-L600).
+ * zero character spam, and unambiguous stable lesson identities (S1-L001 to S10-L700).
  */
 
 import { STAGE_1_LESSONS } from './curriculum/stage1Data.js';
@@ -16,6 +16,9 @@ import { STAGE_4_LESSONS } from './curriculum/stage4Data.js';
 import { STAGE_5_LESSONS } from './curriculum/stage5Data.js';
 import { STAGE_6_LESSONS } from './curriculum/stage6Data.js';
 import { STAGE_7_LESSONS } from './curriculum/stage7Data.js';
+import { STAGE_8_LESSONS } from './curriculum/stage8Data.js';
+import { STAGE_9_LESSONS } from './curriculum/stage9Data.js';
+import { STAGE_10_LESSONS } from './curriculum/stage10Data.js';
 
 // Finger mapping for all standard ANSI keyboard keys
 export const FINGER_MAP = {
@@ -53,6 +56,7 @@ export const FINGER_MAP = {
   '[': 'right-pinky', '{': 'right-pinky', ']': 'right-pinky', '}': 'right-pinky',
   '\\': 'right-pinky', '|': 'right-pinky', ';': 'right-pinky', ':': 'right-pinky',
   "'": 'right-pinky', '"': 'right-pinky', '/': 'right-pinky', '?': 'right-pinky',
+  '—': 'right-pinky',
 };
 
 export const STAGE_CURRICULA = {
@@ -63,6 +67,9 @@ export const STAGE_CURRICULA = {
   5: STAGE_5_LESSONS,
   6: STAGE_6_LESSONS,
   7: STAGE_7_LESSONS,
+  8: STAGE_8_LESSONS,
+  9: STAGE_9_LESSONS,
+  10: STAGE_10_LESSONS,
 };
 
 export const STAGE_META = [
@@ -73,10 +80,10 @@ export const STAGE_META = [
     objective: 'Establish correct home-row anchors without looking at the keyboard. Focus on index rests on F and J bumps.',
     badge: 'Foundation',
     targetWpm: 24,
-    targetAccuracy: 93,
+    targetAccuracy: 85,
     startLevel: 1,
-    endLevel: 600,
-    totalLessons: 600,
+    endLevel: 700,
+    totalLessons: 700,
     color: 'emerald',
     targetKeys: ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', ';', 'Space'],
     homeKeys: ['F', 'J'],
@@ -87,11 +94,11 @@ export const STAGE_META = [
     subtitle: 'Upward diagonal reaches and returning to home-row rest',
     objective: 'Train fingers to stretch upward into the top row cleanly and recover home-row posture without hesitation.',
     badge: 'Top Row',
-    targetWpm: 32,
-    targetAccuracy: 94,
+    targetWpm: 34,
+    targetAccuracy: 88,
     startLevel: 1,
-    endLevel: 600,
-    totalLessons: 600,
+    endLevel: 700,
+    totalLessons: 700,
     color: 'blue',
     targetKeys: ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
     homeKeys: ['F', 'J'],
@@ -102,88 +109,134 @@ export const STAGE_META = [
     subtitle: 'Downward curl mechanics, wrist alignment, and pinky stabilization',
     objective: 'Conquer the downward finger curl motion across the entire bottom row with balanced speed and posture.',
     badge: 'Bottom Row',
-    targetWpm: 38,
-    targetAccuracy: 94,
+    targetWpm: 40,
+    targetAccuracy: 90,
     startLevel: 1,
-    endLevel: 600,
-    totalLessons: 600,
+    endLevel: 700,
+    totalLessons: 700,
     color: 'violet',
     targetKeys: ['Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.'],
     homeKeys: ['F', 'J'],
   },
   {
     stageId: 4,
-    title: 'Common Letter Combinations & Morphemes',
-    subtitle: 'High-frequency English digrams, trigrams, and syllable morphemes',
-    objective: 'Condition motor memory to fire frequent character sequences (th, ing, tion, ment) as single fluid neurological strokes.',
-    badge: 'Morphemes',
+    title: 'Full Alphabet Mastery & Cross-Row Transitions',
+    subtitle: 'Seamless cross-row leaps, high-frequency digrams, prefixes, and suffixes',
+    objective: 'Integrate the complete 26-letter alphabet into instinctive cross-row neuromuscular pathways.',
+    badge: 'Alphabet',
     targetWpm: 46,
-    targetAccuracy: 95,
+    targetAccuracy: 92,
     startLevel: 1,
-    endLevel: 600,
-    totalLessons: 600,
+    endLevel: 700,
+    totalLessons: 700,
     color: 'amber',
-    targetKeys: ['th', 'he', 'in', 'er', 'an', 'tion', 'ment', 'ness'],
+    targetKeys: ['A-Z', 'th', 'he', 'in', 'er', 'an', 'tion', 'ment'],
     homeKeys: ['F', 'J'],
   },
   {
     stageId: 5,
-    title: 'Word Flow & Cadence',
-    subtitle: 'Continuous vocabulary rhythm and smooth multi-word transitions',
-    objective: 'Eliminate pause delays between words and establish a steady, uninterrupted metronome cadence.',
-    badge: 'Fluency',
-    targetWpm: 54,
-    targetAccuracy: 95,
+    title: 'Number Row Mastery & Ten-Key Dexterity',
+    subtitle: 'Top number reaches (1-0), home-row recovery, numeric prose, dates, and metrics',
+    objective: 'Build blind touch-typing accuracy on the top number row without glancing down.',
+    badge: 'Numbers',
+    targetWpm: 50,
+    targetAccuracy: 92,
     startLevel: 1,
-    endLevel: 600,
-    totalLessons: 600,
+    endLevel: 700,
+    totalLessons: 700,
     color: 'cyan',
-    targetKeys: ['Full Alphabet', 'Continuous Flow', 'Space Cadence'],
+    targetKeys: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'],
     homeKeys: ['F', 'J'],
   },
   {
     stageId: 6,
-    title: 'Sentence Rhythm & Shift Discipline',
+    title: 'Shift Discipline, Punctuation & Common Symbols',
     subtitle: 'Opposite-hand Shift keys, punctuation, quotes, and capitalization',
     objective: 'Master two-handed Shift coordination: never press Shift and a letter key using the same hand.',
     badge: 'Punctuation',
-    targetWpm: 60,
-    targetAccuracy: 96,
+    targetWpm: 55,
+    targetAccuracy: 93,
     startLevel: 1,
-    endLevel: 600,
-    totalLessons: 600,
+    endLevel: 700,
+    totalLessons: 700,
     color: 'rose',
-    targetKeys: ['Shift', '.', '?', '!', ',', ';', ':', "'", '"'],
+    targetKeys: ['Shift', '.', '?', '!', ',', ';', ':', "'", '"', '(', ')'],
     homeKeys: ['F', 'J'],
   },
   {
     stageId: 7,
-    title: 'Precision, Speed Endurance & Capstone Mastery',
-    subtitle: 'Comprehensive velocity tests, numbers, code symbols, and grandmaster capstone',
-    objective: 'Achieve complete neuromuscular flow: sustain 65+ WPM with 96%+ precision across challenging prose, code, and endurance passages.',
-    badge: 'Mastery Tier',
-    targetWpm: 70,
+    title: 'High-Frequency Vocabulary & Rhythm Cadence',
+    subtitle: 'Top 1,000 core English words, eliminating pause latencies, metronomic cadence',
+    objective: 'Eliminate pause delays between words and establish a steady, uninterrupted metronome cadence.',
+    badge: 'Fluency',
+    targetWpm: 62,
+    targetAccuracy: 94,
+    startLevel: 1,
+    endLevel: 700,
+    totalLessons: 700,
+    color: 'teal',
+    targetKeys: ['Top 1000 Words', 'Metronomic Cadence', 'Fluid Rhythm'],
+    homeKeys: ['F', 'J'],
+  },
+  {
+    stageId: 8,
+    title: 'Speed & Endurance Building',
+    subtitle: 'High-velocity sprints, sustained multi-minute stamina, relaxed ergonomics',
+    objective: 'Sustain 60+ to 72 WPM sprints without finger fatigue or tension accumulation.',
+    badge: 'Velocity',
+    targetWpm: 72,
+    targetAccuracy: 95,
+    startLevel: 1,
+    endLevel: 700,
+    totalLessons: 700,
+    color: 'orange',
+    targetKeys: ['Sprint Intervals', 'Stamina Passages', 'Ergonomic Flow'],
+    homeKeys: ['F', 'J'],
+  },
+  {
+    stageId: 9,
+    title: 'Technical, Numeric & Professional Fluency',
+    subtitle: 'Programming syntax, JSON, camelCase, snake_case, brackets, and terminal CLI',
+    objective: 'Touch-type code, data structures, and special operators with zero friction.',
+    badge: 'Code & Tech',
+    targetWpm: 80,
+    targetAccuracy: 96,
+    startLevel: 1,
+    endLevel: 700,
+    totalLessons: 700,
+    color: 'indigo',
+    targetKeys: ['{ }', '[ ]', '< >', '=', '+', '_', 'camelCase', 'snake_case'],
+    homeKeys: ['F', 'J'],
+  },
+  {
+    stageId: 10,
+    title: 'Master Typist & Specialization',
+    subtitle: 'Classical literature, dense academic prose, extreme burst benchmarks 80+ WPM',
+    objective: 'Achieve grandmaster neuromuscular flow: sustain 75-95+ WPM with 95%+ precision across literary and academic masterworks.',
+    badge: 'Grandmaster',
+    targetWpm: 95,
     targetAccuracy: 97,
     startLevel: 1,
-    endLevel: 600,
-    totalLessons: 600,
-    color: 'orange',
-    targetKeys: ['Mixed Keys', 'Numbers', 'Symbols', 'Endurance', 'Code'],
+    endLevel: 700,
+    totalLessons: 700,
+    color: 'purple',
+    targetKeys: ['Grandmaster Texts', 'Endurance Capstone', 'Velocity Burst'],
     homeKeys: ['F', 'J'],
   },
 ];
 
 /**
- * Builds 30 units per stage dynamically from the stage lessons.
+ * Builds 70 units per stage dynamically from the stage lessons.
+ * 10 Stages x 70 Units = 700 Units Total.
  */
 function buildAllUnits() {
   const units = [];
-  for (let s = 1; s <= 7; s++) {
+  for (let s = 1; s <= 10; s++) {
     const stageMeta = STAGE_META[s - 1];
     const stageLessons = STAGE_CURRICULA[s] || [];
-    for (let u = 1; u <= 30; u++) {
-      const startLesson = (u - 1) * 20 + 1;
-      const endLesson = u * 20;
+    for (let u = 1; u <= 70; u++) {
+      const startLesson = (u - 1) * 10 + 1;
+      const endLesson = u * 10;
       const firstLesson = stageLessons[startLesson - 1];
       const unitLabel = firstLesson?.unitLabel || `Unit ${u}: ${stageMeta.title} Module ${u}`;
       units.push({
@@ -193,7 +246,7 @@ function buildAllUnits() {
         startLesson,
         endLesson,
         isAssessment: true,
-        lessonsCount: 20,
+        lessonsCount: 10,
         color: stageMeta.color || 'emerald',
       });
     }
@@ -206,11 +259,11 @@ export const UNIT_DEFINITIONS = buildAllUnits();
 export const MASTER_LESSONS = STAGE_1_LESSONS;
 
 export function getTotalLessonCount() {
-  return 4200;
+  return 7000;
 }
 
 /**
- * Retrieves a lesson by its stageId (1-7) and stage-local level number (1-600).
+ * Retrieves a lesson by its stageId (1-10) and stage-local level number (1-700).
  * Supports stable IDs like "S2-L045" when passed as the first argument.
  */
 export function getLesson(stageId, lessonNum) {
@@ -231,7 +284,7 @@ export function getLesson(stageId, lessonNum) {
 }
 
 /**
- * Retrieves a lesson by stable ID (e.g. "S1-L001", "S7-L600").
+ * Retrieves a lesson by stable ID (e.g. "S1-L001", "S10-L700").
  */
 export function getLessonById(lessonId) {
   if (!lessonId) return null;
@@ -241,7 +294,7 @@ export function getLessonById(lessonId) {
     const lNum = parseInt(match[2], 10);
     return getLesson(sId, lNum);
   }
-  for (let s = 1; s <= 7; s++) {
+  for (let s = 1; s <= 10; s++) {
     const found = STAGE_CURRICULA[s]?.find((l) => l.id === lessonId);
     if (found) return found;
   }
@@ -284,7 +337,7 @@ export function getLessonMetaByLevel(levelNumber, stageId = 1) {
 }
 
 /**
- * Retrieves all 30 units for a specific stage (1 through 7).
+ * Retrieves all 70 units for a specific stage (1 through 10).
  */
 export function getStageUnits(stageId) {
   const sId = parseInt(stageId, 10) || 1;
@@ -292,9 +345,9 @@ export function getStageUnits(stageId) {
   const stageLessons = STAGE_CURRICULA[sId] || [];
   const units = [];
 
-  for (let u = 1; u <= 30; u++) {
-    const startLesson = (u - 1) * 20 + 1;
-    const endLesson = u * 20;
+  for (let u = 1; u <= 70; u++) {
+    const startLesson = (u - 1) * 10 + 1;
+    const endLesson = u * 10;
     const firstLesson = stageLessons[startLesson - 1];
     const unitLabel = firstLesson?.unitLabel || `Unit ${u}: ${stage.title} Section ${u}`;
 
@@ -305,7 +358,7 @@ export function getStageUnits(stageId) {
       startLesson,
       endLesson,
       isAssessment: true,
-      lessonsCount: 20,
+      lessonsCount: 10,
       color: stage.color || 'emerald',
     });
   }
@@ -313,7 +366,7 @@ export function getStageUnits(stageId) {
 }
 
 /**
- * Returns all 210 units across the 7 stages of the curriculum.
+ * Returns all 700 units across the 10 stages of the curriculum.
  */
 export function getAllUnits() {
   return UNIT_DEFINITIONS;
@@ -325,13 +378,13 @@ export function getFirstLesson(stageId = 1) {
 
 /**
  * Calculates next lesson ID seamlessly across lessons and stage boundaries.
- * Returns null after Level 600 of Stage 7 (Grandmaster Capstone).
+ * Returns null after Level 700 of Stage 10 (Grandmaster Capstone).
  */
 export function getNextLessonId(stageId, lessonNum) {
   const sId = parseInt(stageId, 10) || 1;
   const lNum = parseInt(lessonNum, 10) || 1;
 
-  if (lNum < 600) {
+  if (lNum < 700) {
     return {
       stageId: sId,
       lessonNum: lNum + 1,
@@ -340,7 +393,7 @@ export function getNextLessonId(stageId, lessonNum) {
     };
   }
 
-  if (lNum >= 600 && sId < 7) {
+  if (lNum >= 700 && sId < 10) {
     return {
       stageId: sId + 1,
       lessonNum: 1,
@@ -349,7 +402,7 @@ export function getNextLessonId(stageId, lessonNum) {
     };
   }
 
-  // Stage 7 Level 600 is the final graduation
+  // Stage 10 Level 700 is the final graduation
   return null;
 }
 
@@ -372,9 +425,9 @@ export function getPrevLessonId(stageId, lessonNum) {
   if (lNum <= 1 && sId > 1) {
     return {
       stageId: sId - 1,
-      lessonNum: 600,
-      levelNumber: 600,
-      id: `S${sId - 1}-L600`,
+      lessonNum: 700,
+      levelNumber: 700,
+      id: `S${sId - 1}-L700`,
     };
   }
 
@@ -383,7 +436,7 @@ export function getPrevLessonId(stageId, lessonNum) {
 
 /**
  * Comprehensive Curriculum Validator
- * Audits all 7 stages and 4,200 lessons, or a single lesson array fixture.
+ * Audits all 10 stages and 7,000 lessons, or a single lesson array fixture.
  */
 export function validateCurriculum(curricula = STAGE_CURRICULA) {
   const errors = [];
@@ -455,11 +508,11 @@ export function validateCurriculum(curricula = STAGE_CURRICULA) {
     };
   }
 
-  // Multi-stage dictionary validation (7 stages x 600 lessons)
-  for (let sId = 1; sId <= 7; sId++) {
+  // Multi-stage dictionary validation (10 stages x 700 lessons)
+  for (let sId = 1; sId <= 10; sId++) {
     const stageLessons = curricula[sId] || [];
-    if (stageLessons.length !== 600) {
-      errors.push(`Stage ${sId}: Expected 600 lessons, found ${stageLessons.length}.`);
+    if (stageLessons.length !== 700) {
+      errors.push(`Stage ${sId}: Expected 700 lessons, found ${stageLessons.length}.`);
     }
 
     const seenTextsInStage = new Set();
@@ -521,7 +574,7 @@ export function validateCurriculum(curricula = STAGE_CURRICULA) {
 
   return {
     valid: errors.length === 0,
-    totalStages: 7,
+    totalStages: 10,
     totalLessons: totalCount,
     duplicateCount: 0,
     errors,

@@ -18,6 +18,8 @@ import { LessonPlayer } from '../components/academy/LessonPlayer';
 import { ProgressStats } from '../components/academy/ProgressStats';
 import { LessonMap } from '../components/academy/LessonMap';
 import { ShortcutBar } from '../components/academy/ShortcutBar';
+import { PlacementModal } from '../components/academy/PlacementModal';
+import { ExploreStageModal } from '../components/academy/ExploreStageModal';
 import { useI18n } from '../i18n/I18nContext';
 import {
   Lock,
@@ -25,6 +27,8 @@ import {
   Zap,
   Grid,
   Layers,
+  Compass,
+  Sparkles,
 } from 'lucide-react';
 
 const VIEW = {
@@ -55,7 +59,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     }
   }
 
-  const resolvedInitialUnit = initialUnitParam || (resolvedInitialLesson ? Math.min(30, Math.ceil(resolvedInitialLesson / 20)) : 1);
+  const resolvedInitialUnit = initialUnitParam || (resolvedInitialLesson ? Math.min(70, Math.ceil(resolvedInitialLesson / 10)) : 1);
 
   const [view, setView] = useState(resolvedInitialLesson ? VIEW.LESSON : VIEW.DASHBOARD);
   const [activeStageId, setActiveStageId] = useState(resolvedInitialStage || initialLevelId || 1);
@@ -65,6 +69,8 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   const [progress, setProgress] = useState(getLessonProgress);
   const [dashboardStats, setDashboardStats] = useState(() => getAcademyDashboardStats(activeStageId || 1));
   const [stageMenuOpen, setStageMenuOpen] = useState(false);
+  const [placementModalOpen, setPlacementModalOpen] = useState(false);
+  const [exploreModalStage, setExploreModalStage] = useState(null);
   const stageMenuRef = useRef(null);
 
   // Close stage dropdown when clicking outside
@@ -93,7 +99,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     return () => window.removeEventListener('keyflow-lesson-progress-updated', refreshProgress);
   }, [refreshProgress]);
 
-  // Stage metadata & Units for active stage (30 units per stage x 20 lessons = 600 lessons)
+  // Stage metadata & Units for active stage (70 units per stage x 10 lessons = 700 lessons)
   const activeStageMeta = STAGE_META[activeStageId - 1] || STAGE_META[0];
   const stageUnits = useMemo(() => getStageUnits(activeStageId), [activeStageId]);
   const currentUnit = stageUnits[activeUnit - 1] || stageUnits[0];
@@ -111,7 +117,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
       const targetLesson = recommended?.lessonNum || 1;
       setActiveStageId(targetStage);
       setActiveLessonNum(targetLesson);
-      setActiveUnit(Math.min(30, Math.ceil(targetLesson / 20)));
+      setActiveUnit(Math.min(70, Math.ceil(targetLesson / 10)));
       setView(VIEW.LESSON);
     };
 
@@ -119,7 +125,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     return () => window.removeEventListener('keyflow-continue-practice', handleContinuePractice);
   }, [recommended, activeStageId]);
 
-  // Calculate unit completion and progress for all 30 units of the active stage
+  // Calculate unit completion and progress for all 70 units of the active stage
   const unitProgress = useMemo(() => {
     const map = {};
     stageUnits.forEach((u) => {
@@ -154,12 +160,12 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     setViewAllLevels(false);
   }, []);
 
-  // Generate lessons for the active view (20 lessons for unit, or 600 lessons if viewing all)
+  // Generate lessons for the active view (10 lessons for unit, or 700 lessons if viewing all)
   const displayLessons = useMemo(() => {
     if (!progress) return [];
     if (viewAllLevels) {
       const all = [];
-      for (let l = 1; l <= 600; l++) {
+      for (let l = 1; l <= 700; l++) {
         const meta = getLessonMeta(activeStageId, l);
         const record = getLessonRecord(activeStageId, l);
         const unlocked = isLessonUnlocked(activeStageId, l);
@@ -204,7 +210,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     const resolvedNum = lesson ? lesson.levelNumber : lessonNum;
     setActiveStageId(resolvedStage);
     setActiveLessonNum(resolvedNum);
-    setActiveUnit(Math.min(30, Math.ceil(resolvedNum / 20)));
+    setActiveUnit(Math.min(70, Math.ceil(resolvedNum / 10)));
     setView(VIEW.LESSON);
   }, []);
 
@@ -218,6 +224,22 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   const handleBackToDashboard = useCallback(() => {
     setView(VIEW.DASHBOARD);
     refreshProgress();
+  }, [refreshProgress]);
+
+  // Learning path callbacks
+  const handlePlacementApplied = useCallback((recommendedStage) => {
+    refreshProgress();
+    setActiveStageId(recommendedStage);
+    setActiveUnit(1);
+    setViewAllLevels(false);
+  }, [refreshProgress]);
+
+  const handleManualExploreConfirmed = useCallback((stageId) => {
+    setExploreModalStage(null);
+    refreshProgress();
+    setActiveStageId(stageId);
+    setActiveUnit(1);
+    setViewAllLevels(false);
   }, [refreshProgress]);
 
   // If active lesson view is selected, render LessonPlayer as dedicated full experience
@@ -247,7 +269,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   }
 
   const startLessonNum = viewAllLevels ? 1 : (currentUnit?.startLesson || 1);
-  const endLessonNum = viewAllLevels ? 600 : (currentUnit?.endLesson || 20);
+  const endLessonNum = viewAllLevels ? 700 : (currentUnit?.endLesson || 10);
 
   return (
     <div className="relative min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)] pb-16 overflow-x-hidden selection:bg-[var(--accent)] selection:text-[var(--accent-fg)]">
@@ -268,7 +290,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
         {/* Top Control Bar (Navigation & Mode Toggles) */}
         <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* View Mode Toggle: By Unit (20) vs All 600 Levels */}
+            {/* View Mode Toggle: By Unit (10) vs All 700 Levels */}
             <div className="flex items-center rounded-xl bg-[var(--bg-card)] border border-[var(--border)] p-0.5">
               <button
                 type="button"
@@ -292,9 +314,20 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 }`}
               >
                 <Grid className="w-3 h-3" />
-                <span>All 600 Levels</span>
+                <span>All 700 Levels</span>
               </button>
             </div>
+
+            {/* Path 02: Placement Diagnostic Entry Point */}
+            <button
+              type="button"
+              onClick={() => setPlacementModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] shadow-xs transition-all cursor-pointer"
+              title="Assess typing competencies and find your recommended starting stage"
+            >
+              <Compass className="w-3.5 h-3.5 text-[var(--accent)]" />
+              <span>Placement Test</span>
+            </button>
           </div>
 
           {/* Recommended Next Lesson Resume Pill */}
@@ -324,7 +357,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
             <div className="border-l-4 border-[var(--accent)] pl-3.5 space-y-0.5">
               <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
                 {viewAllLevels ? (
-                  <>Stage {activeStageId} — <span className="text-[var(--text-primary)]">All 600 Levels</span></>
+                  <>Stage {activeStageId} — <span className="text-[var(--text-primary)]">All 700 Levels</span></>
                 ) : (
                   <>Unit {activeUnit} — <span className="text-[var(--text-primary)]">{currentUnit?.unitLabel}</span></>
                 )}
@@ -355,48 +388,93 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
 
                 {/* Stage Flyout Menu */}
                 {stageMenuOpen && (
-                  <div className="absolute left-0 top-full mt-2 z-50 w-72 sm:w-80 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl p-2 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute left-0 top-full mt-2 z-50 w-80 sm:w-96 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl p-2.5 animate-in fade-in zoom-in-95 duration-150">
                     <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-                      <span className="font-bold">Curriculum Stages (7)</span>
-                      <span className="text-[var(--accent)] font-bold">4,200 Levels Total</span>
+                      <span className="font-bold">Curriculum Stages (10)</span>
+                      <span className="text-[var(--accent)] font-bold">7,000 Levels Total</span>
                     </div>
-                    <div className="space-y-1 mt-1 max-h-72 overflow-y-auto pr-1 no-scrollbar">
+                    <div className="space-y-1.5 mt-1.5 max-h-80 overflow-y-auto pr-1 no-scrollbar">
                       {STAGE_META.map((st) => {
                         const isStUnlocked = isStageUnlocked(st.stageId);
                         const isStActive = st.stageId === activeStageId;
+                        const accessType = progress?.stageAccessTypes?.[st.stageId] || (isStUnlocked ? 'guided' : 'locked');
+                        const isSelfPaced = accessType === 'self_paced' || Boolean(progress?.unlockedLevelsAll?.[st.stageId]);
 
                         return (
-                          <button
+                          <div
                             key={st.stageId}
-                            type="button"
-                            disabled={!isStUnlocked}
-                            onClick={() => {
-                              setActiveStageId(st.stageId);
-                              setActiveUnit(1);
-                              setViewAllLevels(false);
-                              setStageMenuOpen(false);
-                            }}
-                            className={`w-full text-left p-2.5 rounded-xl flex items-center justify-between transition-all cursor-pointer ${
+                            className={`p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2 ${
                               isStActive
                                 ? 'bg-[var(--bg-elevated)] border-2 border-[var(--accent)] text-[var(--text-primary)] shadow-xs'
                                 : isStUnlocked
-                                ? 'hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-transparent'
-                                : 'opacity-40 cursor-not-allowed text-[var(--text-muted)] border border-transparent'
+                                ? 'bg-[var(--bg-card)] border-[var(--border)] hover:border-[var(--accent)]/50'
+                                : 'bg-[var(--bg-card)]/50 border-[var(--border-subtle)] opacity-70'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5">
-                              <span className="font-mono text-xs font-bold w-5 h-5 rounded-full bg-[var(--border)]/40 flex items-center justify-center text-center">
+                            <button
+                              type="button"
+                              disabled={!isStUnlocked}
+                              onClick={() => {
+                                setActiveStageId(st.stageId);
+                                setActiveUnit(1);
+                                setViewAllLevels(false);
+                                setStageMenuOpen(false);
+                              }}
+                              className={`flex-1 text-left flex items-center gap-2.5 cursor-pointer ${
+                                !isStUnlocked ? 'cursor-not-allowed' : ''
+                              }`}
+                            >
+                              <span className="font-mono text-xs font-bold w-5 h-5 rounded-full bg-[var(--border)]/40 flex items-center justify-center text-center shrink-0">
                                 {st.stageId}
                               </span>
-                              <div className="flex flex-col">
-                                <span className="text-xs font-bold leading-tight">{st.title}</span>
-                                <span className="text-[10px] text-[var(--text-muted)] leading-tight truncate max-w-[180px]">
-                                  {st.badge} · 600 Levels
-                                </span>
+                              <div className="flex flex-col min-w-0">
+                                <span className="text-xs font-bold leading-tight truncate">{st.title}</span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[10px] text-[var(--text-muted)] leading-tight truncate">
+                                    {st.badge} · 700 Levels
+                                  </span>
+                                  {isSelfPaced ? (
+                                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-500">
+                                      Self-Paced
+                                    </span>
+                                  ) : isStUnlocked ? (
+                                    <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-[var(--accent)]/15 text-[var(--accent)]">
+                                      Unlocked
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
+                            </button>
+
+                            {/* Action: Select / Lock / Explore */}
+                            <div className="shrink-0 flex items-center gap-1.5">
+                              {!isStUnlocked ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setStageMenuOpen(false);
+                                    setExploreModalStage(st);
+                                  }}
+                                  className="text-[10px] font-mono font-bold px-2 py-1 rounded-lg bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] transition-colors cursor-pointer"
+                                  title="Unlock all 700 levels of this stage for self-paced practice"
+                                >
+                                  Explore
+                                </button>
+                              ) : !isSelfPaced ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setStageMenuOpen(false);
+                                    setExploreModalStage(st);
+                                  }}
+                                  className="text-[10px] font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 cursor-pointer"
+                                  title="Enable full self-paced access across all 700 levels"
+                                >
+                                  <Compass className="w-3.5 h-3.5" />
+                                </button>
+                              ) : null}
                             </div>
-                            {!isStUnlocked && <Lock className="w-3.5 h-3.5 text-[var(--text-muted)]" />}
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -424,7 +502,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
           <LessonMap
             stageId={activeStageId}
             activeUnit={activeUnit}
-            unitLabel={viewAllLevels ? `All 600 Levels` : (currentUnit?.unitLabel || activeStageMeta.title)}
+            unitLabel={viewAllLevels ? `All 700 Levels` : (currentUnit?.unitLabel || activeStageMeta.title)}
             lessons={displayLessons}
             activeLessonNum={recommended.lessonNum}
             onSelectLesson={handleSelectLesson}
@@ -436,6 +514,21 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
           />
         </section>
       </div>
+
+      {/* Path 02: Placement Assessment Modal */}
+      <PlacementModal
+        isOpen={placementModalOpen}
+        onClose={() => setPlacementModalOpen(false)}
+        onPlacementApplied={handlePlacementApplied}
+      />
+
+      {/* Path 03: Manual Self-Paced Unlock Confirmation Modal */}
+      <ExploreStageModal
+        isOpen={Boolean(exploreModalStage)}
+        stageMeta={exploreModalStage}
+        onClose={() => setExploreModalStage(null)}
+        onConfirmed={handleManualExploreConfirmed}
+      />
 
       {/* Bottom Sticky Shortcut Bar */}
       <ShortcutBar
