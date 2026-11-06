@@ -26,19 +26,114 @@ import {
   Activity,
   AlertTriangle,
   Clock,
-  Sparkles,
 } from 'lucide-react';
 
 import {
-  SPEED_CATEGORIES,
   getSpeedCategory,
   wpmToNeedleRotation,
-  getTypingIdentity,
   polarToCartesian,
   describeArc,
   describeRibbonSegment,
   calculateNetWpm,
 } from '../../utils/speedometerEngine';
+import { calculateStars, getLessonRecord } from '../../utils/lessonProgress';
+
+/**
+ * Prominent 3D Golden Star with ambient bloom and subtle facet depth.
+ * Faithfully reproduces the five-star visual element from the reference image.
+ */
+export const FiveStarRating = ({ earnedCount = 0 }) => {
+  // Pre-calculated 10 points for standard 5-pointed star with soft, rounded proportions
+  // Center (30, 30), outer radius 24, inner radius 12.5
+  const points = '30.00,6.00 37.35,19.90 52.83,22.59 41.87,33.88 44.18,49.40 30.00,42.50 15.82,49.40 18.13,33.88 7.17,22.59 22.65,19.90';
+
+  const arcTransforms = [
+    'translateY(16px) rotate(-16deg)',
+    'translateY(5px) rotate(-8deg)',
+    'translateY(0px) rotate(0deg)',
+    'translateY(5px) rotate(8deg)',
+    'translateY(16px) rotate(16deg)',
+  ];
+
+  return (
+    <div
+      className="flex items-center justify-center gap-2 sm:gap-3 md:gap-3.5 mb-1.5 sm:mb-2 select-none"
+      aria-label={`Earned ${earnedCount} of 5 stars`}
+      role="img"
+    >
+      {[0, 1, 2, 3, 4].map((idx) => {
+        const isEarned = idx < earnedCount;
+        const transform = arcTransforms[idx];
+
+        return (
+          <div
+            key={idx}
+            className="flex items-center justify-center transition-transform duration-300"
+            style={{ transform }}
+          >
+            {isEarned ? (
+              <svg
+                className="w-10 h-10 sm:w-12 sm:h-12 md:w-13 md:h-13 overflow-visible"
+                viewBox="0 0 60 60"
+              >
+                <defs>
+                  <linearGradient id={`starGrad_${idx}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#FFF38A" />
+                    <stop offset="30%" stopColor="#FCD34D" />
+                    <stop offset="70%" stopColor="#F59E0B" />
+                    <stop offset="100%" stopColor="#D97706" />
+                  </linearGradient>
+                  <linearGradient id={`starHighlight_${idx}`} x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.85" />
+                    <stop offset="60%" stopColor="#FDE68A" stopOpacity="0.2" />
+                    <stop offset="100%" stopColor="#F59E0B" stopOpacity="0" />
+                  </linearGradient>
+                </defs>
+
+                {/* Soft Radiant Golden Ambient Glow Blooms */}
+                <circle cx="30" cy="30" r="26" fill="#F59E0B" opacity="0.38" filter="blur(12px)" />
+                <circle cx="30" cy="30" r="18" fill="#FBBF24" opacity="0.58" filter="blur(7px)" />
+                <circle cx="30" cy="30" r="10" fill="#FDE047" opacity="0.75" filter="blur(3px)" />
+
+                {/* Main Volumetric 3D Golden Star with Rounded Points */}
+                <polygon
+                  points={points}
+                  fill={`url(#starGrad_${idx})`}
+                  stroke="#FDE68A"
+                  strokeWidth="2.5"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  filter="drop-shadow(0 3px 6px rgba(180, 83, 9, 0.65))"
+                />
+
+                {/* Top Facet Sheen Highlight */}
+                <ellipse cx="30" cy="24" rx="10" ry="6" fill={`url(#starHighlight_${idx})`} />
+                <circle cx="30" cy="22" r="3" fill="#FFFFFF" opacity="0.7" filter="blur(1px)" />
+              </svg>
+            ) : (
+              <svg
+                className="w-10 h-10 sm:w-12 sm:h-12 md:w-13 md:h-13 overflow-visible"
+                viewBox="0 0 60 60"
+              >
+                {/* Muted Unearned Star Fitting Existing Dark UI */}
+                <polygon
+                  points={points}
+                  fill="#111726"
+                  stroke="rgba(255, 255, 255, 0.16)"
+                  strokeWidth="2.2"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                  filter="drop-shadow(0 2px 5px rgba(0, 0, 0, 0.7))"
+                />
+                <circle cx="30" cy="30" r="4.5" fill="rgba(255, 255, 255, 0.06)" />
+              </svg>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+};
 
 export const AcademyResultsScreen = ({
   lesson,
@@ -66,8 +161,36 @@ export const AcademyResultsScreen = ({
 
   // Synchronized score, category, and needle rotation
   const category = useMemo(() => getSpeedCategory(wpm), [wpm]);
-  const identity = useMemo(() => getTypingIdentity(wpm, accuracy), [wpm, accuracy]);
   const targetRotation = useMemo(() => wpmToNeedleRotation(wpm), [wpm]);
+
+  // Authoritative earned star count (0 to 5) directly from actual completed session result or recorded history
+  const earnedStars = useMemo(() => {
+    // 1. Direct result.stars from currently completed session
+    if (typeof result?.stars === 'number' && !isNaN(result.stars)) {
+      return Math.max(0, Math.min(5, Math.floor(result.stars)));
+    }
+    // 2. Fallback: check historical record from lessonProgress storage for this specific lesson
+    const sId = lesson?.stageId || 1;
+    const lNum = lesson?.lessonNum || lesson?.levelNumber || 1;
+    const record = getLessonRecord(sId, lNum);
+    if (typeof record?.stars === 'number' && !isNaN(record.stars)) {
+      return Math.max(0, Math.min(5, Math.floor(record.stars)));
+    }
+    // 3. Fallback: calculate directly from authoritative calculateStars if accuracy and wpm are available
+    if (typeof result?.accuracy === 'number' && typeof result?.wpm === 'number') {
+      return calculateStars(
+        result.accuracy,
+        lesson?.targetAccuracy || 90,
+        result.wpm,
+        lesson?.targetWpm || 20
+      );
+    }
+    // 4. Fallback: if lesson.record has metrics
+    if (typeof lesson?.record?.stars === 'number' && !isNaN(lesson.record.stars)) {
+      return Math.max(0, Math.min(5, Math.floor(lesson.record.stars)));
+    }
+    return 0;
+  }, [result, lesson]);
 
   // Needle animation state
   const [needleRotation, setNeedleRotation] = useState(targetRotation);
@@ -219,20 +342,6 @@ export const AcademyResultsScreen = ({
     'VERY POOR': describeArc(cx, cy, rLabel, 26, -14),
   }), [cx, cy, rLabel]);
 
-  // Outer Bezel Dome Boundary (Semicircular arch terminating seamlessly behind dock)
-  const bezelDomePath = useMemo(() => {
-    const pBL = polarToCartesian(cx, cy, rOuterBezel, 195);
-    const pBR = polarToCartesian(cx, cy, rOuterBezel, -15);
-    return `M ${pBL.x.toFixed(1)} ${pBL.y.toFixed(1)} A ${rOuterBezel} ${rOuterBezel} 0 1 1 ${pBR.x.toFixed(1)} ${pBR.y.toFixed(1)} Q ${cx + 150} ${cy + 104} ${cx} ${cy + 104} Q ${cx - 150} ${cy + 104} ${pBL.x.toFixed(1)} ${pBL.y.toFixed(1)} Z`;
-  }, [cx, cy, rOuterBezel]);
-
-  // Inner Dial Dome Boundary
-  const innerDialDomePath = useMemo(() => {
-    const pBL = polarToCartesian(cx, cy, rInnerDial, 195);
-    const pBR = polarToCartesian(cx, cy, rInnerDial, -15);
-    return `M ${pBL.x.toFixed(1)} ${pBL.y.toFixed(1)} A ${rInnerDial} ${rInnerDial} 0 1 1 ${pBR.x.toFixed(1)} ${pBR.y.toFixed(1)} Q ${cx + 100} ${cy + 96} ${cx} ${cy + 96} Q ${cx - 100} ${cy + 96} ${pBL.x.toFixed(1)} ${pBL.y.toFixed(1)} Z`;
-  }, [cx, cy, rInnerDial]);
-
   return (
     <div
       className="fixed inset-0 z-50 bg-[#080C14] overflow-hidden flex flex-col items-center justify-center p-2 sm:p-4 select-none font-sans"
@@ -240,8 +349,11 @@ export const AcademyResultsScreen = ({
         background: 'radial-gradient(circle at 50% 36%, #141C2E 0%, #090E18 60%, #05080E 100%)',
       }}
     >
-      {/* ── Top Header matching Reference Image ───────────────────────── */}
-      <div className="text-center mb-1">
+      {/* ── Top Header matching Reference Image with Five Stars ───────── */}
+      <div className="text-center mb-1 flex flex-col items-center">
+        {/* 5-Star Arc Header matching Reference Image */}
+        <FiveStarRating earnedCount={earnedStars} />
+
         <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
           Typing Performance
         </div>
