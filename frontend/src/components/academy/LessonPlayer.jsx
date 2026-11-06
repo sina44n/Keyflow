@@ -138,6 +138,26 @@ export const LessonPlayer = ({
 
   useEffect(() => { handleReset(); }, [lesson?.id, handleReset]);
 
+  // Visual QA & Dev Preview Hook for Results Screen
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.location.search.includes('dev_results=true')) {
+      const mockResult = window.__KEYFLOW_MOCK_LESSON_RESULT__ || {
+        wpm: 78,
+        grossWpm: 78,
+        accuracy: 98,
+        rawAccuracy: 98,
+        finalTextAccuracy: 98,
+        mistakes: 1,
+        duration: 25,
+        stars: 5,
+        passed: true,
+        netWpm: 76,
+      };
+      setCompletedResult(mockResult);
+      setIsCompleted(true);
+    }
+  }, []);
+
   // ── Timer ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (startTime && !isCompleted) {
