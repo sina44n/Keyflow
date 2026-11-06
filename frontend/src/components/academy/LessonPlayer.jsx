@@ -142,16 +142,16 @@ export const LessonPlayer = ({
   useEffect(() => {
     if (typeof window !== 'undefined' && window.location.search.includes('dev_results=true')) {
       const mockResult = window.__KEYFLOW_MOCK_LESSON_RESULT__ || {
-        wpm: 78,
-        grossWpm: 78,
-        accuracy: 98,
-        rawAccuracy: 98,
-        finalTextAccuracy: 98,
-        mistakes: 1,
-        duration: 25,
+        wpm: 48,
+        grossWpm: 48,
+        accuracy: 100,
+        rawAccuracy: 100,
+        finalTextAccuracy: 100,
+        mistakes: 0,
+        duration: 8,
         stars: 5,
         passed: true,
-        netWpm: 76,
+        netWpm: 48,
       };
       setCompletedResult(mockResult);
       setIsCompleted(true);

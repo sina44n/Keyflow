@@ -8,8 +8,8 @@
 export const SPEED_CATEGORIES = [
   {
     name: 'EXCELLENT',
-    color: '#39D353',
-    glow: 'rgba(57, 211, 83, 0.45)',
+    color: '#22C55E',
+    glow: 'rgba(34, 197, 94, 0.45)',
     startWpm: 60,
     endWpm: 100,
     startAngle: 195,
@@ -72,15 +72,31 @@ export function getSpeedCategory(wpm) {
 
 /**
  * Converts actual WPM to needle rotation angle (degrees from 12 o'clock).
- * - 100 WPM = -105° (far left, EXCELLENT)
- * - 0 WPM = +105° (far right, VERY POOR)
+ * Synchronized with the 5 gauge performance zones:
+ * - EXCELLENT [60, 100]  -> rotation [-63°, -105°] (leftmost)
+ * - GOOD      [40, 60)   -> rotation [-21°, -63°)
+ * - FAIR      [30, 40)   -> rotation [+21°, -21°) (0° at 35 WPM / 12 o'clock)
+ * - POOR      [20, 30)   -> rotation [+63°, +21°)
+ * - VERY POOR [0, 20)    -> rotation [+105°, +63°) (rightmost)
  */
 export function wpmToNeedleRotation(wpm) {
   const clamped = Math.max(0, Math.min(100, Number(wpm) || 0));
-  // Polar angle from 195° (100 WPM) down to -15° (0 WPM)
-  const polarAngle = 195 - (100 - clamped) * 2.1;
+  let polarAngle;
+
+  if (clamped >= 60) {
+    polarAngle = 153 + ((clamped - 60) / 40) * 42;
+  } else if (clamped >= 40) {
+    polarAngle = 111 + ((clamped - 40) / 20) * 42;
+  } else if (clamped >= 30) {
+    polarAngle = 69 + ((clamped - 30) / 10) * 42;
+  } else if (clamped >= 20) {
+    polarAngle = 27 + ((clamped - 20) / 10) * 42;
+  } else {
+    polarAngle = -15 + (clamped / 20) * 42;
+  }
+
   // SVG rotation from 12 o'clock (90° polar):
-  return 90 - polarAngle;
+  return Number((90 - polarAngle).toFixed(2));
 }
 
 /**
@@ -94,7 +110,7 @@ export function getTypingIdentity(wpm, accuracy) {
     return {
       title: 'PRECISION MASTER',
       description: 'You demonstrated exceptional control, laser accuracy, and consistent high-speed flow.',
-      badgeColor: '#39D353',
+      badgeColor: '#22C55E',
     };
   }
   if (rawWpm >= 50 && rawAcc >= 90) {
@@ -176,4 +192,3 @@ export function describeRibbonSegment(cx, cy, rOuter, rInner, startAngle, endAng
     'Z'
   ].join(' ');
 }
-

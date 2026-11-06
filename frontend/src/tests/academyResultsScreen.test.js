@@ -2,8 +2,8 @@
  * KEYFLOW Academy Performance Results Screen Test Suite
  * =====================================================
  * Verifies:
- * 1. Exact 5-zone speed category boundaries & color assignments.
- * 2. Mathematical WPM-to-needle rotation mappings across all test & boundary values.
+ * 1. Exact 5-zone speed category definitions & color assignments.
+ * 2. Mathematical WPM-to-needle rotation mappings with 100% real-time category synchronization.
  * 3. Authentic Typing Identity classifications based on Speed & Accuracy.
  * 4. Net WPM calculation and metric contract integrity.
  * 5. Full-page component structure and navigation callback signatures.
@@ -16,6 +16,7 @@ import {
   getSpeedCategory,
   wpmToNeedleRotation,
   getTypingIdentity,
+  calculateNetWpm,
 } from '../utils/speedometerEngine.js';
 
 describe('KEYFLOW — Academy Performance Results Screen & Speedometer Engine', () => {
@@ -23,7 +24,7 @@ describe('KEYFLOW — Academy Performance Results Screen & Speedometer Engine', 
     it('defines exactly 5 categories in strict LEFT-TO-RIGHT order', () => {
       assert.strictEqual(SPEED_CATEGORIES.length, 5);
       assert.strictEqual(SPEED_CATEGORIES[0].name, 'EXCELLENT');
-      assert.strictEqual(SPEED_CATEGORIES[0].color, '#39D353'); // Green
+      assert.strictEqual(SPEED_CATEGORIES[0].color, '#22C55E'); // Green
       assert.strictEqual(SPEED_CATEGORIES[1].name, 'GOOD');
       assert.strictEqual(SPEED_CATEGORIES[1].color, '#A3E635'); // Lime Green
       assert.strictEqual(SPEED_CATEGORIES[2].name, 'FAIR');
@@ -34,10 +35,11 @@ describe('KEYFLOW — Academy Performance Results Screen & Speedometer Engine', 
       assert.strictEqual(SPEED_CATEGORIES[4].color, '#EF4444'); // Red
     });
 
-    it('correctly classifies mandatory prompt test values (10, 25, 35, 50, 75)', () => {
+    it('correctly classifies mandatory prompt test values (10, 25, 35, 48, 50, 75)', () => {
       assert.strictEqual(getSpeedCategory(10).name, 'VERY POOR');
       assert.strictEqual(getSpeedCategory(25).name, 'POOR');
       assert.strictEqual(getSpeedCategory(35).name, 'FAIR');
+      assert.strictEqual(getSpeedCategory(48).name, 'GOOD');
       assert.strictEqual(getSpeedCategory(50).name, 'GOOD');
       assert.strictEqual(getSpeedCategory(75).name, 'EXCELLENT');
     });
@@ -66,7 +68,7 @@ describe('KEYFLOW — Academy Performance Results Screen & Speedometer Engine', 
     });
   });
 
-  describe('2. Mathematical WPM-to-Needle Rotation', () => {
+  describe('2. Mathematical WPM-to-Needle Rotation & Real-Time Synchronization', () => {
     it('maps 100 WPM to the leftmost gauge position (-105°)', () => {
       const rot = wpmToNeedleRotation(100);
       assert.strictEqual(rot, -105);
@@ -77,31 +79,43 @@ describe('KEYFLOW — Academy Performance Results Screen & Speedometer Engine', 
       assert.strictEqual(rot, 105);
     });
 
-    it('maps 50 WPM to vertical top center (0°)', () => {
-      const rot = wpmToNeedleRotation(50);
+    it('maps 35 WPM (center of FAIR) to vertical top center (0°)', () => {
+      const rot = wpmToNeedleRotation(35);
       assert.strictEqual(rot, 0);
     });
 
-    it('strictly maps prompt test cases (10, 25, 35, 50, 75) to valid rotations', () => {
-      // 75 WPM (EXCELLENT, left side): negative angle
+    it('synchronizes 48 WPM (User Screenshot Case) strictly inside GOOD zone [-21°, -63°]', () => {
+      const rot48 = wpmToNeedleRotation(48);
+      assert.strictEqual(rot48, -37.8);
+      // Must point strictly inside the GOOD segment on the left
+      assert.ok(rot48 < -21 && rot48 > -63, 'Needle at 48 WPM must point inside the GOOD zone');
+      assert.strictEqual(getSpeedCategory(48).name, 'GOOD');
+    });
+
+    it('strictly maps prompt test cases (10, 25, 35, 50, 75) to valid category rotations', () => {
+      // 75 WPM (EXCELLENT, left side): negative angle inside [-63°, -105°]
       const rot75 = wpmToNeedleRotation(75);
-      assert.strictEqual(rot75, -52.5);
+      assert.strictEqual(rot75, -78.75);
+      assert.ok(rot75 < -63 && rot75 > -105);
 
-      // 50 WPM (GOOD, top center): 0°
+      // 50 WPM (GOOD, left side): inside [-21°, -63°]
       const rot50 = wpmToNeedleRotation(50);
-      assert.strictEqual(rot50, 0);
+      assert.strictEqual(rot50, -42);
+      assert.ok(rot50 < -21 && rot50 > -63);
 
-      // 35 WPM (FAIR, right of center): positive angle
+      // 35 WPM (FAIR, top center): 0°
       const rot35 = wpmToNeedleRotation(35);
-      assert.strictEqual(rot35, 31.5);
+      assert.strictEqual(rot35, 0);
 
-      // 25 WPM (POOR): positive angle
+      // 25 WPM (POOR, right side): inside [+21°, +63°]
       const rot25 = wpmToNeedleRotation(25);
-      assert.strictEqual(rot25, 52.5);
+      assert.strictEqual(rot25, 42);
+      assert.ok(rot25 > 21 && rot25 < 63);
 
-      // 10 WPM (VERY POOR): positive angle near rightmost endpoint
+      // 10 WPM (VERY POOR, far right): inside [+63°, +105°]
       const rot10 = wpmToNeedleRotation(10);
       assert.strictEqual(rot10, 84);
+      assert.ok(rot10 > 63 && rot10 < 105);
     });
 
     it('guarantees strictly monotonic progression across all 0-100 integers', () => {
@@ -115,13 +129,31 @@ describe('KEYFLOW — Academy Performance Results Screen & Speedometer Engine', 
         prevRot = currentRot;
       }
     });
+
+    it('guarantees every integer score 0-100 needle rotation is strictly inside its category zone', () => {
+      for (let w = 0; w <= 100; w++) {
+        const cat = getSpeedCategory(w);
+        const rot = wpmToNeedleRotation(w);
+        if (cat.name === 'VERY POOR') {
+          assert.ok(rot >= 63 && rot <= 105, `VERY POOR ${w} WPM needle rot ${rot} out of range`);
+        } else if (cat.name === 'POOR') {
+          assert.ok(rot >= 21 && rot <= 63, `POOR ${w} WPM needle rot ${rot} out of range`);
+        } else if (cat.name === 'FAIR') {
+          assert.ok(rot >= -21 && rot <= 21, `FAIR ${w} WPM needle rot ${rot} out of range`);
+        } else if (cat.name === 'GOOD') {
+          assert.ok(rot >= -63 && rot <= -21, `GOOD ${w} WPM needle rot ${rot} out of range`);
+        } else if (cat.name === 'EXCELLENT') {
+          assert.ok(rot >= -105 && rot <= -63, `EXCELLENT ${w} WPM needle rot ${rot} out of range`);
+        }
+      }
+    });
   });
 
   describe('3. Typing Identity Resolution Engine', () => {
     it('classifies High WPM + High Accuracy as PRECISION MASTER', () => {
       const id = getTypingIdentity(75, 98);
       assert.strictEqual(id.title, 'PRECISION MASTER');
-      assert.strictEqual(id.badgeColor, '#39D353');
+      assert.strictEqual(id.badgeColor, '#22C55E');
     });
 
     it('classifies High WPM + Standard Accuracy as SPEED PERFORMER', () => {
@@ -154,20 +186,12 @@ describe('KEYFLOW — Academy Performance Results Screen & Speedometer Engine', 
 
   describe('4. Net WPM and Metric Contract', () => {
     it('calculates Net WPM accurately using penalties for uncorrected errors', () => {
-      const wpm = 50;
-      const mistakes = 2;
-      const durationSeconds = 30; // 0.5 minutes
-      const uncorrectedPenalty = mistakes / (durationSeconds / 60); // 4 WPM penalty
-      const expectedNetWpm = Math.max(0, Math.round(wpm - uncorrectedPenalty));
-      assert.strictEqual(expectedNetWpm, 46);
+      // 50 WPM, 2 errors in 60s -> Net WPM = 48
+      assert.strictEqual(calculateNetWpm(50, 2, 60), 48);
     });
 
     it('clamps Net WPM to zero when penalties exceed gross WPM', () => {
-      const wpm = 10;
-      const mistakes = 20;
-      const durationSeconds = 30;
-      const expectedNetWpm = Math.max(0, Math.round(wpm - (mistakes / (durationSeconds / 60))));
-      assert.strictEqual(expectedNetWpm, 0);
+      assert.strictEqual(calculateNetWpm(10, 15, 60), 0);
     });
   });
 });
