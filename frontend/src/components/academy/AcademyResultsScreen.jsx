@@ -40,24 +40,25 @@ import { calculateStars, getLessonRecord } from '../../utils/lessonProgress';
 
 /**
  * Prominent 3D Golden Star with ambient bloom and subtle facet depth.
- * Faithfully reproduces the five-star visual element from the reference image.
+ * Faithfully reproduces the five-star visual element and generous proportions from the reference image.
  */
 export const FiveStarRating = ({ earnedCount = 0 }) => {
-  // Pre-calculated 10 points for standard 5-pointed star with soft, rounded proportions
-  // Center (30, 30), outer radius 24, inner radius 12.5
-  const points = '30.00,6.00 37.35,19.90 52.83,22.59 41.87,33.88 44.18,49.40 30.00,42.50 15.82,49.40 18.13,33.88 7.17,22.59 22.65,19.90';
+  // Pre-calculated 10 points for large 5-pointed star with soft, rounded proportions
+  // Center (38, 38), outer radius 32, inner radius 17
+  const points =
+    '38.00,6.00 47.99,24.25 68.43,28.11 54.17,43.25 56.81,63.89 38.00,55.00 19.19,63.89 21.83,43.25 7.57,28.11 28.01,24.25';
 
   const arcTransforms = [
-    'translateY(16px) rotate(-16deg)',
-    'translateY(5px) rotate(-8deg)',
+    'translateY(18px) rotate(-18deg)',
+    'translateY(6px) rotate(-9deg)',
     'translateY(0px) rotate(0deg)',
-    'translateY(5px) rotate(8deg)',
-    'translateY(16px) rotate(16deg)',
+    'translateY(6px) rotate(9deg)',
+    'translateY(18px) rotate(18deg)',
   ];
 
   return (
     <div
-      className="flex items-center justify-center gap-2 sm:gap-3 md:gap-3.5 mb-1.5 sm:mb-2 select-none"
+      className="flex items-center justify-center gap-2 sm:gap-3 md:gap-4 mb-2 sm:mb-2.5 select-none"
       aria-label={`Earned ${earnedCount} of 5 stars`}
       role="img"
     >
@@ -73,8 +74,8 @@ export const FiveStarRating = ({ earnedCount = 0 }) => {
           >
             {isEarned ? (
               <svg
-                className="w-10 h-10 sm:w-12 sm:h-12 md:w-13 md:h-13 overflow-visible"
-                viewBox="0 0 60 60"
+                className="w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-[74px] lg:h-[74px] overflow-visible"
+                viewBox="0 0 76 76"
               >
                 <defs>
                   <linearGradient id={`starGrad_${idx}`} x1="0%" y1="0%" x2="0%" y2="100%">
@@ -91,41 +92,41 @@ export const FiveStarRating = ({ earnedCount = 0 }) => {
                 </defs>
 
                 {/* Soft Radiant Golden Ambient Glow Blooms */}
-                <circle cx="30" cy="30" r="26" fill="#F59E0B" opacity="0.38" filter="blur(12px)" />
-                <circle cx="30" cy="30" r="18" fill="#FBBF24" opacity="0.58" filter="blur(7px)" />
-                <circle cx="30" cy="30" r="10" fill="#FDE047" opacity="0.75" filter="blur(3px)" />
+                <circle cx="38" cy="38" r="34" fill="#F59E0B" opacity="0.38" filter="blur(15px)" />
+                <circle cx="38" cy="38" r="24" fill="#FBBF24" opacity="0.58" filter="blur(9px)" />
+                <circle cx="38" cy="38" r="14" fill="#FDE047" opacity="0.75" filter="blur(4px)" />
 
                 {/* Main Volumetric 3D Golden Star with Rounded Points */}
                 <polygon
                   points={points}
                   fill={`url(#starGrad_${idx})`}
                   stroke="#FDE68A"
-                  strokeWidth="2.5"
+                  strokeWidth="3"
                   strokeLinejoin="round"
                   strokeLinecap="round"
-                  filter="drop-shadow(0 3px 6px rgba(180, 83, 9, 0.65))"
+                  filter="drop-shadow(0 4px 8px rgba(180, 83, 9, 0.7))"
                 />
 
                 {/* Top Facet Sheen Highlight */}
-                <ellipse cx="30" cy="24" rx="10" ry="6" fill={`url(#starHighlight_${idx})`} />
-                <circle cx="30" cy="22" r="3" fill="#FFFFFF" opacity="0.7" filter="blur(1px)" />
+                <ellipse cx="38" cy="30" rx="13" ry="8" fill={`url(#starHighlight_${idx})`} />
+                <circle cx="38" cy="27" r="4" fill="#FFFFFF" opacity="0.75" filter="blur(1px)" />
               </svg>
             ) : (
               <svg
-                className="w-10 h-10 sm:w-12 sm:h-12 md:w-13 md:h-13 overflow-visible"
-                viewBox="0 0 60 60"
+                className="w-11 h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 lg:w-[74px] lg:h-[74px] overflow-visible"
+                viewBox="0 0 76 76"
               >
                 {/* Muted Unearned Star Fitting Existing Dark UI */}
                 <polygon
                   points={points}
                   fill="#111726"
                   stroke="rgba(255, 255, 255, 0.16)"
-                  strokeWidth="2.2"
+                  strokeWidth="2.8"
                   strokeLinejoin="round"
                   strokeLinecap="round"
-                  filter="drop-shadow(0 2px 5px rgba(0, 0, 0, 0.7))"
+                  filter="drop-shadow(0 3px 6px rgba(0, 0, 0, 0.7))"
                 />
-                <circle cx="30" cy="30" r="4.5" fill="rgba(255, 255, 255, 0.06)" />
+                <circle cx="38" cy="38" r="6" fill="rgba(255, 255, 255, 0.06)" />
               </svg>
             )}
           </div>
