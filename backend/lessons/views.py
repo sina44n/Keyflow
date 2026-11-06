@@ -675,13 +675,16 @@ class PlacementEvaluateView(APIView):
         number_acc = float(tier_results.get('numbers', {}).get('accuracy', overall_acc))
         symbol_acc = float(tier_results.get('symbols', {}).get('accuracy', overall_acc))
         shift_acc = float(tier_results.get('shift', {}).get('accuracy', overall_acc))
+        space_acc = float(tier_results.get('spacebar', {}).get('accuracy', 100.0))
+        punct_acc = float(tier_results.get('punctuation', {}).get('accuracy', 100.0))
+        code_acc = float(tier_results.get('code_syntax', {}).get('accuracy', 100.0))
 
         recommended_stage_num = 1
         recommendation_reason = "Home Row foundation recommended to establish tactile anchors."
 
-        if home_acc < 90.0 or gross_wpm < 20.0:
+        if home_acc < 90.0 or gross_wpm < 20.0 or space_acc < 85.0:
             recommended_stage_num = 1
-            recommendation_reason = "Novice placement: Home-Row anchor stabilization needed."
+            recommendation_reason = "Novice placement: Home-Row anchor stabilization and spacebar separation needed."
         elif top_acc < 90.0 or gross_wpm < 28.0:
             recommended_stage_num = 2
             recommendation_reason = "Home Row mastered; Top Row upward reach discipline needed."
@@ -695,7 +698,7 @@ class PlacementEvaluateView(APIView):
             # GATED: Even if typist is 90 WPM, poor numbers => Stage 5!
             recommended_stage_num = 5
             recommendation_reason = "Alphabet mastered, but Number Row dexterity requires structured training."
-        elif shift_acc < 90.0 or symbol_acc < 85.0:
+        elif shift_acc < 88.0 or symbol_acc < 85.0 or punct_acc < 88.0:
             # GATED: Even if high speed, poor shift/symbols => Stage 6!
             recommended_stage_num = 6
             recommendation_reason = "Numbers mastered; Opposite-hand Shift coordination and punctuation needed."
@@ -705,9 +708,9 @@ class PlacementEvaluateView(APIView):
         elif gross_wpm < 73.0 or overall_acc < 93.0:
             recommended_stage_num = 8
             recommendation_reason = "Fluid cadence demonstrated; Speed burst and sustained stamina needed."
-        elif gross_wpm < 83.0 or overall_acc < 95.0:
+        elif gross_wpm < 83.0 or overall_acc < 95.0 or code_acc < 88.0:
             recommended_stage_num = 9
-            recommendation_reason = "High speed typing confirmed; Technical syntax and structured data needed."
+            recommendation_reason = "High speed typing confirmed; Technical syntax, code brackets, and structured data needed."
         else:
             recommended_stage_num = 10
             recommendation_reason = "Grandmaster qualified: Literary and dense technical manual mastery."
@@ -736,8 +739,12 @@ class PlacementEvaluateView(APIView):
             ('bottom_row', bottom_acc, tier_results.get('bottom_row', {}).get('wpm', gross_wpm)),
             ('numbers', number_acc, tier_results.get('numbers', {}).get('wpm', gross_wpm)),
             ('shift_symbols', min(shift_acc, symbol_acc), tier_results.get('symbols', {}).get('wpm', gross_wpm)),
+            ('spacebar', space_acc, tier_results.get('spacebar', {}).get('wpm', gross_wpm)),
+            ('punctuation', punct_acc, tier_results.get('punctuation', {}).get('wpm', gross_wpm)),
             ('cadence', consistency, gross_wpm),
         ]
+        if 'code_syntax' in tier_results:
+            skills_data.append(('code_syntax', code_acc, tier_results.get('code_syntax', {}).get('wpm', gross_wpm)))
         for s_name, s_acc, s_wpm in skills_data:
             PlacementSkillResult.objects.create(
                 assessment=assessment,
