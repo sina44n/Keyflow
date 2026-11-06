@@ -188,7 +188,9 @@ const LEGACY_PROFILE_MAP = {
 let audioCtx = null;
 let noiseBuffer = null;
 let activeVoiceCount = 0;
+let lastPlaySoundTime = 0;
 const MAX_CONCURRENT_VOICES = 6;
+const MIN_SOUND_INTERVAL_MS = 15; // Rate limits keystroke audio bursts to prevent audio buffer overload
 
 /**
  * Lazily obtains or creates the Web Audio context.
@@ -401,6 +403,13 @@ export function playKeySound(profileId, isError = false, force = false) {
 
   // Silent profile produces zero audio
   if (profileId === 'silent-office' || profileId === 'silent') return;
+
+  // Rate limiting to prevent audio buffer saturation & thread crashes on burst/paste
+  const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (!force && (nowMs - lastPlaySoundTime < MIN_SOUND_INTERVAL_MS)) {
+    return;
+  }
+  lastPlaySoundTime = nowMs;
 
   const ctx = getAudioContext();
   if (!ctx) return;

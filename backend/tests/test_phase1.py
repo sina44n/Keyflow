@@ -55,11 +55,12 @@ class AccountsAndThemesTests(TestCase):
         self.assertTrue(hasattr(self.user, 'profile'))
         self.assertTrue(hasattr(self.user, 'preferences'))
         self.assertEqual(self.user.profile.display_name, 'flowmaster')
-        self.assertEqual(self.user.preferences.theme, 'dark-charcoal-lime')
+        self.assertEqual(self.user.preferences.theme, 'burgundy-cream')
 
     def test_all_12_themes_available(self):
-        """Verify exactly 12 themes exist in UserPreferences.THEME_CHOICES."""
+        """Verify all studio themes exist in UserPreferences.THEME_CHOICES including the 3 new themes."""
         expected_theme_ids = {
+            'dark-theme',
             'dark-charcoal-lime',
             'classic-black-white',
             'burgundy-cream',
@@ -72,20 +73,24 @@ class AccountsAndThemesTests(TestCase):
             'arctic-blue',
             'solarized-light',
             'warm-sand',
+            'espresso-latte',
+            'forest-sage',
+            'midnight-slate',
         }
         actual_theme_ids = {choice[0] for choice in UserPreferences.THEME_CHOICES}
         self.assertEqual(actual_theme_ids, expected_theme_ids)
-        self.assertEqual(len(UserPreferences.THEME_CHOICES), 12)
+        self.assertEqual(len(UserPreferences.THEME_CHOICES), 16)
 
     def test_theme_update_persistence(self):
-        """Verify user can update and persist theme preference."""
+        """Verify user can update and persist theme preference across new themes."""
         prefs = self.user.preferences
-        prefs.theme = 'midnight-blue'
-        prefs.save()
+        for new_theme in ['espresso-latte', 'forest-sage', 'midnight-slate', 'midnight-blue']:
+            prefs.theme = new_theme
+            prefs.save()
 
-        # Reload from database
-        reloaded = UserPreferences.objects.get(user=self.user)
-        self.assertEqual(reloaded.theme, 'midnight-blue')
+            # Reload from database
+            reloaded = UserPreferences.objects.get(user=self.user)
+            self.assertEqual(reloaded.theme, new_theme)
 
 
 class RouteRegistrationTests(TestCase):

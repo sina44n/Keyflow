@@ -17,6 +17,9 @@ __pycache__/
 backend/db.sqlite3
 backend/staticfiles/
 media/
+backend/backups/
+scratch/
+*.backup*
 
 # Node & Frontend
 node_modules/

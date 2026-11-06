@@ -73,3 +73,4 @@ class ClerkEnvironmentTests(TestCase):
         })
         self.assertTrue(len(result['warnings']) > 0)
         self.assertTrue(any('security warning' in warn.lower() for warn in result['warnings']))
+

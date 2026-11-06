@@ -7,7 +7,20 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
-from .models import Level, Lesson, LessonProgress
+from .models import (
+    Level,
+    Lesson,
+    LessonProgress,
+    CurriculumStage,
+    CurriculumUnit,
+    CurriculumLevel,
+    UserStageAccess,
+    CurriculumLessonProgress,
+    LegacyLessonProgressArchive,
+    PlacementAssessment,
+    PlacementSkillResult,
+    AdaptiveRemedialSession,
+)
 from .serializers import LevelSerializer, LessonSerializer, LessonProgressSerializer
 
 
@@ -71,6 +84,8 @@ class RecordLessonProgressView(APIView):
                 target_lesson = Lesson.objects.get(id=lesson_id, is_published=True)
             except Lesson.DoesNotExist:
                 return Response({'error': 'Lesson not found.'}, status=status.HTTP_404_NOT_FOUND)
+            stage_num = target_lesson.level.level_number
+            lesson_num = target_lesson.order
         else:
             raw_stage = request.data.get('stage') or request.data.get('stageId') or 1
             raw_lesson = request.data.get('lesson') or request.data.get('lessonNum') or 1
@@ -134,34 +149,134 @@ class RecordLessonProgressView(APIView):
                 progress.completed_at = now
             progress.save()
 
-        return Response(LessonProgressSerializer(progress).data, status=status.HTTP_200_OK)
+        # Seamlessly mirror to 10-Stage 7,000-Level CurriculumLessonProgress & UserStageAccess
+        curric_level = CurriculumLevel.objects.filter(
+            stage__stage_number=stage_num,
+            level_in_stage=lesson_num
+        ).first()
+
+        curric_stars = request.data.get('stars')
+        if curric_stars is not None:
+            try:
+                curric_stars = max(0, min(5, int(curric_stars)))
+            except (ValueError, TypeError):
+                curric_stars = None
+
+        if curric_level:
+            is_passed = completed or (wpm >= curric_level.target_wpm and accuracy >= curric_level.target_accuracy)
+            if curric_stars is None:
+                curric_stars = 0
+                if is_passed:
+                    curric_stars = 1
+                    if wpm >= (curric_level.target_wpm + 5) and accuracy >= min(100, curric_level.target_accuracy + 2):
+                        curric_stars = 2
+                    if wpm >= (curric_level.target_wpm + 10) and accuracy >= min(100, curric_level.target_accuracy + 4):
+                        curric_stars = 3
+                    if wpm >= (curric_level.target_wpm + 15) and accuracy >= min(100, curric_level.target_accuracy + 6):
+                        curric_stars = 4
+                    if wpm >= (curric_level.target_wpm + 20) and accuracy >= min(100, curric_level.target_accuracy + 8):
+                        curric_stars = 5
+
+            clp, c_created = CurriculumLessonProgress.objects.get_or_create(
+                user=request.user,
+                level=curric_level,
+                defaults={
+                    'first_attempt_at': now,
+                    'last_attempt_at': now,
+                    'attempts': 1,
+                    'best_wpm': wpm,
+                    'best_accuracy': accuracy,
+                    'is_completed': is_passed,
+                    'stars': curric_stars,
+                    'completed_at': now if is_passed else None,
+                }
+            )
+            if not c_created:
+                clp.attempts += 1
+                clp.last_attempt_at = now
+                if wpm > float(clp.best_wpm):
+                    clp.best_wpm = wpm
+                if accuracy > float(clp.best_accuracy):
+                    clp.best_accuracy = accuracy
+                if is_passed:
+                    if not clp.is_completed:
+                        clp.is_completed = True
+                        clp.completed_at = now
+                    if curric_stars and curric_stars > clp.stars:
+                        clp.stars = curric_stars
+                clp.save()
+
+            if is_passed and lesson_num >= 700 and stage_num < 10:
+                next_stage = CurriculumStage.objects.filter(stage_number=stage_num + 1).first()
+                if next_stage:
+                    UserStageAccess.objects.get_or_create(
+                        user=request.user,
+                        stage=next_stage,
+                        defaults={
+                            'access_type': 'guided_unlock',
+                            'notes': f'Unlocked automatically after completing Stage {stage_num}',
+                        }
+                    )
+
+        res_data = LessonProgressSerializer(progress).data
+        if curric_stars is not None:
+            res_data['stars'] = curric_stars
+        return Response(res_data, status=status.HTTP_200_OK)
 
 
 class UserLessonProgressSummaryView(APIView):
     """
     GET /api/lessons/progress/summary/
     Returns full lesson progress map, highest reached level per stage,
-    and unlocked stages for the authenticated user.
+    stage access types, and unlocked stages for the authenticated user.
+    Seamlessly aggregates CurriculumLessonProgress, LessonProgress, and UserStageAccess.
     """
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        records = LessonProgress.objects.filter(
-            user=request.user
-        ).select_related('lesson', 'lesson__level')
-
         lessons_map = {}
-        stage_progress = {'1': 1, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0}
-        unlocked_stages = [1]
+        stage_progress = {str(i): 0 for i in range(1, 11)}
+        stage_progress['1'] = 1  # Stage 1 Level 1 minimum
+        unlocked_stages = {1}
+        stage_access_types = {'1': 'guided_unlock'}
 
-        for rec in records:
-            s_num = rec.lesson.level.level_number
-            l_num = rec.lesson.order
+        # 1. Query UserStageAccess for authoritative stage unlock gates & paths
+        for usa in UserStageAccess.objects.filter(user=request.user).select_related('stage'):
+            s_num = usa.stage.stage_number
+            unlocked_stages.add(s_num)
+            stage_access_types[str(s_num)] = usa.access_type
+
+        # 2. Query 10-Stage 7,000-Level CurriculumLessonProgress (Authoritative)
+        curric_records = CurriculumLessonProgress.objects.filter(
+            user=request.user
+        ).select_related('level', 'level__stage')
+
+        for rec in curric_records:
+            s_num = rec.level.stage.stage_number
+            l_num = rec.level.level_in_stage
             stable_key = f"S{s_num}-L{str(l_num).zfill(3)}"
             direct_key = f"s{s_num}_l{l_num}"
 
+            stars = rec.stars
+            if not stars and rec.is_completed:
+                wpm = float(rec.best_wpm)
+                acc = float(rec.best_accuracy)
+                t_wpm = rec.level.target_wpm
+                t_acc = rec.level.target_accuracy
+                if wpm >= t_wpm and acc >= t_acc:
+                    stars = 1
+                    if wpm >= (t_wpm + 5) and acc >= min(100, t_acc + 2):
+                        stars = 2
+                    if wpm >= (t_wpm + 10) and acc >= min(100, t_acc + 4):
+                        stars = 3
+                    if wpm >= (t_wpm + 15) and acc >= min(100, t_acc + 6):
+                        stars = 4
+                    if wpm >= (t_wpm + 20) and acc >= min(100, t_acc + 8):
+                        stars = 5
+
             item = {
                 'completed': rec.is_completed,
+                'stars': stars,
                 'bestWpm': float(rec.best_wpm),
                 'bestAccuracy': float(rec.best_accuracy),
                 'attempts': rec.attempts,
@@ -172,13 +287,82 @@ class UserLessonProgressSummaryView(APIView):
 
             if rec.is_completed:
                 stage_progress[str(s_num)] = max(stage_progress.get(str(s_num), 0), l_num + 1)
-                if l_num >= 600 and s_num < 7 and (s_num + 1) not in unlocked_stages:
-                    unlocked_stages.append(s_num + 1)
+                if l_num >= 700 and s_num < 10:
+                    unlocked_stages.add(s_num + 1)
+                    if str(s_num + 1) not in stage_access_types:
+                        stage_access_types[str(s_num + 1)] = 'guided_unlock'
+
+        # 3. Query legacy LessonProgress and merge best metrics
+        legacy_records = LessonProgress.objects.filter(
+            user=request.user
+        ).select_related('lesson', 'lesson__level')
+
+        for rec in legacy_records:
+            s_num = rec.lesson.level.level_number
+            l_num = rec.lesson.order
+            stable_key = f"S{s_num}-L{str(l_num).zfill(3)}"
+            direct_key = f"s{s_num}_l{l_num}"
+
+            existing = lessons_map.get(stable_key)
+            if existing:
+                merged_completed = existing['completed'] or rec.is_completed
+                merged_wpm = max(existing['bestWpm'], float(rec.best_wpm))
+                merged_acc = max(existing['bestAccuracy'], float(rec.best_accuracy))
+                merged_attempts = max(existing['attempts'], rec.attempts)
+                merged_stars = existing.get('stars', 0)
+                if not merged_stars and merged_completed:
+                    t_wpm = rec.lesson.target_wpm
+                    t_acc = rec.lesson.target_accuracy
+                    if merged_wpm >= t_wpm and merged_acc >= t_acc:
+                        merged_stars = 1
+                        if merged_wpm >= (t_wpm + 5) and merged_acc >= min(100, t_acc + 2):
+                            merged_stars = 2
+                        if merged_wpm >= (t_wpm + 10) and merged_acc >= min(100, t_acc + 4):
+                            merged_stars = 3
+
+                item = {
+                    'completed': merged_completed,
+                    'stars': merged_stars,
+                    'bestWpm': merged_wpm,
+                    'bestAccuracy': merged_acc,
+                    'attempts': merged_attempts,
+                    'completedAt': existing['completedAt'] or (rec.completed_at.isoformat() if rec.completed_at else None),
+                }
+            else:
+                stars = 0
+                if rec.is_completed:
+                    stars = 1
+                    t_wpm = rec.lesson.target_wpm
+                    t_acc = rec.lesson.target_accuracy
+                    if float(rec.best_wpm) >= (t_wpm + 5) and float(rec.best_accuracy) >= min(100, t_acc + 2):
+                        stars = 2
+                    if float(rec.best_wpm) >= (t_wpm + 10) and float(rec.best_accuracy) >= min(100, t_acc + 4):
+                        stars = 3
+
+                item = {
+                    'completed': rec.is_completed,
+                    'stars': stars,
+                    'bestWpm': float(rec.best_wpm),
+                    'bestAccuracy': float(rec.best_accuracy),
+                    'attempts': rec.attempts,
+                    'completedAt': rec.completed_at.isoformat() if rec.completed_at else None,
+                }
+
+            lessons_map[stable_key] = item
+            lessons_map[direct_key] = item
+
+            if rec.is_completed:
+                stage_progress[str(s_num)] = max(stage_progress.get(str(s_num), 0), l_num + 1)
+                if l_num >= 600 and s_num < 10:
+                    unlocked_stages.add(s_num + 1)
+                    if str(s_num + 1) not in stage_access_types:
+                        stage_access_types[str(s_num + 1)] = 'guided_unlock'
 
         return Response({
             'lessons': lessons_map,
             'stageProgress': stage_progress,
             'unlockedStages': sorted(unlocked_stages),
+            'stageAccessTypes': stage_access_types,
         }, status=status.HTTP_200_OK)
 
 
@@ -366,6 +550,38 @@ class CurriculumRecordProgressView(APIView):
                 if stars > progress.stars:
                     progress.stars = stars
             progress.save()
+
+        # Mirror to legacy LessonProgress for backward compatibility
+        stage_num = level.stage.stage_number
+        lesson_num = level.level_in_stage
+        legacy_level = Level.objects.filter(level_number=stage_num).first()
+        if legacy_level:
+            legacy_lesson = Lesson.objects.filter(level=legacy_level, order=lesson_num).first()
+            if legacy_lesson:
+                lp, lp_created = LessonProgress.objects.get_or_create(
+                    user=request.user,
+                    lesson=legacy_lesson,
+                    defaults={
+                        'first_attempt_at': now,
+                        'last_attempt_at': now,
+                        'attempts': 1,
+                        'best_wpm': wpm,
+                        'best_accuracy': accuracy,
+                        'is_completed': is_passed,
+                        'completed_at': now if is_passed else None,
+                    }
+                )
+                if not lp_created:
+                    lp.attempts += 1
+                    lp.last_attempt_at = now
+                    if wpm > float(lp.best_wpm):
+                        lp.best_wpm = wpm
+                    if accuracy > float(lp.best_accuracy):
+                        lp.best_accuracy = accuracy
+                    if is_passed and not lp.is_completed:
+                        lp.is_completed = True
+                        lp.completed_at = now
+                    lp.save()
 
         # If user completed the final level of this stage (level_in_stage == 700),
         # automatically grant guided unlock access to the next stage

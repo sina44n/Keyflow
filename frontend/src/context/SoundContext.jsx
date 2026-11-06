@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import {
   SOUND_PROFILES,
   SOUND_CATEGORIES,
@@ -7,6 +7,8 @@ import {
   saveSoundSettings,
   playKeySound,
 } from '../utils/keyboardAudio';
+
+import { profileAPI } from '../utils/api';
 
 export { SOUND_PROFILES, SOUND_CATEGORIES, DEFAULT_SOUND_SETTINGS };
 
@@ -27,10 +29,36 @@ const SoundContext = createContext({
 export const SoundProvider = ({ children }) => {
   const [settings, setSettings] = useState(() => getSoundSettings());
 
+  // Listen for account preferences restore
+  useEffect(() => {
+    const handleSync = (e) => {
+      const { profile, enabled } = e.detail || {};
+      if (profile && SOUND_PROFILES.some((p) => p.id === profile)) {
+        setSettings((prev) => {
+          const next = {
+            ...prev,
+            profile,
+            enabled: enabled !== undefined ? Boolean(enabled) : prev.enabled,
+          };
+          saveSoundSettings(next);
+          return next;
+        });
+      }
+    };
+    window.addEventListener('keyflow-sound-sync', handleSync);
+    return () => window.removeEventListener('keyflow-sound-sync', handleSync);
+  }, []);
+
   const setSoundEnabled = useCallback((enabled) => {
     setSettings((prev) => {
       const next = { ...prev, enabled: Boolean(enabled) };
       saveSoundSettings(next);
+      try {
+        const userId = localStorage.getItem('keyflow_current_user_id');
+        if (userId) {
+          profileAPI.updatePreferences({ sound_enabled: Boolean(enabled) }).catch(() => {});
+        }
+      } catch {}
       return next;
     });
   }, []);
@@ -46,6 +74,12 @@ export const SoundProvider = ({ children }) => {
         next.enabled = true;
       }
       saveSoundSettings(next);
+      try {
+        const userId = localStorage.getItem('keyflow_current_user_id');
+        if (userId) {
+          profileAPI.updatePreferences({ sound_profile: profileId, sound_enabled: next.enabled }).catch(() => {});
+        }
+      } catch {}
       return next;
     });
   }, []);
@@ -54,6 +88,12 @@ export const SoundProvider = ({ children }) => {
     setSettings((prev) => {
       const next = { ...prev, enabled: !prev.enabled };
       saveSoundSettings(next);
+      try {
+        const userId = localStorage.getItem('keyflow_current_user_id');
+        if (userId) {
+          profileAPI.updatePreferences({ sound_enabled: next.enabled }).catch(() => {});
+        }
+      } catch {}
       return next;
     });
   }, []);

@@ -86,3 +86,4 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.WARNING(f"[DRY RUN] Would delete {deleted_progress_count} migrated progress records."))
                 self.stdout.write(self.style.WARNING(f"[DRY RUN] Would delete {deleted_access_count} migrated stage access records."))
                 transaction.set_rollback(True)
+

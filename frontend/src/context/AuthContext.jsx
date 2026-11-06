@@ -16,6 +16,7 @@ import {
   authAPI,
   lessonsAPI,
   gamesAPI,
+  practiceAPI,
   setStoredToken,
   clearStoredToken,
   getStoredToken,
@@ -34,6 +35,7 @@ import {
   migrateGuestArcadeRecordsToAccount,
   resetGuestArcadeRecords,
 } from '../utils/arcadeStorage';
+import { syncTelemetrySessionsFromBackend } from '../utils/telemetryStorage';
 
 // Wire up asynchronous backend lesson progress synchronization
 registerBackendSyncHandler((data) => {
@@ -58,12 +60,16 @@ const applyUserSession = async (userData) => {
   if (userData?.id) {
     try {
       localStorage.setItem('keyflow_current_user_id', String(userData.id));
+      if (userData.clerk_id) {
+        localStorage.setItem(`keyflow_user_alias_${userData.clerk_id}`, String(userData.id));
+        localStorage.setItem(`keyflow_user_clerk_${userData.id}`, String(userData.clerk_id));
+      }
     } catch {}
     setLessonProgressUser(userData.id);
     setArcadeStorageUser(userData.id);
 
     // Only fetch remote progress if this is an authoritative authenticated user, not an offline fallback
-    if (!userData.is_offline_fallback) {
+    if (!userData.is_offline_fallback && !userData.isOfflineFallback) {
       // 1. Safely migrate any existing guest data into authenticated user account
       try {
         await migrateGuestProgressToAccount(userData.id, lessonsAPI.recordProgress);
@@ -91,9 +97,20 @@ const applyUserSession = async (userData) => {
       } catch {
         // Safe fallback
       }
+
+      // 4. Fetch authoritative workstation practice history from backend PostgreSQL
+      try {
+        const practiceRes = await practiceAPI.getHistory();
+        const practiceList = Array.isArray(practiceRes?.data) ? practiceRes.data : (practiceRes?.data?.results || []);
+        if (practiceList.length > 0) {
+          syncTelemetrySessionsFromBackend(practiceList, userData.id);
+        }
+      } catch {
+        // Safe fallback
+      }
     }
 
-    // 4. Dispatch theme and sound preference synchronization across contexts
+    // 5. Dispatch theme and sound preference synchronization across contexts
     if (userData.preferences?.theme_preset && typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('keyflow-theme-sync', { detail: userData.preferences.theme_preset })
@@ -115,6 +132,9 @@ const applyUserSession = async (userData) => {
     } catch {}
     setLessonProgressUser(null);
     setArcadeStorageUser(null);
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('keyflow-telemetry-updated'));
+    }
   }
 };
 
@@ -218,6 +238,7 @@ const ClerkAuthBridge = ({ children }) => {
                 avatar_url: clerkUser.imageUrl || '',
               },
               preferences: {},
+              is_offline_fallback: true,
               isOfflineFallback: true,
             };
             syncedClerkIdRef.current = clerkUser.id;
@@ -251,6 +272,9 @@ const ClerkAuthBridge = ({ children }) => {
     setArcadeStorageUser(null);
     resetGuestProgress();
     resetGuestArcadeRecords();
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('keyflow-telemetry-updated'));
+    }
     setDjangoUser(null);
     syncedClerkIdRef.current = null;
   }, [clerk]);

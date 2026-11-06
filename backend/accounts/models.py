@@ -117,21 +117,15 @@ class UserPreferences(models.Model):
         ('midnight-slate', 'Midnight Slate'),
     ]
 
-    DURATION_CHOICES = [(15, '15 seconds'), (30, '30 seconds'), (60, '60 seconds'), (120, '2 minutes')]
-    GOAL_CHOICES = [(5, '5 minutes'), (10, '10 minutes'), (15, '15 minutes'), (30, '30 minutes')]
-
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='preferences')
     theme_preset = models.CharField(
-        max_length=30,
-        choices=THEME_CHOICES,
+        max_length=50,
         default='burgundy-cream'
     )
     daily_goal_minutes = models.PositiveSmallIntegerField(
-        choices=GOAL_CHOICES,
         default=10
     )
     preferred_duration = models.PositiveSmallIntegerField(
-        choices=DURATION_CHOICES,
         default=60
     )
     preferred_word_count = models.PositiveSmallIntegerField(default=25)

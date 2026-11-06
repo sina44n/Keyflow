@@ -280,22 +280,34 @@ describe('KEYFLOW — Academy Performance Results Screen & Speedometer Engine', 
       assert.strictEqual(session.wpm, 48);
     });
 
-    it('Scenario B: Fast but Error-Prone Session (WPM: 60, Acc: 80%, Errors: 5 in 60s)', () => {
-      // User typed at 60 WPM gross, made 5 uncorrected errors over 60 seconds
-      const finalWpm = 60;
+    it('Scenario B: Fast but Error-Prone Session (WPM: 60, Acc: 80%, Total Mistakes: 60, Uncorrected: 5, Net WPM: 55)', () => {
+      // 60 WPM over 60s requires 300 valid keystrokes:
+      // At 80% accuracy: 240 correct keystrokes, 60 total mistakes (240 / 300 = 80%)
+      // 55 mistakes corrected via backspace, 5 uncorrected errors remaining
+      const duration = 60; // 1.0 minute
+      const correctKeystrokes = 240;
+      const totalMistakes = 60;
       const uncorrectedErrors = 5;
-      const duration = 60;
-      const computedNetWpm = calculateNetWpm(finalWpm, uncorrectedErrors, duration);
+      const correctedMistakes = totalMistakes - uncorrectedErrors; // 55
+      const totalValid = correctKeystrokes + totalMistakes; // 300
 
+      const finalWpm = Math.round((totalValid / 5) / (duration / 60)); // 60
+      const finalAccuracy = Math.round((correctKeystrokes / totalValid) * 100); // 80%
+      const computedNetWpm = calculateNetWpm(finalWpm, uncorrectedErrors, duration); // 55
+
+      assert.strictEqual(finalWpm, 60);
+      assert.strictEqual(finalAccuracy, 80);
+      assert.strictEqual(correctedMistakes, 55);
       assert.strictEqual(computedNetWpm, 55); // 60 - (5 / 1.0) = 55
+
       const cat = getSpeedCategory(finalWpm);
       const rot = wpmToNeedleRotation(finalWpm);
 
-      // Gauge displays authoritative Gross WPM (60)
+      // Gauge displays authoritative Gross WPM (60) in EXCELLENT zone
       assert.strictEqual(cat.name, 'EXCELLENT');
       assert.strictEqual(cat.color, '#22C55E');
       assert.strictEqual(rot, -63);
-      assert.ok(computedNetWpm < finalWpm, 'Net WPM must reflect uncorrected error penalties');
+      assert.ok(computedNetWpm < finalWpm, 'Net WPM (55) must reflect uncorrected error penalties while Gross WPM remains 60');
     });
 
     it('Scenario C: Corrected Mistakes Session (Diff WPM & Net WPM, non-perfect accuracy, corrected mistakes)', () => {

@@ -146,3 +146,4 @@ export const getClerkEnvironmentStatus = (customKey = null, customEnv = null) =>
 export const CLERK_PUBLISHABLE_KEY = getClerkPublishableKey();
 export const clerkEnvStatus = getClerkEnvironmentStatus(CLERK_PUBLISHABLE_KEY);
 export const isClerkConfigured = clerkEnvStatus.isConfigured && !clerkEnvStatus.validationError;
+

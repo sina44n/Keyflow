@@ -43,7 +43,8 @@ describe('KEYFLOW Global Leaderboard Implementation Tests', () => {
     const content = fs.readFileSync(appPath, 'utf-8');
 
     assert.ok(
-      content.includes("import LeaderboardPage from './pages/LeaderboardPage'"),
+      content.includes("import LeaderboardPage from './pages/LeaderboardPage'") ||
+      content.includes("import('./pages/LeaderboardPage')"),
       'App.jsx must import LeaderboardPage'
     );
     assert.ok(

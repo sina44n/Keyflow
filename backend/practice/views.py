@@ -155,7 +155,12 @@ class UserPracticeHistoryView(generics.ListAPIView):
     serializer_class = PracticeSessionSerializer
 
     def get_queryset(self):
-        return PracticeSession.objects.filter(user=self.request.user).order_by('-created_at')[:50]
+        try:
+            limit = int(self.request.query_params.get('limit', 100))
+            limit = max(1, min(limit, 500))
+        except (ValueError, TypeError):
+            limit = 100
+        return PracticeSession.objects.filter(user=self.request.user).order_by('-created_at')[:limit]
 
 
 class CompetitionListView(APIView):

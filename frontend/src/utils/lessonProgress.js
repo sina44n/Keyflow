@@ -56,11 +56,39 @@ export function resetGuestProgress() {
 }
 
 export function getCurrentUserId() {
-  return currentUserId;
+  if (currentUserId) {
+    if (typeof currentUserId === 'string' && currentUserId.startsWith('user_')) {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          const aliased = localStorage.getItem(`keyflow_user_alias_${currentUserId}`);
+          if (aliased) return String(aliased);
+        }
+      } catch {}
+    }
+    return String(currentUserId);
+  }
+  return null;
 }
 
 function getStorageKey() {
-  return currentUserId ? `keyflow_lesson_progress_u_${currentUserId}` : 'keyflow_lesson_progress_guest';
+  const uid = getCurrentUserId();
+  if (!uid) return 'keyflow_lesson_progress_guest';
+  const canonicalKey = `keyflow_lesson_progress_u_${uid}`;
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const canonicalData = localStorage.getItem(canonicalKey);
+      if (!canonicalData && typeof currentUserId === 'string') {
+        const fallbackKey = `keyflow_lesson_progress_u_${currentUserId}`;
+        if (fallbackKey !== canonicalKey) {
+          const fallbackData = localStorage.getItem(fallbackKey);
+          if (fallbackData) {
+            localStorage.setItem(canonicalKey, fallbackData);
+          }
+        }
+      }
+    } catch {}
+  }
+  return canonicalKey;
 }
 
 const DEFAULT_STATE = {
@@ -151,9 +179,17 @@ export function syncLessonProgressFromBackend(backendSummary) {
       completed: Boolean(val.completed),
       bestWpm: Math.max(existing.bestWpm || 0, val.bestWpm || 0),
       bestAccuracy: Math.max(existing.bestAccuracy || 0, val.bestAccuracy || 0),
+      stars: Math.max(existing.stars || 0, val.stars !== undefined ? val.stars : (existing.stars || 0)),
       attempts: Math.max(existing.attempts || 0, val.attempts || 0),
       completedAt: val.completedAt || existing.completedAt,
     };
+  }
+
+  // Preserve any local completed lessons that haven't synced to backend yet (offline resilience)
+  for (const [key, val] of Object.entries(state.lessons || {})) {
+    if (val?.completed && !newLessons[key]) {
+      newLessons[key] = val;
+    }
   }
 
   // Replace lessons state strictly with authenticated user's records
@@ -187,7 +223,7 @@ export function syncLessonProgressFromBackend(backendSummary) {
  * Preserves guest storage until migration is completed.
  */
 export async function migrateGuestProgressToAccount(userId, recordApiFn) {
-  if (!userId || typeof window === 'undefined') return;
+  if (!userId || (typeof window === 'undefined' && typeof globalThis.localStorage === 'undefined')) return;
   try {
     const guestRaw =
       localStorage.getItem('keyflow_lesson_progress_guest') ||
@@ -224,6 +260,9 @@ export async function migrateGuestProgressToAccount(userId, recordApiFn) {
         // Continue with other entries if one fails
       }
     }
+
+    // Clean up guest storage once migrated to prevent cross-account contamination
+    resetGuestProgress();
   } catch (err) {
     console.warn('KEYFLOW guest progress migration notice:', err);
   }

@@ -39,10 +39,40 @@ export const resetGuestArcadeRecords = () => {
   }
 };
 
+export const getArcadeUserId = () => {
+  if (currentArcadeUserId) {
+    if (typeof currentArcadeUserId === 'string' && currentArcadeUserId.startsWith('user_')) {
+      try {
+        if (typeof localStorage !== 'undefined') {
+          const aliased = localStorage.getItem(`keyflow_user_alias_${currentArcadeUserId}`);
+          if (aliased) return String(aliased);
+        }
+      } catch {}
+    }
+    return String(currentArcadeUserId);
+  }
+  return null;
+};
+
 const getArcadeStorageKey = () => {
-  return currentArcadeUserId
-    ? `keyflow_arcade_records_u_${currentArcadeUserId}`
-    : 'keyflow_arcade_records_guest';
+  const uid = getArcadeUserId();
+  if (!uid) return 'keyflow_arcade_records_guest';
+  const canonicalKey = `keyflow_arcade_records_u_${uid}`;
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const canonicalData = localStorage.getItem(canonicalKey);
+      if (!canonicalData && typeof currentArcadeUserId === 'string') {
+        const altKey = `keyflow_arcade_records_u_${currentArcadeUserId}`;
+        if (altKey !== canonicalKey) {
+          const altData = localStorage.getItem(altKey);
+          if (altData) {
+            localStorage.setItem(canonicalKey, altData);
+          }
+        }
+      }
+    } catch {}
+  }
+  return canonicalKey;
 };
 
 const DEFAULT_RECORDS = {
@@ -305,7 +335,7 @@ export const syncArcadeRecordsFromBackend = (serverRecords) => {
  * Safely migrates guest arcade records to the newly authenticated account.
  */
 export const migrateGuestArcadeRecordsToAccount = async (userId) => {
-  if (!userId || typeof window === 'undefined') return;
+  if (!userId || (typeof window === 'undefined' && typeof globalThis.localStorage === 'undefined')) return;
   try {
     const rawGuest = localStorage.getItem('keyflow_arcade_records_guest');
     if (!rawGuest) return;
@@ -332,6 +362,8 @@ export const migrateGuestArcadeRecordsToAccount = async (userId) => {
         });
       } catch {}
     }
+    // Clean up guest arcade records after successful migration
+    resetGuestArcadeRecords();
   } catch (err) {
     console.warn('KEYFLOW guest arcade migration notice:', err);
   }

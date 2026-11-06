@@ -72,7 +72,7 @@ export const FeaturesSection = () => {
             return (
               <div
                 key={i}
-                className="group p-6 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)] transition-all duration-200 shadow-sm hover:shadow-lg flex flex-col justify-between"
+                className="group p-5 sm:p-6 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)] transition-all duration-200 shadow-sm hover:shadow-lg flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center justify-between mb-4">

@@ -27,7 +27,7 @@ export const ProgressStats = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full lg:w-auto">
       {/* 1. Overall Progress Card */}
-      <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm min-w-[190px]">
+      <div className="flex items-center gap-4 p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm min-w-0 sm:min-w-[180px]">
         {/* Circular Progress Ring */}
         <div className="relative w-14 h-14 shrink-0 flex items-center justify-center">
           <svg className="w-14 h-14 -rotate-90 transform" viewBox="0 0 60 60">
@@ -72,7 +72,7 @@ export const ProgressStats = ({
       </div>
 
       {/* 2. Current Streak Card */}
-      <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm min-w-[170px]">
+      <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm min-w-0 sm:min-w-[160px]">
         {/* Flame Icon Container with Glow */}
         <div className="w-12 h-12 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/30 flex items-center justify-center shrink-0">
           <Flame className="w-6 h-6 text-[var(--accent)] fill-[var(--accent)]/20 animate-pulse" />
@@ -86,7 +86,7 @@ export const ProgressStats = ({
       </div>
 
       {/* 3. Accuracy Card */}
-      <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm min-w-[170px]">
+      <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-sm min-w-0 sm:min-w-[160px]">
         {/* Target Reticle Icon */}
         <div className="w-12 h-12 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/30 flex items-center justify-center shrink-0">
           <Target className="w-6 h-6 text-[var(--accent)]" />

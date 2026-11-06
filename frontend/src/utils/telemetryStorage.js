@@ -35,22 +35,44 @@ export const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export const dayHeaders = DAY_HEADERS;
 
 export function getCurrentUserId(explicitUserId = null) {
-  if (explicitUserId !== null && explicitUserId !== undefined) {
-    return String(explicitUserId);
-  }
-  try {
-    if (typeof localStorage !== 'undefined') {
-      return localStorage.getItem('keyflow_current_user_id') || null;
+  let uid = explicitUserId !== null && explicitUserId !== undefined ? String(explicitUserId) : null;
+  if (!uid) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        uid = localStorage.getItem('keyflow_current_user_id') || null;
+      }
+    } catch {
+      return null;
     }
-  } catch {
-    return null;
   }
-  return null;
+  if (uid && typeof uid === 'string' && uid.startsWith('user_')) {
+    try {
+      if (typeof localStorage !== 'undefined') {
+        const aliased = localStorage.getItem(`keyflow_user_alias_${uid}`);
+        if (aliased) return String(aliased);
+      }
+    } catch {}
+  }
+  return uid ? String(uid) : null;
 }
 
 export function getStorageKey(explicitUserId = null) {
   const userId = getCurrentUserId(explicitUserId);
-  return userId ? `keyflow_telemetry_sessions_u_${userId}` : 'keyflow_telemetry_sessions_guest';
+  if (!userId) return 'keyflow_telemetry_sessions_guest';
+  const canonicalKey = `keyflow_telemetry_sessions_u_${userId}`;
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const canonicalData = localStorage.getItem(canonicalKey);
+      if (!canonicalData && explicitUserId && String(explicitUserId) !== userId) {
+        const altKey = `keyflow_telemetry_sessions_u_${explicitUserId}`;
+        const altData = localStorage.getItem(altKey);
+        if (altData) {
+          localStorage.setItem(canonicalKey, altData);
+        }
+      }
+    } catch {}
+  }
+  return canonicalKey;
 }
 
 export function getGoalStorageKey(explicitUserId = null) {
@@ -157,6 +179,78 @@ export function deleteTelemetrySession(sessionId, explicitUserId = null) {
 export function clearAllTelemetrySessions(explicitUserId = null) {
   saveRawTelemetrySessions([], explicitUserId);
   return [];
+}
+
+/**
+ * Synchronizes authoritative practice sessions returned from backend PostgreSQL
+ * into the user's isolated local store without duplication.
+ */
+export function syncTelemetrySessionsFromBackend(serverSessions, explicitUserId = null) {
+  if (!Array.isArray(serverSessions)) return [];
+  const local = loadRawTelemetrySessions(explicitUserId);
+  const existingMap = new Map();
+
+  for (const s of local) {
+    if (s.id) existingMap.set(String(s.id), s);
+    if (s.sessionId) existingMap.set(String(s.sessionId), s);
+    if (s.clientSessionId) existingMap.set(String(s.clientSessionId), s);
+  }
+
+  const merged = [...local];
+
+  for (const s of serverSessions) {
+    if (!s || typeof s !== 'object') continue;
+    const cid = s.client_session_id || `backend_${s.id}`;
+    if (existingMap.has(String(cid)) || existingMap.has(String(s.id)) || existingMap.has(String(s.client_session_id))) {
+      continue;
+    }
+
+    const date = s.created_at ? new Date(s.created_at) : new Date();
+    const duration = Math.max(1, Math.round(s.duration_seconds || 1));
+    const grossWpm = Number(s.gross_wpm || s.wpm || 0);
+    const netWpm = Number(s.net_wpm || 0);
+    const accuracy = Number(s.accuracy || 0);
+    const totalChars = Number(s.total_chars || 0);
+    const correctChars = Number(s.correct_chars || 0);
+    const incorrectChars = Number(s.incorrect_chars || 0);
+    const errorCount = Number(s.error_count || 0);
+
+    const formattedSession = {
+      id: cid,
+      sessionId: cid,
+      timestamp: date.getTime(),
+      date: toLocalDateString(date),
+      mode: s.session_type || 'timed',
+      sessionType: s.session_type || 'workstation',
+      duration,
+      durationSeconds: duration,
+      wpm: grossWpm,
+      grossWpm,
+      netWpm,
+      accuracy,
+      rawAccuracy: accuracy,
+      realAccuracy: accuracy,
+      totalChars,
+      totalKeystrokes: totalChars,
+      correctChars,
+      correctKeystrokes: correctChars,
+      incorrectChars,
+      incorrectKeystrokes: incorrectChars,
+      mistakes: incorrectChars,
+      errorCount,
+      status: 'passed',
+      characterStats: {},
+      fingerStats: {},
+    };
+
+    merged.push(formattedSession);
+    existingMap.set(String(cid), formattedSession);
+  }
+
+  // Sort descending by timestamp
+  merged.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  saveRawTelemetrySessions(merged, explicitUserId);
+  return merged;
 }
 
 /**

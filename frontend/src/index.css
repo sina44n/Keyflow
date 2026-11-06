@@ -1050,6 +1050,243 @@
 }
 
 /* ========================================================== */
+/* THEME 13: Espresso & Latte                                 */
+/* ========================================================== */
+[data-theme="espresso-latte"] {
+  --bg-main:         #2B1D17;
+  --bg-surface:      #38261F;
+  --bg-elevated:     #463027;
+  --bg-card:         #38261F;
+
+  --text-primary:    #FAF6F0;
+  --text-secondary:  #E7D6C1;
+  --text-muted:      #B39A86;
+
+  --accent:          #C48A5A;
+  --accent-hover:    #B27748;
+  --accent-fg:       #2B1D17;
+
+  --border:          #6B4A3A;
+  --border-subtle:   #463027;
+  --border-focus:    #C48A5A;
+
+  --typing-correct:  #85B779;
+  --typing-incorrect:#E06D53;
+  --typing-caret:    #C48A5A;
+  --typing-untyped:  #7D6556;
+  --typing-bg:       #38261F;
+
+  --key-bg:          #38261F;
+  --key-border:      #6B4A3A;
+  --key-text:        #E7D6C1;
+  --key-active-bg:   #C48A5A;
+  --key-active-border:#E7D6C1;
+  --key-active-text: #2B1D17;
+  --key-home-row:    #463027;
+
+  --chart-primary:   #C48A5A;
+  --chart-secondary: #E7D6C1;
+  --chart-tertiary:  #6B4A3A;
+  --chart-grid:      #463027;
+  --chart-tooltip-bg:#38261F;
+
+  --sidebar-bg:      #2B1D17;
+  --sidebar-border:  #6B4A3A;
+  --sidebar-text:    #E7D6C1;
+  --sidebar-active:  #C48A5A;
+  --sidebar-active-bg:#38261F;
+
+  --input-bg:        #38261F;
+  --input-border:    #6B4A3A;
+  --input-text:      #FAF6F0;
+  --input-placeholder:#7D6556;
+
+  --modal-bg:        #38261F;
+  --modal-overlay:   rgba(43,29,23,0.75);
+  --modal-border:    #6B4A3A;
+
+  --tooltip-bg:      #463027;
+  --tooltip-text:    #FAF6F0;
+  --tooltip-border:  #6B4A3A;
+
+  --ui-success:      #85B779;
+  --ui-warning:      #C48A5A;
+  --ui-error:        #E06D53;
+
+  --btn-primary-bg:  #C48A5A;
+  --btn-primary-text:#2B1D17;
+  --btn-primary-hover:#B27748;
+  --btn-secondary-bg:#463027;
+  --btn-secondary-text:#FAF6F0;
+  --btn-secondary-border:#6B4A3A;
+
+  --scrollbar-thumb: #6B4A3A;
+  --scrollbar-track: #2B1D17;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* ========================================================== */
+/* THEME 14: Forest Sage                                      */
+/* ========================================================== */
+[data-theme="forest-sage"] {
+  --bg-main:         #0F2A1D;
+  --bg-surface:      #1A3828;
+  --bg-elevated:     #244734;
+  --bg-card:         #1A3828;
+
+  --text-primary:    #E3EED4;
+  --text-secondary:  #AEC3B0;
+  --text-muted:      #7D9B82;
+
+  --accent:          #6B9071;
+  --accent-hover:    #5A7D60;
+  --accent-fg:       #0F2A1D;
+
+  --border:          #375534;
+  --border-subtle:   #244734;
+  --border-focus:    #6B9071;
+
+  --typing-correct:  #6B9071;
+  --typing-incorrect:#E57373;
+  --typing-caret:    #6B9071;
+  --typing-untyped:  #5A7A61;
+  --typing-bg:       #1A3828;
+
+  --key-bg:          #1A3828;
+  --key-border:      #375534;
+  --key-text:        #AEC3B0;
+  --key-active-bg:   #6B9071;
+  --key-active-border:#E3EED4;
+  --key-active-text: #0F2A1D;
+  --key-home-row:    #244734;
+
+  --chart-primary:   #6B9071;
+  --chart-secondary: #AEC3B0;
+  --chart-tertiary:  #375534;
+  --chart-grid:      #244734;
+  --chart-tooltip-bg:#1A3828;
+
+  --sidebar-bg:      #0F2A1D;
+  --sidebar-border:  #375534;
+  --sidebar-text:    #AEC3B0;
+  --sidebar-active:  #6B9071;
+  --sidebar-active-bg:#1A3828;
+
+  --input-bg:        #1A3828;
+  --input-border:    #375534;
+  --input-text:      #E3EED4;
+  --input-placeholder:#5A7A61;
+
+  --modal-bg:        #1A3828;
+  --modal-overlay:   rgba(15,42,29,0.75);
+  --modal-border:    #375534;
+
+  --tooltip-bg:      #244734;
+  --tooltip-text:    #E3EED4;
+  --tooltip-border:  #375534;
+
+  --ui-success:      #6B9071;
+  --ui-warning:      #D4A373;
+  --ui-error:        #E57373;
+
+  --btn-primary-bg:  #6B9071;
+  --btn-primary-text:#0F2A1D;
+  --btn-primary-hover:#5A7D60;
+  --btn-secondary-bg:#244734;
+  --btn-secondary-text:#E3EED4;
+  --btn-secondary-border:#375534;
+
+  --scrollbar-thumb: #375534;
+  --scrollbar-track: #0F2A1D;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* ========================================================== */
+/* THEME 15: Midnight Slate                                   */
+/* ========================================================== */
+[data-theme="midnight-slate"] {
+  --bg-main:         #06141B;
+  --bg-surface:      #11212D;
+  --bg-elevated:     #1C303E;
+  --bg-card:         #11212D;
+
+  --text-primary:    #CCD0CF;
+  --text-secondary:  #9BA8AB;
+  --text-muted:      #6D8086;
+
+  --accent:          #9BA8AB;
+  --accent-hover:    #CCD0CF;
+  --accent-fg:       #06141B;
+
+  --border:          #4A5C6A;
+  --border-subtle:   #253745;
+  --border-focus:    #9BA8AB;
+
+  --typing-correct:  #81C784;
+  --typing-incorrect:#E57373;
+  --typing-caret:    #CCD0CF;
+  --typing-untyped:  #556870;
+  --typing-bg:       #11212D;
+
+  --key-bg:          #11212D;
+  --key-border:      #253745;
+  --key-text:        #9BA8AB;
+  --key-active-bg:   #253745;
+  --key-active-border:#9BA8AB;
+  --key-active-text: #CCD0CF;
+  --key-home-row:    #1C303E;
+
+  --chart-primary:   #9BA8AB;
+  --chart-secondary: #4A5C6A;
+  --chart-tertiary:  #253745;
+  --chart-grid:      #1C303E;
+  --chart-tooltip-bg:#11212D;
+
+  --sidebar-bg:      #06141B;
+  --sidebar-border:  #253745;
+  --sidebar-text:    #9BA8AB;
+  --sidebar-active:  #CCD0CF;
+  --sidebar-active-bg:#11212D;
+
+  --input-bg:        #11212D;
+  --input-border:    #253745;
+  --input-text:      #CCD0CF;
+  --input-placeholder:#556870;
+
+  --modal-bg:        #11212D;
+  --modal-overlay:   rgba(6,20,27,0.8);
+  --modal-border:    #253745;
+
+  --tooltip-bg:      #1C303E;
+  --tooltip-text:    #CCD0CF;
+  --tooltip-border:  #253745;
+
+  --ui-success:      #81C784;
+  --ui-warning:      #FFB74D;
+  --ui-error:        #E57373;
+
+  --btn-primary-bg:  #4A5C6A;
+  --btn-primary-text:#CCD0CF;
+  --btn-primary-hover:#5A6F7F;
+  --btn-secondary-bg:#1C303E;
+  --btn-secondary-text:#CCD0CF;
+  --btn-secondary-border:#253745;
+
+  --scrollbar-thumb: #253745;
+  --scrollbar-track: #06141B;
+
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.3);
+  --shadow-md:       0 4px 16px rgba(0,0,0,0.4);
+  --shadow-lg:       0 8px 32px rgba(0,0,0,0.5);
+}
+
+/* ========================================================== */
 /* GLOBAL BASE STYLES — Theme-Agnostic                       */
 /* ========================================================== */
 @layer base {

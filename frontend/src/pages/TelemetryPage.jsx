@@ -6,8 +6,10 @@ import {
   getPracticeGoal,
   setPracticeGoal,
   downloadCSV,
-  getWeekStartPreference
+  getWeekStartPreference,
+  syncTelemetrySessionsFromBackend,
 } from '../utils/telemetryStorage';
+import { practiceAPI } from '../utils/api';
 
 // Telemetry Sub-Components
 import ReportHeader from '../components/telemetry/ReportHeader';
@@ -74,6 +76,20 @@ export default function TelemetryPage() {
       window.removeEventListener('storage', handleUpdate);
     };
   }, [userId, refreshSessions]);
+
+  // Proactively hydrate historical practice sessions from backend if authenticated
+  useEffect(() => {
+    if (!userId) return;
+    practiceAPI
+      .getHistory()
+      .then((res) => {
+        const list = Array.isArray(res?.data) ? res.data : (res?.data?.results || []);
+        if (list.length > 0) {
+          syncTelemetrySessionsFromBackend(list, userId);
+        }
+      })
+      .catch(() => {});
+  }, [userId]);
 
   // Handle goal change
   const handleGoalChange = (newGoal) => {

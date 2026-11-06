@@ -6,7 +6,7 @@
  * Exposes public landing and masterpiece authentication pages.
  */
 
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import './App.css';
 import { BrowserRouter, Routes, Route, useParams, useNavigate, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
@@ -15,14 +15,17 @@ import { AuthProvider } from './context/AuthContext';
 import { I18nProvider } from './i18n/I18nContext';
 import { Navbar } from './components/common/Navbar';
 import { LandingPage } from './pages/LandingPage';
-import { AuthPage } from './pages/AuthPage';
-import { AcademyPage } from './pages/AcademyPage';
-import { WorkstationPage } from './pages/WorkstationPage';
-import { ArcadePage } from './pages/ArcadePage';
-import TelemetryPage from './pages/TelemetryPage';
-import LeaderboardPage from './pages/LeaderboardPage';
-import { ThemesPage } from './pages/ThemesPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { PageLoadingFallback } from './components/common/PageLoadingFallback';
+
+// Lazy-loaded routes for performance & split chunks
+const AuthPage = lazy(() => import('./pages/AuthPage').then((m) => ({ default: m.AuthPage })));
+const AcademyPage = lazy(() => import('./pages/AcademyPage').then((m) => ({ default: m.AcademyPage })));
+const WorkstationPage = lazy(() => import('./pages/WorkstationPage').then((m) => ({ default: m.WorkstationPage })));
+const ArcadePage = lazy(() => import('./pages/ArcadePage').then((m) => ({ default: m.ArcadePage })));
+const TelemetryPage = lazy(() => import('./pages/TelemetryPage'));
+const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
+const ThemesPage = lazy(() => import('./pages/ThemesPage'));
 
 import { ClerkProvider } from '@clerk/react';
 import { AuthenticateWithRedirectCallback } from '@clerk/react';
@@ -67,7 +70,8 @@ function App() {
             <div className="min-h-screen flex flex-col bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-200">
               <Navbar />
               <div className="flex-1">
-                <Routes>
+                <Suspense fallback={<PageLoadingFallback />}>
+                  <Routes>
                   {/* Public Pages */}
                   <Route path="/" element={<LandingPage />} />
                     <Route path="/login/*" element={<AuthPage mode="login" />} />
@@ -165,7 +169,8 @@ function App() {
                     <Route path="/curriculum" element={<Navigate to="/academy" replace />} />
                     <Route path="*" element={<LandingPage />} />
                   </Routes>
-                </div>
+                </Suspense>
+              </div>
                 <Footer />
             </div>
           </BrowserRouter>

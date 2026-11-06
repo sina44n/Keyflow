@@ -249,3 +249,4 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(f"Successfully seeded {len(level_objects)} CurriculumLevel records!"))
         self.stdout.write(self.style.SUCCESS("Database seeding completed with 100% relational integrity."))
+

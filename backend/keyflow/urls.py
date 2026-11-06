@@ -7,20 +7,34 @@ from django.http import JsonResponse
 
 def api_health(request):
     """Health check endpoint for deployment monitoring and uptime probes."""
+    from django.conf import settings
     db_status = 'ok'
+    db_engine = 'unknown'
     try:
         from django.db import connection
+        db_engine = connection.settings_dict.get('ENGINE', '').split('.')[-1]
         with connection.cursor() as cursor:
             cursor.execute('SELECT 1;')
     except Exception as exc:
         db_status = f'unavailable: {type(exc).__name__}'
 
+    clerk_configured = bool(
+        getattr(settings, 'CLERK_PUBLISHABLE_KEY', None)
+        or getattr(settings, 'CLERK_ISSUER', None)
+        or getattr(settings, 'CLERK_PEM_PUBLIC_KEY', None)
+    )
+
     is_healthy = db_status == 'ok'
     return JsonResponse({
         'status': 'ok' if is_healthy else 'degraded',
-        'database': db_status,
+        'database': {
+            'status': db_status,
+            'engine': db_engine,
+        },
         'service': 'KEYFLOW API',
         'version': '1.0.0',
+        'clerk_configured': clerk_configured,
+        'environment': 'development' if settings.DEBUG else 'production',
     }, status=200 if is_healthy else 503)
 
 

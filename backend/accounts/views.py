@@ -270,7 +270,9 @@ class CurrentUserView(APIView):
         new_email = data.get('email')
         if new_email and new_email.lower() != user.email.lower():
             new_email = str(new_email).strip().lower()
-            if User.objects.filter(email__iexact=new_email).exclude(pk=user.pk).exists():
+            if '@' not in new_email or '.' not in new_email:
+                errors['email'] = ['Please enter a valid email address.']
+            elif User.objects.filter(email__iexact=new_email).exclude(pk=user.pk).exists():
                 errors['email'] = ['A user with this email already exists.']
             else:
                 user.email = new_email
@@ -300,13 +302,35 @@ class CurrentUserView(APIView):
         # Preferences
         if 'daily_goal_minutes' in data:
             try:
-                prefs.daily_goal_minutes = int(data['daily_goal_minutes'])
+                prefs.daily_goal_minutes = max(1, min(1440, int(data['daily_goal_minutes'])))
             except (ValueError, TypeError):
                 pass
         if 'reduced_motion' in data:
             prefs.reduced_motion = bool(data['reduced_motion'])
         if 'theme_preset' in data and data['theme_preset']:
-            prefs.theme_preset = str(data['theme_preset'])
+            prefs.theme_preset = str(data['theme_preset']).strip()
+        if 'sound_enabled' in data:
+            prefs.sound_enabled = bool(data['sound_enabled'])
+        if 'sound_profile' in data and data['sound_profile']:
+            prefs.sound_profile = str(data['sound_profile']).strip()
+        if 'language' in data and data['language']:
+            prefs.language = str(data['language']).strip()[:10]
+        if 'keyboard_visual_enabled' in data:
+            prefs.keyboard_visual_enabled = bool(data['keyboard_visual_enabled'])
+        if 'hand_guide_enabled' in data:
+            prefs.hand_guide_enabled = bool(data['hand_guide_enabled'])
+        if 'preferred_mode' in data and data['preferred_mode']:
+            prefs.preferred_mode = str(data['preferred_mode']).strip()[:20]
+        if 'preferred_duration' in data:
+            try:
+                prefs.preferred_duration = max(5, int(data['preferred_duration']))
+            except (ValueError, TypeError):
+                pass
+        if 'preferred_word_count' in data:
+            try:
+                prefs.preferred_word_count = max(5, int(data['preferred_word_count']))
+            except (ValueError, TypeError):
+                pass
 
         if errors:
             return Response(errors, status=status.HTTP_400_BAD_REQUEST)

@@ -12,48 +12,116 @@ import { useAuth } from '../../context/AuthContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { Quote as QuoteIcon, Sparkles, RefreshCw, Clock } from 'lucide-react';
 
+// In-memory session cache and request deduplication to prevent repeated 502/network failure spam
+const quoteCache = new Map();
+const inFlightRequests = new Map();
+let lastFailureTimestamp = 0;
+let hasWarnedDev = false;
+const FAILURE_COOLDOWN_MS = 60000; // 60-second backoff when server returns 502 or network error
+
+const FALLBACK_QUOTE = {
+  id: 0,
+  text: 'Precision comes before speed. Type with intention, and velocity will follow.',
+  author: 'KEYFLOW',
+  category: 'typing',
+  language: 'en',
+  is_personalized: false,
+  hours_remaining: 12.0,
+};
+
 export const QuoteCard = ({ className = '' }) => {
   const { isAuthenticated } = useAuth();
   const { language, t } = useI18n();
-  const [quote, setQuote] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const cacheKey = `${language || 'en'}_${isAuthenticated ? 'auth' : 'anon'}`;
+  
+  const [quote, setQuote] = useState(() => quoteCache.get(cacheKey) || null);
+  const [loading, setLoading] = useState(() => !quoteCache.has(cacheKey));
   const [rotating, setRotating] = useState(false);
 
   useEffect(() => {
     let mounted = true;
+
     const fetchQuote = async () => {
-      try {
-        const res = await quotesAPI.getCurrent(language);
+      // If already cached in memory, use it immediately
+      if (quoteCache.has(cacheKey)) {
         if (mounted) {
+          setQuote(quoteCache.get(cacheKey));
+          setLoading(false);
+        }
+        return;
+      }
+
+      // If server failed recently (e.g. 502 Bad Gateway), apply backoff and use fallback quote
+      const now = Date.now();
+      if (now - lastFailureTimestamp < FAILURE_COOLDOWN_MS) {
+        if (mounted) {
+          setQuote(FALLBACK_QUOTE);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        let reqPromise = inFlightRequests.get(cacheKey);
+        if (!reqPromise) {
+          reqPromise = quotesAPI.getCurrent(language);
+          inFlightRequests.set(cacheKey, reqPromise);
+        }
+
+        const res = await reqPromise;
+        if (mounted && res?.data?.text) {
+          quoteCache.set(cacheKey, res.data);
+          lastFailureTimestamp = 0;
           setQuote(res.data);
         }
-      } catch {
-        // Fallback if offline
+      } catch (err) {
+        lastFailureTimestamp = Date.now();
+        // Log diagnostic in development without breaking UI (throttled to once per session)
+        if (typeof import.meta !== 'undefined' && import.meta.env?.DEV && !hasWarnedDev) {
+          hasWarnedDev = true;
+          const status = err.response?.status;
+          console.warn(
+            `[KEYFLOW Quotes API] Unable to retrieve quote from backend (status: ${status || 'network error'}). ` +
+            (status === 502
+              ? 'Vite dev proxy received 502 Bad Gateway because Django server on port 8000 is not running. ' +
+                'Start it with: "python manage.py runserver 8000".'
+              : 'Using fallback quote.')
+          );
+        }
         if (mounted) {
-          setQuote({
-            text: 'Precision comes before speed. Type with intention, and velocity will follow.',
-            author: 'KEYFLOW',
-            category: 'typing',
-            is_personalized: false,
-            hours_remaining: 12.0,
-          });
+          quoteCache.set(cacheKey, FALLBACK_QUOTE);
+          setQuote(FALLBACK_QUOTE);
         }
       } finally {
-        if (mounted) setLoading(false);
+        inFlightRequests.delete(cacheKey);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
+
     fetchQuote();
-    return () => { mounted = false; };
-  }, [isAuthenticated, language]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [cacheKey, language, isAuthenticated]);
 
   const handleRotate = async () => {
     if (!isAuthenticated || rotating) return;
     setRotating(true);
     try {
+      lastFailureTimestamp = 0; // Explicit user action bypasses cooldown
       const res = await quotesAPI.rotate(language);
-      setQuote(res.data);
-    } catch {
-      // Ignore error
+      if (res?.data?.text) {
+        quoteCache.set(cacheKey, res.data);
+        setQuote(res.data);
+      }
+    } catch (err) {
+      lastFailureTimestamp = Date.now();
+      if (typeof import.meta !== 'undefined' && import.meta.env?.DEV) {
+        console.warn('[KEYFLOW Quotes API] Quote rotation failed:', err.response?.status || err.message);
+      }
     } finally {
       setRotating(false);
     }

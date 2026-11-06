@@ -131,3 +131,4 @@ def validate_clerk_backend_configuration(override_settings=None):
         'warnings': warnings,
         'errors': errors,
     }
+

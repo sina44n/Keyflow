@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useI18n } from '../../i18n/I18nContext';
-import { Check, Sparkles, X, ChevronDown, Sun } from 'lucide-react';
+import { Check, Sparkles, X, ChevronDown, Palette } from 'lucide-react';
 
-export const ThemeSwitcher = ({ compact = false }) => {
+export const ThemeSwitcher = ({ compact: _compact = false, showName = false }) => {
   const { theme, setTheme, themes, currentThemeObj } = useTheme();
   const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
@@ -29,32 +29,33 @@ export const ThemeSwitcher = ({ compact = false }) => {
     };
   }, [isOpen]);
 
+  const activeThemeLabel = t('themeSwitcher.activeTheme', { name: currentThemeObj.name }, `Current theme: ${currentThemeObj.name}. Click to change theme.`);
+
   return (
     <div className="relative inline-block" ref={containerRef}>
       {/* Trigger Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className={compact 
-          ? "p-2 rounded-lg transition-colors cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] relative flex items-center justify-center border border-[var(--border)]"
-          : "flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)]/50 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-xs font-mono font-medium transition-all cursor-pointer min-h-[38px]"}
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] shrink-0 min-h-[34px]"
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        aria-label={t('themeSwitcher.activeTheme', { name: currentThemeObj.name }, `Current theme: ${currentThemeObj.name}. Click to change theme.`)}
+        aria-label={activeThemeLabel}
+        title={activeThemeLabel}
         id="theme-switcher-trigger"
       >
+        <Palette className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" aria-hidden="true" />
         <span
-          className="w-2 h-2 rounded-full shrink-0 shadow-[0_0_6px_currentColor]"
+          className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_0_6px_currentColor]"
           style={{ backgroundColor: currentThemeObj.accent, color: currentThemeObj.accent }}
           aria-hidden="true"
         />
-        <Sun className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
-        {!compact && (
-          <span className="hidden sm:inline text-[11px] font-semibold tracking-wide text-[var(--text-primary)]">
+        {showName && (
+          <span className="hidden sm:inline text-[11px] font-semibold tracking-wide text-[var(--text-primary)] truncate max-w-[90px]">
             {currentThemeObj.name}
           </span>
         )}
-        <ChevronDown className="w-3 h-3 text-[var(--text-muted)] ml-0.5" />
+        <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Flyout Menu / Modal */}
@@ -77,7 +78,7 @@ export const ThemeSwitcher = ({ compact = false }) => {
                     {t('themeSwitcher.title', 'Studio Palettes')}
                   </h3>
                   <p className="text-[11px] text-[var(--text-muted)]">
-                    {t('themeSwitcher.choose', '12 custom-crafted color systems')}
+                    {t('themeSwitcher.choose', `${themes.length} custom-crafted color systems`)}
                   </p>
                 </div>
               </div>

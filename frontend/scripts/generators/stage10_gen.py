@@ -178,3 +178,4 @@ def generate_stage10_lessons():
 
     assert len(lessons) == 700, f"Stage 10 must have exactly 700 lessons, got {len(lessons)}"
     return lessons
+

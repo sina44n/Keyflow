@@ -744,11 +744,18 @@ export const WorkstationPage = () => {
     }
 
     if (val.length > typed.length) {
+      const isBulk = (val.length - typed.length) > 2;
+      let hasErrorInBulk = false;
+
       for (let i = typed.length; i < val.length; i++) {
         const expectedChar = currentTargetText[i];
         const actualChar = val[i];
         const isError = actualChar !== expectedChar;
-        playClick(isError);
+        if (!isBulk) {
+          playClick(isError);
+        } else if (isError) {
+          hasErrorInBulk = true;
+        }
         if (isError) {
           sessionTrackerRef.current.mistakes += 1;
           sessionTrackerRef.current.correctedIndices.add(i);
@@ -777,6 +784,9 @@ export const WorkstationPage = () => {
           sessionTrackerRef.current.correctKeystrokes += 1;
           setCorrectKeystrokes((c) => c + 1);
         }
+      }
+      if (isBulk) {
+        playClick(hasErrorInBulk);
       }
       const actualChar = val[val.length - 1];
       setLastKeystroke({ key: actualChar, code: '', id: performance.now() });
@@ -1010,6 +1020,19 @@ export const WorkstationPage = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleReset, focusMode, handleTogglePause]);
+
+  // Prevent accidental tab closure (e.g. hitting Ctrl+W during fast typing) while active test is running
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (startTime && !isCompleted && typed.length > 5) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [startTime, isCompleted, typed.length]);
 
   // Focus on mount or mode change (Strictly preserves completed results on reload & React StrictMode)
   const prevSettingsRef = useRef({ mode, timeLimit, wordLimit, selectedPassageIndex });

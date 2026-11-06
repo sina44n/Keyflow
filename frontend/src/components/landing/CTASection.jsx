@@ -18,7 +18,7 @@ export const CTASection = () => {
       />
 
       <div className="container-app relative z-10">
-        <div className="card-panel p-6 sm:p-10 md:p-12 text-center space-y-6 shadow-2xl max-w-4xl mx-auto">
+        <div className="card-panel p-4 sm:p-10 md:p-12 text-center space-y-6 shadow-2xl max-w-4xl mx-auto">
           <div className="w-10 h-10 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] text-[var(--accent)] flex items-center justify-center mx-auto shadow-xs">
             <Keyboard className="w-5 h-5" aria-hidden="true" />
           </div>

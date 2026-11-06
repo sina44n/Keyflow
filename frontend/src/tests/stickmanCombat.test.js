@@ -113,3 +113,4 @@ describe('Stickman Fight 2D Combat & Progression Engine', () => {
     assert.strictEqual(mgr.charStatuses[0], 'correct');
   });
 });
+

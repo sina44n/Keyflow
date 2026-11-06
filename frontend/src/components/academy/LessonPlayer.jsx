@@ -209,6 +209,7 @@ export const LessonPlayer = ({
     let addedStrokes = 0;
     let lastKey = '';
     const newMistakeIndices = [];
+    const isBulkInput = (value.length - typed.length) > 2;
 
     for (let i = typed.length; i < value.length; i++) {
       const char = value[i];
@@ -220,13 +221,16 @@ export const LessonPlayer = ({
       if (isMatch) {
         runningCorrectStrokes += 1;
         streakRef.current += 1;
-        playClick(false);
+        if (!isBulkInput) playClick(false);
       } else {
         streakRef.current = 0;
         runningMistakes += 1;
         newMistakeIndices.push(i);
-        playClick(true);
+        if (!isBulkInput) playClick(true);
       }
+    }
+    if (isBulkInput && addedStrokes > 0) {
+      playClick(runningMistakes > mistakes);
     }
 
     if (newMistakeIndices.length > 0) {
@@ -332,6 +336,19 @@ export const LessonPlayer = ({
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
   }, [handleReset]);
+
+  // Prevent accidental tab closure while active exercise is in progress
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (startTime && !isCompleted && typed.length > 5) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [startTime, isCompleted, typed.length]);
 
   // ── Parse words for reference-matched passage rendering ──────────────────
   const words = useMemo(() => {
@@ -661,6 +678,7 @@ export const LessonPlayer = ({
             onChange={handleInputChange}
             onKeyDown={handleInputKeyDown}
             disabled={isCompleted}
+            onPaste={(e) => e.preventDefault()}
             className="absolute inset-0 opacity-0 w-full h-full cursor-default"
             autoFocus
             autoComplete="off"

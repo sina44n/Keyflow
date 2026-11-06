@@ -240,11 +240,21 @@ export default function TelemetryProfileModal({ isOpen, onClose, sessions = [], 
       setUnsavedChanges(false);
       setTimeout(() => setSaveSuccess(''), 4000);
     } catch (err) {
-      const msg = err.response?.data
-        ? Object.entries(err.response.data)
-            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : v}`)
-            .join(' | ')
-        : 'Failed to save settings. Please verify inputs.';
+      let msg = 'Failed to save settings. Please verify inputs.';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          msg = err.response.data;
+        } else if (typeof err.response.data === 'object') {
+          const entries = Object.entries(err.response.data);
+          if (entries.length > 0) {
+            msg = entries
+              .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' ') : (typeof v === 'object' ? JSON.stringify(v) : v)}`)
+              .join(' | ');
+          }
+        }
+      } else if (err.message) {
+        msg = err.message;
+      }
       setSaveError(msg);
     } finally {
       setSaveLoading(false);

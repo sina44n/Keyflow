@@ -30,7 +30,7 @@ export const HeroSection = () => {
   const [isCompleted, setIsCompleted] = useState(false);
   const { playClick } = useKeyboardSound();
   const [keyboardGuideOn, setKeyboardGuideOn] = useState(() => getGuidePreferences().keyboardGuide);
-  const [handGuideOn, setHandGuideOn] = useState(false);
+  const [handGuideOn, setHandGuideOn] = useState(() => getGuidePreferences().handGuide);
   const [lastKeystroke, setLastKeystroke] = useState(null);
   const inputRef = useRef(null);
 
@@ -171,7 +171,7 @@ export const HeroSection = () => {
           <div className="lg:col-span-7">
             <div
               id="sandbox"
-              className="card-panel p-5 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-200"
+              className="card-panel p-4 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-200"
             >
               {/* Terminal Titlebar & Metrics Header */}
               <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-[var(--border)]">
