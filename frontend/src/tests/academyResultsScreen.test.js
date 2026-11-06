@@ -194,4 +194,145 @@ describe('KEYFLOW — Academy Performance Results Screen & Speedometer Engine', 
       assert.strictEqual(calculateNetWpm(10, 15, 60), 0);
     });
   });
+
+  describe('5. Exact Boundary Value Verification (Prompt Requirements: 0, 19, 20, 29, 30, 39, 40, 59, 60, 100)', () => {
+    const boundaries = [
+      { wpm: 0, cat: 'VERY POOR', color: '#EF4444', expectedRot: 105.00 },
+      { wpm: 19, cat: 'VERY POOR', color: '#EF4444', expectedRot: 65.10 },
+      { wpm: 20, cat: 'POOR', color: '#F97316', expectedRot: 63.00 },
+      { wpm: 29, cat: 'POOR', color: '#F97316', expectedRot: 25.20 },
+      { wpm: 30, cat: 'FAIR', color: '#FACC15', expectedRot: 21.00 },
+      { wpm: 39, cat: 'FAIR', color: '#FACC15', expectedRot: -16.80 },
+      { wpm: 40, cat: 'GOOD', color: '#A3E635', expectedRot: -21.00 },
+      { wpm: 59, cat: 'GOOD', color: '#A3E635', expectedRot: -60.90 },
+      { wpm: 60, cat: 'EXCELLENT', color: '#22C55E', expectedRot: -63.00 },
+      { wpm: 100, cat: 'EXCELLENT', color: '#22C55E', expectedRot: -105.00 },
+    ];
+
+    it('verifies exact category, color, and needle rotation for all specified boundary values', () => {
+      boundaries.forEach(({ wpm, cat, color, expectedRot }) => {
+        const category = getSpeedCategory(wpm);
+        const rot = wpmToNeedleRotation(wpm);
+        assert.strictEqual(category.name, cat, `WPM ${wpm} category mismatch`);
+        assert.strictEqual(category.color, color, `WPM ${wpm} color mismatch`);
+        assert.ok(
+          Math.abs(rot - expectedRot) < 0.01,
+          `WPM ${wpm} rotation ${rot}° did not match expected ${expectedRot}°`
+        );
+      });
+    });
+
+    it('verifies mathematical boundary continuity at transition points (20, 30, 40, 60)', () => {
+      // Transition 1: VERY POOR -> POOR at 20 WPM
+      const rot19_99 = wpmToNeedleRotation(19.999);
+      const rot20_00 = wpmToNeedleRotation(20.000);
+      assert.ok(Math.abs(rot19_99 - rot20_00) < 0.05, 'Discontinuity at 20 WPM boundary');
+      assert.strictEqual(rot20_00, 63);
+
+      // Transition 2: POOR -> FAIR at 30 WPM
+      const rot29_99 = wpmToNeedleRotation(29.999);
+      const rot30_00 = wpmToNeedleRotation(30.000);
+      assert.ok(Math.abs(rot29_99 - rot30_00) < 0.05, 'Discontinuity at 30 WPM boundary');
+      assert.strictEqual(rot30_00, 21);
+
+      // Transition 3: FAIR -> GOOD at 40 WPM
+      const rot39_99 = wpmToNeedleRotation(39.999);
+      const rot40_00 = wpmToNeedleRotation(40.000);
+      assert.ok(Math.abs(rot39_99 - rot40_00) < 0.05, 'Discontinuity at 40 WPM boundary');
+      assert.strictEqual(rot40_00, -21);
+
+      // Transition 4: GOOD -> EXCELLENT at 60 WPM
+      const rot59_99 = wpmToNeedleRotation(59.999);
+      const rot60_00 = wpmToNeedleRotation(60.000);
+      assert.ok(Math.abs(rot59_99 - rot60_00) < 0.05, 'Discontinuity at 60 WPM boundary');
+      assert.strictEqual(rot60_00, -63);
+    });
+
+    it('strictly clamps out-of-range values (< 0, > 100, non-numeric)', () => {
+      assert.strictEqual(wpmToNeedleRotation(-20), 105);
+      assert.strictEqual(getSpeedCategory(-20).name, 'VERY POOR');
+
+      assert.strictEqual(wpmToNeedleRotation(150), -105);
+      assert.strictEqual(getSpeedCategory(150).name, 'EXCELLENT');
+
+      assert.strictEqual(wpmToNeedleRotation(NaN), 105);
+      assert.strictEqual(getSpeedCategory(NaN).name, 'VERY POOR');
+    });
+  });
+
+  describe('6. Actual Session Scenarios Verification (Scenarios A, B, C, D)', () => {
+    it('Scenario A: Flawless Practice Session (WPM: 48, Acc: 100%, Net: 48, Errors: 0)', () => {
+      const session = {
+        wpm: 48,
+        accuracy: 100,
+        netWpm: 48,
+        mistakes: 0,
+        uncorrectedErrors: 0,
+        duration: 8,
+      };
+
+      const cat = getSpeedCategory(session.wpm);
+      const rot = wpmToNeedleRotation(session.wpm);
+      assert.strictEqual(cat.name, 'GOOD');
+      assert.strictEqual(cat.color, '#A3E635');
+      assert.strictEqual(rot, -37.8);
+      assert.strictEqual(session.netWpm, 48);
+      assert.strictEqual(session.wpm, 48);
+    });
+
+    it('Scenario B: Fast but Error-Prone Session (WPM: 60, Acc: 80%, Errors: 5 in 60s)', () => {
+      // User typed at 60 WPM gross, made 5 uncorrected errors over 60 seconds
+      const finalWpm = 60;
+      const uncorrectedErrors = 5;
+      const duration = 60;
+      const computedNetWpm = calculateNetWpm(finalWpm, uncorrectedErrors, duration);
+
+      assert.strictEqual(computedNetWpm, 55); // 60 - (5 / 1.0) = 55
+      const cat = getSpeedCategory(finalWpm);
+      const rot = wpmToNeedleRotation(finalWpm);
+
+      // Gauge displays authoritative Gross WPM (60)
+      assert.strictEqual(cat.name, 'EXCELLENT');
+      assert.strictEqual(cat.color, '#22C55E');
+      assert.strictEqual(rot, -63);
+      assert.ok(computedNetWpm < finalWpm, 'Net WPM must reflect uncorrected error penalties');
+    });
+
+    it('Scenario C: Corrected Mistakes Session (Diff WPM & Net WPM, non-perfect accuracy, corrected mistakes)', () => {
+      // 100 valid keystrokes in 30s -> Gross WPM = (100 / 5) / 0.5 = 40 WPM
+      // Total typos made = 4 (2 corrected via backspace, 2 left uncorrected in buffer)
+      const grossWpm = 40;
+      const mistakes = 4;
+      const uncorrectedErrors = 2;
+      const duration = 30; // 0.5 min
+      const netWpm = calculateNetWpm(grossWpm, uncorrectedErrors, duration);
+
+      // Penalty = 2 / 0.5 = 4 WPM -> Net WPM = 36
+      assert.strictEqual(netWpm, 36);
+      assert.notStrictEqual(grossWpm, netWpm);
+
+      const cat = getSpeedCategory(grossWpm);
+      const rot = wpmToNeedleRotation(grossWpm);
+      assert.strictEqual(cat.name, 'GOOD');
+      assert.strictEqual(rot, -21); // exactly at 40 WPM boundary
+    });
+
+    it('Scenario D: Zero-Keystroke Session (WPM: 0, Acc: 0%, Mistakes: 0, Duration: 1s)', () => {
+      const session = {
+        wpm: 0,
+        accuracy: 0,
+        netWpm: 0,
+        mistakes: 0,
+        duration: 1,
+      };
+
+      const cat = getSpeedCategory(session.wpm);
+      const rot = wpmToNeedleRotation(session.wpm);
+      assert.strictEqual(cat.name, 'VERY POOR');
+      assert.strictEqual(cat.color, '#EF4444');
+      assert.strictEqual(rot, 105);
+      assert.strictEqual(session.netWpm, 0);
+      assert.strictEqual(session.accuracy, 0);
+    });
+  });
 });

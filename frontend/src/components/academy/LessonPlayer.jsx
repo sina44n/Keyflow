@@ -21,6 +21,8 @@ import {
   calculateGrossWpm,
   calculateRawAccuracy,
   calculateFinalTextAccuracy,
+  calculateNetWpm,
+  countUncorrectedErrors,
 } from '../../utils/typingFeedback';
 import { useI18n } from '../../i18n/I18nContext';
 
@@ -259,12 +261,16 @@ export const LessonPlayer = ({
       const finalWpm = calculateGrossWpm(finalTotalValid, finalDuration);
       const finalAccuracy = calculateRawAccuracy(finalCorrectStrokes, finalMistakes);
       const finalTextAccuracy = calculateFinalTextAccuracy(value, targetText);
+      const remainingErrors = countUncorrectedErrors(value, targetText);
+      const finalNetWpm = calculateNetWpm(finalWpm, remainingErrors, finalDuration);
       const finalStars = calculateStars(finalAccuracy, lesson?.targetAccuracy || 90, finalWpm, lesson?.targetWpm || 20);
       const passed = finalWpm >= (lesson?.targetWpm || 20) && finalAccuracy >= (lesson?.targetAccuracy || 90);
 
       const result = {
         wpm: finalWpm,
         grossWpm: finalWpm,
+        netWpm: finalNetWpm,
+        uncorrectedErrors: remainingErrors,
         accuracy: finalAccuracy,
         rawAccuracy: finalAccuracy,
         finalTextAccuracy,

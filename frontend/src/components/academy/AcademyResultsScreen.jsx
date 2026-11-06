@@ -37,6 +37,7 @@ import {
   polarToCartesian,
   describeArc,
   describeRibbonSegment,
+  calculateNetWpm,
 } from '../../utils/speedometerEngine';
 
 export const AcademyResultsScreen = ({
@@ -55,12 +56,12 @@ export const AcademyResultsScreen = ({
   const duration = Math.max(1, result?.duration || 1);
   const passed = Boolean(result?.passed);
 
-  // Authoritative Net WPM
+  // Authoritative Net WPM (penalizes uncorrected errors, never double-penalizing corrected typos)
   const netWpm = Math.max(
     0,
     result?.netWpm !== undefined
       ? Math.round(result.netWpm)
-      : Math.round(wpm - (mistakes / Math.max(duration / 60, 0.016)))
+      : calculateNetWpm(wpm, result?.uncorrectedErrors ?? 0, duration)
   );
 
   // Synchronized score, category, and needle rotation
