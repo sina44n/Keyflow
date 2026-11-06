@@ -88,6 +88,13 @@ export const AcademyResultsScreen = ({
     };
   }, []);
 
+  // Expose settling status to visual QA automation
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.__RESULTS_SETTLED__ = isNeedleSettled;
+    }
+  }, [isNeedleSettled]);
+
   // Needle and WPM counter animation
   useEffect(() => {
     if (prefersReducedMotion) {
@@ -107,9 +114,9 @@ export const AcademyResultsScreen = ({
       setNeedleRotation(targetRotation);
     }, 60);
 
-    // Number counter interpolation
-    const animDuration = 900;
-    const startTime = performance.now() + 60;
+    // Number counter interpolation (crisp 600ms count-up)
+    const animDuration = 600;
+    const startTime = performance.now() + 50;
     let animFrame;
 
     const updateCounter = (now) => {
@@ -121,12 +128,14 @@ export const AcademyResultsScreen = ({
       const progress = Math.min(1, elapsed / animDuration);
       // Easing out cubic
       const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplayedWpm(Math.round(eased * wpm));
+      const val = Math.round(eased * wpm);
 
       if (progress < 1) {
+        setDisplayedWpm(val);
         animFrame = requestAnimationFrame(updateCounter);
       } else {
         setDisplayedWpm(wpm);
+        setIsNeedleSettled(true);
       }
     };
 
@@ -137,7 +146,7 @@ export const AcademyResultsScreen = ({
       setIsNeedleSettled(true);
       setNeedleRotation(targetRotation);
       setDisplayedWpm(wpm);
-    }, 1050);
+    }, 700);
 
     return () => {
       clearTimeout(startTimer);
@@ -175,13 +184,13 @@ export const AcademyResultsScreen = ({
   }, [isNeedleSettled, handleNextAction]);
 
   // Prominent Semicircular SVG Geometry Dimensions
-  const cx = 340;
-  const cy = 236;
-  const rOuter = 216;
-  const rInner = 170;
-  const rLabel = 242;
-  const rDial = 166;
-  const rBezel = 232;
+  const cx = 360;
+  const cy = 208;
+  const rOuterBezel = 210;
+  const rOuter = 190;
+  const rInner = 144;
+  const rLabel = 201;
+  const rInnerDial = 142;
 
   // Generate radial tick marks pointing toward (cx, cy)
   const tickMarks = useMemo(() => {
@@ -193,8 +202,8 @@ export const AcademyResultsScreen = ({
     for (let i = 0; i < totalTicks; i++) {
       const angle = startAngle - (i / (totalTicks - 1)) * (startAngle - endAngle);
       const isMajor = i % 4 === 0;
-      const r1 = 164;
-      const r2 = isMajor ? 146 : 154;
+      const r1 = 140;
+      const r2 = isMajor ? 126 : 133;
       const p1 = polarToCartesian(cx, cy, r1, angle);
       const p2 = polarToCartesian(cx, cy, r2, angle);
 
@@ -219,43 +228,64 @@ export const AcademyResultsScreen = ({
     'VERY POOR': describeArc(cx, cy, rLabel, 26, -14),
   }), [cx, cy, rLabel]);
 
+  // Outer Bezel Dome Boundary (Semicircular arch terminating seamlessly behind dock)
+  const bezelDomePath = useMemo(() => {
+    const pBL = polarToCartesian(cx, cy, rOuterBezel, 195);
+    const pBR = polarToCartesian(cx, cy, rOuterBezel, -15);
+    return `M ${pBL.x.toFixed(1)} ${pBL.y.toFixed(1)} A ${rOuterBezel} ${rOuterBezel} 0 1 1 ${pBR.x.toFixed(1)} ${pBR.y.toFixed(1)} Q ${cx + 150} ${cy + 104} ${cx} ${cy + 104} Q ${cx - 150} ${cy + 104} ${pBL.x.toFixed(1)} ${pBL.y.toFixed(1)} Z`;
+  }, [cx, cy, rOuterBezel]);
+
+  // Inner Dial Dome Boundary
+  const innerDialDomePath = useMemo(() => {
+    const pBL = polarToCartesian(cx, cy, rInnerDial, 195);
+    const pBR = polarToCartesian(cx, cy, rInnerDial, -15);
+    return `M ${pBL.x.toFixed(1)} ${pBL.y.toFixed(1)} A ${rInnerDial} ${rInnerDial} 0 1 1 ${pBR.x.toFixed(1)} ${pBR.y.toFixed(1)} Q ${cx + 100} ${cy + 96} ${cx} ${cy + 96} Q ${cx - 100} ${cy + 96} ${pBL.x.toFixed(1)} ${pBL.y.toFixed(1)} Z`;
+  }, [cx, cy, rInnerDial]);
+
   return (
     <div
-      className="fixed inset-0 z-50 bg-[#080C14] overflow-hidden flex flex-col items-center justify-between py-2 sm:py-3 px-3 sm:px-6 select-none font-sans"
+      className="fixed inset-0 z-50 bg-[#080C14] overflow-hidden flex flex-col items-center justify-center p-2 sm:p-4 select-none font-sans"
       style={{
-        background: 'radial-gradient(circle at 50% 36%, #131B2C 0%, #090E18 60%, #05080E 100%)',
+        background: 'radial-gradient(circle at 50% 36%, #141C2E 0%, #090E18 60%, #05080E 100%)',
       }}
     >
       {/* ── Top Header matching Reference Image ───────────────────────── */}
-      <div className="text-center pt-1 sm:pt-2">
+      <div className="text-center mb-1">
         <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
           Typing Performance
         </div>
-        <div className="text-xs sm:text-sm text-[#7E8D9F] font-medium mt-0.5 tracking-wide font-sans">
-          Real-time speed overview
+        <div className="flex items-center justify-center gap-2 mt-0.5">
+          <span className="text-xs sm:text-sm text-[#7E8D9F] font-medium tracking-wide font-sans">
+            Real-time speed overview
+          </span>
+          {lesson?.title && (
+            <>
+              <span className="text-slate-600 text-xs">•</span>
+              <span className="text-xs text-slate-400 font-semibold">{lesson.title}</span>
+            </>
+          )}
         </div>
       </div>
 
-      {/* ── Main Speedometer Viewport (Large, Prominent, Semicircular) ── */}
-      <div className="flex-1 min-h-0 w-full max-w-2xl sm:max-w-3xl flex items-center justify-center relative my-auto">
+      {/* ── Main Speedometer Viewport (Large, Prominent, Semicircular Dome) ── */}
+      <div className="w-full max-w-[680px] sm:max-w-[760px] relative flex items-center justify-center -mb-5 sm:-mb-7">
         <svg
-          viewBox="0 0 680 400"
-          className="w-full h-full max-h-[50vh] sm:max-h-[54vh] overflow-visible drop-shadow-[0_20px_45px_rgba(0,0,0,0.9)]"
+          viewBox="0 0 720 340"
+          className="w-full h-auto overflow-visible drop-shadow-[0_20px_45px_rgba(0,0,0,0.9)]"
         >
           <defs>
             {/* Outer Bezel Dome Gradient */}
-            <radialGradient id="bezelGrad" cx="50%" cy="45%" r="55%">
-              <stop offset="60%" stopColor="#0D1322" />
-              <stop offset="85%" stopColor="#141D2E" />
-              <stop offset="97%" stopColor="#1E2A3E" />
-              <stop offset="100%" stopColor="#080C14" />
+            <radialGradient id="bezelGrad" cx="50%" cy="40%" r="60%">
+              <stop offset="0%" stopColor="#121828" />
+              <stop offset="65%" stopColor="#0B101C" />
+              <stop offset="100%" stopColor="#060911" />
             </radialGradient>
 
             {/* Inner Dial Face Gradient */}
             <radialGradient id="dialGrad" cx="50%" cy="40%" r="60%">
-              <stop offset="0%" stopColor="#121828" />
-              <stop offset="70%" stopColor="#0A0F1B" />
-              <stop offset="100%" stopColor="#060911" />
+              <stop offset="0%" stopColor="#101726" />
+              <stop offset="70%" stopColor="#090E1A" />
+              <stop offset="100%" stopColor="#050810" />
             </radialGradient>
 
             {/* 3D Segment Gradients */}
@@ -313,7 +343,7 @@ export const AcademyResultsScreen = ({
 
             {/* Drop Shadows & Glows */}
             <filter id="needleShadow" x="-30%" y="-30%" width="160%" height="160%">
-              <feDropShadow dx="5" dy="9" stdDeviation="6" floodColor="#000000" floodOpacity="0.85" />
+              <feDropShadow dx="6" dy="12" stdDeviation="6" floodColor="#000000" floodOpacity="0.85" />
             </filter>
 
             <filter id="activeCategoryGlow" x="-20%" y="-20%" width="140%" height="140%">
@@ -328,21 +358,17 @@ export const AcademyResultsScreen = ({
             <path id="pathVeryPoor" d={labelArcPaths['VERY POOR']} fill="none" />
           </defs>
 
-          {/* ── Outer Bezel Semicircular Housing ─────────────────────────── */}
-          <circle
-            cx={cx}
-            cy={cy}
-            r={rBezel}
+          {/* ── Outer Bezel Semicircular Dome Housing ───────────────────── */}
+          <path
+            d={bezelDomePath}
             fill="url(#bezelGrad)"
             stroke="rgba(255,255,255,0.08)"
             strokeWidth="1.5"
           />
 
-          {/* ── Inner Dial Face ─────────────────────────────────────────── */}
-          <circle
-            cx={cx}
-            cy={cy}
-            r={rDial}
+          {/* ── Inner Dial Face Dome ────────────────────────────────────── */}
+          <path
+            d={innerDialDomePath}
             fill="url(#dialGrad)"
             stroke="#121828"
             strokeWidth="1.5"
@@ -396,7 +422,7 @@ export const AcademyResultsScreen = ({
                 x2={pInner.x.toFixed(1)}
                 y2={pInner.y.toFixed(1)}
                 stroke="#080C14"
-                strokeWidth="4"
+                strokeWidth="3.5"
               />
             );
           })}
@@ -410,14 +436,14 @@ export const AcademyResultsScreen = ({
                 y1={t.y1}
                 x2={t.x2}
                 y2={t.y2}
-                stroke={t.isMajor ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.28)'}
-                strokeWidth={t.isMajor ? '2.5' : '1.3'}
+                stroke={t.isMajor ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.3)'}
+                strokeWidth={t.isMajor ? '2.4' : '1.3'}
               />
             ))}
           </g>
 
           {/* ── Category Labels Hugging the Outer Arc (Coloured per zone) ── */}
-          <g fontFamily="system-ui, -apple-system, sans-serif" fontWeight="900" fontSize="13" letterSpacing="1.8">
+          <g fontFamily="system-ui, -apple-system, sans-serif" fontWeight="900" fontSize="12" letterSpacing="1.5">
             {/* EXCELLENT */}
             <text
               fill="#22C55E"
@@ -485,34 +511,34 @@ export const AcademyResultsScreen = ({
             filter="url(#needleShadow)"
           >
             {/* Left Specular Chrome Face */}
-            <polygon points={`${cx - 10},${cy} ${cx},${cy - 168} ${cx},${cy}`} fill="url(#needleSpecular)" />
+            <polygon points={`${cx - 12},${cy} ${cx},${cy - 146} ${cx},${cy}`} fill="url(#needleSpecular)" />
             {/* Right Shaded Gunmetal Face */}
-            <polygon points={`${cx},${cy} ${cx},${cy - 168} ${cx + 10},${cy}`} fill="url(#needleShade)" />
+            <polygon points={`${cx},${cy} ${cx},${cy - 146} ${cx + 12},${cy}`} fill="url(#needleShade)" />
             {/* Sharp Specular Ridge Line */}
-            <line x1={cx} y1={cy - 168} x2={cx} y2={cy} stroke="#FFFFFF" strokeWidth="1.5" opacity="0.95" />
+            <line x1={cx} y1={cy - 146} x2={cx} y2={cy} stroke="#FFFFFF" strokeWidth="1.5" opacity="0.95" />
           </g>
 
           {/* ── Concentric Metallic Chrome Pivot Hub Assembly ────────────── */}
-          <circle cx={cx} cy={cy + 4} r="30" fill="rgba(0,0,0,0.65)" filter="blur(4px)" />
-          <circle cx={cx} cy={cy} r="28" fill="url(#pivotChromeOuter)" stroke="#475569" strokeWidth="2" />
-          <circle cx={cx} cy={cy} r="19" fill="#0B0F19" stroke="#1E293B" strokeWidth="1.5" />
-          <circle cx={cx} cy={cy} r="13" fill="url(#pivotCore)" stroke="#64748B" strokeWidth="1" />
-          <circle cx={cx - 5} cy={cy - 5} r="3.5" fill="#FFFFFF" opacity="0.8" />
+          <circle cx={cx} cy={cy + 3} r="28" fill="rgba(0,0,0,0.6)" filter="blur(3px)" />
+          <circle cx={cx} cy={cy} r="26" fill="url(#pivotChromeOuter)" stroke="#475569" strokeWidth="2" />
+          <circle cx={cx} cy={cy} r="18" fill="#0B0F19" stroke="#1E293B" strokeWidth="1.5" />
+          <circle cx={cx} cy={cy} r="12" fill="url(#pivotCore)" stroke="#64748B" strokeWidth="1" />
+          <circle cx={cx - 4} cy={cy - 4} r="3" fill="#FFFFFF" opacity="0.85" />
 
           {/* ── Central Digital Score Display ───────────────────────────── */}
-          <g transform={`translate(${cx}, ${cy + 56})`} textAnchor="middle">
+          <g transform={`translate(${cx}, ${cy + 46})`} textAnchor="middle">
             <text
               y="0"
               fill="#FFFFFF"
-              fontSize="64"
+              fontSize="68"
               fontWeight="950"
               fontFamily="system-ui, -apple-system, sans-serif"
               letterSpacing="-2"
             >
-              {displayedWpm}
+              {isNeedleSettled ? wpm : displayedWpm}
             </text>
             <text
-              y="25"
+              y="24"
               fill="#64748B"
               fontSize="12"
               fontWeight="800"
@@ -522,9 +548,9 @@ export const AcademyResultsScreen = ({
               OUT OF 100
             </text>
             <text
-              y="48"
+              y="44"
               fill={category.color}
-              fontSize="15"
+              fontSize="14"
               fontWeight="900"
               letterSpacing="2.5"
               fontFamily="system-ui, -apple-system, sans-serif"
@@ -535,34 +561,16 @@ export const AcademyResultsScreen = ({
         </svg>
       </div>
 
-      {/* ── Subtle Typing Identity Tag ─────────────────────────────────── */}
-      <div
-        className={`my-0.5 transition-all duration-500 transform ${
-          isNeedleSettled ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'
-        }`}
-      >
-        <div
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/60 border text-[11px] font-bold tracking-wider uppercase backdrop-blur-sm"
-          style={{
-            borderColor: `${identity.badgeColor}44`,
-            color: identity.badgeColor,
-          }}
-        >
-          <Sparkles className="w-3 h-3" />
-          <span>{identity.title}</span>
-        </div>
-      </div>
-
       {/* ── Large Balanced Statistics Dashboard matching Reference Image ─ */}
-      <div className="w-full max-w-3xl px-2 my-1">
-        <div className="rounded-3xl bg-[#0E1422]/95 border border-slate-700/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] py-3 sm:py-4 px-4 sm:px-8 backdrop-blur-md">
+      <div className="w-full max-w-[740px] sm:max-w-[820px] px-2 z-10">
+        <div className="rounded-2xl sm:rounded-3xl bg-[#0B0F19]/95 border border-slate-700/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] py-3.5 sm:py-4 px-4 sm:px-8 backdrop-blur-md">
           <div className="grid grid-cols-5 gap-2 text-center divide-x divide-slate-800/60">
             {/* 1. GROSS WPM */}
             <div className="flex flex-col items-center justify-center px-1">
               <div className="text-[#00E676] mb-1">
                 <Gauge className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+              <div className="text-xl sm:text-2xl font-black font-sans text-white tracking-tight">
                 {wpm}
               </div>
               <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-slate-400 mt-0.5">
@@ -575,7 +583,7 @@ export const AcademyResultsScreen = ({
               <div className="text-[#38BDF8] mb-1">
                 <Crosshair className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+              <div className="text-xl sm:text-2xl font-black font-sans text-white tracking-tight">
                 {accuracy}%
               </div>
               <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-slate-400 mt-0.5">
@@ -588,7 +596,7 @@ export const AcademyResultsScreen = ({
               <div className="text-[#A855F7] mb-1">
                 <Activity className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+              <div className="text-xl sm:text-2xl font-black font-sans text-white tracking-tight">
                 {netWpm}
               </div>
               <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-slate-400 mt-0.5">
@@ -601,7 +609,7 @@ export const AcademyResultsScreen = ({
               <div className="text-[#F59E0B] mb-1">
                 <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+              <div className="text-xl sm:text-2xl font-black font-sans text-white tracking-tight">
                 {mistakes}
               </div>
               <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-slate-400 mt-0.5">
@@ -614,7 +622,7 @@ export const AcademyResultsScreen = ({
               <div className="text-[#F43F5E] mb-1">
                 <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-mono text-white tracking-tight">
+              <div className="text-xl sm:text-2xl font-black font-sans text-white tracking-tight">
                 {duration}s
               </div>
               <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-slate-400 mt-0.5">
@@ -626,7 +634,7 @@ export const AcademyResultsScreen = ({
       </div>
 
       {/* ── 3 Action Buttons ────────────────────────────────────────────── */}
-      <div className="w-full max-w-xl flex items-center justify-center gap-3 pt-1 pb-1 sm:pb-3 px-2">
+      <div className="w-full max-w-[560px] flex items-center justify-center gap-3 mt-3 sm:mt-4 px-2">
         {/* TRY AGAIN */}
         <button
           type="button"
