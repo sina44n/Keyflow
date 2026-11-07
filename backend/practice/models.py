@@ -90,6 +90,7 @@ class PracticeSession(models.Model):
     metric_version = models.CharField(max_length=20, default='2.0')
     client_session_id = models.CharField(max_length=128, blank=True, null=True, db_index=True)
     character_stats = models.JSONField(default=dict, blank=True)
+    finger_stats = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

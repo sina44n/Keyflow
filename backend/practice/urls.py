@@ -9,6 +9,7 @@ from .views import (
     RecordPracticeSessionView,
     UserPracticeHistoryView,
     KeyboardMasteryView,
+    FingerMasteryView,
     CompetitionListView,
     CompetitionDetailView,
     CompetitionJoinView,
@@ -24,6 +25,7 @@ urlpatterns = [
     path('sessions/', RecordPracticeSessionView.as_view(), name='practice_record_session'),
     path('history/', UserPracticeHistoryView.as_view(), name='practice_history'),
     path('keyboard-mastery/', KeyboardMasteryView.as_view(), name='practice_keyboard_mastery'),
+    path('finger-mastery/', FingerMasteryView.as_view(), name='practice_finger_mastery'),
 
     # Typing Competitions
     path('competitions/', CompetitionListView.as_view(), name='practice_competitions'),

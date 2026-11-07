@@ -188,6 +188,8 @@ export default function TelemetryPage() {
           leftHandStats={metrics.leftHandStats}
           rightHandStats={metrics.rightHandStats}
           thumbsStats={metrics.thumbsStats}
+          activeReport={activeReport}
+          onReportChange={setActiveReport}
         />
 
         {/* 6. Speed and Accuracy per Character Ranked Bar Chart (Matching Reference Image 1 bottom) */}

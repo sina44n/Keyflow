@@ -12,7 +12,7 @@
  * 5. Full preservation of legacy lessonProgress & practiceAPI sessions.
  */
 
-import { KEY_FINGER_MAP, resolveKeyToFinger } from './touchTypingMap.js';
+import { KEY_FINGER_MAP, resolveKeyToFinger, getAuthoritativeFingerForChar } from './touchTypingMap.js';
 import { getLessonProgress } from './lessonProgress.js';
 import {
   calculateGrossWpm,
@@ -638,15 +638,15 @@ export function calculateReportMetrics(sessions, comparisonOrReportType = [], op
   const practicedCharacters = new Set();
   const charMap = {};
   const fingerMap = {
-    'left-pinky':  { name: 'L. Pinky',  keys: 'Q, A, Z', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
-    'left-ring':   { name: 'L. Ring',   keys: 'W, S, X', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
-    'left-middle': { name: 'L. Middle', keys: 'E, D, C', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
-    'left-index':  { name: 'L. Index',  keys: 'R, F, V, T, G, B', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
-    'thumb':       { name: 'Thumbs',    keys: 'Spacebar', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
-    'right-index': { name: 'R. Index',  keys: 'Y, H, N, U, J, M', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
-    'right-middle':{ name: 'R. Middle', keys: 'I, K, Comma', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
-    'right-ring':  { name: 'R. Ring',   keys: 'O, L, Period', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
-    'right-pinky': { name: 'R. Pinky',  keys: 'P, ;, /', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+    'left-pinky':  { name: 'Pinky',  hand: 'Left',  keys: 'Q, A, Z', total: 0, correct: 0, incorrect: 0, cpmSum: 0, cpmWeight: 0, wpmSum: 0, wpmWeight: 0 },
+    'left-ring':   { name: 'Ring',   hand: 'Left',  keys: 'W, S, X', total: 0, correct: 0, incorrect: 0, cpmSum: 0, cpmWeight: 0, wpmSum: 0, wpmWeight: 0 },
+    'left-middle': { name: 'Middle', hand: 'Left',  keys: 'E, D, C', total: 0, correct: 0, incorrect: 0, cpmSum: 0, cpmWeight: 0, wpmSum: 0, wpmWeight: 0 },
+    'left-index':  { name: 'Index',  hand: 'Left',  keys: 'R, F, V, T, G, B', total: 0, correct: 0, incorrect: 0, cpmSum: 0, cpmWeight: 0, wpmSum: 0, wpmWeight: 0 },
+    'thumb':       { name: 'Thumbs', hand: 'Thumbs', keys: 'Spacebar', total: 0, correct: 0, incorrect: 0, cpmSum: 0, cpmWeight: 0, wpmSum: 0, wpmWeight: 0 },
+    'right-index': { name: 'Index',  hand: 'Right', keys: 'Y, H, N, U, J, M', total: 0, correct: 0, incorrect: 0, cpmSum: 0, cpmWeight: 0, wpmSum: 0, wpmWeight: 0 },
+    'right-middle':{ name: 'Middle', hand: 'Right', keys: 'I, K, ,', total: 0, correct: 0, incorrect: 0, cpmSum: 0, cpmWeight: 0, wpmSum: 0, wpmWeight: 0 },
+    'right-ring':  { name: 'Ring',   hand: 'Right', keys: 'O, L, .', total: 0, correct: 0, incorrect: 0, cpmSum: 0, cpmWeight: 0, wpmSum: 0, wpmWeight: 0 },
+    'right-pinky': { name: 'Pinky',  hand: 'Right', keys: 'P, ;, /', total: 0, correct: 0, incorrect: 0, cpmSum: 0, cpmWeight: 0, wpmSum: 0, wpmWeight: 0 },
   };
 
   const activeDates = new Set();
@@ -684,34 +684,59 @@ export function calculateReportMetrics(sessions, comparisonOrReportType = [], op
         if (!charMap[char]) {
           charMap[char] = { char, total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0, cpmSum: 0, cpmCount: 0 };
         }
-        charMap[char].total += Number(stats?.total ?? 0) || 0;
-        charMap[char].correct += Number(stats?.correct ?? 0) || 0;
-        charMap[char].incorrect += Number(stats?.incorrect ?? 0) || 0;
+        const tot = Number(stats?.total ?? 0) || 0;
+        const cor = Number(stats?.correct ?? 0) || 0;
+        const inc = Number(stats?.incorrect ?? 0) || 0;
+        const wpmVal = Number(stats?.wpm || 0);
+        const cpmVal = Number(stats?.cpm || (wpmVal > 0 ? wpmVal * 5 : 0));
+
+        charMap[char].total += tot;
+        charMap[char].correct += cor;
+        charMap[char].incorrect += inc;
         if (stats?.wpm) {
-          charMap[char].wpmSum += Number(stats.wpm) || 0;
+          charMap[char].wpmSum += wpmVal;
           charMap[char].count++;
         }
-        if (stats?.cpm) {
-          charMap[char].cpmSum += Number(stats.cpm) || 0;
+        if (cpmVal > 0) {
+          charMap[char].cpmSum += cpmVal;
           charMap[char].cpmCount++;
-        } else if (stats?.wpm) {
-          charMap[char].cpmSum += (Number(stats.wpm) || 0) * 5;
-          charMap[char].cpmCount++;
+        }
+
+        // Infer authentic finger attribution from practiced character
+        const canonicalFinger = getAuthoritativeFingerForChar(char);
+        if (canonicalFinger && fingerMap[canonicalFinger]) {
+          const fEntry = fingerMap[canonicalFinger];
+          fEntry.total += tot;
+          fEntry.correct += cor;
+          fEntry.incorrect += inc;
+          if (wpmVal > 0) {
+            fEntry.wpmSum += wpmVal;
+            fEntry.count = (fEntry.count || 0) + 1;
+            fEntry.wpmWeight += tot;
+          }
+          if (cpmVal > 0 && tot > 0) {
+            fEntry.cpmSum += cpmVal * tot;
+            fEntry.cpmWeight += tot;
+          }
         }
       }
     }
 
-    // Aggregate finger stats if present, or infer from practiced characters
-    if (s.fingerStats && typeof s.fingerStats === 'object') {
+    // Aggregate finger stats if present directly and character stats were missing
+    if ((!s.characterStats || Object.keys(s.characterStats).length === 0) && s.fingerStats && typeof s.fingerStats === 'object') {
       for (const [fId, stats] of Object.entries(s.fingerStats)) {
         const canonical = fId === 'left-thumb' || fId === 'right-thumb' ? 'thumb' : fId;
         if (fingerMap[canonical]) {
-          fingerMap[canonical].total += Number(stats?.total ?? 0) || 0;
-          fingerMap[canonical].correct += Number(stats?.correct ?? 0) || 0;
-          fingerMap[canonical].incorrect += Number(stats?.incorrect ?? 0) || 0;
-          if (stats?.wpm) {
-            fingerMap[canonical].wpmSum += Number(stats.wpm) || 0;
-            fingerMap[canonical].count++;
+          const tot = Number(stats?.total ?? stats?.totalKeystrokes ?? 0) || 0;
+          const cor = Number(stats?.correct ?? 0) || 0;
+          const inc = Number(stats?.incorrect ?? 0) || 0;
+          const wpmVal = Number(stats?.speed ?? stats?.wpm ?? 0) || 0;
+          fingerMap[canonical].total += tot;
+          fingerMap[canonical].correct += cor;
+          fingerMap[canonical].incorrect += inc;
+          if (wpmVal > 0 && tot > 0) {
+            fingerMap[canonical].wpmSum += wpmVal * tot;
+            fingerMap[canonical].wpmWeight += tot;
           }
         }
       }
@@ -766,41 +791,92 @@ export function calculateReportMetrics(sessions, comparisonOrReportType = [], op
     };
   }
 
-  // Calculate Finger Mastery
+  // Calculate Finger Mastery with duration-weighted velocity and real first-attempt accuracy
   const fingerStatsArray = Object.entries(fingerMap).map(([id, data]) => {
-    const fWpm = data.count > 0 ? Math.round(data.wpmSum / data.count) : (avgWpm > 0 ? avgWpm : 0);
-    const fAcc = data.total > 0 ? Math.round((data.correct / data.total) * 100) : (accuracy > 0 ? accuracy : 0);
+    const hasData = data.total >= 3;
+    let fWpm = 0;
+    if (data.count > 0) {
+      fWpm = Math.round(data.wpmSum / data.count);
+    } else if (data.cpmWeight > 0) {
+      fWpm = Math.round((data.cpmSum / data.cpmWeight) / 5);
+    } else if (data.wpmWeight > 0) {
+      fWpm = Math.round(data.wpmSum / data.wpmWeight);
+    } else {
+      fWpm = avgWpm;
+    }
+
+    const fAcc = data.total > 0 ? Math.round((data.correct / data.total) * 100) : 0;
     const errRate = data.total > 0 ? ((data.incorrect / data.total) * 100).toFixed(1) + '%' : '0.0%';
+
     return {
       id,
       name: data.name,
+      hand: data.hand,
       keys: data.keys,
-      speed: fWpm,
-      speedText: `${fWpm} WPM`,
-      accuracy: fAcc,
-      accuracyText: `${fAcc}%`,
-      errorRate: errRate,
+      speed: hasData ? fWpm : null,
+      speedText: hasData ? `${fWpm} WPM` : '— wpm',
+      accuracy: hasData ? fAcc : null,
+      accuracyText: hasData ? `${fAcc}%` : '—',
+      errorRate: hasData ? errRate : '0.0%',
       totalKeystrokes: data.total,
-      hasData: data.total > 0,
+      correct: data.correct,
+      incorrect: data.incorrect,
+      hasData,
     };
   });
 
   // Left hand vs Right hand vs Thumbs
   const leftFingers = fingerStatsArray.filter((f) => f.id.startsWith('left'));
   const rightFingers = fingerStatsArray.filter((f) => f.id.startsWith('right'));
-  const thumbFingers = fingerStatsArray.filter((f) => f.id === 'thumb');
+  const thumbFinger = fingerStatsArray.find((f) => f.id === 'thumb');
 
-  const calcHandAverage = (fingers) => {
+  const calcHandSummary = (fingers) => {
     const valid = fingers.filter((f) => f.hasData);
-    if (valid.length === 0) return { speed: 0, accuracy: 0, hasData: false };
-    const avgS = Math.round(valid.reduce((acc, f) => acc + f.speed, 0) / valid.length);
-    const avgA = Math.round(valid.reduce((acc, f) => acc + f.accuracy, 0) / valid.length);
-    return { speed: avgS, accuracy: avgA, hasData: true };
+    const totalStrokes = fingers.reduce((sum, f) => sum + (f.totalKeystrokes || 0), 0);
+    const totalCorrect = fingers.reduce((sum, f) => sum + (f.correct || 0), 0);
+    const totalIncorrect = fingers.reduce((sum, f) => sum + (f.incorrect || 0), 0);
+
+    if (valid.length === 0 || totalStrokes < 3) {
+      return {
+        speed: null,
+        accuracy: null,
+        keystrokes: totalStrokes,
+        hasData: false,
+        strongestFinger: null,
+      };
+    }
+
+    // Keystroke-weighted WPM across valid fingers
+    const weightedSpeedSum = valid.reduce((sum, f) => sum + (f.speed * f.totalKeystrokes), 0);
+    const validStrokesSum = valid.reduce((sum, f) => sum + f.totalKeystrokes, 0);
+    const handSpeed = validStrokesSum > 0 ? Math.round(weightedSpeedSum / validStrokesSum) : 0;
+
+    // Real first-attempt accuracy
+    const handAcc = (totalCorrect + totalIncorrect) > 0
+      ? Math.round((totalCorrect / (totalCorrect + totalIncorrect)) * 100)
+      : 0;
+
+    // Strongest finger in this reporting period
+    const sorted = [...valid].sort((a, b) => (b.speed - a.speed) || (b.accuracy - a.accuracy));
+    const strongest = sorted[0]?.name || null;
+
+    return {
+      speed: handSpeed,
+      accuracy: handAcc,
+      keystrokes: totalStrokes,
+      hasData: true,
+      strongestFinger: strongest,
+    };
   };
 
-  const leftHandStats = calcHandAverage(leftFingers);
-  const rightHandStats = calcHandAverage(rightFingers);
-  const thumbsStats = calcHandAverage(thumbFingers);
+  const leftHandStats = calcHandSummary(leftFingers);
+  const rightHandStats = calcHandSummary(rightFingers);
+  const thumbsStats = {
+    speed: thumbFinger?.hasData ? thumbFinger.speed : null,
+    accuracy: thumbFinger?.hasData ? thumbFinger.accuracy : null,
+    keystrokes: thumbFinger?.totalKeystrokes || 0,
+    hasData: Boolean(thumbFinger?.hasData),
+  };
 
   // Character-level breakdown
   const characterStatsArray = Object.values(charMap).map((c) => {

@@ -36,6 +36,7 @@ import { practiceAPI, profileAPI, competitionAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { recordTelemetrySession } from '../utils/telemetryStorage';
 import { generateCustomTypingPrompt } from '../utils/textUtilities';
+import { getAuthoritativeFingerForChar } from '../utils/touchTypingMap';
 
 // New Workstation modular components
 import { WorkstationToolbar } from '../components/workstation/WorkstationToolbar';
@@ -693,6 +694,52 @@ export const WorkstationPage = () => {
         };
       }
 
+      // Compute authentic per-finger performance metrics (WPM, accuracy, total keystrokes)
+      const fingerBuckets = {
+        'left-pinky': { id: 'left-pinky', name: 'Pinky', hand: 'Left', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'left-ring': { id: 'left-ring', name: 'Ring', hand: 'Left', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'left-middle': { id: 'left-middle', name: 'Middle', hand: 'Left', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'left-index': { id: 'left-index', name: 'Index', hand: 'Left', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'right-index': { id: 'right-index', name: 'Index', hand: 'Right', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'right-middle': { id: 'right-middle', name: 'Middle', hand: 'Right', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'right-ring': { id: 'right-ring', name: 'Ring', hand: 'Right', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'right-pinky': { id: 'right-pinky', name: 'Pinky', hand: 'Right', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'thumb': { id: 'thumb', name: 'Thumbs', hand: 'Thumbs', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+      };
+
+      for (const [key, stat] of Object.entries(finalCharacterStats)) {
+        const fingerId = getAuthoritativeFingerForChar(stat.char || key);
+        if (fingerId && fingerBuckets[fingerId]) {
+          const b = fingerBuckets[fingerId];
+          b.total += stat.total;
+          b.correct += stat.correct;
+          b.incorrect += stat.incorrect;
+          if (stat.wpm > 0) {
+            b.wpmSum += stat.wpm * stat.total;
+            b.count += stat.total;
+          }
+        }
+      }
+
+      const finalFingerStats = {};
+      for (const [fId, b] of Object.entries(fingerBuckets)) {
+        if (b.total > 0) {
+          const speed = b.count > 0 ? Math.round(b.wpmSum / b.count) : grossWpm;
+          const acc = Math.round((b.correct / b.total) * 100);
+          finalFingerStats[fId] = {
+            id: fId,
+            speed,
+            wpm: speed,
+            accuracy: acc,
+            total: b.total,
+            totalKeystrokes: b.total,
+            correct: b.correct,
+            incorrect: b.incorrect,
+            hasData: b.total >= 3,
+          };
+        }
+      }
+
       // Record in scientific telemetry engine
       recordTelemetrySession({
         userId: user?.id || null,
@@ -717,6 +764,7 @@ export const WorkstationPage = () => {
         sessionType: activeCompetition ? 'competition' : customPrompt ? 'custom' : mode,
         typedText: finalTyped,
         characterStats: finalCharacterStats,
+        fingerStats: finalFingerStats,
       });
 
       // Async backend sync via practiceAPI with idempotency key
@@ -733,6 +781,7 @@ export const WorkstationPage = () => {
           accuracy: rawAccuracy,
           error_count: remainingErrors,
           character_stats: finalCharacterStats,
+          finger_stats: finalFingerStats,
         })
         .catch(() => {});
 

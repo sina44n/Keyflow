@@ -43,6 +43,7 @@ class PracticeSessionSerializer(serializers.ModelSerializer):
             'lesson',
             'client_session_id',
             'character_stats',
+            'finger_stats',
             'metric_version',
             'created_at',
         ]

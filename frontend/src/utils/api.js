@@ -173,6 +173,7 @@ export const practiceAPI = {
   recordSession: (data) => api.post('/practice/sessions/', data),
   getHistory: () => api.get('/practice/history/'),
   getKeyboardMastery: (params) => api.get('/practice/keyboard-mastery/', { params }),
+  getFingerMastery: (params) => api.get('/practice/finger-mastery/', { params }),
   getCompetitions: (params) => api.get('/practice/competitions/', { params }),
   createCompetition: (data) => api.post('/practice/competitions/', data),
   getCompetition: (code) => api.get(`/practice/competitions/${code}/`),

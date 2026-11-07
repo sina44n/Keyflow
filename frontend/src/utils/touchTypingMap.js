@@ -282,6 +282,77 @@ export const APPROVED_KEY_FINGER_MAP = {
   ' ': { finger: 'thumb', keyId: 'space' },
 };
 
+/**
+ * Standard 8-Finger Biomechanical Anatomy Definitions.
+ */
+export const FINGER_DEFINITIONS = [
+  { id: 'left-pinky', name: 'Pinky', hand: 'Left', keys: 'Q, A, Z', activeDigit: 'pinky' },
+  { id: 'left-ring', name: 'Ring', hand: 'Left', keys: 'W, S, X', activeDigit: 'ring' },
+  { id: 'left-middle', name: 'Middle', hand: 'Left', keys: 'E, D, C', activeDigit: 'middle' },
+  { id: 'left-index', name: 'Index', hand: 'Left', keys: 'R, F, V, T, G, B', activeDigit: 'index' },
+  { id: 'right-index', name: 'Index', hand: 'Right', keys: 'Y, H, N, U, J, M', activeDigit: 'index' },
+  { id: 'right-middle', name: 'Middle', hand: 'Right', keys: 'I, K, ,', activeDigit: 'middle' },
+  { id: 'right-ring', name: 'Ring', hand: 'Right', keys: 'O, L, .', activeDigit: 'ring' },
+  { id: 'right-pinky', name: 'Pinky', hand: 'Right', keys: 'P, ;, /', activeDigit: 'pinky' },
+];
+
+/**
+ * Maps an approved typed character to its authoritative finger ID:
+ * 'left-pinky' | 'left-ring' | 'left-middle' | 'left-index' |
+ * 'right-index' | 'right-middle' | 'right-ring' | 'right-pinky' | 'thumb'
+ * Returns null for modifier/navigation keys (Shift, Backspace, Ctrl, Alt, Tab, Enter) or unsupported keys.
+ */
+export function getAuthoritativeFingerForChar(char) {
+  if (char === null || char === undefined) return null;
+  const s = String(char);
+  if (!s || s.length === 0) return null;
+
+  // Spacebar belongs to thumb category
+  if (s === ' ' || s.toLowerCase() === 'space') {
+    return 'thumb';
+  }
+
+  // Modifiers and navigation keys are strictly excluded from finger analytics
+  const excludedModifiers = new Set([
+    'shift', 'shiftleft', 'shiftright', 'backspace', 'control', 'ctrl',
+    'alt', 'option', 'meta', 'cmd', 'command', 'win', 'caps', 'capslock',
+    'tab', 'enter', 'return', 'escape', 'esc', 'fn', 'menu'
+  ]);
+  if (excludedModifiers.has(s.toLowerCase())) {
+    return null;
+  }
+
+  // 1. Direct match in clinical touch-typing table
+  if (APPROVED_KEY_FINGER_MAP[s]) {
+    return APPROVED_KEY_FINGER_MAP[s].finger;
+  }
+
+  // 2. Case-insensitive letter match (e.g., 'Q' or 'q' -> left-pinky)
+  const lower = s.toLowerCase();
+  if (APPROVED_KEY_FINGER_MAP[lower]) {
+    return APPROVED_KEY_FINGER_MAP[lower].finger;
+  }
+
+  // 3. Numbers & extended top row symbols
+  const numberMap = {
+    '1': 'left-pinky', '!': 'left-pinky', '`': 'left-pinky', '~': 'left-pinky',
+    '2': 'left-ring', '@': 'left-ring',
+    '3': 'left-middle', '#': 'left-middle',
+    '4': 'left-index', '$': 'left-index', '5': 'left-index', '%': 'left-index',
+    '6': 'right-index', '^': 'right-index', '7': 'right-index', '&': 'right-index',
+    '8': 'right-middle', '*': 'right-middle',
+    '9': 'right-ring', '(': 'right-ring',
+    '0': 'right-pinky', ')': 'right-pinky', '-': 'right-pinky', '_': 'right-pinky',
+    '=': 'right-pinky', '+': 'right-pinky', '[': 'right-pinky', '{': 'right-pinky',
+    ']': 'right-pinky', '}': 'right-pinky', '\\': 'right-pinky', '|': 'right-pinky',
+  };
+  if (numberMap[s]) {
+    return numberMap[s];
+  }
+
+  return null;
+}
+
 export const KEY_FINGER_MAP = {
   // Left Pinky
   '`': { finger: 'left-pinky', x: KEY_COORDS['`'].cx, y: KEY_COORDS['`'].cy },

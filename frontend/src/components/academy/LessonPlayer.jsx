@@ -15,6 +15,7 @@ import {
   getCurrentUserId,
 } from '../../utils/lessonProgress';
 import { recordTelemetrySession } from '../../utils/telemetryStorage';
+import { getAuthoritativeFingerForChar } from '../../utils/touchTypingMap';
 import { SoundSelector } from '../common/SoundSelector';
 import { useKeyboardSound } from '../../context/SoundContext';
 import {
@@ -345,6 +346,52 @@ export const LessonPlayer = ({
         };
       }
 
+      // Compute authentic per-finger performance metrics for lesson
+      const fingerBuckets = {
+        'left-pinky': { id: 'left-pinky', name: 'Pinky', hand: 'Left', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'left-ring': { id: 'left-ring', name: 'Ring', hand: 'Left', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'left-middle': { id: 'left-middle', name: 'Middle', hand: 'Left', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'left-index': { id: 'left-index', name: 'Index', hand: 'Left', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'right-index': { id: 'right-index', name: 'Index', hand: 'Right', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'right-middle': { id: 'right-middle', name: 'Middle', hand: 'Right', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'right-ring': { id: 'right-ring', name: 'Ring', hand: 'Right', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'right-pinky': { id: 'right-pinky', name: 'Pinky', hand: 'Right', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+        'thumb': { id: 'thumb', name: 'Thumbs', hand: 'Thumbs', total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 },
+      };
+
+      for (const [key, stat] of Object.entries(finalCharStats)) {
+        const fingerId = getAuthoritativeFingerForChar(stat.char || key);
+        if (fingerId && fingerBuckets[fingerId]) {
+          const b = fingerBuckets[fingerId];
+          b.total += stat.total;
+          b.correct += stat.correct;
+          b.incorrect += stat.incorrect;
+          if (stat.wpm > 0) {
+            b.wpmSum += stat.wpm * stat.total;
+            b.count += stat.total;
+          }
+        }
+      }
+
+      const finalFingerStats = {};
+      for (const [fId, b] of Object.entries(fingerBuckets)) {
+        if (b.total > 0) {
+          const speed = b.count > 0 ? Math.round(b.wpmSum / b.count) : finalWpm;
+          const acc = Math.round((b.correct / b.total) * 100);
+          finalFingerStats[fId] = {
+            id: fId,
+            speed,
+            wpm: speed,
+            accuracy: acc,
+            total: b.total,
+            totalKeystrokes: b.total,
+            correct: b.correct,
+            incorrect: b.incorrect,
+            hasData: b.total >= 3,
+          };
+        }
+      }
+
       // Record in scientific telemetry engine
       try {
         const currentUid = getCurrentUserId ? getCurrentUserId() : null;
@@ -372,6 +419,7 @@ export const LessonPlayer = ({
           mode: 'lesson',
           typedText: value,
           characterStats: finalCharStats,
+          fingerStats: finalFingerStats,
         });
       } catch { /* storage fallback */ }
 
