@@ -174,7 +174,13 @@ export default function TelemetryPage() {
         <ProgressOverviewChart sessions={sessions} activeReportMetrics={metrics} activeReport={activeReport} />
 
         {/* 4. Keyboard Mastery ANSI 60% Interactive Heatmap (Matching Reference Image 2) */}
-        <KeyboardMastery characterStats={metrics.characterStats} avgWpm={metrics.avgWpm} overallAccuracy={metrics.accuracy} />
+        <KeyboardMastery
+          characterStats={metrics.characterStats}
+          avgWpm={metrics.avgWpm}
+          overallAccuracy={metrics.accuracy}
+          activeReport={activeReport}
+          onReportChange={setActiveReport}
+        />
 
         {/* 5. Ten-Finger Biomechanical Matrix (Preserved & Upgraded, Matching Reference Image 1) */}
         <FingerMasteryMatrix

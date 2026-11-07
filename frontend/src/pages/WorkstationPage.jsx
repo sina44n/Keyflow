@@ -225,6 +225,7 @@ export const WorkstationPage = () => {
   const timerRef = useRef(null);
   const totalActiveMsRef = useRef(0);
   const runningSegmentStartRef = useRef(null);
+  const lastKeystrokeTimeRef = useRef(null);
 
   // Synchronous session tracker ref ensuring zero event loss & immunity to stale closures
   const sessionTrackerRef = useRef({
@@ -239,6 +240,7 @@ export const WorkstationPage = () => {
     secondTimeline: [],
     lastSampleSecond: 0,
     isCompleted: false,
+    characterStats: {},
   });
 
   const [wpmGoal, setWpmGoalState] = useState(() => {
@@ -668,6 +670,29 @@ export const WorkstationPage = () => {
 
       setSessionResults(results);
 
+      // Compute authentic per-character performance metrics (CPM, WPM, accuracy)
+      const rawCharStats = tracker.characterStats || {};
+      const finalCharacterStats = {};
+      for (const [key, stat] of Object.entries(rawCharStats)) {
+        if (!key || !stat) continue;
+        const total = Number(stat.total || 0);
+        const correct = Number(stat.correct || 0);
+        const incorrect = Number(stat.incorrect || 0);
+        const avgIntervalMs = stat.intervalCount > 0 ? (stat.intervalSumMs / stat.intervalCount) : 0;
+        const cpm = avgIntervalMs > 0 ? Math.round(60000 / avgIntervalMs) : Math.round(grossWpm * 5);
+        const wpm = Math.round(cpm / 5);
+        const accuracy = total > 0 ? Math.round((correct / total) * 100) : 100;
+        finalCharacterStats[key] = {
+          char: stat.char || (key === 'space' ? ' ' : key),
+          total,
+          correct,
+          incorrect,
+          cpm,
+          wpm,
+          accuracy,
+        };
+      }
+
       // Record in scientific telemetry engine
       recordTelemetrySession({
         userId: user?.id || null,
@@ -691,6 +716,7 @@ export const WorkstationPage = () => {
         status: rawAccuracy >= 70 ? 'passed' : 'failed',
         sessionType: activeCompetition ? 'competition' : customPrompt ? 'custom' : mode,
         typedText: finalTyped,
+        characterStats: finalCharacterStats,
       });
 
       // Async backend sync via practiceAPI with idempotency key
@@ -706,6 +732,7 @@ export const WorkstationPage = () => {
           net_wpm: netWpm,
           accuracy: rawAccuracy,
           error_count: remainingErrors,
+          character_stats: finalCharacterStats,
         })
         .catch(() => {});
 
@@ -737,9 +764,11 @@ export const WorkstationPage = () => {
       setStartTime(now);
       totalActiveMsRef.current = 0;
       runningSegmentStartRef.current = now;
+      lastKeystrokeTimeRef.current = performance.now();
       sessionTrackerRef.current.startedAt = now;
       sessionTrackerRef.current.sessionId = `sess_${now}_${Math.random().toString(36).slice(2, 9)}`;
       sessionTrackerRef.current.isCompleted = false;
+      sessionTrackerRef.current.characterStats = {};
       setIsPaused(false);
     }
 
@@ -756,7 +785,35 @@ export const WorkstationPage = () => {
         } else if (isError) {
           hasErrorInBulk = true;
         }
+
+        // Authentic per-character performance & interval tracking
+        const charKey = expectedChar === ' ' ? 'space' : expectedChar.toLowerCase();
+        if (!sessionTrackerRef.current.characterStats) {
+          sessionTrackerRef.current.characterStats = {};
+        }
+        if (!sessionTrackerRef.current.characterStats[charKey]) {
+          sessionTrackerRef.current.characterStats[charKey] = {
+            char: expectedChar,
+            total: 0,
+            correct: 0,
+            incorrect: 0,
+            intervalSumMs: 0,
+            intervalCount: 0,
+          };
+        }
+        const cEntry = sessionTrackerRef.current.characterStats[charKey];
+        cEntry.total += 1;
+
+        const nowPerf = performance.now();
+        if (lastKeystrokeTimeRef.current) {
+          const deltaMs = Math.min(2500, Math.max(15, nowPerf - lastKeystrokeTimeRef.current));
+          cEntry.intervalSumMs += deltaMs;
+          cEntry.intervalCount += 1;
+        }
+        lastKeystrokeTimeRef.current = nowPerf;
+
         if (isError) {
+          cEntry.incorrect += 1;
           sessionTrackerRef.current.mistakes += 1;
           sessionTrackerRef.current.correctedIndices.add(i);
 
@@ -781,6 +838,7 @@ export const WorkstationPage = () => {
           sessionTrackerRef.current.errorHistory.push(errItem);
           setErrorHistory((prev) => [...prev, errItem]);
         } else {
+          cEntry.correct += 1;
           sessionTrackerRef.current.correctKeystrokes += 1;
           setCorrectKeystrokes((c) => c + 1);
         }
@@ -793,6 +851,7 @@ export const WorkstationPage = () => {
     } else if (val.length < typed.length) {
       // Backspace pressed: removes character, does NOT clear previous mistakes or alter error count
       const count = typed.length - val.length;
+      lastKeystrokeTimeRef.current = performance.now();
       sessionTrackerRef.current.backspaces += count;
       setBackspaces((b) => b + count);
       setLastKeystroke({ key: 'backspace', code: 'Backspace', id: performance.now() });
@@ -839,6 +898,7 @@ export const WorkstationPage = () => {
     lastSampleSecondRef.current = 0;
     setScrollLine(0);
     setScrollOffsetPx(0);
+    lastKeystrokeTimeRef.current = null;
 
     sessionTrackerRef.current = {
       sessionId: null,
@@ -852,6 +912,7 @@ export const WorkstationPage = () => {
       secondTimeline: [],
       lastSampleSecond: 0,
       isCompleted: false,
+      characterStats: {},
     };
 
     if (timerRef.current) {

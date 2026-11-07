@@ -172,6 +172,7 @@ export const practiceAPI = {
   getPassage: (id) => api.get(`/practice/passages/${id}/`),
   recordSession: (data) => api.post('/practice/sessions/', data),
   getHistory: () => api.get('/practice/history/'),
+  getKeyboardMastery: (params) => api.get('/practice/keyboard-mastery/', { params }),
   getCompetitions: (params) => api.get('/practice/competitions/', { params }),
   createCompetition: (data) => api.post('/practice/competitions/', data),
   getCompetition: (code) => api.get(`/practice/competitions/${code}/`),

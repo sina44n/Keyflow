@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   RotateCcw, ArrowRight, ArrowLeft,
-  CheckCircle2, AlertCircle, Keyboard, Hand,
+  Keyboard, Hand,
   Zap, Target, Flame, Clock, ChevronDown,
 } from 'lucide-react';
 import { Button } from '../common/Button';
@@ -12,7 +12,9 @@ import { getLesson } from '../../data/curriculumEngine';
 import {
   recordLessonResult, calculateStars,
   getGuidePreferences, saveGuidePreferences,
+  getCurrentUserId,
 } from '../../utils/lessonProgress';
+import { recordTelemetrySession } from '../../utils/telemetryStorage';
 import { SoundSelector } from '../common/SoundSelector';
 import { useKeyboardSound } from '../../context/SoundContext';
 import {
@@ -93,6 +95,8 @@ export const LessonPlayer = ({
   const timerRef = useRef(null);
   const completionFiredRef = useRef(false);
   const streakRef = useRef(0);
+  const charStatsRef = useRef({});
+  const lastKeystrokeTimeRef = useRef(null);
 
   const targetText = lesson?.exerciseText ?? '';
 
@@ -130,6 +134,8 @@ export const LessonPlayer = ({
     setStreak(0);
     setMaxStreak(0);
     streakRef.current = 0;
+    charStatsRef.current = {};
+    lastKeystrokeTimeRef.current = null;
     setIsCompleted(false);
     setCompletedResult(null);
     setLastKeystroke(null);
@@ -192,11 +198,14 @@ export const LessonPlayer = ({
 
     if (!startTime && value.length > 0) {
       setStartTime(Date.now());
+      lastKeystrokeTimeRef.current = performance.now();
+      charStatsRef.current = {};
     }
 
     if (value.length < typed.length) {
       // Backspace pressed: removes character, does NOT clear previous mistakes or alter error count
       setTyped(value);
+      lastKeystrokeTimeRef.current = performance.now();
       streakRef.current = 0;
       setStreak(0);
       setBackspaces(prev => prev + (typed.length - value.length));
@@ -218,11 +227,36 @@ export const LessonPlayer = ({
       lastKey = char;
       addedStrokes += 1;
 
+      // Authentic per-character performance & interval tracking
+      const charKey = expected === ' ' ? 'space' : expected.toLowerCase();
+      if (!charStatsRef.current[charKey]) {
+        charStatsRef.current[charKey] = {
+          char: expected,
+          total: 0,
+          correct: 0,
+          incorrect: 0,
+          intervalSumMs: 0,
+          intervalCount: 0,
+        };
+      }
+      const cEntry = charStatsRef.current[charKey];
+      cEntry.total += 1;
+
+      const nowPerf = performance.now();
+      if (lastKeystrokeTimeRef.current) {
+        const delta = Math.min(2500, Math.max(15, nowPerf - lastKeystrokeTimeRef.current));
+        cEntry.intervalSumMs += delta;
+        cEntry.intervalCount += 1;
+      }
+      lastKeystrokeTimeRef.current = nowPerf;
+
       if (isMatch) {
+        cEntry.correct += 1;
         runningCorrectStrokes += 1;
         streakRef.current += 1;
         if (!isBulkInput) playClick(false);
       } else {
+        cEntry.incorrect += 1;
         streakRef.current = 0;
         runningMistakes += 1;
         newMistakeIndices.push(i);
@@ -289,6 +323,58 @@ export const LessonPlayer = ({
       };
       setCompletedResult(result);
 
+      // Compute authentic per-character performance metrics (CPM, WPM, accuracy)
+      const finalCharStats = {};
+      for (const [key, s] of Object.entries(charStatsRef.current || {})) {
+        if (!key || !s) continue;
+        const total = Number(s.total || 0);
+        const correct = Number(s.correct || 0);
+        const incorrect = Number(s.incorrect || 0);
+        const avgIntervalMs = s.intervalCount > 0 ? (s.intervalSumMs / s.intervalCount) : 0;
+        const cpm = avgIntervalMs > 0 ? Math.round(60000 / avgIntervalMs) : Math.round(finalWpm * 5);
+        const wpm = Math.round(cpm / 5);
+        const acc = total > 0 ? Math.round((correct / total) * 100) : 100;
+        finalCharStats[key] = {
+          char: s.char || (key === 'space' ? ' ' : key),
+          total,
+          correct,
+          incorrect,
+          cpm,
+          wpm,
+          accuracy: acc,
+        };
+      }
+
+      // Record in scientific telemetry engine
+      try {
+        const currentUid = getCurrentUserId ? getCurrentUserId() : null;
+        recordTelemetrySession({
+          userId: currentUid,
+          id: `lesson_${lesson?.stageId || 1}_${lesson?.lessonNum || 1}_${Date.now()}`,
+          sessionId: `lesson_${lesson?.stageId || 1}_${lesson?.lessonNum || 1}_${Date.now()}`,
+          wpm: finalWpm,
+          netWpm: finalNetWpm,
+          grossWpm: finalWpm,
+          accuracy: finalAccuracy,
+          rawAccuracy: finalAccuracy,
+          finalTextAccuracy,
+          durationSeconds: finalDuration,
+          totalKeystrokes: finalTotalValid,
+          totalChars: finalTotalValid,
+          correctKeystrokes: finalCorrectStrokes,
+          incorrectKeystrokes: finalMistakes,
+          mistakes: finalMistakes,
+          correctedMistakes: Math.max(0, finalMistakes - remainingErrors),
+          remainingErrors,
+          backspaces,
+          status: passed ? 'passed' : 'failed',
+          sessionType: 'lesson',
+          mode: 'lesson',
+          typedText: value,
+          characterStats: finalCharStats,
+        });
+      } catch { /* storage fallback */ }
+
       if (lesson) {
         try {
           const sId = lesson.stageId || 1;
@@ -307,7 +393,7 @@ export const LessonPlayer = ({
         } catch { /* storage fallback */ }
       }
     }
-  }, [isCompleted, targetText, typed, startTime, totalStrokes, correctStrokes, mistakes, maxStreak, playClick, lesson]);
+  }, [isCompleted, targetText, typed, startTime, totalStrokes, correctStrokes, mistakes, backspaces, maxStreak, playClick, lesson]);
 
   // ── Guide toggles ────────────────────────────────────────────────────────
   const toggleKeyboardGuide = useCallback(() => {

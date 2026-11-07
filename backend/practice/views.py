@@ -1,12 +1,14 @@
 """
 Practice Views — Passages and Session recording endpoints.
 """
+from datetime import datetime, time, timedelta
+import zoneinfo
+from django.utils import timezone
+from django.db import models
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-
-from django.db import models
 from .models import Passage, PracticeSession, Competition, CompetitionParticipant
 from .serializers import (
     PassageSerializer,
@@ -128,6 +130,10 @@ class RecordPracticeSessionView(APIView):
             except Passage.DoesNotExist:
                 pass
 
+        character_stats = data.get('character_stats') or data.get('characterStats') or {}
+        if not isinstance(character_stats, dict):
+            character_stats = {}
+
         session = PracticeSession.objects.create(
             user=user,
             session_type=session_type,
@@ -141,9 +147,123 @@ class RecordPracticeSessionView(APIView):
             error_count=uncorrected_errors,
             passage=passage,
             client_session_id=client_session_id,
+            character_stats=character_stats,
         )
 
         return Response(PracticeSessionSerializer(session).data, status=status.HTTP_201_CREATED)
+
+
+class KeyboardMasteryView(APIView):
+    """
+    GET /api/practice/keyboard-mastery/?period=today|weekly|overall
+    Aggregates authentic per-character speed (CPM, WPM) and accuracy metrics
+    for the authenticated user across the requested time window,
+    strictly respecting user timezone and first_day_of_week preference.
+    """
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        user = request.user if request.user and request.user.is_authenticated else None
+        period = request.query_params.get('period', 'overall').lower()
+
+        if not user:
+            return Response({
+                'period': period,
+                'total_sessions': 0,
+                'character_stats': {},
+            }, status=status.HTTP_200_OK)
+
+        # Respect user timezone & first_day_of_week preference
+        tz_name = 'UTC'
+        first_day_of_week = 0  # 0 = Sunday, 1 = Monday
+        try:
+            if hasattr(user, 'profile') and user.profile and user.profile.timezone:
+                tz_name = user.profile.timezone
+            if hasattr(user, 'preferences') and user.preferences and user.preferences.first_day_of_week is not None:
+                first_day_of_week = user.preferences.first_day_of_week
+        except Exception:
+            pass
+
+        try:
+            user_tz = zoneinfo.ZoneInfo(tz_name)
+        except Exception:
+            user_tz = zoneinfo.ZoneInfo('UTC')
+
+        now_user = timezone.now().astimezone(user_tz)
+        qs = PracticeSession.objects.filter(user=user)
+
+        if period in ('today', 'daily'):
+            start_of_day = datetime.combine(now_user.date(), time.min, tzinfo=user_tz)
+            qs = qs.filter(created_at__gte=start_of_day)
+        elif period == 'weekly':
+            weekday = now_user.weekday()  # Monday=0 ... Sunday=6
+            target_start = 6 if first_day_of_week == 0 else 0
+            days_back = (weekday - target_start) % 7
+            start_of_week = datetime.combine(now_user.date() - timedelta(days=days_back), time.min, tzinfo=user_tz)
+            qs = qs.filter(created_at__gte=start_of_week)
+
+        sessions = list(qs.only('character_stats', 'gross_wpm', 'duration_seconds'))
+        total_sessions = len(sessions)
+
+        char_aggregates = {}
+        for sess in sessions:
+            cstats = sess.character_stats
+            if not isinstance(cstats, dict):
+                continue
+            for char, stats in cstats.items():
+                if not char or not isinstance(stats, dict):
+                    continue
+                k = str(char).lower()
+                if k not in char_aggregates:
+                    char_aggregates[k] = {
+                        'char': char,
+                        'total': 0,
+                        'correct': 0,
+                        'incorrect': 0,
+                        'cpm_sum': 0.0,
+                        'cpm_count': 0,
+                        'wpm_sum': 0.0,
+                        'wpm_count': 0,
+                    }
+                tot = int(stats.get('total', 0) or 0)
+                cor = int(stats.get('correct', 0) or 0)
+                inc = int(stats.get('incorrect', 0) or 0)
+                char_aggregates[k]['total'] += tot
+                char_aggregates[k]['correct'] += cor
+                char_aggregates[k]['incorrect'] += inc
+
+                cpm_val = float(stats.get('cpm', 0) or 0)
+                wpm_val = float(stats.get('wpm', 0) or 0)
+                if cpm_val > 0:
+                    char_aggregates[k]['cpm_sum'] += cpm_val
+                    char_aggregates[k]['cpm_count'] += 1
+                if wpm_val > 0:
+                    char_aggregates[k]['wpm_sum'] += wpm_val
+                    char_aggregates[k]['wpm_count'] += 1
+
+        formatted_stats = {}
+        for k, v in char_aggregates.items():
+            tot = v['total']
+            cor = v['correct']
+            inc = v['incorrect']
+            acc = round((cor / tot) * 100.0, 1) if tot > 0 else 0.0
+            cpm = round(v['cpm_sum'] / v['cpm_count'], 1) if v['cpm_count'] > 0 else (round(v['wpm_sum'] / v['wpm_count'] * 5, 1) if v['wpm_count'] > 0 else 0.0)
+            wpm = round(v['wpm_sum'] / v['wpm_count'], 1) if v['wpm_count'] > 0 else round(cpm / 5, 1)
+            formatted_stats[k] = {
+                'char': v['char'],
+                'total': tot,
+                'correct': cor,
+                'incorrect': inc,
+                'accuracy': acc,
+                'cpm': cpm,
+                'wpm': wpm,
+            }
+
+        return Response({
+            'period': period,
+            'total_sessions': total_sessions,
+            'character_stats': formatted_stats,
+        }, status=status.HTTP_200_OK)
 
 
 class UserPracticeHistoryView(generics.ListAPIView):

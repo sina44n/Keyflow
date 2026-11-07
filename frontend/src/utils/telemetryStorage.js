@@ -239,8 +239,8 @@ export function syncTelemetrySessionsFromBackend(serverSessions, explicitUserId 
       mistakes: incorrectChars,
       errorCount,
       status: 'passed',
-      characterStats: {},
-      fingerStats: {},
+      characterStats: s.character_stats || s.characterStats || {},
+      fingerStats: s.finger_stats || s.fingerStats || {},
     };
 
     merged.push(formattedSession);
@@ -682,7 +682,7 @@ export function calculateReportMetrics(sessions, comparisonOrReportType = [], op
         if (!char) continue;
         practicedCharacters.add(char.toLowerCase());
         if (!charMap[char]) {
-          charMap[char] = { char, total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0 };
+          charMap[char] = { char, total: 0, correct: 0, incorrect: 0, wpmSum: 0, count: 0, cpmSum: 0, cpmCount: 0 };
         }
         charMap[char].total += Number(stats?.total ?? 0) || 0;
         charMap[char].correct += Number(stats?.correct ?? 0) || 0;
@@ -690,6 +690,13 @@ export function calculateReportMetrics(sessions, comparisonOrReportType = [], op
         if (stats?.wpm) {
           charMap[char].wpmSum += Number(stats.wpm) || 0;
           charMap[char].count++;
+        }
+        if (stats?.cpm) {
+          charMap[char].cpmSum += Number(stats.cpm) || 0;
+          charMap[char].cpmCount++;
+        } else if (stats?.wpm) {
+          charMap[char].cpmSum += (Number(stats.wpm) || 0) * 5;
+          charMap[char].cpmCount++;
         }
       }
     }
@@ -798,6 +805,7 @@ export function calculateReportMetrics(sessions, comparisonOrReportType = [], op
   // Character-level breakdown
   const characterStatsArray = Object.values(charMap).map((c) => {
     const cWpm = c.count > 0 ? Math.round(c.wpmSum / c.count) : avgWpm;
+    const cCpm = c.cpmCount > 0 ? Math.round(c.cpmSum / c.cpmCount) : Math.round(cWpm * 5);
     const cAcc = c.total > 0 ? Math.round((c.correct / c.total) * 100) : accuracy;
     return {
       char: c.char,
@@ -805,6 +813,7 @@ export function calculateReportMetrics(sessions, comparisonOrReportType = [], op
       correct: c.correct,
       incorrect: c.incorrect,
       wpm: cWpm,
+      cpm: cCpm,
       accuracy: cAcc,
       category: /[a-zA-Z]/.test(c.char)
         ? 'letter'

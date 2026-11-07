@@ -8,6 +8,7 @@ from .views import (
     PassageDetailView,
     RecordPracticeSessionView,
     UserPracticeHistoryView,
+    KeyboardMasteryView,
     CompetitionListView,
     CompetitionDetailView,
     CompetitionJoinView,
@@ -22,6 +23,7 @@ urlpatterns = [
     path('passages/<int:pk>/', PassageDetailView.as_view(), name='practice_passage_detail'),
     path('sessions/', RecordPracticeSessionView.as_view(), name='practice_record_session'),
     path('history/', UserPracticeHistoryView.as_view(), name='practice_history'),
+    path('keyboard-mastery/', KeyboardMasteryView.as_view(), name='practice_keyboard_mastery'),
 
     # Typing Competitions
     path('competitions/', CompetitionListView.as_view(), name='practice_competitions'),
