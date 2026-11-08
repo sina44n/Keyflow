@@ -28,6 +28,7 @@ import {
   countUncorrectedErrors,
 } from '../../utils/typingFeedback';
 import { useI18n } from '../../i18n/I18nContext';
+import { calculateViewportScroll, isReducedMotionPreferred } from '../../utils/fourLineScroll';
 
 /**
  * LessonPlayer — Masterpiece Typing Workstation matching the reference design.
@@ -92,6 +93,13 @@ export const LessonPlayer = ({
   const [completedResult, setCompletedResult] = useState(null);
   const [lastKeystroke, setLastKeystroke] = useState(null);
 
+  const viewportRef = useRef(null);
+  const textTrackRef = useRef(null);
+  const activeCharSpanRef = useRef(null);
+  const [scrollLine, setScrollLine] = useState(0);
+  const [scrollOffsetPx, setScrollOffsetPx] = useState(0);
+  const [isMultiLine, setIsMultiLine] = useState(false);
+
   const inputRef = useRef(null);
   const timerRef = useRef(null);
   const completionFiredRef = useRef(false);
@@ -140,6 +148,11 @@ export const LessonPlayer = ({
     setIsCompleted(false);
     setCompletedResult(null);
     setLastKeystroke(null);
+    setScrollLine(0);
+    setScrollOffsetPx(0);
+    if (viewportRef.current) {
+      viewportRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
     completionFiredRef.current = false;
     clearInterval(timerRef.current);
     setTimeout(() => { if (inputRef.current) inputRef.current.focus(); }, 50);
@@ -182,6 +195,89 @@ export const LessonPlayer = ({
   useEffect(() => {
     if (inputRef.current) inputRef.current.focus();
   }, []);
+
+  // ── Precision 4-Line Rendered-Line Auto-Scrolling (Workstation Reused) ────
+  // Viewport strictly displays exactly 4 visual lines when text exceeds 4 lines.
+  // When active typing progresses into the 3rd visible line (lineIndex >= 2),
+  // smoothly translate the text track upward by exactly 1 line height so the active
+  // line moves to the 2nd visible position (index 1), revealing the next upcoming line.
+  useEffect(() => {
+    if (!viewportRef.current || !textTrackRef.current) return;
+
+    const computedLineHeight =
+      parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
+      44;
+
+    const allChars = textTrackRef.current.querySelectorAll('.typing-char');
+    let totalLines = 1;
+    if (allChars.length > 0) {
+      const first = allChars[0].getBoundingClientRect();
+      const last = allChars[allChars.length - 1].getBoundingClientRect();
+      totalLines = Math.round((last.top - first.top) / computedLineHeight) + 1;
+    }
+
+    const shouldActivateMultiLine = totalLines > 4;
+    if (isMultiLine !== shouldActivateMultiLine) {
+      setIsMultiLine(shouldActivateMultiLine);
+    }
+
+    if (!shouldActivateMultiLine || isCompleted) {
+      if (!shouldActivateMultiLine && (scrollLine !== 0 || scrollOffsetPx !== 0)) {
+        setScrollLine(0);
+        setScrollOffsetPx(0);
+      }
+      return;
+    }
+
+    if (typed.length === 0) {
+      if (scrollLine !== 0 || scrollOffsetPx !== 0) {
+        setScrollLine(0);
+        setScrollOffsetPx(0);
+      }
+      return;
+    }
+
+    const activeSpan = activeCharSpanRef.current;
+    if (!activeSpan) return;
+
+    const firstCharSpan = allChars[0] || textTrackRef.current.firstElementChild;
+    if (!firstCharSpan) return;
+
+    const activeRect = activeSpan.getBoundingClientRect();
+    const firstRect = firstCharSpan.getBoundingClientRect();
+    const relativeTop = Math.max(0, activeRect.top - firstRect.top);
+    const activeRow = Math.round(relativeTop / computedLineHeight);
+
+    const { targetScrollTop, scrollLine: targetLine } = calculateViewportScroll(activeRow, computedLineHeight);
+
+    if (targetLine !== scrollLine || targetScrollTop !== scrollOffsetPx) {
+      setScrollLine(targetLine);
+      setScrollOffsetPx(targetScrollTop);
+    }
+  }, [typed.length, targetText, isCompleted, scrollLine, scrollOffsetPx, isMultiLine]);
+
+  // Window resize handler ensures line alignment is preserved on responsive width changes
+  useEffect(() => {
+    const handleResize = () => {
+      if (!viewportRef.current || !textTrackRef.current) return;
+      const computedLineHeight =
+        parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
+        44;
+
+      const allChars = textTrackRef.current.querySelectorAll('.typing-char');
+      if (allChars.length > 0) {
+        const first = allChars[0].getBoundingClientRect();
+        const last = allChars[allChars.length - 1].getBoundingClientRect();
+        const lines = Math.round((last.top - first.top) / computedLineHeight) + 1;
+        setIsMultiLine(lines > 4);
+      }
+
+      setScrollOffsetPx(scrollLine * computedLineHeight);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [scrollLine]);
 
   // ── Input handler ────────────────────────────────────────────────────────
   const handleInputKeyDown = useCallback((e) => {
@@ -717,91 +813,135 @@ export const LessonPlayer = ({
         {/* ── SEAMLESS FLOATING PASSAGE CANVAS (Active Word Highlight) ── */}
         <div
           onClick={() => inputRef.current && inputRef.current.focus()}
-          className="relative w-full cursor-text mb-8 sm:mb-10 select-none transition-all duration-150 min-h-[140px] flex items-center justify-start text-left"
+          className={`relative w-full cursor-text mb-8 sm:mb-10 select-none transition-all duration-150 min-h-[140px] flex ${
+            isMultiLine ? 'items-start' : 'items-center'
+          } justify-start text-left`}
           role="region"
           aria-label="Typing practice canvas"
         >
-          {/* Monospace floating text */}
+          {/* Monospace floating text viewport */}
           <div
-            className="font-mono leading-[2.2] tracking-wide break-words text-xl sm:text-2xl text-left w-full"
+            ref={viewportRef}
+            data-testid="academy-text-viewport"
+            className={`font-mono leading-[2.2] tracking-wide break-words text-xl sm:text-2xl text-left w-full ${
+              isMultiLine ? 'overflow-hidden relative' : ''
+            }`}
+            style={
+              isMultiLine
+                ? {
+                    height: 'calc(4 * 2.2em)',
+                    maxHeight: 'calc(4 * 2.2em)',
+                    scrollBehavior: 'smooth',
+                  }
+                : undefined
+            }
             aria-hidden="true"
           >
-            {words.map((word) => {
-              const isCurrentWord =
-                currentTypedIndex >= word.startIndex &&
-                currentTypedIndex <= word.endIndex &&
-                !isCompleted;
+            {/* Moving Text Layer with GPU-accelerated translation */}
+            <div
+              ref={textTrackRef}
+              data-testid="academy-text-track"
+              className={isMultiLine ? 'will-change-transform' : ''}
+              style={
+                isMultiLine
+                  ? {
+                      transform: `translate3d(0, -${scrollOffsetPx}px, 0)`,
+                      transition: isReducedMotionPreferred()
+                        ? 'none'
+                        : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
+                    }
+                  : undefined
+              }
+            >
+              {words.map((word) => {
+                const isCurrentWord =
+                  currentTypedIndex >= word.startIndex &&
+                  currentTypedIndex <= word.endIndex &&
+                  !isCompleted;
 
-              if (word.isSpace) {
+                if (word.isSpace) {
+                  return (
+                    <span key={word.key} className="inline">
+                      {word.text.split('').map((sp, spIdx) => {
+                        const absoluteIdx = word.startIndex + spIdx;
+                        const feedback = getCharacterFeedback(absoluteIdx, typed, targetText, isCompleted, correctedIndices);
+                        const isCurrent = absoluteIdx === currentTypedIndex && !isCompleted;
+                        let spCls = 'char-untyped opacity-40';
+                        if (feedback.isTyped) {
+                          spCls = feedback.className;
+                        }
+                        return (
+                          <span
+                            key={spIdx}
+                            ref={isCurrent ? activeCharSpanRef : null}
+                            className={`inline ${spCls} typing-char`}
+                          >
+                            {' '}
+                          </span>
+                        );
+                      })}
+                    </span>
+                  );
+                }
+
                 return (
-                  <span key={word.key} className="inline">
-                    {word.text.split('').map((sp, spIdx) => {
-                      const absoluteIdx = word.startIndex + spIdx;
-                      const feedback = getCharacterFeedback(absoluteIdx, typed, targetText, isCompleted, correctedIndices);
-                      let spCls = 'char-untyped opacity-40';
-                      if (feedback.isTyped) {
-                        spCls = feedback.className;
-                      }
+                  <span
+                    key={word.key}
+                    className={`inline-block relative rounded-md transition-all duration-100 ${
+                      isCurrentWord
+                        ? 'px-1.5 py-0.5 -my-0.5 mx-0.5 border border-[var(--accent,#FF1744)]/50 bg-[color-mix(in_srgb,var(--accent,#FF1744)_15%,transparent)] shadow-[0_0_16px_rgba(255,23,68,0.3)]'
+                        : 'border border-transparent'
+                    }`}
+                  >
+                    {word.text.split('').map((char, charIdx) => {
+                      const charAbsoluteIdx = word.startIndex + charIdx;
+                      const feedback = getCharacterFeedback(charAbsoluteIdx, typed, targetText, isCompleted, correctedIndices);
+                      const isAtCaret = feedback.isCurrent;
+                      const isCurrent =
+                        (charAbsoluteIdx === currentTypedIndex && !isCompleted) ||
+                        (charAbsoluteIdx === targetText.length - 1 && currentTypedIndex >= targetText.length);
+
                       return (
-                        <span key={spIdx} className={`inline ${spCls}`}>
-                          {' '}
+                        <span
+                          key={charIdx}
+                          ref={isCurrent ? activeCharSpanRef : null}
+                          className="relative inline typing-char"
+                        >
+                          {/* Blinking vertical cursor */}
+                          {isAtCaret && (
+                            <span
+                              className="absolute -left-[1px] top-[10%] bottom-[10%] w-[2px] rounded-full animate-pulse z-10"
+                              style={{
+                                background: 'var(--accent, #FF1744)',
+                                boxShadow: '0 0 8px var(--accent, #FF1744)',
+                              }}
+                            />
+                          )}
+                          <span
+                            className={feedback.className}
+                            style={{
+                              fontWeight: feedback.isTyped || isCurrentWord ? '500' : '400',
+                            }}
+                          >
+                            {char}
+                          </span>
                         </span>
                       );
                     })}
+                    {/* Blinking cursor at end of word if completely typed */}
+                    {currentTypedIndex === word.endIndex && isCurrentWord && (
+                      <span
+                        className="inline-block w-[2px] h-[1.2em] align-middle ml-0.5 rounded-full animate-pulse"
+                        style={{
+                          background: 'var(--accent, #FF1744)',
+                          boxShadow: '0 0 8px var(--accent, #FF1744)',
+                        }}
+                      />
+                    )}
                   </span>
                 );
-              }
-
-              return (
-                <span
-                  key={word.key}
-                  className={`inline-block relative rounded-md transition-all duration-100 ${
-                    isCurrentWord
-                      ? 'px-1.5 py-0.5 -my-0.5 mx-0.5 border border-[var(--accent,#FF1744)]/50 bg-[color-mix(in_srgb,var(--accent,#FF1744)_15%,transparent)] shadow-[0_0_16px_rgba(255,23,68,0.3)]'
-                      : 'border border-transparent'
-                  }`}
-                >
-                  {word.text.split('').map((char, charIdx) => {
-                    const charAbsoluteIdx = word.startIndex + charIdx;
-                    const feedback = getCharacterFeedback(charAbsoluteIdx, typed, targetText, isCompleted, correctedIndices);
-                    const isAtCaret = feedback.isCurrent;
-
-                    return (
-                      <span key={charIdx} className="relative inline">
-                        {/* Blinking vertical cursor */}
-                        {isAtCaret && (
-                          <span
-                            className="absolute -left-[1px] top-[10%] bottom-[10%] w-[2px] rounded-full animate-pulse z-10"
-                            style={{
-                              background: 'var(--accent, #FF1744)',
-                              boxShadow: '0 0 8px var(--accent, #FF1744)',
-                            }}
-                          />
-                        )}
-                        <span
-                          className={feedback.className}
-                          style={{
-                            fontWeight: feedback.isTyped || isCurrentWord ? '500' : '400',
-                          }}
-                        >
-                          {char}
-                        </span>
-                      </span>
-                    );
-                  })}
-                  {/* Blinking cursor at end of word if completely typed */}
-                  {currentTypedIndex === word.endIndex && isCurrentWord && (
-                    <span
-                      className="inline-block w-[2px] h-[1.2em] align-middle ml-0.5 rounded-full animate-pulse"
-                      style={{
-                        background: 'var(--accent, #FF1744)',
-                        boxShadow: '0 0 8px var(--accent, #FF1744)',
-                      }}
-                    />
-                  )}
-                </span>
-              );
-            })}
+              })}
+            </div>
           </div>
 
           {/* Hidden real input */}
