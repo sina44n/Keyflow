@@ -42,6 +42,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   const rawLessonParam = searchParams ? searchParams.get('lesson') : null;
   const initialStageParam = searchParams ? parseInt(searchParams.get('stage'), 10) : null;
   const initialUnitParam = searchParams ? parseInt(searchParams.get('unit'), 10) : null;
+  const placementParam = searchParams ? searchParams.get('placement') === 'true' : false;
 
   let resolvedInitialStage = initialStageParam;
   let resolvedInitialLesson = null;
@@ -91,7 +92,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   const [progress, setProgress] = useState(getLessonProgress);
   const [dashboardStats, setDashboardStats] = useState(() => getAcademyDashboardStats(activeStageId || 1));
   const [stageMenuOpen, setStageMenuOpen] = useState(false);
-  const [placementModalOpen, setPlacementModalOpen] = useState(false);
+  const [placementModalOpen, setPlacementModalOpen] = useState(placementParam);
   const [exploreModalStage, setExploreModalStage] = useState(null);
   const stageMenuRef = useRef(null);
 
@@ -353,6 +354,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
 
             {/* Path 02: Placement Diagnostic Entry Point */}
             <button
+              data-testid="academy-placement-btn"
               type="button"
               onClick={() => setPlacementModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] shadow-xs transition-all cursor-pointer"

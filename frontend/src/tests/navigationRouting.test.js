@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 describe('KEYFLOW Navigation & Core Routing Integrity', () => {
   it('App.jsx requires authentication for workstation, practice, academy, and arcade routes via ProtectedRoute', () => {
     const appPath = path.resolve(__dirname, '../App.jsx');
-    const appContent = fs.readFileSync(appPath, 'utf-8');
+    const appContent = fs.readFileSync(appPath, 'utf-8').replace(/\r\n/g, '\n');
 
     // Confirm core learning routes are properly wrapped in ProtectedRoute
     assert.ok(

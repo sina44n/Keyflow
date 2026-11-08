@@ -17,6 +17,22 @@
  */
 
 import { STAGE_META } from '../data/curriculumEngine.js';
+import {
+  calculateGrossWpm,
+  calculateNetWpm,
+  calculateRawAccuracy,
+  calculateFinalTextAccuracy,
+  countUncorrectedErrors,
+} from './typingFeedback.js';
+
+/**
+ * Master Diagnostic Passage for KEYFLOW Academy Placement Test.
+ * 286 characters, 41 words, exactly 4-5 visual lines on desktop.
+ * Encompasses all 26 alphabet letters, numbers, punctuation, symbols,
+ * capitalized titles, natural word spacing, and code syntax.
+ */
+export const PLACEMENT_DIAGNOSTIC_PASSAGE =
+  "A focused learner improves through steady practice, careful attention, and natural rhythm. On November 8, 2026, KEYFLOW Academy introduced 10 progressive stages with 95% accuracy goals, practical exercises, and code syntax: {score: 100}. Adjust fingers with quiet zeal and type swiftly!";
 
 /**
  * Diagnostic Tiers designed to measure distinct competencies progressively.
@@ -406,8 +422,8 @@ export function calculateStageRecommendation(profile) {
   const areasToImprove = [];
 
   // STAGE 1: Home Row Foundations
-  // Placed here if Home Row accuracy < 90% OR Spacebar < 85% OR Gross WPM < 20
-  if (homeAcc < 90 || spaceAcc < 85 || grossWpm < 20) {
+  // Placed here if Home Row accuracy < 90% OR Spacebar < 85% OR Gross WPM < 20 OR Overall Accuracy < 85%
+  if (homeAcc < 90 || spaceAcc < 85 || grossWpm < 20 || overallAccuracy < 85) {
     recommendedStage = 1;
     reason = 'Foundational touch-typing anchors and muscle memory on the Home Row (F and J bumps) require consolidation before reach training.';
     if (homeAcc >= 85) strengths.push('Beginning home-row familiarity established');
@@ -598,5 +614,159 @@ export function calculateStageRecommendation(profile) {
     strengths,
     areasToImprove,
     skillBreakdown,
+  };
+}
+
+/**
+ * Evaluates the single comprehensive placement diagnostic test.
+ * Uses KEYFLOW's authoritative typing formulas to calculate Gross WPM, Net WPM,
+ * Raw Keystroke Accuracy (accounting for historical mistakes without erasure on backspace),
+ * Cadence, Spacebar Discipline, and Competencies across all 10 stages.
+ */
+export function evaluatePlacementDiagnostic({
+  targetText = PLACEMENT_DIAGNOSTIC_PASSAGE,
+  typedText = '',
+  keystrokes = [],
+  durationSeconds = 1,
+  correctKeystrokes = 0,
+  mistakes = 0,
+  backspaces = 0,
+}) {
+  const activeSeconds = Math.max(0.1, Number(durationSeconds) || 0);
+  const totalValidEntries = correctKeystrokes + mistakes;
+
+  // Real Gross WPM: 0 if no typed text
+  const grossWpm = typedText.length > 0 && activeSeconds > 0
+    ? calculateGrossWpm(totalValidEntries > 0 ? totalValidEntries : typedText.length, activeSeconds)
+    : 0;
+
+  // Real Raw Keystroke Accuracy: accounts for all historical mistakes
+  // Zero input produces strictly 0% accuracy (not 100%)
+  const rawAccuracy = (correctKeystrokes + mistakes) > 0
+    ? calculateRawAccuracy(correctKeystrokes, mistakes)
+    : (typedText.length > 0 ? 100 : 0);
+
+  // Uncorrected errors in final typed text
+  const uncorrectedErrors = countUncorrectedErrors(typedText, targetText);
+  const netWpm = Math.max(0, calculateNetWpm(grossWpm, uncorrectedErrors, activeSeconds));
+  const finalTextAccuracy = typedText.length > 0
+    ? calculateFinalTextAccuracy(typedText, targetText)
+    : 0;
+
+  // Spacebar discipline & cadence
+  const spaceStats = analyzeSpacebarDiscipline(targetText, typedText);
+  const cadenceStats = analyzeCadence(keystrokes);
+
+  // Character competency counters
+  const competencyCounters = {
+    home_row: { correct: 0, total: 0 },
+    top_row: { correct: 0, total: 0 },
+    bottom_row: { correct: 0, total: 0 },
+    numbers: { correct: 0, total: 0 },
+    punctuation: { correct: 0, total: 0 },
+    shift_symbols: { correct: 0, total: 0 },
+    code_syntax: { correct: 0, total: 0 },
+  };
+
+  const errorsByKey = {};
+
+  for (let i = 0; i < targetText.length; i++) {
+    const expected = targetText[i];
+    const typed = typedText[i];
+
+    Object.keys(CHAR_SETS).forEach((cat) => {
+      if (CHAR_SETS[cat].has(expected)) {
+        competencyCounters[cat].total++;
+        if (typed === expected) {
+          competencyCounters[cat].correct++;
+        }
+      }
+    });
+
+    if (typed !== undefined) {
+      if (typed !== expected) {
+        errorsByKey[expected] = (errorsByKey[expected] || 0) + 1;
+      }
+    }
+  }
+
+  // Attribute historical keystroke mistakes to competency categories
+  let detailedMistakesCount = 0;
+  if (Array.isArray(keystrokes)) {
+    keystrokes.forEach((stroke) => {
+      if (stroke.correct === false && stroke.expected) {
+        detailedMistakesCount++;
+        const exp = stroke.expected;
+        errorsByKey[exp] = (errorsByKey[exp] || 0) + 1;
+        Object.keys(CHAR_SETS).forEach((cat) => {
+          if (CHAR_SETS[cat].has(exp) && competencyCounters[cat].correct > 0) {
+            competencyCounters[cat].correct--;
+          }
+        });
+      }
+    });
+  }
+
+  // If scalar mistakes were passed without detailed keystroke records, scale proportionally
+  if (mistakes > 0 && detailedMistakesCount === 0) {
+    const accuracyFactor = rawAccuracy / 100;
+    Object.keys(competencyCounters).forEach((cat) => {
+      const c = competencyCounters[cat];
+      c.correct = Math.max(0, Math.round(c.total * accuracyFactor));
+    });
+  }
+
+  // Calculate percentage per competency
+  const competencyResults = {};
+  Object.keys(competencyCounters).forEach((cat) => {
+    const c = competencyCounters[cat];
+    competencyResults[cat] = {
+      accuracy: c.total > 0 ? Math.round((c.correct / c.total) * 100) : 100,
+      total: c.total,
+      correct: c.correct,
+      wpm: grossWpm,
+    };
+  });
+
+  // Spacebar competency
+  competencyResults.spacebar = {
+    accuracy: spaceStats.accuracy,
+    total: spaceStats.expectedSpaces,
+    correct: spaceStats.correctSpaces,
+    wpm: grossWpm,
+    missing: spaceStats.missingSpaces,
+    extra: spaceStats.extraSpaces,
+  };
+
+  const weakKeys = Object.entries(errorsByKey)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([key]) => key);
+
+  const profile = {
+    grossWpm,
+    netWpm,
+    overallAccuracy: rawAccuracy,
+    rawAccuracy,
+    finalTextAccuracy,
+    durationSeconds: activeSeconds,
+    totalKeystrokes: totalValidEntries,
+    correctKeystrokes,
+    mistakes,
+    backspaces,
+    uncorrectedErrors,
+    cadenceScore: cadenceStats.cadenceScore,
+    spaceStats,
+    cadenceStats,
+    competencies: competencyResults,
+    weakKeys,
+    tiersCompletedCount: 1,
+  };
+
+  const recommendation = calculateStageRecommendation(profile);
+
+  return {
+    ...profile,
+    recommendation,
   };
 }
