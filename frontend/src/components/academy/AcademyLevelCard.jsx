@@ -112,8 +112,8 @@ export const AcademyLevelCard = React.forwardRef(({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={glowStyle}
-      className={`relative group rounded-2xl ${containerBorder} ${containerBg} p-3.5 sm:p-4 flex flex-col justify-between text-center select-none cursor-pointer transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] min-h-[210px] ${
-        !isLocked ? 'hover:-translate-y-1 hover:shadow-md hover:border-[var(--accent)]/50' : 'hover:border-[var(--border)]'
+      className={`relative group rounded-2xl ${containerBorder} ${containerBg} p-3.5 sm:p-4 flex flex-col justify-between text-center select-none cursor-pointer transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] min-h-[210px] ${
+        !isLocked ? 'hover:-translate-y-0.5 hover:shadow-md hover:border-[var(--accent)]/50' : 'hover:border-[var(--border)]'
       }`}
     >
       {/* Top Header: Level Number (Left) & Status Badge (Right) */}
@@ -189,7 +189,7 @@ export const AcademyLevelCard = React.forwardRef(({
             return (
               <div
                 key={idx}
-                className="transition-transform duration-200"
+                className="transition-transform duration-260 ease-[cubic-bezier(0.22,1,0.36,1)]"
                 style={{
                   transform: `translateY(${yOffsets[idx]}px) rotate(${rotations[idx]}deg)`,
                   zIndex: zIndexes[idx],
@@ -199,7 +199,7 @@ export const AcademyLevelCard = React.forwardRef(({
                   width={sizes[idx]}
                   height={sizes[idx]}
                   viewBox="0 0 24 24"
-                  className="transition-all duration-200"
+                  className="transition-all duration-260 ease-[cubic-bezier(0.22,1,0.36,1)]"
                   style={{
                     filter: isEarned
                       ? 'drop-shadow(0 2px 2px rgba(180, 83, 9, 0.45))'

@@ -25,7 +25,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {/* Card 1: Total Registered Typists */}
-      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 transition-all duration-200 hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_4px_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] group">
+      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_4px_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] group">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs font-mono font-medium text-[var(--text-muted)] uppercase tracking-wider">
@@ -35,7 +35,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
               {hasStats && registered_typists !== null ? registered_typists.toLocaleString() : '--'}
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] transition-transform group-hover:scale-105">
+          <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] transition-transform duration-220 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-105">
             <Users className="w-5 h-5" />
           </div>
         </div>
@@ -46,7 +46,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
       </div>
 
       {/* Card 2: Active Competitors */}
-      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 transition-all duration-200 hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_4px_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] group">
+      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_4px_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] group">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs font-mono font-medium text-[var(--text-muted)] uppercase tracking-wider">
@@ -56,7 +56,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
               {hasStats && active_competitors !== null ? active_competitors.toLocaleString() : '--'}
             </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] transition-transform group-hover:scale-105">
+          <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] transition-transform duration-220 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-105">
             <Target className="w-5 h-5" />
           </div>
         </div>
@@ -66,7 +66,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
       </div>
 
       {/* Card 3: Top Typing Speed */}
-      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 transition-all duration-200 hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_4px_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] group">
+      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_4px_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] group">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-xs font-mono font-medium text-[var(--text-muted)] uppercase tracking-wider">
@@ -79,7 +79,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
               <span className="text-xs font-mono text-[var(--text-muted)] font-semibold">WPM</span>
             </div>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] transition-transform group-hover:scale-105">
+          <div className="w-10 h-10 rounded-xl bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex items-center justify-center text-[var(--accent)] transition-transform duration-220 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-105">
             <Zap className="w-5 h-5" />
           </div>
         </div>
@@ -93,7 +93,7 @@ export const LeaderboardOverview = ({ stats, period }) => {
       </div>
 
       {/* Card 4: Remaining Time or Platform Accuracy */}
-      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 transition-all duration-200 hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_4px_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] group">
+      <div className="relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)] hover:shadow-[0_4px_20px_color-mix(in_srgb,var(--accent)_10%,transparent)] group">
         {period_time_remaining ? (
           <>
             <div className="flex items-start justify-between">

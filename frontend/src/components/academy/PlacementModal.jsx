@@ -266,12 +266,12 @@ export const PlacementModal = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="placement-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-black/75 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 md:p-6 bg-black/75 backdrop-blur-xs animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]"
       onClick={(e) => {
         if (e.target === e.currentTarget && modalState !== 'testing') onClose();
       }}
     >
-      <div className="relative w-full max-w-3xl rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl p-5 sm:p-7 md:p-8 space-y-6 animate-in zoom-in-95 duration-150 max-h-[92vh] overflow-y-auto no-scrollbar">
+      <div className="relative w-full max-w-3xl rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl p-5 sm:p-7 md:p-8 space-y-6 animate-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] max-h-[92vh] overflow-y-auto no-scrollbar">
         {/* Close Button */}
         <button
           type="button"
@@ -313,7 +313,7 @@ export const PlacementModal = ({
         {/* STATE 1: INTRODUCTION SCREEN                             */}
         {/* ======================================================== */}
         {modalState === 'intro' && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-6 animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
             <div className="space-y-2">
               <h3 className="text-base sm:text-lg font-bold text-[var(--text-primary)]">
                 Find Your True Typing Level
@@ -399,7 +399,7 @@ export const PlacementModal = ({
         {/* STATE 2: TESTING INTERACTIVE TYPING SCREEN              */}
         {/* ======================================================== */}
         {modalState === 'testing' && (
-          <div className="space-y-5 animate-in fade-in duration-200">
+          <div className="space-y-5 animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
             {/* Step Progress Bar */}
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs font-mono">
@@ -531,7 +531,7 @@ export const PlacementModal = ({
         {/* STATE 3: RESULTS & INTELLIGENT STAGE RECOMMENDATION     */}
         {/* ======================================================== */}
         {modalState === 'results' && evaluation && (
-          <div className="space-y-6 animate-in fade-in duration-200">
+          <div className="space-y-6 animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
             {/* Primary Recommended Stage Banner */}
             <div className="p-5 sm:p-6 rounded-2xl bg-[var(--accent)]/10 border-2 border-[var(--accent)] shadow-md space-y-3">
               <div className="flex items-center justify-between">

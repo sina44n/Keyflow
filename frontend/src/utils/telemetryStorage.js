@@ -859,13 +859,18 @@ export function calculateReportMetrics(sessions, comparisonOrReportType = [], op
     // Strongest finger in this reporting period
     const sorted = [...valid].sort((a, b) => (b.speed - a.speed) || (b.accuracy - a.accuracy));
     const strongest = sorted[0]?.name || null;
+    const strongestDetails = sorted[0]
+      ? { name: sorted[0].name, speed: sorted[0].speed, accuracy: sorted[0].accuracy }
+      : null;
 
     return {
       speed: handSpeed,
       accuracy: handAcc,
       keystrokes: totalStrokes,
+      total_keystrokes: totalStrokes,
       hasData: true,
       strongestFinger: strongest,
+      strongestFingerDetails: strongestDetails,
     };
   };
 
@@ -875,6 +880,7 @@ export function calculateReportMetrics(sessions, comparisonOrReportType = [], op
     speed: thumbFinger?.hasData ? thumbFinger.speed : null,
     accuracy: thumbFinger?.hasData ? thumbFinger.accuracy : null,
     keystrokes: thumbFinger?.totalKeystrokes || 0,
+    total_keystrokes: thumbFinger?.totalKeystrokes || 0,
     hasData: Boolean(thumbFinger?.hasData),
   };
 
@@ -962,6 +968,85 @@ export function calculateReportMetrics(sessions, comparisonOrReportType = [], op
 }
 
 /**
+ * Practice Calendar Four-Level Activity Green Color System.
+ * - Level 1 — Low Activity: Very Light Green (#bbf7d0)
+ * - Level 2 — Moderate Activity: Light Green (#4ade80)
+ * - Level 3 — High Activity: Medium Green (#16a34a)
+ * - Level 4 — Highest Activity: Dark Green (#14532d)
+ * - Level 0 — Unpracticed / Zero Activity: Neutral canvas tone
+ */
+export const CALENDAR_ACTIVITY_SHADES = {
+  level0: 'transparent',
+  level1: '#bbf7d0', // Very Light Green (Low Activity)
+  level2: '#4ade80', // Light Green (Moderate Activity)
+  level3: '#16a34a', // Medium Green (High Activity)
+  level4: '#14532d', // Dark Green (Highest Activity)
+  neutral: 'transparent',
+};
+
+export const CALENDAR_BORDER_SHADES = {
+  level0: 'transparent',
+  level1: '#86efac',
+  level2: '#22c55e',
+  level3: '#15803d',
+  level4: '#052e16',
+  neutral: 'transparent',
+};
+
+/**
+ * Calculates the 4-level activity intensity (0 to 4) dynamically
+ * based on authentic practice volume distribution across recorded days.
+ */
+export function calculateActivityLevel(durationSeconds, activeDurations = []) {
+  if (!durationSeconds || durationSeconds <= 0) return 0;
+
+  const validDurations = Array.isArray(activeDurations)
+    ? activeDurations.filter((d) => typeof d === 'number' && d > 0)
+    : [];
+
+  // When multiple active days exist with variance, use dynamic quartiles
+  if (validDurations.length >= 2) {
+    const sorted = [...validDurations].sort((a, b) => a - b);
+    const min = sorted[0];
+    const max = sorted[sorted.length - 1];
+
+    if (max > min) {
+      if (sorted.length >= 4) {
+        let q1 = sorted[Math.floor(sorted.length * 0.25)];
+        let q2 = sorted[Math.floor(sorted.length * 0.50)];
+        let q3 = sorted[Math.floor(sorted.length * 0.75)];
+
+        // If duplicate durations collapse quartile boundaries, interpolate linearly
+        if (q1 === q2 || q2 === q3) {
+          const step = (max - min) / 4;
+          q1 = min + step;
+          q2 = min + 2 * step;
+          q3 = min + 3 * step;
+        }
+
+        if (durationSeconds >= q3 || durationSeconds === max) return 4;
+        if (durationSeconds >= q2) return 3;
+        if (durationSeconds >= q1) return 2;
+        return 1;
+      } else {
+        const span = max - min;
+        const step = span / 4;
+        if (durationSeconds >= max || durationSeconds >= min + 3 * step) return 4;
+        if (durationSeconds >= min + 2 * step) return 3;
+        if (durationSeconds >= min + step) return 2;
+        return 1;
+      }
+    }
+  }
+
+  // Meaningful standard volume anchors (for single-session / uniform activity)
+  if (durationSeconds >= 1800) return 4; // 30m+
+  if (durationSeconds >= 900) return 3;  // 15m - 30m
+  if (durationSeconds >= 300) return 2;  // 5m - 15m
+  return 1;                              // 1s - 5m
+}
+
+/**
  * Generates the 12-month Practice Activity Calendar matrix.
  */
 export function generatePracticeCalendar(sessions, weekStartDay = 0) {
@@ -987,6 +1072,11 @@ export function generatePracticeCalendar(sessions, weekStartDay = 0) {
       dayMap[dateStr].accCount += 1;
     }
   });
+
+  // Collect all authentic active practice durations across the user's recorded days
+  const activeDurations = Object.values(dayMap)
+    .map((r) => r.duration)
+    .filter((d) => d > 0);
 
   const now = new Date();
   const months = [];
@@ -1032,14 +1122,8 @@ export function generatePracticeCalendar(sessions, weekStartDay = 0) {
       const avgWpm = record.attempts > 0 ? Math.round(record.wpmSum / record.attempts) : 0;
       const avgAccuracy = record.accCount > 0 ? Math.round(record.accSum / record.accCount) : null;
 
-      // 4-level intensity scale based on practice time (0 to 4)
-      let intensity = 0;
-      if (record.duration > 0) {
-        if (record.duration >= 1800) intensity = 4; // 30m+
-        else if (record.duration >= 900) intensity = 3; // 15m - 30m
-        else if (record.duration >= 300) intensity = 2; // 5m - 15m
-        else intensity = 1; // 1m - 5m
-      }
+      // Dynamic 4-level activity intensity scale based on user's authentic practice volume
+      const intensity = calculateActivityLevel(record.duration, activeDurations);
 
       currentWeek.push({
         isCurrentMonth: true,
@@ -1445,11 +1529,21 @@ export function calculateTypingConsistency(sessions = []) {
  */
 export function filterSessionsByTimeRange(sessions = [], rangeKey = 'all') {
   if (!Array.isArray(sessions) || sessions.length === 0) return [];
-  if (rangeKey === 'all') return sessions;
+  if (rangeKey === 'all' || rangeKey === 'overall') return sessions;
+
+  if (rangeKey === 'today' || rangeKey === 'daily' || rangeKey === '1d') {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const cutoff = todayStart.getTime();
+    return sessions.filter((s) => {
+      const t = s.timestamp || (s.date ? new Date(s.date).getTime() : 0);
+      return t >= cutoff;
+    });
+  }
 
   const now = Date.now();
   let days = 30;
-  if (rangeKey === '7d') days = 7;
+  if (rangeKey === '7d' || rangeKey === 'weekly') days = 7;
   if (rangeKey === '30d') days = 30;
   if (rangeKey === '90d') days = 90;
 

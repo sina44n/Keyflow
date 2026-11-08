@@ -37,7 +37,7 @@ export const ThemeSwitcher = ({ compact: _compact = false, showName = false }) =
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] shrink-0 min-h-[34px]"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] shrink-0 min-h-[34px]"
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label={activeThemeLabel}
@@ -55,7 +55,7 @@ export const ThemeSwitcher = ({ compact: _compact = false, showName = false }) =
             {currentThemeObj.name}
           </span>
         )}
-        <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] shrink-0 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] shrink-0 transition-transform duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Flyout Menu / Modal */}
@@ -66,7 +66,7 @@ export const ThemeSwitcher = ({ compact: _compact = false, showName = false }) =
           aria-modal="true"
           aria-label={t('themeSwitcher.title', 'Studio Themes Selector')}
         >
-          <div className="w-full max-w-md sm:w-96 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-4 animate-in fade-in zoom-in-95 duration-150">
+          <div className="w-full max-w-md sm:w-96 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-4 animate-in fade-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
             {/* Header */}
             <div className="flex items-center justify-between pb-3 mb-3 border-b border-[var(--border)]">
               <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export const ThemeSwitcher = ({ compact: _compact = false, showName = false }) =
                       setTheme(themeItem.id);
                       setIsOpen(false);
                     }}
-                    className={`flex items-start gap-2.5 p-2 rounded-xl border text-left transition-all duration-150 cursor-pointer ${
+                    className={`flex items-start gap-2.5 p-2 rounded-xl border text-left transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
                       isActive
                         ? 'border-[var(--accent)] bg-[var(--bg-elevated)] shadow-xs'
                         : 'border-[var(--border)] hover:border-[var(--text-muted)] hover:bg-[var(--bg-elevated)]/60'

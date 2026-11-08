@@ -26,16 +26,16 @@ from generators.stage9_gen import generate_stage9_lessons
 from generators.stage10_gen import generate_stage10_lessons
 
 STAGE_GENERATORS = [
-    (1, "Home Row Foundations", generate_stage1_lessons),
-    (2, "Top Row Control", generate_stage2_lessons),
-    (3, "Bottom Row Control", generate_stage3_lessons),
-    (4, "Full Alphabet Mastery & Cross-Row Transitions", generate_stage4_lessons),
-    (5, "Number Row Mastery & Ten-Key Dexterity", generate_stage5_lessons),
-    (6, "Shift Discipline, Punctuation & Common Symbols", generate_stage6_lessons),
-    (7, "High-Frequency Vocabulary & Rhythm Cadence", generate_stage7_lessons),
-    (8, "Speed & Endurance Building", generate_stage8_lessons),
-    (9, "Technical, Numeric & Professional Fluency", generate_stage9_lessons),
-    (10, "Master Typist & Specialization", generate_stage10_lessons),
+    (1, "Complete Keyboard Education & Foundation", generate_stage1_lessons),
+    (2, "Foundation & Controlled Fluency", generate_stage2_lessons),
+    (3, "Word & Sentence Mastery", generate_stage3_lessons),
+    (4, "Paragraph Fluency & Cohesion", generate_stage4_lessons),
+    (5, "Intermediate Speed Development", generate_stage5_lessons),
+    (6, "Advanced Performance & Cadence", generate_stage6_lessons),
+    (7, "Professional & Technical Fluency", generate_stage7_lessons),
+    (8, "High-Speed Mastery & Stamina", generate_stage8_lessons),
+    (9, "Elite Performance Benchmarks", generate_stage9_lessons),
+    (10, "Grandmaster Typist & Capstone", generate_stage10_lessons),
 ]
 
 REQUIRED_FIELDS = [
@@ -45,13 +45,8 @@ REQUIRED_FIELDS = [
     "isAssessment", "isMilestone", "guidance", "fingerMap"
 ]
 
-STAGE_ALLOWED_KEYS = {
-    1: set("asdfghjkl; "),
-    2: set("abcdefghijklmnopqrstuvwxyz; "),
-    3: set("abcdefghijklmnopqrstuvwxyz,.;/ "),
-    4: set("abcdefghijklmnopqrstuvwxyz,.;- "),
-    5: set("abcdefghijklmnopqrstuvwxyz0123456789,.;- "),
-}
+# All printable US QWERTY characters + whitespace are permitted in the master curriculum
+STAGE_ALLOWED_KEYS = {}
 
 def generate_and_audit():
     print("=" * 70)

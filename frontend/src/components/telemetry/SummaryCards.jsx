@@ -158,11 +158,11 @@ export const SummaryCards = ({ metrics, activeReport }) => {
         return (
           <div
             key={c.id}
-            className="card-panel min-w-0 p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)] transition-all duration-200 shadow-sm relative overflow-hidden group"
+            className="card-panel min-w-0 p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)] transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] shadow-sm hover:shadow-md relative overflow-hidden group"
           >
             {/* Top Accent Strip */}
             <div
-              className="absolute top-0 left-0 right-0 h-1 opacity-70 group-hover:opacity-100 transition-opacity"
+              className="absolute top-0 left-0 right-0 h-1 opacity-70 group-hover:opacity-100 transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]"
               style={{ backgroundColor: c.color }}
             />
 

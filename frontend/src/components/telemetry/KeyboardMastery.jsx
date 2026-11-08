@@ -274,49 +274,8 @@ export const KeyboardMastery = ({
           </p>
         </div>
 
-        {/* Segmented Controls Strip: [ Daily | Weekly | Overall ] and [ Speed | Accuracy ] */}
+        {/* Segmented Controls Strip: [ Speed | Accuracy ] */}
         <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-auto">
-          {/* Time Filter Segmented Control */}
-          <div
-            role="group"
-            aria-label="Time period filter"
-            className="inline-flex rounded-xl bg-[var(--bg-elevated)] p-1 border border-[var(--border)] text-xs font-mono shadow-xs"
-          >
-            <button
-              type="button"
-              onClick={() => handlePeriodChange('today')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                currentPeriod === 'today' || currentPeriod === 'daily'
-                  ? 'bg-[var(--accent)] text-white shadow-xs font-bold'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Daily
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePeriodChange('weekly')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                currentPeriod === 'weekly'
-                  ? 'bg-[var(--accent)] text-white shadow-xs font-bold'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Weekly
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePeriodChange('overall')}
-              className={`px-3 py-1.5 rounded-lg font-semibold transition-all cursor-pointer ${
-                currentPeriod === 'overall'
-                  ? 'bg-[var(--accent)] text-white shadow-xs font-bold'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Overall
-            </button>
-          </div>
-
           {/* Speed | Accuracy Mode Toggle */}
           <div
             role="group"
@@ -381,7 +340,7 @@ export const KeyboardMastery = ({
                       flex: `${flexGrow} 0 0%`,
                       minHeight: '42px',
                     }}
-                    className={`relative rounded-lg p-1 text-xs font-mono font-bold flex flex-col items-center justify-center transition-all duration-150 cursor-pointer active:scale-95 ${
+                    className={`relative rounded-lg p-1 text-xs font-mono font-bold flex flex-col items-center justify-center transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer active:scale-95 ${
                       isSelected
                         ? 'ring-2 ring-[var(--accent)] ring-offset-2 z-10 scale-105'
                         : 'hover:scale-[1.03] hover:z-10'

@@ -33,32 +33,35 @@ FINGER_MAP = {
     '\\': 'right-pinky', '|': 'right-pinky', ';': 'right-pinky', ':': 'right-pinky',
     "'": 'right-pinky', '"': 'right-pinky', '/': 'right-pinky', '?': 'right-pinky',
     '—': 'right-pinky',
+    '\t': 'left-pinky',
+    '\n': 'right-pinky',
+    '\r': 'right-pinky',
 }
 
 def get_target_wpm(stage_id, level_num):
     """Calculates progressive target WPM from beginner to expert grandmaster."""
     base_wpms = {
-        1: 15,
-        2: 25,
-        3: 32,
+        1: 12,
+        2: 22,
+        3: 30,
         4: 38,
-        5: 42,
-        6: 46,
-        7: 52,
-        8: 60,
-        9: 68,
-        10: 75,
+        5: 44,
+        6: 50,
+        7: 58,
+        8: 65,
+        9: 75,
+        10: 82,
     }
     max_wpms = {
         1: 24,
-        2: 34,
+        2: 32,
         3: 40,
-        4: 46,
-        5: 50,
-        6: 55,
-        7: 62,
-        8: 72,
-        9: 80,
+        4: 48,
+        5: 54,
+        6: 62,
+        7: 70,
+        8: 78,
+        9: 88,
         10: 95,
     }
     base = base_wpms.get(stage_id, 20)
@@ -69,28 +72,28 @@ def get_target_wpm(stage_id, level_num):
 def get_target_accuracy(stage_id, level_num):
     """Calculates progressive target accuracy per pedagogical specifications."""
     base_acc = {
-        1: 75,
-        2: 85,
-        3: 88,
-        4: 90,
-        5: 90,
-        6: 91,
-        7: 92,
-        8: 93,
-        9: 94,
-        10: 95,
+        1: 78,
+        2: 84,
+        3: 87,
+        4: 89,
+        5: 91,
+        6: 92,
+        7: 93,
+        8: 94,
+        9: 95,
+        10: 96,
     }
     max_acc = {
         1: 85,
         2: 88,
         3: 90,
         4: 92,
-        5: 92,
-        6: 93,
-        7: 94,
-        8: 95,
-        9: 96,
-        10: 97,
+        5: 93,
+        6: 94,
+        7: 95,
+        8: 96,
+        9: 97,
+        10: 98,
     }
     base = base_acc.get(stage_id, 80)
     top = max_acc.get(stage_id, 95)

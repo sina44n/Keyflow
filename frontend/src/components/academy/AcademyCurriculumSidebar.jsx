@@ -54,7 +54,7 @@ export const AcademyCurriculumSidebar = ({
               key={u.unitNumber}
               type="button"
               onClick={() => onSelectUnit(u.unitNumber)}
-              className={`w-full text-left p-2.5 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col gap-1 ${
+              className={`w-full text-left p-2.5 rounded-xl border transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer flex flex-col gap-1 ${
                 isSelected
                   ? 'bg-[var(--bg-elevated)] border-2 border-[var(--accent)] shadow-sm'
                   : isUnlocked

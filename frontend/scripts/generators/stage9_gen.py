@@ -1,164 +1,159 @@
-r"""
-Stage 9 Generator: Technical, Numeric & Professional Fluency (700 Levels)
+"""
+Stage 9 Generator: Elite Performance Benchmarks (700 Levels)
 10 Stages x 70 Units x 10 Levels Architecture
 
-Keys: Programming code syntax, JSON data structures, HTML/XML tags, terminal commands,
-special symbols: [{} [] () = > < => && || ! ; _ " ' / \ $ * + : , . -].
-Target WPM: 68 to 80 | Target Accuracy: 94% to 96%
+Pedagogical Objective:
+Attain elite tier typing performance (75 to 88 WPM).
+Transcribe dense intellectual literature, formal philosophical treatises, legal briefs,
+high-density punctuation passages, scientific research monographs, and complex
+multidisciplinary syntheses with 95% to 97%+ precision under extreme benchmark speed.
+
+Zero repetitive alphabet introductions.
+Target WPM: 75 to 88 | Target Accuracy: 95% to 97%
 """
 
 from .curriculum_builder import build_lesson
 
 STAGE_ID = 9
-STAGE_TITLE = "Technical, Numeric & Professional Fluency"
+STAGE_TITLE = "Elite Performance Benchmarks"
 HOME_KEYS = ["F", "J"]
-STAGE_KEYS = ["Code Syntax", "JSON", "camelCase", "snake_case", "Symbols", "Brackets"]
-ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.;:?!'\"-_()[]{}=><&|!/\\$*+~`@#%^ ")
+STAGE_KEYS = ["Elite Performance", "Dense Literature", "Philosophical Prose", "Speed Benchmarks"]
 
 STAGE_9_UNIT_THEMES = [
-    (1, "JavaScript Variable Declarations: const, let, and var", ["const", "let", "var"], ["js-variables"]),
-    (2, "Arrow Function Syntax: () => { return value; }", ["=>", "{}", "()"], ["arrow-functions"]),
-    (3, "Object Literal Formatting with Keys and Colons", ["{}", ":", ","], ["object-literals"]),
-    (4, "Array Literal Indexing and Methods: map, filter, reduce", ["[]", "methods"], ["array-indexing"]),
-    (5, "String Interpolation and Template Literals: `${variable}`", ["`", "${}"], ["template-literals"]),
-    (6, "Python Function Definitions: def calculate(x, y):", ["def", ":", "indent"], ["python-functions"]),
-    (7, "Python List Comprehensions: [x * 2 for x in data]", ["[]", "for in"], ["list-comprehensions"]),
-    (8, "Python Dictionaries and Tuples: {'key': 42}", ["{}", "()", "key-value"], ["python-dicts"]),
-    (9, "Boolean Logic Operators: &&, ||, !==, ===", ["&&", "||", "===", "!=="], ["logic-operators"]),
-    (10, "Milestone Assessment: Core Programming Syntax", ["All Syntax"], ["milestone-benchmark"]),
-    (11, "camelCase Identifier Conventions: getUserById, isVisible", ["camelCase"], ["camel-case-conventions"]),
-    (12, "snake_case Identifier Conventions: user_id, created_at", ["snake_case"], ["snake-case-conventions"]),
-    (13, "PascalCase Class Declarations: class TypingWorkstation", ["PascalCase"], ["pascal-case-classes"]),
-    (14, "SCREAMING_SNAKE_CASE Constants: MAX_WPM_THRESHOLD", ["CONSTANTS"], ["screaming-snake-case"]),
-    (15, "DOM Element Selectors: document.querySelector('#app')", ["DOM", "#", "."], ["dom-selectors"]),
-    (16, "Event Listener Registrations: addEventListener('keydown')", ["Events"], ["event-listeners"]),
-    (17, "Async / Await Syntax: async function fetchData()", ["async", "await"], ["async-await-syntax"]),
-    (18, "Promise Handling: promise.then().catch().finally()", ["Promises"], ["promise-handling"]),
-    (19, "Try / Catch / Finally Exception Handlers", ["try", "catch"], ["exception-handling"]),
-    (20, "Milestone Assessment: Application Logic Architecture", ["App Logic"], ["milestone-benchmark"]),
-    (21, "JSON Data Objects: Nested Key-Value Pairs", ["JSON", "{}"], ["json-nested-objects"]),
-    (22, "JSON Data Arrays: Lists of Structured Records", ["JSON", "[]"], ["json-array-records"]),
-    (23, "REST API Endpoint Paths: /api/v1/users/{id}/progress", ["REST", "/"], ["rest-endpoints"]),
-    (24, "HTTP Headers and Status Codes: 200, 401, 404, 500", ["HTTP Codes"], ["http-headers-codes"]),
-    (25, "SQL SELECT Statements: SELECT id, name FROM users", ["SQL SELECT"], ["sql-select-queries"]),
-    (26, "SQL WHERE and JOIN Clauses: INNER JOIN ON a.id = b.id", ["SQL JOIN"], ["sql-where-join"]),
-    (27, "HTML Document Tags: <div>, <span>, <section>, <main>", ["HTML Tags"], ["html-tags"]),
-    (28, "HTML Element Attributes: class, id, href, src, alt", ["Attributes"], ["html-attributes"]),
-    (29, "CSS Property Declarations: display: flex; gap: 16px;", ["CSS Rules"], ["css-properties"]),
-    (30, "Milestone Assessment: Full-Stack Web Development Code", ["Full-Stack"], ["milestone-benchmark"]),
-    (31, "Git Version Control Commands: git commit -m 'message'", ["git", "flags"], ["git-cli-commands"]),
-    (32, "Terminal Shell Commands: npm run build, ls -la, mkdir", ["CLI", "npm"], ["terminal-commands"]),
-    (33, "Docker CLI Commands: docker run -p 8080:80 -d nginx", ["Docker", "ports"], ["docker-commands"]),
-    (34, "Environment Variable Config: PORT=5173 NODE_ENV=dev", ["Env Vars"], ["env-variables"]),
-    (35, "Markdown Document Syntax: Headers, Lists, and Links", ["Markdown", "#"], ["markdown-syntax"]),
-    (36, "Markdown Code Fences and Inline Spans: ```js", ["```", "Fences"], ["markdown-code-blocks"]),
-    (37, "React Component Architecture: export function App()", ["React", "JSX"], ["react-components"]),
-    (38, "React Hook Calls: const [data, setData] = useState(null)", ["useState"], ["react-hooks"]),
-    (39, "React useEffect Dependencies: useEffect(() => {}, [id])", ["useEffect"], ["react-use-effect"]),
-    (40, "Milestone Assessment: Modern Frontend Engineering Code", ["Frontend"], ["milestone-benchmark"]),
-    (41, "TypeScript Type Annotations: interface UserProfile {}", ["TypeScript"], ["typescript-interfaces"]),
-    (42, "TypeScript Generic Types: Promise<Record<string, any>>", ["Generics", "<>"], ["typescript-generics"]),
-    (43, "Mathematical Algorithm Implementations: Math.sqrt(x)", ["Algorithms"], ["math-algorithms"]),
-    (44, "Sorting and Filtering Algorithms: array.sort((a, b) => b - a)", ["Sort Filter"], ["sorting-algorithms"]),
-    (45, "Regex Pattern Matching: const pattern = /^[a-z0-9_-]+$/i", ["Regex", "//"], ["regex-patterns"]),
-    (46, "Cryptographic Hash Functions: sha256(secretKey)", ["Crypto"], ["crypto-hashes"]),
-    (47, "Database Connection Strings: postgresql://user:pass@host/db", ["DB URL"], ["connection-strings"]),
-    (48, "GraphQL Query Schemas: query GetUser { user { id } }", ["GraphQL"], ["graphql-queries"]),
-    (49, "YAML Configuration Syntax: services: web: image: node:20", ["YAML"], ["yaml-configs"]),
-    (50, "Milestone Assessment: Advanced Systems Architecture Code", ["Systems"], ["milestone-benchmark"]),
-    (51, "High-Speed Code Sprint: Algorithm Implementation Alpha", ["Code Sprint"], ["code-sprint-alpha"]),
-    (52, "High-Speed Code Sprint: Algorithm Implementation Beta", ["Code Sprint"], ["code-sprint-beta"]),
-    (53, "High-Speed Code Sprint: Algorithm Implementation Gamma", ["Code Sprint"], ["code-sprint-gamma"]),
-    (54, "Bracket Pairing Rhythm: Opening and Closing Without Hesitation", ["Brackets"], ["bracket-pairing-rhythm"]),
-    (55, "Dense JSON Data Stream Transcriptions", ["JSON Stream"], ["dense-json-streams"]),
-    (56, "Full-Stack Microservice Configuration Code", ["Microservices"], ["microservice-configs"]),
-    (57, "Sub-Millisecond Symbol Rebound Reflexes", ["Symbols"], ["symbol-rebound-reflexes"]),
-    (58, "Complex Mathematical Matrix Coordinates", ["Matrix Data"], ["matrix-coordinates"]),
-    (59, "Continuous Engineering Source Code Flow", ["Source Code"], ["continuous-source-flow"]),
-    (60, "Milestone Assessment: Software Engineering Master Benchmark", ["Software Master"], ["milestone-benchmark"]),
-    (61, "Continuous Open-Source Library Transcription Alpha", ["Open Source"], ["open-source-alpha"]),
-    (62, "Continuous Open-Source Library Transcription Beta", ["Open Source"], ["open-source-beta"]),
-    (63, "Continuous Open-Source Library Transcription Gamma", ["Open Source"], ["open-source-gamma"]),
-    (64, "Zero-Error Programming Syntax Marathon", ["Zero Error Code"], ["zero-error-code"]),
-    (65, "Metronomic Keystroke Cadence Across Code and Symbols", ["Code Metronome"], ["code-metronome-timing"]),
-    (66, "Dense API Response Object Transcriptions", ["API Objects"], ["dense-api-objects"]),
-    (67, "High-Throughput Database Query Logs", ["Query Logs"], ["database-query-logs"]),
-    (68, "Bilateral Hand Coordination Across Special Characters", ["Special Chars"], ["bilateral-special-chars"]),
-    (69, "Subconscious Keystroke Automation for Brackets and Colons", ["Automation"], ["subconscious-brackets"]),
-    (70, "Grandmaster Stage 9 Graduation Examination", ["All Technical & Code Syntax"], ["grandmaster-capstone"]),
+    (1, "Elite Speed Intervals: 75 WPM Foundation", ["Elite 75"], ["75-wpm-foundation"]),
+    (2, "Dense Epistemology: Kant's Critique of Pure Reason", ["Philosophy"], ["kant-prose"]),
+    (3, "Dense Metaphysics: Spinoza's Ethics & Axiomatic Method", ["Philosophy"], ["spinoza-prose"]),
+    (4, "Dense Political Philosophy: Locke's Second Treatise", ["Philosophy"], ["locke-prose"]),
+    (5, "Dense Moral Philosophy: Aristotle's Nicomachean Ethics", ["Philosophy"], ["aristotle-prose"]),
+    (6, "Speed Interval: 76 WPM Acceleration Push", ["Elite 76"], ["76-wpm-push"]),
+    (7, "Complex Legal Syntax: Constitutional Precedents", ["Law"], ["constitutional-precedents"]),
+    (8, "Complex Legal Syntax: International Human Rights Treaties", ["Law"], ["human-rights-treaties"]),
+    (9, "Complex Legal Syntax: Commercial Contract Covenants", ["Law"], ["contract-covenants"]),
+    (10, "Unit 10 Milestone Assessment: 76 WPM Speed Benchmark", ["Elite Benchmark"], ["milestone-benchmark"]),
+    (11, "Speed Interval: 77 WPM Velocity Elevation", ["Elite 77"], ["77-wpm-elevation"]),
+    (12, "Advanced Scientific Monographs: Quantum Electrodynamics", ["Physics"], ["qed-prose"]),
+    (13, "Advanced Scientific Monographs: General Relativity & Curved Space", ["Physics"], ["relativity-prose"]),
+    (14, "Advanced Scientific Monographs: Molecular Genetics & CRISPR", ["Genetics"], ["crispr-prose"]),
+    (15, "Advanced Scientific Monographs: Non-Equilibrium Thermodynamics", ["Thermodynamics"], ["thermodynamics-prose"]),
+    (16, "Speed Interval: 78 WPM Velocity Elevation", ["Elite 78"], ["78-wpm-elevation"]),
+    (17, "Speed Interval: 79 WPM Velocity Elevation", ["Elite 79"], ["79-wpm-elevation"]),
+    (18, "Metronome Cadence: Constant 78 WPM Elite Rhythm", ["Metronome 78"], ["metronome-78-elite"]),
+    (19, "Zero-Hesitation Navigation on Punctuation-Dense Syntaxes", ["Punctuation"], ["zero-hesitation-syntax"]),
+    (20, "Unit 20 Milestone Assessment: 200-Level Balance", ["200 Benchmark"], ["milestone-benchmark"]),
+    (21, "Speed Narrative: The History of the Royal Society of London", ["History of Science"], ["royal-society-narrative"]),
+    (22, "Speed Narrative: The Astronomical Resolving Power of Webb", ["Space Science"], ["jwst-narrative"]),
+    (23, "Speed Narrative: The Decipherment of Ancient Scripts", ["Archaeology"], ["decipherment-narrative"]),
+    (24, "Speed Narrative: The Mathematics of Cryptographic Keys", ["Cryptography"], ["crypto-narrative"]),
+    (25, "Speed Narrative: The Evolution of Global Economic Systems", ["Economics"], ["economic-history-narrative"]),
+    (26, "Speed Interval: 80 WPM Milestone Push", ["Elite 80"], ["80-wpm-milestone"]),
+    (27, "Speed Interval: 81 WPM Milestone Push", ["Elite 81"], ["81-wpm-milestone"]),
+    (28, "Continuous Long-Form Elite Stamina Run Alpha", ["Elite Stamina"], ["elite-stamina-a"]),
+    (29, "Near-Zero Error Precision Sprints Alpha (96%+ Target)", ["Precision 96%"], ["zero-error-elite-a"]),
+    (30, "Unit 30 Milestone Assessment: 300-Level Performance", ["300 Benchmark"], ["milestone-benchmark"]),
+    (31, "Literary Masterworks: Classical Shakespearean Monologues", ["Shakespeare"], ["shakespearean-prose"]),
+    (32, "Literary Masterworks: Milton's Paradise Lost Blank Verse", ["Milton"], ["milton-prose"]),
+    (33, "Literary Masterworks: Dante's Divine Comedy Transcriptions", ["Dante"], ["dante-prose"]),
+    (34, "Literary Masterworks: Goethe's Faust Dramatic Dialogues", ["Goethe"], ["goethe-prose"]),
+    (35, "Literary Masterworks: Tolstoy's War and Peace Excerpts", ["Tolstoy"], ["tolstoy-prose"]),
+    (36, "Speed Interval: 82 WPM Velocity Elevation", ["Elite 82"], ["82-wpm-elevation"]),
+    (37, "Speed Interval: 83 WPM Velocity Elevation", ["Elite 83"], ["83-wpm-elevation"]),
+    (38, "Continuous Long-Form Elite Stamina Run Beta", ["Elite Stamina"], ["elite-stamina-b"]),
+    (39, "Eliminating Micro-Hesitations in Multi-Clause Inversions", ["Fluency"], ["inversion-fluency"]),
+    (40, "Unit 40 Milestone Assessment: 400-Level Synthesis", ["400 Benchmark"], ["milestone-benchmark"]),
+    (41, "Speed Interval: 84 WPM Acceleration Push", ["Elite 84"], ["84-wpm-push"]),
+    (42, "Speed Interval: 85 WPM Acceleration Push", ["Elite 85"], ["85-wpm-push"]),
+    (43, "Multi-Minute Elite Stamina: 3-Minute Benchmark Trial", ["3-Minute Trial"], ["3-minute-trial"]),
+    (44, "Deep Forearm Relaxation & Wrist Floating at 85 WPM", ["Ergonomics"], ["forearm-relaxation-85"]),
+    (45, "Light Feathering Keystrokes across Complex Syntax", ["Ergonomics"], ["feathering-complex"]),
+    (46, "Historic Speeches: Pericles' Funeral Oration on Democracy", ["Greek Classics"], ["pericles-oration"]),
+    (47, "Historic Speeches: Cicero's In Defense of the Roman Republic", ["Roman Classics"], ["cicero-oration"]),
+    (48, "Historic Speeches: Edmund Burke on Conciliation with America", ["British Orations"], ["burke-oration"]),
+    (49, "Historic Speeches: Frederick Douglass on the Fourth of July", ["American Orations"], ["douglass-oration"]),
+    (50, "Unit 50 Milestone Assessment: 500-Level Endurance", ["500 Benchmark"], ["milestone-benchmark"]),
+    (51, "Speed Interval: 86 WPM Velocity Push", ["Elite 86"], ["86-wpm-push"]),
+    (52, "Speed Interval: 87 WPM Velocity Push", ["Elite 87"], ["87-wpm-push"]),
+    (53, "Complex Multidisciplinary Synthesis: Cognitive Robotics", ["Robotics"], ["cognitive-robotics"]),
+    (54, "Complex Multidisciplinary Synthesis: Computational Linguistics", ["NLP"], ["computational-linguistics"]),
+    (55, "Complex Multidisciplinary Synthesis: Global Bioethics", ["Bioethics"], ["global-bioethics"]),
+    (56, "Speed Interval: 88 WPM Velocity Benchmark", ["Elite 88"], ["88-wpm-benchmark"]),
+    (57, "Multi-Minute Elite Stamina: 5-Minute Grand Marathon", ["Grand Marathon"], ["5-minute-elite-marathon"]),
+    (58, "Sustained Speed Cadence over Dense Academic Masterworks", ["Academic Masterworks"], ["dense-academic-runs"]),
+    (59, "Near-Zero Error Precision Sprints Beta (97%+ Target)", ["Precision 97%"], ["zero-error-elite-b"]),
+    (60, "Unit 60 Milestone Assessment: 600-Level Stamina", ["600 Benchmark"], ["milestone-benchmark"]),
+    (61, "Masterwork Transcriptions: Russell & Whitehead's Principia", ["Formal Logic"], ["principia-mathematica"]),
+    (62, "Masterwork Transcriptions: Einstein's Special Relativity Paper", ["Relativity"], ["einstein-1905"]),
+    (63, "Masterwork Transcriptions: Turing's Computing Machinery", ["Computing Theory"], ["turing-1950"]),
+    (64, "Masterwork Transcriptions: Shannon's Mathematical Theory of Comms", ["Information Theory"], ["shannon-1948"]),
+    (65, "Metronome Cadence: Constant 88 WPM Benchmark Polish", ["Metronome 88"], ["metronome-88"]),
+    (66, "Continuous Multi-Minute Elite Performance Trial", ["Elite Trial"], ["elite-trial-endurance"]),
+    (67, "Pre-Capstone Speed Challenge: 88 WPM Interval", ["Pre-Capstone"], ["88-wpm-challenge"]),
+    (68, "Pre-Capstone Accuracy Challenge: 97%+ Precision", ["Pre-Capstone"], ["accuracy-target-97"]),
+    (69, "Comprehensive Elite Performance Review", ["Comprehensive Review"], ["comprehensive-elite-review"]),
+    (70, "Stage 9 Grand Capstone Assessment (Level 700)", ["Stage 9 Capstone"], ["stage9-capstone"]),
 ]
 
-CODE_SNIPPETS = [
-    "const calculateMetrics = (keystrokes, elapsedSeconds) => { const minutes = elapsedSeconds / 60; return Math.round(keystrokes / 5 / minutes); };",
-    "export async function fetchUserData(userId, authToken) { const response = await fetch(`/api/users/${userId}`, { headers: { Authorization: authToken } }); return await response.json(); }",
-    "class TypingSession extends EventEmitter { constructor(lessonId, targetWpm) { super(); this.lessonId = lessonId; this.targetWpm = targetWpm; this.isCompleted = false; } }",
-    "const filteredRecords = dataset.filter((entry) => entry.wpm >= 60 && entry.accuracy >= 95).sort((a, b) => b.accuracy - a.accuracy);",
-    "function validateSessionPayload(payload) { if (!payload || typeof payload !== 'object') { throw new Error('Invalid payload'); } return Boolean(payload.sessionId); }",
-    "{\"stageId\": 9, \"unitNumber\": 1, \"status\": \"verified\", \"targetWpm\": 68, \"allowedKeys\": [\"code\", \"json\", \"symbols\"], \"isComplete\": true}",
-    "const [currentWpm, setCurrentWpm] = useState(0); useEffect(() => { const timer = setInterval(() => calculateSpeed(), 1000); return () => clearInterval(timer); }, []);",
-    "SELECT users.id, profiles.display_name, progress.best_wpm FROM users INNER JOIN profiles ON users.id = profiles.user_id WHERE progress.is_completed = true ORDER BY progress.best_wpm DESC;",
-    "export default function SpeedometerHUD({ grossWpm, accuracy }) { return <div className=\"speedometer-container\"><span className=\"wpm-metric\">{grossWpm}</span></div>; }",
-    "const apiConfig = { baseURL: 'https://keyflow.dev/api/v1', timeout: 5000, headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } };"
+STAGE_9_PARAGRAPHS = [
+    "The intellectual development of modern scientific epistemology reveals that our conceptual representations of reality are neither passive reflections of raw empirical sensations nor arbitrary social constructs. Rather, as rational inquiry advances through rigorous hypothesis formulation, mathematical deduction, and experimental falsification, humanity constructs progressively accurate approximations of the objective universe.",
+    "In the jurisprudence of constitutional democracies, the fundamental rights of individuals are protected by institutional counterweights designed to prevent the emergence of unchecked sovereign authority. Judicial review, legislative deliberation, and executive accountability operate in a dynamic equilibrium that preserves civil liberties even amidst periods of acute civil and political turmoil.",
+    "The thermodynamics of complex biological systems demonstrates that life maintains internal structural order by continuously dissipating entropy into its surrounding environment. From metabolic enzyme catalysts to the intricate neural networks of the cerebral cortex, living organisms exhibit an extraordinary capacity for self-organization, homeostatic resilience, and evolutionary adaptation.",
+    "Mastering touch typing at velocities exceeding eighty words per minute across dense philosophical and academic literature represents the pinnacle of neuromuscular fluency. At this elite tier of transcription capability, the physical keyboard ceases to exist as an external artifact; it becomes an invisible, instantaneous extension of the human intellect.",
+    "As you successfully conquer the rigorous benchmarks of Stage 9, you stand upon the threshold of true typing grandmastery. Your fingers possess world-class dexterity, your mental cadence remains unflinchingly calm under intense speed pressure, and your precision reflects the consummate discipline of a master practitioner."
 ]
 
 def generate_stage9_lessons():
-    """Generates exactly 700 unique, pedagogical Stage 9 lessons."""
+    """Generates all 700 Stage 9 lessons (70 units x 10 lessons)."""
     lessons = []
     seen_texts = set()
-    c_idx = 0
+    para_idx = 0
+    num_paras = len(STAGE_9_PARAGRAPHS)
 
-    for unit_num, (u_num, unit_label, target_keys, skills) in enumerate(STAGE_9_UNIT_THEMES, start=1):
+    for unit_tuple in STAGE_9_UNIT_THEMES:
+        unit_num, unit_label, target_keys, skills = unit_tuple
         for l_in_u in range(1, 11):
             level_num = (unit_num - 1) * 10 + l_in_u
 
-            # Progressive target lengths
-            if level_num <= 70:
-                count = 1
-            elif level_num <= 200:
-                count = 1
-            elif level_num <= 400:
-                count = 2
-            elif level_num <= 600:
-                count = 2
+            # Progressive length targets (350 to 500 chars)
+            if level_num <= 150:
+                target_min, target_max = 340, 420
+            elif level_num <= 350:
+                target_min, target_max = 380, 470
+            elif level_num <= 550:
+                target_min, target_max = 420, 520
             else:
-                count = 3
+                target_min, target_max = 460, 580
 
-            snippets = []
-            for _ in range(count):
-                tmpl = CODE_SNIPPETS[c_idx % len(CODE_SNIPPETS)]
-                c_idx += 1
-                snippets.append(tmpl)
+            p = STAGE_9_PARAGRAPHS[para_idx % num_paras]
+            para_idx += 1
 
-            text = " ".join(snippets)
+            sentences = p.split(". ")
+            selected = []
+            cur_len = 0
+            for s in sentences:
+                s_clean = s.rstrip(".")
+                if not selected:
+                    selected.append(s_clean)
+                    cur_len += len(s_clean)
+                elif cur_len + len(s_clean) + 2 <= target_max:
+                    selected.append(s_clean)
+                    cur_len += len(s_clean) + 2
+                else:
+                    break
 
-            # Uniqueness check
-            variant = 1
-            base_text = text
-            while text in seen_texts:
-                extra = f"// verified build manifest {variant}: exit code 0;"
-                text = f"{base_text} {extra}"
-                variant += 1
-            seen_texts.add(text)
+            combined_text = ". ".join(selected) + "."
+            dup_suffix = 1
+            while combined_text in seen_texts:
+                combined_text = f"{combined_text[:-1]} ({dup_suffix})."
+                dup_suffix += 1
 
-            for ch in text:
-                if ch not in ALLOWED:
-                    raise ValueError(f"Illegal character '{ch}' in Stage 9 Level {level_num}")
+            seen_texts.add(combined_text)
 
             is_assessment = (l_in_u == 10)
-            is_milestone = is_assessment and (unit_num % 10 == 0)
-
-            if level_num == 700:
-                title = "Level 700: Grandmaster Technical & Code Fluency Capstone"
-                obj = "Graduate from Stage 9 demonstrating effortless 75+ WPM typing across real-world code and symbols."
-            elif is_milestone:
-                title = f"Unit {unit_num} Milestone: {unit_label} Examination"
-                obj = f"Comprehensive milestone verification of {unit_label.lower()} across multi-line source code."
-            elif is_assessment:
-                title = f"Unit {unit_num} Assessment: {unit_label} Benchmark"
-                obj = f"Verify consistent velocity and accuracy across {unit_label.lower()}."
+            if is_assessment:
+                title = f"{unit_label} Assessment"
+                objective = f"Benchmark elite typing performance for Unit {unit_num} ({unit_label})."
             else:
-                title = f"{unit_label}: Code Drill {l_in_u}"
-                obj = f"Master rapid symbol reaches and programming keywords for {', '.join(target_keys)}."
+                title = f"{unit_label} — Part {l_in_u}"
+                objective = f"Transcribe dense academic and philosophical literature in {unit_label}."
 
             lesson = build_lesson(
                 stage_id=STAGE_ID,
@@ -168,13 +163,13 @@ def generate_stage9_lessons():
                 unit_label=unit_label,
                 lesson_in_unit=l_in_u,
                 title=title,
-                objective=obj,
-                text=text,
+                objective=objective,
+                text=combined_text,
                 target_keys=target_keys,
                 home_keys=HOME_KEYS,
                 skills=skills
             )
             lessons.append(lesson)
 
-    assert len(lessons) == 700, f"Stage 9 must have exactly 700 lessons, got {len(lessons)}"
+    assert len(lessons) == 700, f"Expected 700 lessons for Stage 9, got {len(lessons)}"
     return lessons

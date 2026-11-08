@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+@theme {
+  --default-transition-duration: 240ms;
+  --default-transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 /*
  * KEYFLOW — Global Design System & Multi-Theme CSS Architecture
  * ============================================================
@@ -1323,7 +1330,7 @@ h1, h2, h3, h4, h5, h6 {
 a {
   color: var(--accent);
   text-decoration: none;
-  transition: color 150ms ease;
+  transition: color 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 a:hover {
   color: var(--accent-hover);
@@ -1364,11 +1371,21 @@ a:hover {
   color: var(--accent-fg);
 }
 
-/* Transitions — theme switching */
+/* Masterpiece Smooth Transitions — theme switching & surface states */
 *:not([data-no-transition]) {
-  transition-property: background-color, border-color, color, fill, stroke;
-  transition-duration: 200ms;
-  transition-timing-function: ease;
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 240ms;
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Accessibility: Respect user motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ========================================================== */
@@ -1444,7 +1461,10 @@ a:hover {
   background-color: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: 1rem;
-  transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+  transition: border-color 280ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 280ms cubic-bezier(0.22, 1, 0.36, 1),
+              transform 280ms cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 280ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .card-panel:hover {
@@ -1469,7 +1489,10 @@ a:hover {
   color: var(--key-text);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
   user-select: none;
-  transition: all 120ms ease;
+  transition: border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+              color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .keycap:hover {
@@ -1483,6 +1506,7 @@ a:hover {
   background-color: var(--key-active-bg);
   color: var(--key-active-text);
   border-color: var(--key-active-border);
+  transition-duration: 40ms; /* Instant tactile feedback during typing */
 }
 
 /* Tactile home-row indexing bump */

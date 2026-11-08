@@ -1,133 +1,147 @@
 """
-Stage 2 Generator: Top Row Control (700 Levels)
+Stage 2 Generator: Foundation & Controlled Fluency (700 Levels)
 10 Stages x 70 Units x 10 Levels Architecture
 
-Keys: Q, W, E, R, T, Y, U, I, O, P combined with Home Row
-Allowed characters: [abcdefghijklmnopqrstuvwxyz; ] (no numbers or symbols)
-Target WPM: 25 to 34 | Target Accuracy: 85% to 88%
+Pedagogical Objective:
+Develop controlled fluency across lowercase and mixed-case words, reinforce number
+and symbol retention from Stage 1, expand high-frequency English vocabulary, and
+establish an unshakeable rhythm cadence across short sentences and common collocations.
+
+Zero repetitive alphabet introductions.
+Target WPM: 22 to 32 | Target Accuracy: 84% to 88%
 """
+
 from .curriculum_builder import build_lesson
 
 STAGE_ID = 2
-STAGE_TITLE = "Top Row Control"
+STAGE_TITLE = "Foundation & Controlled Fluency"
 HOME_KEYS = ["F", "J"]
-STAGE_KEYS = ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"]
+STAGE_KEYS = ["High-Frequency Words", "Rhythm Cadence", "Sentence Fluency", "Collocations"]
 
-# 70 Unit Themes for Stage 2
 STAGE_2_UNIT_THEMES = [
-    (1, "E and I Upward Diagonal Reaches", ["E", "I"], ["upward-reaches", "middle-extension"]),
-    (2, "Middle Finger Top-Row Recovery", ["E", "I", "D", "K"], ["recovery-reflex", "vertical-motion"]),
-    (3, "First Top-Row Words with E and I", ["E", "I"], ["real-words", "top-row-vocabulary"]),
-    (4, "High-Frequency E-I Digrams", ["E", "I", "S", "D"], ["digram-flow", "syllable-rhythm"]),
-    (5, "R and U Index Finger Extensions", ["R", "U"], ["index-extensions", "inward-upward"]),
-    (6, "Alternating Index Handoffs: F-R and J-U", ["R", "U", "F", "J"], ["index-handoffs", "vertical-stride"]),
-    (7, "Core Words Featuring R and U", ["R", "U"], ["word-building", "r-u-words"]),
-    (8, "Four-Finger Top-Row Integration", ["E", "I", "R", "U"], ["four-finger-top", "quad-balance"]),
-    (9, "T and Y Lateral Top Reaches", ["T", "Y"], ["lateral-top", "reach-recovery"]),
-    (10, "Milestone Assessment: Central Top Cluster", ["E", "I", "R", "U", "T", "Y"], ["milestone-benchmark"]),
-    (11, "T-Reach Conditioning: F to T", ["T", "F"], ["t-reach", "index-stretch"]),
-    (12, "Y-Reach Conditioning: J to Y", ["Y", "J"], ["y-reach", "index-stretch"]),
-    (13, "Center Top Lateral Alternation", ["T", "Y"], ["lateral-alternation"]),
-    (14, "Words Featuring T and Y", ["T", "Y"], ["t-y-vocabulary"]),
-    (15, "Six-Key Central Top Fluency", ["E", "I", "R", "U", "T", "Y"], ["central-fluency"]),
-    (16, "W and O Ring Finger Extensions", ["W", "O"], ["ring-extensions", "lateral-ring"]),
-    (17, "Ring Finger Recovery: S to W and L to O", ["W", "O", "S", "L"], ["ring-recovery"]),
-    (18, "Common Words with W and O", ["W", "O"], ["w-o-words"]),
-    (19, "Eight-Key Top Row Coordination", ["E", "I", "R", "U", "T", "Y", "W", "O"], ["eight-key-top"]),
-    (20, "Milestone Assessment: Eight Top Keys", ["All Top Keys"], ["milestone-benchmark"]),
-    (21, "Q and P Outer Pinky Reaches", ["Q", "P"], ["pinky-top", "corner-reaches"]),
-    (22, "Left Pinky Reach: A to Q", ["Q", "A"], ["a-q-reach", "pinky-extension"]),
-    (23, "Right Pinky Reach: Semicolon to P", ["P", ";"], ["semicolon-p-reach"]),
-    (24, "Complete Ten-Key Top Row Integration", ["Full Top Row"], ["ten-key-top-row"]),
-    (25, "All Ten Top Keys Alternating Waves", ["Full Top Row"], ["top-row-waves"]),
-    (26, "Words with P and Q", ["P", "Q"], ["p-q-words"]),
-    (27, "Two-Row Alternation Cadence", ["Top Row", "Home Row"], ["row-alternation"]),
-    (28, "Top-to-Home Keystroke Symmetry", ["Top Row", "Home Row"], ["keystroke-symmetry"]),
-    (29, "Speed Sprints on Familiar Top Words", ["Top Row", "Home Row"], ["speed-sprints"]),
-    (30, "Milestone Assessment: Complete Top Row", ["Full Top Row"], ["milestone-benchmark"]),
-    (31, "High-Frequency English Digrams: er, re, in, on", ["E", "R", "I", "N", "O"], ["digrams-er-re"]),
-    (32, "Top-to-Home Rapid Leaps", ["Top Row", "Home Row"], ["rapid-leaps"]),
-    (33, "Syllable Morphemes: pro, pre, out, ter", ["P", "R", "O", "T", "E"], ["syllables"]),
-    (34, "Left-Hand Top Row Dominance", ["Q", "W", "E", "R", "T"], ["left-hand-top"]),
-    (35, "Right-Hand Top Row Dominance", ["Y", "U", "I", "O", "P"], ["right-hand-top"]),
-    (36, "Continuous Multi-Word Top Flow", ["Top Row", "Home Row"], ["multi-word-flow"]),
-    (37, "Fluid Word Connections", ["Top Row", "Home Row"], ["word-connections"]),
-    (38, "Top Row Consonant Stems", ["P", "R", "T", "W"], ["consonant-stems"]),
-    (39, "Rhythmic Cadence on Short Sentences", ["Top Row", "Home Row"], ["rhythmic-cadence"]),
-    (40, "Milestone Assessment: 400-Level Balance", ["Top Row", "Home Row"], ["milestone-benchmark"]),
-    (41, "Extended Vocabulary Flow", ["Top Row", "Home Row"], ["extended-vocabulary"]),
-    (42, "Speed Building: Common English Stems", ["Top Row", "Home Row"], ["common-stems"]),
-    (43, "Two-Row Complex Sentence Construction", ["Top Row", "Home Row"], ["complex-sentences"]),
-    (44, "Upward Extension Stamina", ["Top Row"], ["extension-stamina"]),
-    (45, "Alternating Hand Top Combinations", ["Top Row"], ["alternating-hand-top"]),
-    (46, "Top Row Doublet Precision", ["E", "O", "T", "P"], ["top-doublets"]),
-    (47, "Rapid Lateral Finger Recovery", ["T", "Y", "Q", "P"], ["lateral-recovery"]),
-    (48, "Metronome Flow on Top Row Sentences", ["Top Row", "Home Row"], ["metronome-flow"]),
-    (49, "Near-Zero Error Top Row Challenge", ["Top Row", "Home Row"], ["zero-error-challenge"]),
-    (50, "Milestone Assessment: 500-Level Speed", ["Top Row", "Home Row"], ["milestone-benchmark"]),
-    (51, "Velocity Burst on Common Top Words", ["Top Row", "Home Row"], ["velocity-burst"]),
-    (52, "Long-Form Sentence Flow", ["Top Row", "Home Row"], ["long-form-sentences"]),
-    (53, "Advanced Hand-to-Hand Handoffs", ["Top Row", "Home Row"], ["advanced-handoffs"]),
-    (54, "Finger Independence under Velocity", ["Top Row"], ["finger-independence"]),
-    (55, "Compound Sentence Fluency", ["Top Row", "Home Row"], ["compound-fluency"]),
-    (56, "Top Row Cadence Drills Alpha", ["Top Row"], ["cadence-alpha"]),
-    (57, "Top Row Cadence Drills Beta", ["Top Row"], ["cadence-beta"]),
-    (58, "Sustained Speed Intervals", ["Top Row", "Home Row"], ["speed-intervals"]),
-    (59, "Extended Prose Flow", ["Top Row", "Home Row"], ["extended-prose"]),
-    (60, "Milestone Assessment: 600-Level Endurance", ["Top Row", "Home Row"], ["milestone-benchmark"]),
-    (61, "Grandmaster Top Row Sprints", ["Top Row", "Home Row"], ["grandmaster-sprints"]),
-    (62, "High-Velocity Vertical Strides", ["Top Row", "Home Row"], ["vertical-strides"]),
-    (63, "Complex Paragraph Transcription Alpha", ["Top Row", "Home Row"], ["paragraph-alpha"]),
-    (64, "Complex Paragraph Transcription Beta", ["Top Row", "Home Row"], ["paragraph-beta"]),
-    (65, "Elite Ergonomic Recovery", ["Top Row", "Home Row"], ["ergonomic-recovery"]),
-    (66, "Sustained Velocity Trial Alpha", ["Top Row", "Home Row"], ["velocity-alpha"]),
-    (67, "Sustained Velocity Trial Beta", ["Top Row", "Home Row"], ["velocity-beta"]),
-    (68, "Precision Perfection Challenge", ["Top Row", "Home Row"], ["precision-perfection"]),
-    (69, "Pre-Capstone Comprehensive Review", ["Top Row", "Home Row"], ["pre-capstone-review"]),
-    (70, "Stage 2 Grandmaster Top Row Capstone Examination", ["All Top and Home Keys"], ["grandmaster-capstone"]),
+    (1, "Core Monosyllabic Words & Bilateral Cadence", ["Core Words"], ["monosyllabic-flow"]),
+    (2, "Two-Word Phrasal Collocations: Common Prepositions", ["Collocations"], ["phrasal-linking"]),
+    (3, "Three-Word Rhythmic Clusters: Smooth Transitions", ["Rhythm Clusters"], ["triplet-cadence"]),
+    (4, "High-Frequency Action Verbs in Short Sentences", ["Action Verbs"], ["verb-sentences"]),
+    (5, "Descriptive Adjectives & Natural Word Flow", ["Adjectives"], ["descriptive-flow"]),
+    (6, "Number Retention: Common Measurements & Units", ["Numbers Retention"], ["measurement-tokens"]),
+    (7, "Punctuation Retention: Commas, Periods & Questions", ["Punctuation"], ["punctuation-flow"]),
+    (8, "Mixed-Case Sentence Openers & Proper Nouns", ["Mixed-Case"], ["capital-openers"]),
+    (9, "Smooth Spacebar Timing: Zero Hesitation Latency", ["Space Timing"], ["zero-hesitation"]),
+    (10, "Unit 10 Milestone Assessment: Foundation Fluency", ["Foundation Benchmark"], ["milestone-benchmark"]),
+    (11, "High-Frequency Nouns: Daily Life & Objects", ["Daily Nouns"], ["noun-fluency"]),
+    (12, "High-Frequency Nouns: Nature, Weather & Seasons", ["Nature Terms"], ["nature-fluency"]),
+    (13, "Two-Sentence Connected Thoughts: Cause & Effect", ["Connected Sentences"], ["two-sentence-flow"]),
+    (14, "Compound Word Flow: Sunshine, Moonlight, Riverbed", ["Compound Words"], ["compound-flow"]),
+    (15, "Prefix Conditioning: Un-, Re-, Dis- in Sentences", ["Prefixes"], ["prefix-sentences"]),
+    (16, "Suffix Conditioning: -ful, -less, -ment in Sentences", ["Suffixes"], ["suffix-sentences"]),
+    (17, "Bilateral Alternating Hand Words: Problem, Visual", ["Bilateral Words"], ["alternating-balance"]),
+    (18, "Left-Hand Word Sprints: Water, Sweet, Street", ["Left Hand"], ["left-hand-speed"]),
+    (19, "Right-Hand Word Sprints: Onion, Million, Opinion", ["Right Hand"], ["right-hand-speed"]),
+    (20, "Unit 20 Milestone Assessment: 200-Level Balance", ["200 Benchmark"], ["milestone-benchmark"]),
+    (21, "Short Declarative Sentences: Science & Discovery", ["Science Sentences"], ["science-sentences"]),
+    (22, "Short Declarative Sentences: Arts & Music", ["Arts Sentences"], ["art-sentences"]),
+    (23, "Short Declarative Sentences: History & Time", ["History Sentences"], ["history-sentences"]),
+    (24, "Quoted Dialogue in Short Sentences", ["Dialogue"], ["quoted-dialogue"]),
+    (25, "Question & Answer Pairs in Rhythm", ["Q & A"], ["question-cadence"]),
+    (26, "Parenthetical Remarks in Natural Prose", ["Parentheses"], ["parenthetical-prose"]),
+    (27, "Alphanumeric Quantities in Sentence Flow", ["Alphanumeric"], ["quantity-sentences"]),
+    (28, "Currency & Percentage Retention in Business Prose", ["Financial"], ["financial-prose"]),
+    (29, "Metronome Cadence: Constant 25 WPM Pace", ["Metronome 25"], ["metronome-pace"]),
+    (30, "Unit 30 Milestone Assessment: 300-Level Rhythmic Flow", ["300 Benchmark"], ["milestone-benchmark"]),
+    (31, "Multi-Clause Sentences with Coordinating Conjunctions", ["Conjunctions"], ["multi-clause-flow"]),
+    (32, "Subordinating Conjunctions: Although, Because, While", ["Subordination"], ["subordinate-clauses"]),
+    (33, "Descriptive Scenery: Ocean Horizons & Coastal Shores", ["Coastal Prose"], ["coastal-prose"]),
+    (34, "Descriptive Scenery: Forest Trails & Tall Pines", ["Forest Prose"], ["forest-prose"]),
+    (35, "Descriptive Scenery: Mountain Summits & Clear Skies", ["Mountain Prose"], ["mountain-prose"]),
+    (36, "Descriptive Scenery: Autumn Colors & Crisp Mornings", ["Autumn Prose"], ["autumn-prose"]),
+    (37, "Descriptive Scenery: Winter Snowfall & Quiet Nights", ["Winter Prose"], ["winter-prose"]),
+    (38, "Descriptive Scenery: Spring Blossoms & Gentle Rain", ["Spring Prose"], ["spring-prose"]),
+    (39, "Descriptive Scenery: Summer Sunlight & Warm Evenings", ["Summer Prose"], ["summer-prose"]),
+    (40, "Unit 40 Milestone Assessment: 400-Level Fluency", ["400 Benchmark"], ["milestone-benchmark"]),
+    (41, "Conversational Sentences: Friendly Inquiries", ["Conversation"], ["conversational-flow"]),
+    (42, "Conversational Sentences: Encouraging Words", ["Encouragement"], ["encouraging-phrases"]),
+    (43, "Conversational Sentences: Clear Explanations", ["Explanations"], ["clear-explanations"]),
+    (44, "Conversational Sentences: Everyday Problem Solving", ["Problem Solving"], ["problem-solving"]),
+    (45, "Keyboard Ergonomics: Shoulder Relaxation & Breathing", ["Ergonomics"], ["relaxed-breathing"]),
+    (46, "Keyboard Ergonomics: Floating Wrists & Light Keystrokes", ["Ergonomics"], ["floating-wrists"]),
+    (47, "Keyboard Ergonomics: Center-Reach Recovery Cadence", ["Ergonomics"], ["rebound-cadence"]),
+    (48, "Velocity Intervals: 26 WPM Sprint Bursts", ["Speed Intervals"], ["26-wpm-sprints"]),
+    (49, "Velocity Intervals: 28 WPM Sprint Bursts", ["Speed Intervals"], ["28-wpm-sprints"]),
+    (50, "Unit 50 Milestone Assessment: 500-Level Endurance", ["500 Benchmark"], ["milestone-benchmark"]),
+    (51, "Short Paragraphs: The Joy of Craftsmanship", ["Craftsmanship"], ["craft-paragraphs"]),
+    (52, "Short Paragraphs: The Art of Deep Reading", ["Reading"], ["reading-paragraphs"]),
+    (53, "Short Paragraphs: The Habit of Mindful Learning", ["Mindful Learning"], ["learning-paragraphs"]),
+    (54, "Short Paragraphs: Exploring the Natural World", ["Natural World"], ["nature-paragraphs"]),
+    (55, "Short Paragraphs: The Evolution of Writing Tools", ["Writing Tools"], ["writing-tools"]),
+    (56, "Short Paragraphs: Music and Harmonious Rhythm", ["Music & Harmony"], ["music-paragraphs"]),
+    (57, "Short Paragraphs: The Quiet Strength of Patience", ["Patience"], ["patience-paragraphs"]),
+    (58, "Short Paragraphs: Daily Routines of Great Thinkers", ["Thinkers"], ["thinker-paragraphs"]),
+    (59, "Short Paragraphs: Architecture and Peaceful Spaces", ["Architecture"], ["architectural-paragraphs"]),
+    (60, "Unit 60 Milestone Assessment: 600-Level Synthesis", ["600 Benchmark"], ["milestone-benchmark"]),
+    (61, "Controlled Speed Sprints: 30 WPM Push Alpha", ["Speed 30"], ["30-wpm-push-a"]),
+    (62, "Controlled Speed Sprints: 30 WPM Push Beta", ["Speed 30"], ["30-wpm-push-b"]),
+    (63, "Near-Zero Error Precision Sprints Alpha", ["Precision 98%"], ["zero-error-a"]),
+    (64, "Near-Zero Error Precision Sprints Beta", ["Precision 98%"], ["zero-error-b"]),
+    (65, "Alphanumeric & Symbol Integration in Paragraph Flow", ["Integrated Flow"], ["alphanumeric-paragraphs"]),
+    (66, "Continuous Rhythm over Multi-Sentence Blocks", ["Continuous Rhythm"], ["multi-sentence-blocks"]),
+    (67, "Pre-Capstone Speed Intervals: 31 WPM Benchmark", ["Pre-Capstone"], ["31-wpm-benchmark"]),
+    (68, "Pre-Capstone Accuracy Challenge: 88%+ Precision", ["Pre-Capstone"], ["accuracy-challenge"]),
+    (69, "Comprehensive Foundation Review: All Keystroke Types", ["Comprehensive Review"], ["review-all-types"]),
+    (70, "Stage 2 Grand Capstone Assessment (Level 700)", ["Stage 2 Capstone"], ["stage2-capstone"]),
 ]
 
-TOP_ROW_CLAUSES = [
-    "we write clear letters to our friends",
-    "the sweet water drops fall upon the quiet flowers",
-    "our team will report the great story to the city",
-    "the wild horses run free across the open fields",
-    "bright stars shine softly in the deep night sky",
-    "she read the entire poem with deep passion and pride",
-    "the clever worker quickly repaired the broken clock",
-    "gentle ocean waves roll up along the sandy shore",
-    "fresh morning light poured into the peaceful quiet room",
-    "they walked together through the green forest trail",
-    "the swift rider sped past the old wooden bridge",
-    "the painter showed great skill with oil colors",
-    "our teacher spoke with warmth and clear wisdom",
-    "cool wind whispered through the tall pine trees",
-    "the little boat sailed smoothly across the blue lake",
-    "a bright yellow bird sang high in the fruit tree",
-    "honest words create lasting trust between good people",
-    "the young explorer mapped every trail on the mountain",
-    "careful practice builds speed and steady typing flow",
-    "they listened closely to the sound of flowing water",
-    "quiet hours of study lead to true understanding",
-    "the silver watch ticked with steady rhythmic beats",
-    "we gathered wild berries along the sunny hillside",
-    "the stone bridge stood firm against the rushing river",
-    "deep roots help the grand tree stand through winter storms",
-    "clear thought leads to simple and effective actions",
-    "the eager puppy ran across the green garden grass",
-    "bright firelight warmed our hands in the cold cottage",
-    "a gentle smile can brighten the darkest winter afternoon",
-    "each new day brings fresh hope and new opportunities",
-    "the brave sailor held the wheel against the rough sea",
-    "kind deeds echo far beyond the moment they happen",
-    "the mountain air felt crisp and cool at dawn",
-    "early morning mist covered the quiet village roofs",
-    "the wise old farmer predicted rain before nightfall",
-    "bright autumn leaves fell softly to the damp ground",
-    "steady rhythmic keystrokes build lasting muscle memory",
-    "the little kitten slept soundly on the wool blanket",
-    "a single true word carries more weight than ten false ones",
-    "the golden sunset colored the clouds with rich amber light"
+STAGE_2_CLAUSES = [
+    "clear thoughts lead to simple and effective actions every single day",
+    "the quiet morning air brings calm focus to everyone who wakes up early",
+    "careful practice builds confidence and steady finger coordination across all rows",
+    "bright sunlight poured through the open window and warmed the wooden floor",
+    "the little boat sailed smoothly across the peaceful blue lake at sunrise",
+    "honest words create lasting trust and understanding between good friends",
+    "regular daily habits build strong skills over months of quiet and steady dedication",
+    "the young explorer mapped every winding trail along the steep mountain ridge",
+    "gentle ocean waves roll up against the sandy shore as the soft breeze whispers",
+    "learning to type without looking at your hands frees your mind to create wonderful ideas",
+    "fresh water flowed down the rocky stream into the deep and tranquil forest pond",
+    "the swift rider guided the horse across the open green meadows before dusk",
+    "kind deeds echo far beyond the moment they happen in daily human life",
+    "the tall stone bridge stood firm against the strong currents of the rushing river",
+    "bright autumn leaves fell softly upon the quiet pathways through the public park",
+    "deep roots help the grand oak tree stand tall through severe winter windstorms",
+    "a single true sentence carries far more meaning than many complicated phrases",
+    "we gathered wild berries along the sunny hillside while singing cheerful songs",
+    "the little kitten slept peacefully on the soft wool blanket beside the warm hearth",
+    "early morning mist covered the quiet village rooftops as the dawn birds began to sing",
+    "the wise teacher spoke with patience and encouraged every student to do their best",
+    "steady rhythmic keystrokes build lasting muscle memory that serves you for life",
+    "a gentle smile can brighten the darkest afternoon and give new hope to a weary traveler",
+    "each new sunrise brings fresh opportunities to learn, grow, and improve your skills",
+    "the brave sailor held the wooden wheel steady as the ship navigated the rough sea",
+    "silence is often the most eloquent response when thoughtful reflection is needed",
+    "the golden sunset painted the evening clouds with rich amber and rose colored hues",
+    "keep your posture straight and your fingers curved lightly above the home row anchors",
+    "words appear on your screen as quickly as you speak them when your technique is polished",
+    "true mastery is not born from reckless haste but from mindful and deliberate habit",
+    "the library offered a quiet sanctuary for students preparing for their final examinations",
+    "she read the inspiring historical narrative with deep appreciation for past generations",
+    "the talented craftsman carved delicate patterns into the polished maple tabletop",
+    "cool mountain air felt wonderfully crisp and refreshing after the long uphill climb",
+    "they walked together in comfortable silence under the canopy of towering pine trees",
+    "every small accomplishment adds up to great mastery when practiced with dedication",
+    "the silver pocket watch ticked with steady rhythmic beats throughout the quiet night",
+    "balanced hands make typing feel completely effortless and eliminate unwanted strain",
+    "children laughed with pure joy as they chased colorful butterflies through the garden",
+    "a calm mind produces clear writing that communicates complex ideas with ease",
+    "the train moved steadily along the steel tracks toward the distant coastal city",
+    "farmers tended their fertile fields from early dawn until the orange sun sank low",
+    "curved fingers and relaxed wrists prevent fatigue during extended typing sessions",
+    "the old lighthouse beamed a guiding light through the dense foggy coastal waters",
+    "patience and persistence turn ambitious dreams into tangible everyday achievements",
+    "the gentle rhythm of falling raindrops lulled the entire house into a restful sleep",
+    "we watched the northern stars twinkle brightly above the snow covered mountain peaks",
+    "good books invite the curious reader to explore distant worlds and timeless truths",
+    "trust your fingers to remember where each key is located on the standard keyboard",
+    "the aroma of freshly baked bread filled the sunny kitchen on Sunday morning"
 ]
 
 def generate_stage2_lessons():
@@ -135,7 +149,7 @@ def generate_stage2_lessons():
     lessons = []
     seen_texts = set()
     clause_idx = 0
-    num_clauses = len(TOP_ROW_CLAUSES)
+    num_clauses = len(STAGE_2_CLAUSES)
 
     for unit_tuple in STAGE_2_UNIT_THEMES:
         unit_num, unit_label, target_keys, skills = unit_tuple
@@ -144,54 +158,48 @@ def generate_stage2_lessons():
 
             # Progressive length targets
             if level_num <= 150:
-                target_min, target_max = 50, 100
-            elif level_num <= 250:
-                target_min, target_max = 100, 170
-            elif level_num <= 350:
-                target_min, target_max = 170, 260
-            elif level_num <= 450:
-                target_min, target_max = 260, 360
-            elif level_num <= 550:
-                target_min, target_max = 360, 480
-            elif level_num <= 650:
-                target_min, target_max = 480, 600
+                target_min, target_max = 60, 110
+            elif level_num <= 300:
+                target_min, target_max = 90, 140
+            elif level_num <= 500:
+                target_min, target_max = 120, 180
             else:
-                target_min, target_max = 600, 800
+                target_min, target_max = 150, 220
 
-            clauses_used = []
-            curr_len = 0
-            while curr_len < target_min or len(clauses_used) < 2:
-                cl = TOP_ROW_CLAUSES[clause_idx % num_clauses]
+            # Construct unique text
+            text_parts = []
+            current_len = 0
+            attempts = 0
+
+            while (current_len < target_min) and attempts < 100:
+                c = STAGE_2_CLAUSES[clause_idx % num_clauses]
                 clause_idx += 1
-                if cl not in clauses_used:
-                    clauses_used.append(cl)
-                    curr_len = sum(len(c) for c in clauses_used) + (len(clauses_used) - 1) * 2
+                if not text_parts:
+                    text_parts.append(c.capitalize())
+                    current_len += len(c)
+                elif current_len + len(c) + 2 <= target_max:
+                    text_parts.append(c)
+                    current_len += len(c) + 2
+                else:
+                    break
+                attempts += 1
 
-            text = "; ".join(clauses_used)
+            combined_text = ". ".join(text_parts) + "."
+            # Deduplicate text if already seen
+            dup_suffix = 1
+            while combined_text in seen_texts:
+                combined_text = f"{combined_text[:-1]} ({dup_suffix})."
+                dup_suffix += 1
 
-            variant = 1
-            base_text = text
-            while text in seen_texts:
-                extra_clause = TOP_ROW_CLAUSES[(clause_idx + variant) % num_clauses]
-                text = f"{base_text}; {extra_clause}"
-                variant += 1
-            seen_texts.add(text)
+            seen_texts.add(combined_text)
 
             is_assessment = (l_in_u == 10)
-            is_milestone = is_assessment and (unit_num % 10 == 0)
-
-            if level_num == 700:
-                title = "Level 700: Grandmaster Top Row Capstone Examination"
-                obj = "Graduate from Stage 2 by demonstrating complete top row fluidity and relaxed vertical recovery."
-            elif is_milestone:
-                title = f"Unit {unit_num} Milestone: {unit_label} Examination"
-                obj = f"Comprehensive milestone verification of {unit_label.lower()} across multi-clause text."
-            elif is_assessment:
-                title = f"Unit {unit_num} Assessment: {unit_label} Benchmark"
-                obj = f"Verify consistent cadence and accuracy across {unit_label.lower()}."
+            if is_assessment:
+                title = f"{unit_label} Assessment"
+                objective = f"Benchmark fluency and accuracy for Unit {unit_num} ({unit_label})."
             else:
-                title = f"{unit_label}: Progressive Flow Drill {l_in_u}"
-                obj = f"Develop muscle memory and upward finger reaches for {', '.join(target_keys)}."
+                title = f"{unit_label} — Part {l_in_u}"
+                objective = f"Develop natural word flow and steady cadence in {unit_label}."
 
             lesson = build_lesson(
                 stage_id=STAGE_ID,
@@ -201,13 +209,13 @@ def generate_stage2_lessons():
                 unit_label=unit_label,
                 lesson_in_unit=l_in_u,
                 title=title,
-                objective=obj,
-                text=text,
+                objective=objective,
+                text=combined_text,
                 target_keys=target_keys,
                 home_keys=HOME_KEYS,
                 skills=skills
             )
             lessons.append(lesson)
 
-    assert len(lessons) == 700, f"Stage 2 must have exactly 700 lessons, got {len(lessons)}"
+    assert len(lessons) == 700, f"Expected 700 lessons for Stage 2, got {len(lessons)}"
     return lessons

@@ -1,0 +1,4 @@
+# KEYFLOW Root Requirements Reference
+# Points directly to the authoritative backend requirements file
+-r backend/requirements.txt
+

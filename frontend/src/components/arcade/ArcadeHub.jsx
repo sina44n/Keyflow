@@ -184,7 +184,7 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
               />
             }
           >
-            <div className="keyflow-arcade-viewport min-h-[580px] w-full space-y-4 animate-in fade-in duration-200">
+            <div className="keyflow-arcade-viewport min-h-[580px] w-full space-y-4 animate-in fade-in duration-260 ease-[cubic-bezier(0.22,1,0.36,1)]">
               {selectedGameId === 'cascade' && (
                 <KeyCascadeGame
                   onExit={handleExitGame}

@@ -248,9 +248,9 @@ export const CustomTypingStudio = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
       <div
-        className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150"
+        className="w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]"
         role="dialog"
         aria-labelledby="custom-studio-title"
         aria-modal="true"
@@ -427,7 +427,7 @@ export const CustomTypingStudio = ({
 
                 {/* Save to library drawer */}
                 {showSaveInput && (
-                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 animate-in fade-in duration-100">
+                  <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 animate-in fade-in duration-220 ease-[cubic-bezier(0.22,1,0.36,1)]">
                     <input
                       type="text"
                       value={saveTitle}

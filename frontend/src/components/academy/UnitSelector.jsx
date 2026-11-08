@@ -67,7 +67,7 @@ export const UnitSelector = ({
                 aria-selected={isSelected}
                 aria-label={`Unit ${formatted}${!isUnlocked ? ' (Locked)' : ''}`}
                 onClick={() => isUnlocked && onSelectUnit(unitNum)}
-                className={`relative px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all duration-200 shrink-0 cursor-pointer select-none flex items-center gap-1.5 ${
+                className={`relative px-4 py-2 rounded-xl text-xs font-mono font-bold transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] shrink-0 cursor-pointer select-none flex items-center gap-1.5 ${
                   isSelected
                     ? 'bg-[var(--accent)] text-[var(--accent-fg)] border border-[var(--accent-hover)] shadow-sm'
                     : isUnlocked

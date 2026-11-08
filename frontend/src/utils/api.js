@@ -117,6 +117,11 @@ api.interceptors.response.use(
         `[KEYFLOW 502 Bad Gateway] Backend service is currently unreachable for ${error.config?.url}. ` +
         `Ensure Django backend process is running and healthy on the target server.`
       );
+    } else if (error.response?.status === 503) {
+      console.warn(
+        `[KEYFLOW 503 Service Unavailable] Backend service is currently suspended or down for ${error.config?.url}. ` +
+        `Check hosting provider (Render / Railway) dashboard to verify service status.`
+      );
     }
     return Promise.reject(error);
   }

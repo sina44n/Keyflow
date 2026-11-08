@@ -95,12 +95,12 @@ export const GlobalGameSettingsModal = ({ isOpen, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="game-settings-title"
     >
-      <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl shadow-2xl text-[var(--text-primary)] p-6 space-y-6">
+      <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-[var(--bg-elevated)] border border-[var(--border)] rounded-2xl shadow-2xl text-[var(--text-primary)] p-6 space-y-6 animate-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-[var(--border)] pb-4">
           <div className="flex items-center gap-2.5">

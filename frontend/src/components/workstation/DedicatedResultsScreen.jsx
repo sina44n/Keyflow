@@ -391,7 +391,7 @@ export const DedicatedResultsScreen = ({
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto py-6 sm:py-10 space-y-8 animate-in fade-in duration-300 font-mono">
+    <div className="w-full max-w-5xl mx-auto py-6 sm:py-10 space-y-8 animate-in fade-in duration-260 ease-[cubic-bezier(0.22,1,0.36,1)] font-mono">
       {/* Top Main Results Block: Left Stats + Right WPM Graph */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[var(--bg-surface)] p-6 sm:p-8 rounded-3xl border border-[var(--border)] shadow-xl relative overflow-hidden">
         {/* Left Column: Big Net WPM & Accuracy */}

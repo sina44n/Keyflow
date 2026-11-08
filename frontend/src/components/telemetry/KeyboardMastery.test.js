@@ -90,3 +90,4 @@ describe('KEYFLOW Keyboard Mastery & Per-Key Velocity Analytics', () => {
     assert.equal(statK.cpm, 250, 'CPM automatically defaults to WPM * 5 if only WPM was provided');
   });
 });
+

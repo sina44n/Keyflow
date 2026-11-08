@@ -144,7 +144,7 @@ export const LeaderboardTable = ({ entries, currentUserId, currentUsername, peri
               return (
                 <tr
                   key={entry.user_id}
-                  className={`transition-colors ${
+                  className={`transition-colors duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isCurrentUser
                       ? 'bg-[color-mix(in_srgb,var(--accent)_12%,var(--bg-surface))] font-semibold border-l-4 border-l-[var(--accent)]'
                       : 'hover:bg-[var(--bg-elevated)]'

@@ -34,9 +34,9 @@ export const ReportHeader = ({
   const displayDuration = totalDurationFormatted || metrics?.formattedDuration || '0m';
 
   const reports = [
-    { id: 'today', label: t('telemetry.reportToday') || 'Today Report', icon: Clock },
-    { id: 'weekly', label: t('telemetry.reportWeekly') || 'Weekly Report', icon: Calendar },
-    { id: 'overall', label: t('telemetry.reportOverall') || 'Overall Report', icon: Sparkles },
+    { id: 'today', label: t('telemetry.reportToday', 'Daily') || 'Daily', icon: Clock },
+    { id: 'weekly', label: t('telemetry.reportWeekly', 'Weekly') || 'Weekly', icon: Calendar },
+    { id: 'overall', label: t('telemetry.reportOverall', 'Overall') || 'Overall', icon: Sparkles },
   ];
 
   const goalOptions = [15, 20, 30, 45, 60, 90, 120];
@@ -70,7 +70,7 @@ export const ReportHeader = ({
           <button
             type="button"
             onClick={onOpenProfile}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--accent)] text-white hover:opacity-95 text-xs font-mono font-bold transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--accent)] text-white hover:opacity-95 text-xs font-mono font-bold transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer shadow-xs"
             title="Open Telemetry Profile & Settings"
           >
             <User className="w-3.5 h-3.5 text-white" />
@@ -81,7 +81,7 @@ export const ReportHeader = ({
           <button
             type="button"
             onClick={() => setGoalModalOpen(true)}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer shadow-xs"
             title="Configure Daily Practice Target"
           >
             <Target className="w-3.5 h-3.5 text-[var(--accent)]" />
@@ -101,7 +101,7 @@ export const ReportHeader = ({
           <button
             type="button"
             onClick={onExportCSV}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer shadow-xs"
             title="Download CSV Performance Records"
           >
             <Download className="w-3.5 h-3.5 text-[var(--text-muted)]" />
@@ -112,7 +112,7 @@ export const ReportHeader = ({
           <button
             type="button"
             onClick={onPrint}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] transition-all cursor-pointer shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer shadow-xs"
             title="Print or Save as PDF"
           >
             <Printer className="w-3.5 h-3.5 text-[var(--text-muted)]" />
@@ -128,7 +128,6 @@ export const ReportHeader = ({
           {reports.map((rep) => {
             const Icon = rep.icon;
             const isActive = activeReport === rep.id;
-            const shortLabel = rep.id === 'today' ? 'Today' : rep.id === 'weekly' ? 'Weekly' : 'Overall';
             return (
               <button
                 key={rep.id}
@@ -136,17 +135,14 @@ export const ReportHeader = ({
                 role="tab"
                 aria-selected={isActive}
                 onClick={() => handleSelectReport(rep.id)}
-                className={`flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-lg text-xs font-mono font-semibold transition-all cursor-pointer ${
+                className={`flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-2 rounded-lg text-xs font-mono font-semibold transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
                   isActive
                     ? 'bg-[var(--accent)] text-[var(--accent-fg)] shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_30%,transparent)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--bg-surface)_80%,transparent)]'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5 shrink-0" />
-                <span>
-                  <span className="sm:hidden">{shortLabel}</span>
-                  <span className="hidden sm:inline">{rep.label}</span>
-                </span>
+                <span>{rep.label}</span>
               </button>
             );
           })}
@@ -186,7 +182,7 @@ export const ReportHeader = ({
                   key={opt}
                   type="button"
                   onClick={() => setSelectedGoal(opt)}
-                  className={`py-2 rounded-xl text-xs font-mono font-bold transition-all border ${
+                  className={`py-2 rounded-xl text-xs font-mono font-bold transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] border ${
                     selectedGoal === opt
                       ? 'bg-[var(--accent)] text-[var(--accent-fg)] border-[var(--accent)] shadow-xs'
                       : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border)] hover:border-[var(--accent)]'

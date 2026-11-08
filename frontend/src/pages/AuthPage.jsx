@@ -180,14 +180,14 @@ export const ClerkPasswordReset = ({ destination, onBackToLogin }) => {
       </div>
 
       {errorMessage && (
-        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in duration-150">
+        <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
           <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
           <span>{errorMessage}</span>
         </div>
       )}
 
       {successMessage && (
-        <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-700 animate-in fade-in duration-150">
+        <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-700 animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
           <span>{successMessage}</span>
         </div>
@@ -641,7 +641,7 @@ export const AuthPage = ({ mode = 'login' }) => {
 
               {/* Error Alert */}
               {errorMessage && (
-                <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in duration-150">
+                <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 flex items-start gap-2.5 text-xs text-red-700 animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
                   <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                   <span>{errorMessage}</span>
                 </div>
@@ -649,7 +649,7 @@ export const AuthPage = ({ mode = 'login' }) => {
 
               {/* Success Alert */}
               {successMessage && (
-                <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-700 animate-in fade-in duration-150">
+                <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start gap-2.5 text-xs text-emerald-700 animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
                   <span>{successMessage}</span>
                 </div>

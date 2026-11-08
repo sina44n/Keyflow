@@ -425,7 +425,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
 
                 {/* Stage Flyout Menu */}
                 {stageMenuOpen && (
-                  <div className="absolute left-0 top-full mt-2 z-50 w-80 sm:w-96 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl p-2.5 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="absolute left-0 top-full mt-2 z-50 w-80 sm:w-96 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl p-2.5 animate-in fade-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
                     <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">
                       <span className="font-bold">Curriculum Stages (10)</span>
                       <span className="text-[var(--accent)] font-bold">7,000 Levels Total</span>

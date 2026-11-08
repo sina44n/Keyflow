@@ -297,6 +297,96 @@ export const FINGER_DEFINITIONS = [
 ];
 
 /**
+ * Task 1: Four distinct blue speed shades (Authentic TypingClub Blue Family).
+ * - Slowest: Very Light Blue (#bad7f3)
+ * - Developing: Light Blue (#97c3ee)
+ * - Improving: Medium Blue (#75afe8)
+ * - Fastest: Dark Blue (#529be2)
+ * - Neutral (unpracticed / no data): (#e2e8f0)
+ */
+export const SPEED_SHADES = {
+  slowest: '#bad7f3',     // Very Light Blue
+  developing: '#97c3ee',  // Light Blue
+  improving: '#75afe8',   // Medium Blue
+  fastest: '#529be2',     // Dark Blue
+  neutral: '#e2e8f0',     // Neutral for unpracticed fingers
+};
+
+export function computeSpeedShade(wpm, hasData, bounds = { min: 20, max: 40, dynamic: false }) {
+  if (!hasData || wpm === null || wpm === undefined || wpm <= 0) {
+    return SPEED_SHADES.neutral;
+  }
+
+  const { min, max, dynamic } = bounds;
+
+  if (!dynamic || max === min) {
+    if (wpm >= 40) return SPEED_SHADES.fastest;
+    if (wpm >= 30) return SPEED_SHADES.improving;
+    if (wpm >= 20) return SPEED_SHADES.developing;
+    return SPEED_SHADES.slowest;
+  }
+
+  const span = Math.max(max - min, 12);
+  const step = span / 4;
+
+  if (wpm >= min + 3 * step || wpm === max) return SPEED_SHADES.fastest;
+  if (wpm >= min + 2 * step) return SPEED_SHADES.improving;
+  if (wpm >= min + step) return SPEED_SHADES.developing;
+  return SPEED_SHADES.slowest;
+}
+
+/**
+ * Task 2: Accuracy Mode Hierarchy
+ * - Highest Accuracy: Blue (#1e68d0)
+ * - Second-highest Accuracy: Very Light Red (#fecdd3)
+ * - Third-highest Accuracy: Medium Red (#f87171)
+ * - Lowest Accuracy: Dark Red (#991b1b)
+ * - Neutral (unpracticed / no data): (#e2e8f0)
+ */
+export const ACCURACY_SHADES = {
+  highest: '#1e68d0',       // Blue for highest accuracy
+  secondHighest: '#fecdd3', // Very light red
+  thirdHighest: '#f87171',  // Medium red
+  lowest: '#991b1b',        // Dark red
+  neutral: '#e2e8f0',       // Neutral for unpracticed fingers
+  // Compatibility aliases
+  good: '#f87171',
+  developing: '#fecdd3',
+};
+
+export function computeAccuracyShade(acc, hasData, bounds = { min: 80, max: 100, dynamic: false }) {
+  if (!hasData || acc === null || acc === undefined || acc <= 0) {
+    return ACCURACY_SHADES.neutral;
+  }
+
+  const { min, max, dynamic } = bounds;
+
+  if (!dynamic || max === min) {
+    if (acc >= 98) return ACCURACY_SHADES.highest;
+    if (acc >= 94) return ACCURACY_SHADES.secondHighest;
+    if (acc >= 88) return ACCURACY_SHADES.thirdHighest;
+    return ACCURACY_SHADES.lowest;
+  }
+
+  // Highest accuracy is strictly Blue
+  if (acc >= max) {
+    return ACCURACY_SHADES.highest;
+  }
+
+  // Lower accuracy transitions from light red down to darkest red
+  const lowerSpan = max - min;
+  const step = lowerSpan / 3;
+
+  if (acc >= min + 2 * step) {
+    return ACCURACY_SHADES.secondHighest; // Very Light Red
+  }
+  if (acc >= min + step) {
+    return ACCURACY_SHADES.thirdHighest;  // Medium Red
+  }
+  return ACCURACY_SHADES.lowest;          // Dark Red
+}
+
+/**
  * Maps an approved typed character to its authoritative finger ID:
  * 'left-pinky' | 'left-ring' | 'left-middle' | 'left-index' |
  * 'right-index' | 'right-middle' | 'right-ring' | 'right-pinky' | 'thumb'

@@ -241,7 +241,7 @@ const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
     <div className="relative group w-full max-w-[205px] mx-auto py-2.5 select-none">
       {/* 1. COLORFUL ROTATED BACKING SHAPE */}
       <div
-        className="absolute inset-x-1.5 inset-y-2 rounded-[22px] transition-transform duration-300 ease-out pointer-events-none group-hover:scale-[1.03]"
+        className="absolute inset-x-1.5 inset-y-2 rounded-[22px] transition-transform duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none group-hover:scale-[1.03]"
         style={{
           backgroundColor: card.backingColor,
           transform: 'rotate(-4.5deg)',
@@ -256,7 +256,7 @@ const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
         onClick={onSelect}
         role="button"
         aria-pressed={isActive}
-        className={`relative z-10 w-full rounded-[18px] bg-white text-gray-800 p-3.5 sm:p-4 flex flex-col items-center text-center transition-all duration-300 ease-out cursor-pointer shadow-md hover:shadow-xl group-hover:translate-y-[-2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
+        className={`relative z-10 w-full rounded-[18px] bg-white text-gray-800 p-3.5 sm:p-4 flex flex-col items-center text-center transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer shadow-md hover:shadow-xl group-hover:translate-y-[-2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
           isActive ? 'ring-2 ring-black/40 shadow-lg' : ''
         }`}
         style={{

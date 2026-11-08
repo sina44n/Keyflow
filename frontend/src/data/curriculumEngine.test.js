@@ -27,16 +27,16 @@ describe('KEYFLOW Masterpiece Academy — Complete 7,000-Level Architecture & In
 
   it('contains exactly 10 progressive stages with distinct pedagogical objectives', () => {
     assert.equal(STAGE_META.length, 10);
-    assert.equal(STAGE_META[0].title, 'Home Row Foundations');
-    assert.equal(STAGE_META[1].title, 'Top Row Control');
-    assert.equal(STAGE_META[2].title, 'Bottom Row Control');
-    assert.equal(STAGE_META[3].title, 'Full Alphabet Mastery & Cross-Row Transitions');
-    assert.equal(STAGE_META[4].title, 'Number Row Mastery & Ten-Key Dexterity');
-    assert.equal(STAGE_META[5].title, 'Shift Discipline, Punctuation & Common Symbols');
-    assert.equal(STAGE_META[6].title, 'High-Frequency Vocabulary & Rhythm Cadence');
-    assert.equal(STAGE_META[7].title, 'Speed & Endurance Building');
-    assert.equal(STAGE_META[8].title, 'Technical, Numeric & Professional Fluency');
-    assert.equal(STAGE_META[9].title, 'Master Typist & Specialization');
+    assert.equal(STAGE_META[0].title, 'Complete Keyboard Education & Foundation');
+    assert.equal(STAGE_META[1].title, 'Foundation & Controlled Fluency');
+    assert.equal(STAGE_META[2].title, 'Word & Sentence Mastery');
+    assert.equal(STAGE_META[3].title, 'Paragraph Fluency & Cohesion');
+    assert.equal(STAGE_META[4].title, 'Intermediate Speed Development');
+    assert.equal(STAGE_META[5].title, 'Advanced Performance & Cadence');
+    assert.equal(STAGE_META[6].title, 'Professional & Technical Fluency');
+    assert.equal(STAGE_META[7].title, 'High-Speed Mastery & Stamina');
+    assert.equal(STAGE_META[8].title, 'Elite Performance Benchmarks');
+    assert.equal(STAGE_META[9].title, 'Grandmaster Typist & Capstone');
 
     STAGE_META.forEach((meta, idx) => {
       assert.equal(meta.stageId, idx + 1);
@@ -106,64 +106,101 @@ describe('KEYFLOW Masterpiece Academy — Complete 7,000-Level Architecture & In
 });
 
 describe('Stage Progression & Checkpoints Regression Suite', () => {
-  it('verifies Stage 1 (Home Row) bounds and character discipline', () => {
+  it('verifies Stage 1 (Complete Keyboard) exact first 6 levels and capstone bounds', () => {
     const l1 = getLesson(1, 1);
+    const l2 = getLesson(1, 2);
+    const l3 = getLesson(1, 3);
+    const l4 = getLesson(1, 4);
+    const l5 = getLesson(1, 5);
+    const l6 = getLesson(1, 6);
     const l700 = getLesson(1, 700);
+
+    // Non-negotiable mandatory first six levels
     assert.equal(l1.id, 'S1-L001');
+    assert.deepEqual(l1.targetKeys, ['F']);
+    assert.equal(l2.id, 'S1-L002');
+    assert.deepEqual(l2.targetKeys, ['J']);
+    assert.equal(l3.id, 'S1-L003');
+    assert.deepEqual(l3.targetKeys, ['F', 'J']);
+    assert.equal(l4.id, 'S1-L004');
+    assert.deepEqual(l4.targetKeys, ['D']);
+    assert.equal(l5.id, 'S1-L005');
+    assert.deepEqual(l5.targetKeys, ['K']);
+    assert.equal(l6.id, 'S1-L006');
+    assert.deepEqual(l6.targetKeys, ['F', 'J', 'D', 'K']);
+
+    // Stage 1 Capstone
     assert.equal(l700.id, 'S1-L700');
     assert.equal(l700.isAssessment, true);
     assert.equal(l700.isMilestone, true);
-
-    // Stage 1 must only use home row keys [asdfghjkl; ]
-    const homeRowRegex = /^[asdfghjkl; ]+$/i;
-    assert.ok(homeRowRegex.test(l1.exerciseText));
-    assert.ok(homeRowRegex.test(l700.exerciseText));
   });
 
-  it('verifies Stage 2 (Top Row) bounds and character discipline', () => {
+  it('verifies Stage 2 (Foundation & Controlled Fluency) bounds and progressive content', () => {
     const l1 = getLesson(2, 1);
     const l700 = getLesson(2, 700);
     assert.equal(l1.id, 'S2-L001');
     assert.equal(l700.id, 'S2-L700');
-
-    // Stage 2 must only use letters, space, and semicolons (no numbers, quotes or symbols)
-    const stage2Regex = /^[a-z; ]+$/i;
-    assert.ok(stage2Regex.test(l1.exerciseText));
-    assert.ok(stage2Regex.test(l700.exerciseText));
+    assert.ok(l1.targetWpm >= 20);
+    assert.ok(l700.targetWpm <= 35);
   });
 
-  it('verifies Stage 3 (Bottom Row) bounds and character discipline', () => {
+  it('verifies Stage 3 (Word & Sentence Mastery) bounds and content', () => {
     const l1 = getLesson(3, 1);
     const l700 = getLesson(3, 700);
     assert.equal(l1.id, 'S3-L001');
     assert.equal(l700.id, 'S3-L700');
+    assert.ok(l1.targetWpm >= 28);
   });
 
-  it('verifies Stage 4 (Full Alphabet) bounds and content', () => {
+  it('verifies Stage 4 (Paragraph Fluency & Cohesion) bounds and content', () => {
     const l1 = getLesson(4, 1);
     const l700 = getLesson(4, 700);
     assert.equal(l1.id, 'S4-L001');
     assert.equal(l700.id, 'S4-L700');
+    assert.ok(l700.exerciseText.length >= 120);
   });
 
-  it('verifies Stage 5 (Number Row) bounds and content', () => {
+  it('verifies Stage 5 (Intermediate Speed Development) bounds and content', () => {
     const l1 = getLesson(5, 1);
     const l700 = getLesson(5, 700);
     assert.equal(l1.id, 'S5-L001');
     assert.equal(l700.id, 'S5-L700');
+    assert.ok(l1.targetWpm >= 42);
   });
 
-  it('verifies Stage 6 (Sentence Rhythm & Shift) bounds and content', () => {
+  it('verifies Stage 6 (Advanced Performance & Cadence) bounds and content', () => {
     const l1 = getLesson(6, 1);
     const l700 = getLesson(6, 700);
     assert.equal(l1.id, 'S6-L001');
     assert.equal(l700.id, 'S6-L700');
-    // Shift discipline includes capital letters and punctuation
     assert.match(l1.exerciseText, /[A-Z]/);
-    assert.match(l700.exerciseText, /[A-Z]/);
   });
 
-  it('verifies Stage 10 (Master Typist) bounds and final capstone', () => {
+  it('verifies Stage 7 (Professional & Technical Fluency) bounds and code syntax', () => {
+    const l1 = getLesson(7, 1);
+    const l700 = getLesson(7, 700);
+    assert.equal(l1.id, 'S7-L001');
+    assert.equal(l700.id, 'S7-L700');
+    assert.ok(l1.targetWpm >= 55);
+  });
+
+  it('verifies Stage 8 (High-Speed Mastery & Stamina) bounds and speed thresholds', () => {
+    const l1 = getLesson(8, 1);
+    const l700 = getLesson(8, 700);
+    assert.equal(l1.id, 'S8-L001');
+    assert.equal(l700.id, 'S8-L700');
+    assert.ok(l1.targetWpm >= 62);
+  });
+
+  it('verifies Stage 9 (Elite Performance Benchmarks) bounds and elite thresholds', () => {
+    const l1 = getLesson(9, 1);
+    const l700 = getLesson(9, 700);
+    assert.equal(l1.id, 'S9-L001');
+    assert.equal(l700.id, 'S9-L700');
+    assert.ok(l1.targetWpm >= 72);
+  });
+
+  it('verifies Stage 10 (Grandmaster Typist & Capstone) bounds and final capstone', () => {
     const l1 = getLesson(10, 1);
     const l700 = getLesson(10, 700);
     assert.equal(l1.id, 'S10-L001');

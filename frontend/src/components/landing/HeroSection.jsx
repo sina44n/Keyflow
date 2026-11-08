@@ -171,7 +171,7 @@ export const HeroSection = () => {
           <div className="lg:col-span-7">
             <div
               id="sandbox"
-              className="card-panel p-4 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-200"
+              className="card-panel p-4 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]"
             >
               {/* Terminal Titlebar & Metrics Header */}
               <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-[var(--border)]">
@@ -284,7 +284,7 @@ export const HeroSection = () => {
 
               {/* Synchronized Live Visual Guides */}
               {(keyboardGuideOn || handGuideOn) && (
-                <div className="mt-3 p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3 animate-in fade-in duration-150">
+                <div className="mt-3 p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] space-y-3 animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
                   <div className="flex items-center justify-between text-[11px] font-mono text-[var(--text-muted)] border-b border-[var(--border)] pb-2">
                     <span>Target Key: <strong className="text-[var(--accent)] text-xs font-bold">{currentTargetChar === ' ' ? '⎵ Space' : currentTargetChar ?? '—'}</strong></span>
                     <button
@@ -312,7 +312,7 @@ export const HeroSection = () => {
 
               {/* Sprint Completed Feedback Card */}
               {isCompleted && (
-                <div className="mt-3 p-3.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--accent)] flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-200">
+                <div className="mt-3 p-3.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--accent)] flex flex-wrap items-center justify-between gap-3 animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[var(--accent)] shrink-0" />
                     <span className="text-xs font-semibold text-[var(--text-primary)]">

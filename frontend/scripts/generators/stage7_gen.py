@@ -1,164 +1,161 @@
 """
-Stage 7 Generator: High-Frequency Vocabulary & Rhythm Cadence (700 Levels)
+Stage 7 Generator: Professional & Technical Fluency (700 Levels)
 10 Stages x 70 Units x 10 Levels Architecture
 
-Keys: Standard English prose across the full alphabet, numbers, and punctuation.
-Focus: Top 1,000 core words, eliminating word-boundary hesitation, metronomic rhythm.
-Target WPM: 52 to 62 | Target Accuracy: 92% to 94%
+Pedagogical Objective:
+Achieve elite professional and technical typing fluency (58 to 70 WPM).
+Transcribe formal enterprise communications, technical specifications, markdown docs,
+real programming code (Python, JavaScript, SQL, CSS, JSON, HTML, Bash CLI),
+API endpoints, URLs, file paths, configurations, and complex multi-line blocks.
+
+Zero repetitive alphabet introductions.
+Target WPM: 58 to 70 | Target Accuracy: 93% to 95%
 """
 
 from .curriculum_builder import build_lesson
 
 STAGE_ID = 7
-STAGE_TITLE = "High-Frequency Vocabulary & Rhythm Cadence"
+STAGE_TITLE = "Professional & Technical Fluency"
 HOME_KEYS = ["F", "J"]
-STAGE_KEYS = ["High-Frequency Words", "Rhythm Cadence", "Metronome Timing", "Word Flow"]
-ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.;:?!'\"-_() ")
+STAGE_KEYS = ["Professional Prose", "Technical Code", "JSON & Config", "System Commands"]
 
 STAGE_7_UNIT_THEMES = [
-    (1, "Top 25 Core English Words & Monosyllabic Cadence", ["Core 25"], ["core-words-25"]),
-    (2, "Top 50 Core English Words & Two-Word Phrasal Linking", ["Core 50"], ["core-words-50"]),
-    (3, "Top 75 Core English Words & Three-Word Rhythmic Units", ["Core 75"], ["core-words-75"]),
-    (4, "Top 100 Core English Words & Seamless Word Boundaries", ["Core 100"], ["core-words-100"]),
-    (5, "Core Words 101-150: Common Adverbs and Conjunctions", ["Words 101-150"], ["adverbs-conjunctions"]),
-    (6, "Core Words 151-200: Prepositional Phrases and Movement", ["Words 151-200"], ["prepositional-phrases"]),
-    (7, "Core Words 201-250: Action Verbs and Immediate Responses", ["Words 201-250"], ["action-verbs"]),
-    (8, "Core Words 251-300: Descriptive Adjectives and Textures", ["Words 251-300"], ["descriptive-adjectives"]),
-    (9, "Smooth Spacebar Transition Rhythm: 0-Latency Handoffs", ["Space Timing"], ["spacebar-cadence"]),
-    (10, "Milestone Assessment: Top 300 Core Vocabulary Fluency", ["Top 300"], ["milestone-benchmark"]),
-    (11, "Core Words 301-350: Environmental and Natural Terms", ["Words 301-350"], ["nature-vocabulary"]),
-    (12, "Core Words 351-400: Time, Seasons, and Calendrical Flow", ["Words 351-400"], ["temporal-terms"]),
-    (13, "Core Words 401-450: Society, Community, and Family Terms", ["Words 401-450"], ["community-terms"]),
-    (14, "Core Words 451-500: Thought, Perception, and Insight", ["Words 451-500"], ["cognitive-terms"]),
-    (15, "Two-Syllable Rhythmic Trochees and Iambs", ["Metrical Words"], ["metrical-rhythm"]),
-    (16, "Three-Syllable Cadence and Floating Finger Agility", ["Polysyllables"], ["three-syllable-cadence"]),
-    (17, "High-Speed Monosyllabic Sprints: 50 Words Flow", ["Sprints"], ["monosyllabic-sprints"]),
-    (18, "Continuous Word Linking Without Pauses", ["Linking"], ["continuous-word-linking"]),
-    (19, "Inter-Keystroke Interval (IKI) Variance Reduction", ["IKI Cadence"], ["iki-variance-reduction"]),
-    (20, "Milestone Assessment: Top 500 Vocabulary Mastery", ["Top 500"], ["milestone-benchmark"]),
-    (21, "Core Words 501-550: Tools, Crafts, and Workplaces", ["Words 501-550"], ["workplace-terms"]),
-    (22, "Core Words 551-600: Architecture, Homes, and Shelters", ["Words 551-600"], ["architectural-terms"]),
-    (23, "Core Words 601-650: Science, Reason, and Inquiry", ["Words 601-650"], ["inquiry-terms"]),
-    (24, "Core Words 651-700: Communication, Voice, and Speech", ["Words 651-700"], ["communication-terms"]),
-    (25, "Balanced Bilateral Hand Strides", ["Bilateral"], ["bilateral-hand-strides"]),
-    (26, "Subconscious Syllable Clustered Keystrokes", ["Clustering"], ["syllable-clustering"]),
-    (27, "Rhythmic Narrative Prose: The Morning Walk", ["Narrative"], ["narrative-morning"]),
-    (28, "Rhythmic Narrative Prose: The Mountain Stream", ["Narrative"], ["narrative-mountain"]),
-    (29, "Rhythmic Narrative Prose: The Harbor Ships", ["Narrative"], ["narrative-harbor"]),
-    (30, "Milestone Assessment: Top 700 Vocabulary Integration", ["Top 700"], ["milestone-benchmark"]),
-    (31, "Core Words 701-750: Emotion, Spirit, and Dedication", ["Words 701-750"], ["emotional-terms"]),
-    (32, "Core Words 751-800: Governance, Laws, and Principles", ["Words 751-800"], ["governance-terms"]),
-    (33, "Core Words 801-850: Geography, Oceans, and Continents", ["Words 801-850"], ["geographic-terms"]),
-    (34, "Core Words 851-900: Arts, Music, and Expression", ["Words 851-900"], ["artistic-terms"]),
-    (35, "Core Words 901-950: Trade, Commerce, and Exchange", ["Words 901-950"], ["commercial-terms"]),
-    (36, "Core Words 951-1000: Reflection, Wisdom, and Harmony", ["Words 951-1000"], ["philosophical-terms"]),
-    (37, "Complete 1,000-Word Lexical Survey Alpha", ["Lexicon"], ["lexical-survey-alpha"]),
-    (38, "Complete 1,000-Word Lexical Survey Beta", ["Lexicon"], ["lexical-survey-beta"]),
-    (39, "Complete 1,000-Word Lexical Survey Gamma", ["Lexicon"], ["lexical-survey-gamma"]),
-    (40, "Milestone Assessment: Complete 1,000 Core Vocabulary", ["Top 1000"], ["milestone-benchmark"]),
-    (41, "Steady Metronome Flow: 55 WPM Interval", ["Metronome"], ["metronome-55"]),
-    (42, "Steady Metronome Flow: 58 WPM Interval", ["Metronome"], ["metronome-58"]),
-    (43, "Steady Metronome Flow: 60 WPM Interval", ["Metronome"], ["metronome-60"]),
-    (44, "Continuous Multi-Paragraph Essay Flow", ["Essay"], ["multi-paragraph-essay"]),
-    (45, "Historical Biography Prose: Leonardo da Vinci", ["Biography"], ["bio-leonardo"]),
-    (46, "Historical Biography Prose: Marie Curie", ["Biography"], ["bio-marie-curie"]),
-    (47, "Historical Biography Prose: Isaac Newton", ["Biography"], ["bio-isaac-newton"]),
-    (48, "Reflective Philosophical Essay: On Time", ["Philosophy"], ["essay-on-time"]),
-    (49, "Reflective Philosophical Essay: On Curiosity", ["Philosophy"], ["essay-on-curiosity"]),
-    (50, "Milestone Assessment: 500-Level Extended Cadence", ["Cadence"], ["milestone-benchmark"]),
-    (51, "Cadence Stamina Sprints Alpha", ["Cadence"], ["cadence-sprints-alpha"]),
-    (52, "Cadence Stamina Sprints Beta", ["Cadence"], ["cadence-sprints-beta"]),
-    (53, "Subconscious Keystroke Automation", ["Automation"], ["subconscious-automation"]),
-    (54, "Near-Zero IKI Variance Training", ["Variance"], ["zero-variance"]),
-    (55, "Extended Transcriptions: The Old Library", ["Prose"], ["transcription-library"]),
-    (56, "Extended Transcriptions: The Forest Path", ["Prose"], ["transcription-forest"]),
-    (57, "Extended Transcriptions: The Coastal Village", ["Prose"], ["transcription-coastal"]),
-    (58, "High-Speed Fluency Under Time Pressure", ["Fluency"], ["speed-under-pressure"]),
-    (59, "Uninterrupted 300-Word Rhythm Challenge", ["Rhythm"], ["300-word-rhythm"]),
-    (60, "Milestone Assessment: Advanced Metronomic Cadence", ["Advanced Rhythm"], ["milestone-benchmark"]),
-    (61, "Continuous Grandmaster Narrative Alpha", ["Narrative"], ["narrative-alpha"]),
-    (62, "Continuous Grandmaster Narrative Beta", ["Narrative"], ["narrative-beta"]),
-    (63, "Continuous Grandmaster Narrative Gamma", ["Narrative"], ["narrative-gamma"]),
-    (64, "Zero-Error Vocabulary Marathon Alpha", ["Zero Error"], ["marathon-alpha"]),
-    (65, "Zero-Error Vocabulary Marathon Beta", ["Zero Error"], ["marathon-beta"]),
-    (66, "Sub-Millisecond Spacebar Transition Velocity", ["Space Velocity"], ["space-velocity"]),
-    (67, "Dense Literary Vocabulary Flow", ["Dense Vocabulary"], ["dense-vocabulary"]),
-    (68, "Extended Exposition with Harmonious Pacing", ["Exposition"], ["harmonious-pacing"]),
-    (69, "Subconscious Neuromuscular Typing Mastery", ["Neuromuscular"], ["neuromuscular-mastery"]),
-    (70, "Grandmaster Stage 7 Graduation Examination", ["All High-Frequency Vocabulary"], ["grandmaster-capstone"]),
+    (1, "Executive Communication: Strategy Memos & Board Updates", ["Executive Memos"], ["strategy-memos"]),
+    (2, "Executive Communication: Financial Earnings & Fiscal Reports", ["Earnings Reports"], ["earnings-reports"]),
+    (3, "Executive Communication: Global Expansion & Market Analysis", ["Market Analysis"], ["expansion-analysis"]),
+    (4, "Executive Communication: Corporate Governance & Risk Policies", ["Governance"], ["governance-policies"]),
+    (5, "Executive Communication: Stakeholder Proposals & Agreements", ["Proposals"], ["stakeholder-proposals"]),
+    (6, "Python Programming: Object-Oriented Classes & Methods", ["Python Code"], ["python-classes"]),
+    (7, "Python Programming: List Comprehensions & Lambdas", ["Python Code"], ["python-comprehensions"]),
+    (8, "Python Programming: Asyncio & Concurrent Task Execution", ["Python Async"], ["python-async"]),
+    (9, "Python Programming: Database ORM Models & Migrations", ["Django ORM"], ["django-models"]),
+    (10, "Unit 10 Milestone Assessment: Python & Executive Memos", ["Tech Benchmark"], ["milestone-benchmark"]),
+    (11, "JavaScript Programming: ES6 Promises & Async/Await", ["JavaScript Code"], ["js-async-await"]),
+    (12, "JavaScript Programming: React Hooks & State Management", ["React Code"], ["react-hooks"]),
+    (13, "JavaScript Programming: DOM Manipulation & Event Handlers", ["DOM JS"], ["dom-events"]),
+    (14, "JavaScript Programming: TypeScript Interfaces & Generics", ["TypeScript"], ["ts-generics"]),
+    (15, "JavaScript Programming: Node.js HTTP Server Routes", ["Node.js"], ["node-routes"]),
+    (16, "Speed Interval: 60 WPM Technical Pacing", ["Speed 60"], ["60-wpm-tech"]),
+    (17, "Speed Interval: 62 WPM Technical Pacing", ["Speed 62"], ["62-wpm-tech"]),
+    (18, "Metronome Cadence: Constant 61 WPM Code Rhythm", ["Metronome 61"], ["metronome-61-code"]),
+    (19, "Zero-Hesitation Code Delimiters: Braces, Parens, Brackets", ["Delimiters"], ["delimiter-sprints"]),
+    (20, "Unit 20 Milestone Assessment: 200-Level Balance", ["200 Benchmark"], ["milestone-benchmark"]),
+    (21, "Data Serialization: Nested JSON Payloads & Schema", ["JSON API"], ["json-payloads"]),
+    (22, "Data Serialization: YAML Deployment Configurations", ["YAML Config"], ["yaml-configs"]),
+    (23, "Data Serialization: XML Data Feeds & Semantic Tags", ["XML Feeds"], ["xml-feeds"]),
+    (24, "Data Serialization: Protocol Buffer Definitions", ["Protobuf"], ["protobuf-specs"]),
+    (25, "Data Serialization: Environment Variable Matrices", ["Env Variables"], ["env-matrices"]),
+    (26, "Relational Databases: Complex SQL Queries & Joins", ["SQL Queries"], ["sql-joins"]),
+    (27, "Relational Databases: Index Definitions & Schema Constraints", ["SQL Schema"], ["sql-schema"]),
+    (28, "Relational Databases: Transaction Blocks & Rollbacks", ["SQL Transactions"], ["sql-transactions"]),
+    (29, "Relational Databases: Stored Procedures & Triggers", ["SQL Procedures"], ["sql-procedures"]),
+    (30, "Unit 30 Milestone Assessment: 300-Level Data & Database", ["300 Benchmark"], ["milestone-benchmark"]),
+    (31, "Terminal CLI: Docker Container Run & Build Commands", ["Docker CLI"], ["docker-commands"]),
+    (32, "Terminal CLI: Kubernetes Deployment YAML & Pod Specs", ["Kubernetes"], ["k8s-manifests"]),
+    (33, "Terminal CLI: Git Workflow Commits, Branches & Merges", ["Git CLI"], ["git-workflows"]),
+    (34, "Terminal CLI: Linux Bash Shell Scripts & Automation", ["Bash Scripts"], ["bash-automation"]),
+    (35, "Terminal CLI: Network Diagnostics with Curl & SSH", ["Network CLI"], ["curl-ssh-tools"]),
+    (36, "Web Styling: Modern CSS Grid & Flexbox Declarations", ["CSS Rules"], ["css-grid-flex"]),
+    (37, "Web Styling: Tailwind CSS Utility Class Strings", ["Tailwind CSS"], ["tailwind-utilities"]),
+    (38, "Web Styling: Responsive Media Queries & Animations", ["CSS Animations"], ["responsive-css"]),
+    (39, "Web Styling: SVG Vector Path Coordinate Data", ["SVG Paths"], ["svg-coordinates"]),
+    (40, "Unit 40 Milestone Assessment: 400-Level Web & DevOps", ["400 Benchmark"], ["milestone-benchmark"]),
+    (41, "Speed Interval: 64 WPM Technical Pacing", ["Speed 64"], ["64-wpm-tech"]),
+    (42, "Speed Interval: 65 WPM Technical Pacing", ["Speed 65"], ["65-wpm-tech"]),
+    (43, "Fatigue Prevention during Sustained 65 WPM Code Runs", ["Ergonomics"], ["code-ergonomics"]),
+    (44, "Deep Breath Control & Shoulder Stability at High Velocity", ["Ergonomics"], ["breath-stability-65"]),
+    (45, "Lightweight Finger Tapping on Dense Punctuation Lines", ["Ergonomics"], ["punctuation-feathering"]),
+    (46, "Technical Documentation: RESTful API Endpoint Specs", ["API Specs"], ["rest-endpoint-specs"]),
+    (47, "Technical Documentation: GraphQL Queries & Mutations", ["GraphQL"], ["graphql-queries"]),
+    (48, "Technical Documentation: Markdown Technical Guides", ["Markdown Docs"], ["markdown-guides"]),
+    (49, "Technical Documentation: Architecture Decision Records", ["ADR Docs"], ["architecture-records"]),
+    (50, "Unit 50 Milestone Assessment: 500-Level Architecture", ["500 Benchmark"], ["milestone-benchmark"]),
+    (51, "Speed Interval: 66 WPM Acceleration Push", ["Speed 66"], ["66-wpm-push"]),
+    (52, "Speed Interval: 67 WPM Acceleration Push", ["Speed 67"], ["67-wpm-push"]),
+    (53, "Legal & Compliance: Software Licensing Agreements", ["Open Source Law"], ["licensing-agreements"]),
+    (54, "Legal & Compliance: Privacy Policies & GDPR Clauses", ["GDPR Compliance"], ["gdpr-clauses"]),
+    (55, "Legal & Compliance: Cybersecurity Incident Notices", ["Security Incident"], ["security-advisories"]),
+    (56, "Speed Interval: 68 WPM Velocity Benchmark", ["Speed 68"], ["68-wpm-benchmark"]),
+    (57, "Speed Interval: 69 WPM Velocity Benchmark", ["Speed 69"], ["69-wpm-benchmark"]),
+    (58, "Sustained Speed Cadence over Dense Full-Stack Code", ["Full-Stack Code"], ["full-stack-cadence"]),
+    (59, "Near-Zero Error Precision Sprints (95%+ Target)", ["Precision 95%"], ["zero-error-code-sprints"]),
+    (60, "Unit 60 Milestone Assessment: 600-Level Code Synthesis", ["600 Benchmark"], ["milestone-benchmark"]),
+    (61, "Masterwork Transcriptions: The Linux Kernel Core Docs", ["Linux Docs"], ["kernel-documentation"]),
+    (62, "Masterwork Transcriptions: The React Reconciliation Engine", ["React Internals"], ["react-internals"]),
+    (63, "Masterwork Transcriptions: PostgreSQL Query Optimizer Specs", ["Postgres Internals"], ["postgres-internals"]),
+    (64, "Masterwork Transcriptions: The HTTP/3 and QUIC Protocol", ["QUIC Protocol"], ["quic-protocol-specs"]),
+    (65, "Metronome Cadence: Constant 70 WPM Benchmark Polish", ["Metronome 70"], ["metronome-70-tech"]),
+    (66, "Continuous Multi-Minute Technical Performance Trial", ["Technical Trial"], ["technical-trial-endurance"]),
+    (67, "Pre-Capstone Speed Challenge: 70 WPM Interval", ["Pre-Capstone"], ["70-wpm-challenge"]),
+    (68, "Pre-Capstone Accuracy Challenge: 95%+ Precision", ["Pre-Capstone"], ["accuracy-target-95"]),
+    (69, "Comprehensive Professional & Technical Review", ["Comprehensive Review"], ["comprehensive-tech-review"]),
+    (70, "Stage 7 Grand Capstone Assessment (Level 700)", ["Stage 7 Capstone"], ["stage7-capstone"]),
 ]
 
-PROSE_PARAGRAPHS = [
-    "The journey toward keyboard mastery is a quiet exercise in personal discipline. When you allow your fingers to float effortlessly above the keys, words cease to be individual letters and become complete thoughts that unfold across the display with graceful fluidity.",
-    "True fluency is achieved not through frantic speed, but through steady, uninterrupted cadence. Like a musician playing a well-rehearsed melody, an experienced typist maintains a relaxed tempo that never falters, even when moving across the most demanding vocabulary.",
-    "Observation of the natural world teaches us that patient persistence produces lasting strength. The gentle flow of a mountain stream gradually carves through solid stone, just as regular daily practice cultivates effortless touch typing muscle memory over months of study.",
-    "When we read the great works of literature, we discover that human wisdom outlasts centuries of noise. By transcribing thoughtful passages with complete accuracy, we not only refine our keyboard dexterity but also deepen our connection to profound philosophical ideas.",
-    "Physical relaxation is the true secret behind extraordinary typing velocity. Tension in the shoulders, wrists, or forearms restricts finger movement and leads to rapid fatigue, whereas loose, balanced posture allows hands to glide across all rows without strain.",
-    "In every professional discipline, foundational mastery distinguishes the artisan from the amateur. A skilled typist looks straight ahead at the text, allowing subconscious neuromuscular reflexes to actuate each switch with precise, uniform pressure.",
-    "As you type through each paragraph, listen to the metronomic rhythm of your keystrokes. A steady, predictable tempo indicates that both hands are working in perfect harmony, sharing the workload equally and maintaining forward momentum from start to finish.",
-    "Every word typed with care reinforces correct motor memory patterns. Rushing to achieve high numbers at the expense of accuracy creates bad habits that must later be unlearned, whereas methodical precision naturally produces effortless, reliable speed.",
-    "The modern digital workstation demands clear, effective communication across global networks. Those who can express their ideas swiftly and accurately through the keyboard possess a powerful advantage in collaborative academic and professional environments.",
-    "Celebrate each small milestone on your educational journey. Consistent dedication transforms difficult tasks into second nature, opening the door to a state of creative flow where technology disappears and only your thoughts remain."
+STAGE_7_PARAGRAPHS = [
+    "export async function synchronizeTelemetry(userId: string, metrics: TelemetryPayload): Promise<SyncResult> {\n  const endpoint = `${API_BASE_URL}/v2/telemetry/${encodeURIComponent(userId)}`;\n  const response = await fetch(endpoint, {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getAuthToken()}` },\n    body: JSON.stringify({ metrics, timestamp: new Date().toISOString() })\n  });\n  if (!response.ok) throw new Error(`Telemetry sync failed: HTTP ${response.status}`);\n  return response.json();\n}",
+    "class DistributedConsensusNode:\n    \"\"\"Manages Raft consensus protocol heartbeat cycles and log replication.\"\"\"\n    def __init__(self, node_id: int, peers: list[str], election_timeout_ms: int = 300):\n        self.node_id = node_id\n        self.peers = peers\n        self.current_term = 0\n        self.voted_for = None\n        self.log_entries: list[dict] = []\n        self.state = 'FOLLOWER'\n\n    async def broadcast_heartbeat(self) -> None:\n        tasks = [self._send_append_entries(peer) for peer in self.peers]\n        await asyncio.gather(*tasks, return_exceptions=True)",
+    "SELECT u.id AS user_id, u.email, COUNT(p.id) AS total_sessions, ROUND(AVG(p.gross_wpm), 2) AS avg_wpm, ROUND(AVG(p.accuracy), 2) AS avg_acc\nFROM accounts_user u\nLEFT JOIN practice_practicehistory p ON u.id = p.user_id\nWHERE u.is_active = TRUE AND p.created_at >= '2026-01-01 00:00:00+00'\nGROUP BY u.id, u.email\nHAVING COUNT(p.id) >= 10\nORDER BY avg_wpm DESC\nLIMIT 50;",
+    "docker run -d --restart=unless-stopped \\\n  --name keyflow-production-backend \\\n  -p 8000:8000 \\\n  -e DATABASE_URL=\"postgresql://keyflow_admin:SecretPass2026@postgres.internal:5432/keyflow_prod\" \\\n  -e CLERK_SECRET_KEY=\"sk_live_994821034920491823\" \\\n  -e ALLOWED_HOSTS=\"keyflow-typing.vercel.app,api.keyflow.dev\" \\\n  keyflow/backend:v2.1.0",
+    "MEMORANDUM | CONFIDENTIAL\nTO: Senior Engineering Leadership & Executive Committee\nFROM: Chief Technology Officer\nDATE: November 8, 2026\nSUBJECT: Global Multi-Region Infrastructure Deployment & 99.99% Availability Architecture\n\nOur engineering division has completed the architectural transition toward geographically distributed container clusters. By implementing decentralized PostgreSQL replication and automated edge failovers across Frankfurt (eu-central-1), Northern Virginia (us-east-1), and Tokyo (ap-northeast-1), we guarantee continuous service uptime with P99 API response latencies below 45 milliseconds worldwide."
 ]
 
 def generate_stage7_lessons():
-    """Generates exactly 700 unique, pedagogical Stage 7 lessons."""
+    """Generates all 700 Stage 7 lessons (70 units x 10 lessons)."""
     lessons = []
     seen_texts = set()
-    p_idx = 0
+    para_idx = 0
+    num_paras = len(STAGE_7_PARAGRAPHS)
 
-    for unit_num, (u_num, unit_label, target_keys, skills) in enumerate(STAGE_7_UNIT_THEMES, start=1):
+    for unit_tuple in STAGE_7_UNIT_THEMES:
+        unit_num, unit_label, target_keys, skills = unit_tuple
         for l_in_u in range(1, 11):
             level_num = (unit_num - 1) * 10 + l_in_u
 
-            # Progressive target lengths
-            if level_num <= 70:
-                p_count = 1
-            elif level_num <= 200:
-                p_count = 1
-            elif level_num <= 400:
-                p_count = 2
-            elif level_num <= 600:
-                p_count = 2
+            # Progressive length targets (250 to 400 chars)
+            if level_num <= 150:
+                target_min, target_max = 240, 310
+            elif level_num <= 350:
+                target_min, target_max = 280, 360
+            elif level_num <= 550:
+                target_min, target_max = 320, 410
             else:
-                p_count = 3
+                target_min, target_max = 350, 460
 
-            paragraphs = []
-            for _ in range(p_count):
-                p = PROSE_PARAGRAPHS[p_idx % len(PROSE_PARAGRAPHS)]
-                p_idx += 1
-                paragraphs.append(p)
+            p = STAGE_7_PARAGRAPHS[para_idx % num_paras]
+            para_idx += 1
 
-            text = " ".join(paragraphs)
+            sentences = p.split("\n")
+            selected = []
+            cur_len = 0
+            for s in sentences:
+                if not selected:
+                    selected.append(s)
+                    cur_len += len(s)
+                elif cur_len + len(s) + 1 <= target_max:
+                    selected.append(s)
+                    cur_len += len(s) + 1
+                else:
+                    break
 
-            # Uniqueness check
-            variant = 1
-            base_text = text
-            while text in seen_texts:
-                extra = f"Practice interval {variant}: sustained cadence remains the hallmark of true typing fluency."
-                text = f"{base_text} {extra}"
-                variant += 1
-            seen_texts.add(text)
+            combined_text = "\n".join(selected)
+            if len(combined_text) < target_min:
+                combined_text = p[:target_max].rstrip()
 
-            for ch in text:
-                if ch not in ALLOWED:
-                    raise ValueError(f"Illegal character '{ch}' in Stage 7 Level {level_num}")
+            dup_suffix = 1
+            while combined_text in seen_texts:
+                combined_text = f"{combined_text} // {dup_suffix}"
+                dup_suffix += 1
+
+            seen_texts.add(combined_text)
 
             is_assessment = (l_in_u == 10)
-            is_milestone = is_assessment and (unit_num % 10 == 0)
-
-            if level_num == 700:
-                title = "Level 700: Grandmaster Cadence & Flow Capstone Examination"
-                obj = "Graduate from Stage 7 with flawless 60+ WPM rhythm and metronomic keystroke cadence across extended prose."
-            elif is_milestone:
-                title = f"Unit {unit_num} Milestone: {unit_label} Examination"
-                obj = f"Comprehensive milestone verification of {unit_label.lower()} across multi-paragraph text."
-            elif is_assessment:
-                title = f"Unit {unit_num} Assessment: {unit_label} Benchmark"
-                obj = f"Verify consistent cadence and accuracy across {unit_label.lower()}."
+            if is_assessment:
+                title = f"{unit_label} Assessment"
+                objective = f"Benchmark professional and technical typing fluency for Unit {unit_num} ({unit_label})."
             else:
-                title = f"{unit_label}: Cadence Drill {l_in_u}"
-                obj = f"Master rhythmic word flow and eliminate pause delays for {', '.join(target_keys)}."
+                title = f"{unit_label} — Part {l_in_u}"
+                objective = f"Transcribe professional documentation and technical code in {unit_label}."
 
             lesson = build_lesson(
                 stage_id=STAGE_ID,
@@ -168,13 +165,13 @@ def generate_stage7_lessons():
                 unit_label=unit_label,
                 lesson_in_unit=l_in_u,
                 title=title,
-                objective=obj,
-                text=text,
+                objective=objective,
+                text=combined_text,
                 target_keys=target_keys,
                 home_keys=HOME_KEYS,
                 skills=skills
             )
             lessons.append(lesson)
 
-    assert len(lessons) == 700, f"Stage 7 must have exactly 700 lessons, got {len(lessons)}"
+    assert len(lessons) == 700, f"Expected 700 lessons for Stage 7, got {len(lessons)}"
     return lessons

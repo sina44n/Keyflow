@@ -135,3 +135,4 @@ class ProfileSettingsPersistenceTests(TestCase):
         self.assertEqual(prefs_b.daily_goal_minutes, 60)
         self.assertEqual(prefs_b.weekly_goal_minutes, 420)
         self.assertEqual(prefs_b.first_day_of_week, 1)
+

@@ -2,8 +2,18 @@ import React, { useState, useMemo } from 'react';
 import { Lightbulb } from 'lucide-react';
 import { generateProgressTimeSeries } from '../../utils/telemetryStorage.js';
 
-export const ProgressOverviewChart = ({ sessions = [], activeReportMetrics }) => {
-  const [aggregation, setAggregation] = useState('daily'); // 'daily' | 'weekly' | 'monthly'
+export const ProgressOverviewChart = ({ sessions = [], activeReportMetrics, activeReport = 'overall' }) => {
+  const targetAggregation = useMemo(() => {
+    if (activeReport === 'today' || activeReport === 'daily') return 'daily';
+    if (activeReport === 'weekly') return 'weekly';
+    return 'monthly';
+  }, [activeReport]);
+
+  const [aggregation, setAggregation] = useState(targetAggregation);
+
+  React.useEffect(() => {
+    setAggregation(targetAggregation);
+  }, [targetAggregation]);
 
   // Metric visibility toggles (Reference Image 3)
   const [showPracticeTime, setShowPracticeTime] = useState(true);
@@ -95,22 +105,9 @@ export const ProgressOverviewChart = ({ sessions = [], activeReportMetrics }) =>
           </p>
         </div>
 
-        {/* Daily | Weekly | Monthly segmented tabs */}
-        <div className="inline-flex rounded-xl bg-[var(--bg-elevated)] p-1 border border-[var(--border)] text-xs font-mono self-start sm:self-auto">
-          {['daily', 'weekly', 'monthly'].map((mode) => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => setAggregation(mode)}
-              className={`px-3 py-1.5 rounded-lg capitalize font-semibold transition-all cursor-pointer ${
-                aggregation === mode
-                  ? 'bg-[var(--accent)] text-[var(--accent-fg)] shadow-xs'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {mode}
-            </button>
-          ))}
+        {/* Synchronized Global Period Indicator */}
+        <div className="inline-flex rounded-xl bg-[var(--bg-elevated)] px-3 py-1.5 border border-[var(--border)] text-xs font-mono font-medium text-[var(--accent)] capitalize self-start sm:self-auto shadow-2xs">
+          {aggregation} view
         </div>
       </div>
 

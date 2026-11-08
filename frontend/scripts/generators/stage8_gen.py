@@ -1,164 +1,159 @@
 """
-Stage 8 Generator: Speed & Endurance Building (700 Levels)
+Stage 8 Generator: High-Speed Mastery & Stamina (700 Levels)
 10 Stages x 70 Units x 10 Levels Architecture
 
-Keys: Full keyboard prose, speed sprints, sustained endurance paragraphs.
-Focus: 60 to 72 WPM pacing, stamina without fatigue, relaxed breathing, flow state.
-Target WPM: 60 to 72 | Target Accuracy: 93% to 95%
+Pedagogical Objective:
+Develop high-speed typing mastery and sustained endurance (65 to 78 WPM).
+Train multi-minute high-velocity passages without wrist tension or fatigue accumulation,
+achieve effortless rapid multi-word chunk recognition, eliminate pause latencies,
+and maintain 94% to 96%+ accuracy across extended literary and technical stamina runs.
+
+Zero repetitive alphabet introductions.
+Target WPM: 65 to 78 | Target Accuracy: 94% to 96%
 """
 
 from .curriculum_builder import build_lesson
 
 STAGE_ID = 8
-STAGE_TITLE = "Speed & Endurance Building"
+STAGE_TITLE = "High-Speed Mastery & Stamina"
 HOME_KEYS = ["F", "J"]
-STAGE_KEYS = ["Speed Sprints", "Sustained Stamina", "Pacing Control", "Ergonomics"]
-ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.;:?!'\"-_()+ ")
+STAGE_KEYS = ["High-Speed Cadence", "Multi-Minute Stamina", "Fatigue Prevention", "Velocity Sprints"]
 
 STAGE_8_UNIT_THEMES = [
-    (1, "Sprint Acceleration: 55 to 60 WPM Intervals", ["Sprint 60"], ["sprint-intervals-60"]),
-    (2, "Sprint Acceleration: 60 to 65 WPM Intervals", ["Sprint 65"], ["sprint-intervals-65"]),
-    (3, "Sprint Acceleration: 65 to 70 WPM Intervals", ["Sprint 70"], ["sprint-intervals-70"]),
-    (4, "Burst Velocity: Short 30-Word Sprints", ["Burst Velocity"], ["burst-velocity-short"]),
-    (5, "Burst Velocity: Medium 50-Word Sprints", ["Burst Velocity"], ["burst-velocity-medium"]),
-    (6, "Forearm Relaxation and Tendon Health", ["Ergonomics"], ["forearm-relaxation"]),
-    (7, "Neutral Wrist Posture Under High Speed", ["Postural Control"], ["neutral-wrist-speed"]),
-    (8, "Breathing Rhythm and Mental Focus", ["Mental Focus"], ["breathing-rhythm"]),
-    (9, "Zero-Hesitation Word Transitions at 65+ WPM", ["High-Pace Flow"], ["zero-hesitation-speed"]),
-    (10, "Milestone Assessment: Initial Speed Sprint Benchmark", ["Sprint Benchmark"], ["milestone-benchmark"]),
-    (11, "One-Minute Continuous Endurance: 60 WPM", ["1-Min Endurance"], ["one-minute-60"]),
-    (12, "One-Minute Continuous Endurance: 65 WPM", ["1-Min Endurance"], ["one-minute-65"]),
-    (13, "One-Minute Continuous Endurance: 70 WPM", ["1-Min Endurance"], ["one-minute-70"]),
-    (14, "Pacing Discipline: Starting at Sustainable Speed", ["Pacing"], ["sustainable-pacing"]),
-    (15, "Avoiding the Sprint-and-Stall Trap", ["Pacing Control"], ["avoid-stall"]),
-    (16, "Two-Minute Sustained Transcription: 60 WPM", ["2-Min Endurance"], ["two-minute-60"]),
-    (17, "Two-Minute Sustained Transcription: 65 WPM", ["2-Min Endurance"], ["two-minute-65"]),
-    (18, "Sub-Millisecond Keystroke Recovery Under Pressure", ["Reflex Recovery"], ["sub-ms-recovery"]),
-    (19, "Rhythmic Metronome Pacing at 68 WPM", ["Metronome"], ["metronome-68"]),
-    (20, "Milestone Assessment: Two-Minute Stamina Benchmark", ["Two-Minute Stamina"], ["milestone-benchmark"]),
-    (21, "Three-Minute Continuous Prose: Steady Tempo", ["3-Min Endurance"], ["three-minute-tempo"]),
-    (22, "Three-Minute Continuous Prose: Velocity Peaks", ["3-Min Endurance"], ["three-minute-peaks"]),
-    (23, "Handling Difficult Multi-Syllable Words at Speed", ["Complex Words"], ["difficult-words-speed"]),
-    (24, "Punctuation Integration Without Speed Drops", ["Punctuation Speed"], ["punctuation-without-drop"]),
-    (25, "Capitalization Sprint Waves: Opposite Shift at 65+ WPM", ["Shift Speed"], ["shift-sprint-waves"]),
-    (26, "Four-Minute Continuous Marathon: Pacing Control", ["4-Min Marathon"], ["four-minute-pacing"]),
-    (27, "Four-Minute Continuous Marathon: Stamina Maintenance", ["4-Min Marathon"], ["four-minute-stamina"]),
-    (28, "Muscle Memory Fatigue Prevention Techniques", ["Fatigue Prevention"], ["fatigue-prevention"]),
-    (29, "Instant Error Recovery: Fluid Backspace and Resume", ["Error Recovery"], ["fluid-backspace-recovery"]),
-    (30, "Milestone Assessment: Four-Minute Endurance Benchmark", ["Four-Minute Stamina"], ["milestone-benchmark"]),
-    (31, "Five-Minute Sustained Transcription: Classical Essays", ["5-Min Endurance"], ["five-minute-essays"]),
-    (32, "Five-Minute Sustained Transcription: Scientific Logs", ["5-Min Endurance"], ["five-minute-scientific"]),
-    (33, "Five-Minute Sustained Transcription: Historical Narratives", ["5-Min Endurance"], ["five-minute-historical"]),
-    (34, "Five-Minute Sustained Transcription: Philosophical Treatises", ["5-Min Endurance"], ["five-minute-philosophy"]),
-    (35, "Steady 70 WPM Cadence Across 350 Words", ["70 WPM Cadence"], ["70-wpm-cadence"]),
-    (36, "Burst Velocity Followed by Paced Recovery", ["Interval Training"], ["interval-training"]),
-    (37, "High-Speed Rhythm Across Complex Sentence Clauses", ["Complex Clauses"], ["complex-clause-speed"]),
-    (38, "Unbroken Concentration: 400 Consecutive Words", ["Concentration"], ["unbroken-concentration"]),
-    (39, "Sustained Gross WPM with 95%+ Precision", ["Gross Speed"], ["gross-speed-precision"]),
-    (40, "Milestone Assessment: Five-Minute Marathon Benchmark", ["Five-Minute Marathon"], ["milestone-benchmark"]),
-    (41, "High-Velocity Acceleration Sprints Alpha", ["Acceleration"], ["acceleration-alpha"]),
-    (42, "High-Velocity Acceleration Sprints Beta", ["Acceleration"], ["acceleration-beta"]),
-    (43, "High-Velocity Acceleration Sprints Gamma", ["Acceleration"], ["acceleration-gamma"]),
-    (44, "Extended Multi-Clause Prose Transcriptions", ["Extended Prose"], ["extended-prose-speed"]),
-    (45, "Fatigue-Free Ergonomic Keystroke Touch", ["Light Touch"], ["light-touch-ergonomics"]),
-    (46, "Rhythmic Breathing Under Extreme Velocity", ["Breathing"], ["rhythmic-breathing"]),
-    (47, "Continuous 450-Word Flow State Challenge", ["Flow State"], ["flow-state-450"]),
-    (48, "Smooth Velocity Transitions Across Text Paragraphs", ["Velocity Transitions"], ["velocity-transitions"]),
-    (49, "Near-Zero Error Velocity Maintenance", ["Zero Error"], ["zero-error-velocity"]),
-    (50, "Milestone Assessment: 500-Level Grand Endurance", ["Grand Endurance"], ["milestone-benchmark"]),
-    (51, "Endurance Interval Alpha: 70 WPM Sustained", ["70 WPM Sustained"], ["70-sustained-alpha"]),
-    (52, "Endurance Interval Beta: 72 WPM Peak Burst", ["72 WPM Peak"], ["72-peak-beta"]),
-    (53, "Endurance Interval Gamma: 72 WPM Steady Pacing", ["72 WPM Steady"], ["72-steady-gamma"]),
-    (54, "Subconscious Ergonomic Muscle Relaxation", ["Relaxation"], ["subconscious-relaxation"]),
-    (55, "Deep Flow State Keyboard Transcriptions", ["Deep Flow"], ["deep-flow-transcriptions"]),
-    (56, "500-Word Sustained Historical Narrative", ["500 Words"], ["500-word-history"]),
-    (57, "500-Word Sustained Scientific Abstract", ["500 Words"], ["500-word-science"]),
-    (58, "500-Word Sustained Literary Passage", ["500 Words"], ["500-word-literature"]),
-    (59, "Unshakable Mental Poise Under Examination", ["Mental Poise"], ["mental-poise-speed"]),
-    (60, "Milestone Assessment: Master Endurance Benchmark", ["Master Endurance"], ["milestone-benchmark"]),
-    (61, "Continuous Speed Marathon Alpha: 70+ WPM", ["Marathon 70"], ["marathon-70-alpha"]),
-    (62, "Continuous Speed Marathon Beta: 70+ WPM", ["Marathon 70"], ["marathon-70-beta"]),
-    (63, "Continuous Speed Marathon Gamma: 72+ WPM", ["Marathon 72"], ["marathon-72-gamma"]),
-    (64, "Zero-Error Sustained Sprint at 70 WPM", ["Zero Error 70"], ["zero-error-70"]),
-    (65, "Metronomic Keystroke Cadence Under Fatigue", ["Fatigue Cadence"], ["fatigue-cadence"]),
-    (66, "Extended Academic Lecture Transcriptions", ["Lecture"], ["lecture-transcriptions"]),
-    (67, "Dense Descriptive Prose Flow at High Tempo", ["Dense Prose"], ["dense-prose-tempo"]),
-    (68, "Harmonious Bilateral Velocity Equilibrium", ["Equilibrium"], ["bilateral-equilibrium"]),
-    (69, "Sub-Millisecond Finger Handoff Velocity", ["Handoff Velocity"], ["handoff-velocity"]),
-    (70, "Grandmaster Stage 8 Graduation Examination", ["All Speed & Endurance"], ["grandmaster-capstone"]),
+    (1, "High-Velocity Sprints: 65 WPM Foundation Intervals", ["Velocity 65"], ["65-wpm-foundation"]),
+    (2, "Multi-Minute Stamina: Sustained Cadence Run Alpha", ["Stamina"], ["stamina-run-alpha"]),
+    (3, "Subconscious Multi-Word Recognition: Rapid Chunking", ["Word Chunking"], ["chunking-sprints"]),
+    (4, "Zero-Latency Word Boundary Transitions", ["Zero Latency"], ["zero-latency-transitions"]),
+    (5, "Bilateral Alternating Hand Acceleration", ["Bilateral Hand"], ["bilateral-acceleration"]),
+    (6, "Rapid Punctuation & Shift Integration at 66 WPM", ["Punctuation Speed"], ["punct-speed-66"]),
+    (7, "Alphanumeric Telemetry Integration at High Speed", ["Alphanumeric Speed"], ["telemetry-speed-66"]),
+    (8, "Lightweight Keystroke Feathering Technique", ["Ergonomics"], ["feathering-technique"]),
+    (9, "Breathing & Heart Rate Synchronization under Speed", ["Mindfulness"], ["breathing-synchronization"]),
+    (10, "Unit 10 Milestone Assessment: 66 WPM Speed Benchmark", ["Speed Benchmark"], ["milestone-benchmark"]),
+    (11, "Velocity Intervals: 67 WPM Sprint Cadence", ["Velocity 67"], ["67-wpm-cadence"]),
+    (12, "Multi-Minute Stamina: Sustained Cadence Run Beta", ["Stamina"], ["stamina-run-beta"]),
+    (13, "Complex Sentence Rapid Transcriptions: History", ["History Prose"], ["history-sprints"]),
+    (14, "Complex Sentence Rapid Transcriptions: Science", ["Science Prose"], ["science-sprints"]),
+    (15, "Complex Sentence Rapid Transcriptions: Philosophy", ["Philosophy Prose"], ["philosophy-sprints"]),
+    (16, "Speed Interval: 68 WPM Velocity Elevation", ["Velocity 68"], ["68-wpm-elevation"]),
+    (17, "Speed Interval: 69 WPM Velocity Elevation", ["Velocity 69"], ["69-wpm-elevation"]),
+    (18, "Metronome Cadence: Constant 68 WPM Steady Flow", ["Metronome 68"], ["metronome-68"]),
+    (19, "Fatigue Prevention on Outer Pinky and Ring Keys", ["Ergonomics"], ["pinky-fatigue-prevention"]),
+    (20, "Unit 20 Milestone Assessment: 200-Level Balance", ["200 Benchmark"], ["milestone-benchmark"]),
+    (21, "Speed Narrative: The Transatlantic Aeronautical Record", ["Aeronautics"], ["aeronautical-narrative"]),
+    (22, "Speed Narrative: The High-Altitude Arctic Observatory", ["Arctic Science"], ["arctic-narrative"]),
+    (23, "Speed Narrative: The Pacific Rim Tectonic Expeditions", ["Geophysics"], ["tectonic-narrative"]),
+    (24, "Speed Narrative: The Deep Space Radio Interferometer", ["Radio Astronomy"], ["interferometer-narrative"]),
+    (25, "Speed Narrative: The Modernist Architectural Renaissance", ["Architecture"], ["architectural-narrative"]),
+    (26, "Speed Interval: 70 WPM Milestone Push", ["Velocity 70"], ["70-wpm-push"]),
+    (27, "Speed Interval: 71 WPM Milestone Push", ["Velocity 71"], ["71-wpm-push"]),
+    (28, "Continuous Long-Form Stamina Run Alpha", ["Long-Form Stamina"], ["stamina-long-form-a"]),
+    (29, "Near-Zero Error Precision Sprints Alpha (95%+ Target)", ["Precision 95%"], ["zero-error-sprints-a"]),
+    (30, "Unit 30 Milestone Assessment: 300-Level Performance", ["300 Benchmark"], ["milestone-benchmark"]),
+    (31, "Literary Sprints: Classical English Romantic Poets", ["Romantic Poetry"], ["romantic-poets"]),
+    (32, "Literary Sprints: Victorian Social Commentaries", ["Victorian Prose"], ["victorian-commentary"]),
+    (33, "Literary Sprints: American Transcendentalist Essays", ["Transcendentalism"], ["emerson-thoreau"]),
+    (34, "Literary Sprints: Modernist Philosophical Reflections", ["Modern Philosophy"], ["modernist-reflections"]),
+    (35, "Literary Sprints: Dramatic Classical Monologues", ["Dramatic Prose"], ["dramatic-monologues"]),
+    (36, "Speed Interval: 72 WPM Velocity Elevation", ["Velocity 72"], ["72-wpm-elevation"]),
+    (37, "Speed Interval: 73 WPM Velocity Elevation", ["Velocity 73"], ["73-wpm-elevation"]),
+    (38, "Continuous Long-Form Stamina Run Beta", ["Long-Form Stamina"], ["stamina-long-form-b"]),
+    (39, "Eliminating Micro-Hesitations in Multi-Clause Syntax", ["Fluency"], ["micro-hesitation-elimination"]),
+    (40, "Unit 40 Milestone Assessment: 400-Level Synthesis", ["400 Benchmark"], ["milestone-benchmark"]),
+    (41, "Speed Interval: 74 WPM Acceleration Push", ["Velocity 74"], ["74-wpm-push"]),
+    (42, "Speed Interval: 75 WPM Acceleration Push", ["Velocity 75"], ["75-wpm-push"]),
+    (43, "Multi-Minute Stamina: Sustained Cadence Run Gamma", ["Stamina"], ["stamina-run-gamma"]),
+    (44, "Deep Forearm Relaxation & Wrist Floating at 75 WPM", ["Ergonomics"], ["forearm-relaxation-75"]),
+    (45, "Rapid Keystroke Handoffs on Alternating Words", ["Bilateral Speed"], ["alternating-handoffs"]),
+    (46, "Historical Speeches: World Leaders on Democratic Unity", ["Historic Speeches"], ["democratic-unity"]),
+    (47, "Historical Speeches: Scientific Discoveries That Changed the World", ["Science History"], ["scientific-speeches"]),
+    (48, "Historical Speeches: In Defense of Human Rights and Dignity", ["Human Rights"], ["human-rights-speeches"]),
+    (49, "Historical Speeches: Exploration of the Cosmos and Unknown", ["Space Speeches"], ["cosmos-speeches"]),
+    (50, "Unit 50 Milestone Assessment: 500-Level Endurance", ["500 Benchmark"], ["milestone-benchmark"]),
+    (51, "Speed Interval: 76 WPM Velocity Push", ["Velocity 76"], ["76-wpm-push"]),
+    (52, "Speed Interval: 77 WPM Velocity Push", ["Velocity 77"], ["77-wpm-push"]),
+    (53, "Complex Alphanumeric & Code Integration at High Speed", ["Technical High Speed"], ["tech-high-speed"]),
+    (54, "Dense Multi-Clause Syntax under Severe Speed Pressure", ["Complex Syntax"], ["syntax-under-pressure"]),
+    (55, "Rapid Error Correction & Instant Cadence Resumption", ["Error Recovery"], ["rapid-recovery-cadence"]),
+    (56, "Speed Interval: 78 WPM Velocity Benchmark", ["Velocity 78"], ["78-wpm-benchmark"]),
+    (57, "Multi-Minute Stamina: Extended 5-Minute Marathon", ["Marathon Stamina"], ["5-minute-marathon"]),
+    (58, "Sustained Speed Cadence over Dense Literary Masterworks", ["Literary Masterworks"], ["dense-literary-runs"]),
+    (59, "Near-Zero Error Precision Sprints Beta (96%+ Target)", ["Precision 96%"], ["zero-error-sprints-b"]),
+    (60, "Unit 60 Milestone Assessment: 600-Level Stamina", ["600 Benchmark"], ["milestone-benchmark"]),
+    (61, "Masterwork Transcriptions: Melville's Moby Dick Openings", ["Melville"], ["moby-dick-transcriptions"]),
+    (62, "Masterwork Transcriptions: Thoreau's Walden Pond Essays", ["Thoreau"], ["walden-transcriptions"]),
+    (63, "Masterwork Transcriptions: Lincoln's Gettysburg Address", ["Lincoln"], ["gettysburg-transcriptions"]),
+    (64, "Masterwork Transcriptions: Churchill's Wartime Addresses", ["Churchill"], ["churchill-transcriptions"]),
+    (65, "Metronome Cadence: Constant 78 WPM Benchmark Polish", ["Metronome 78"], ["metronome-78"]),
+    (66, "Continuous Multi-Minute Grand Stamina Trial", ["Grand Stamina"], ["grand-stamina-trial"]),
+    (67, "Pre-Capstone Speed Challenge: 78 WPM Interval", ["Pre-Capstone"], ["78-wpm-challenge"]),
+    (68, "Pre-Capstone Accuracy Challenge: 96%+ Precision", ["Pre-Capstone"], ["accuracy-target-96"]),
+    (69, "Comprehensive High-Speed & Stamina Review", ["Comprehensive Review"], ["comprehensive-speed-review"]),
+    (70, "Stage 8 Grand Capstone Assessment (Level 700)", ["Stage 8 Capstone"], ["stage8-capstone"]),
 ]
 
-SPEED_TEXTS = [
-    "High velocity touch typing is the art of effortless forward momentum. When you eliminate hesitation between words, each sentence flows across the screen with the clean precision of a well oiled mechanical watch.",
-    "Speed develops organically when your foundation is built upon uncompromising accuracy. By cultivating relaxed wrists and light fingertips, you conserve physical energy and unlock a state of continuous cognitive flow.",
-    "The secret to sustaining seventy words per minute across long passages lies in emotional calmness. Rushing creates muscular tension, whereas steady breathing and disciplined posture maintain unbroken rhythm from start to finish.",
-    "Athletic keyboard performance requires mindful attention to ergonomics. Keep your elbows relaxed at right angles, allow your forearms to float parallel to the keyboard surface, and strike each switch with crisp, decisive clarity.",
-    "Experienced typists perceive entire phrases rather than isolated characters. Your mind processes the meaning of the sentence while your neuromuscular pathways translate cognitive thoughts into synchronized mechanical impulses.",
-    "During long typing marathons, fatigue is conquered through rhythm. Typists who rush the opening sentences frequently suffer from forearm cramping, while those who pace themselves sustain peak velocity with ease.",
-    "Error recovery at high speeds must be instantaneous and calm. Sense mistakes through tactile feedback, tap the backspace key without breaking your cadence, and resume your forward stride without psychological disruption.",
-    "Mastery of speed transforms the digital workstation into an extension of the human mind. Ideas flow directly onto the page without technical friction, empowering clear, expressive communication across all disciplines.",
-    "Deliberate practice with challenging texts elevates your baseline capability. Each completed sprint expands your endurance envelope, making high word counts feel as natural and effortless as ordinary conversation.",
-    "Celebrate the harmony of rapid movement and flawless precision. When eighty words per minute feels comfortable, the keyboard disappears, leaving only the pure expression of your thoughts and creativity."
+STAGE_8_PARAGRAPHS = [
+    "Sustaining velocity beyond seventy words per minute across multi-minute passages requires complete mental tranquility and an unshakeable neuromuscular foundation. When typists reach this advanced tier of performance, fingers no longer seek out individual keys; rather, words, punctuation, and capitalization flow effortlessly through subconscious muscle memory like water flowing down a mountain stream.",
+    "The secret to enduring typing stamina lies not in forceful exertion, but in extreme physical economy and light, featherweight keystroke impacts. By floating your wrists above the desk and allowing your hands to oscillate naturally from side to side, you eliminate forearm lactic acid accumulation and preserve pinpoint accuracy across thousands of continuous keystrokes.",
+    "Throughout the history of literature and journalism, typing speed has empowered great authors to externalize their most profound creative visions before fleeting inspiration evaporates. When mechanical friction between the human intellect and the written medium is reduced to near-zero, writing becomes an exhilarating experience of uninterrupted, transcendent flow.",
+    "In demanding professional software engineering and data operations, the capacity to rapidly compose precise technical documentation, system shell commands, and architectural proposals without hesitation is an extraordinary multiplier of personal impact. Speed combined with uncompromising precision defines the hallmark of the elite digital practitioner.",
+    "As you traverse the demanding velocity intervals of Stage 8, celebrate the immense neural transformation that has occurred within your motor cortex. You have progressed from carefully finding tactile bumps on F and J to commanding the entire keyboard at speeds that rival professional transcriptionists worldwide."
 ]
 
 def generate_stage8_lessons():
-    """Generates exactly 700 unique, pedagogical Stage 8 lessons."""
+    """Generates all 700 Stage 8 lessons (70 units x 10 lessons)."""
     lessons = []
     seen_texts = set()
-    s_idx = 0
+    para_idx = 0
+    num_paras = len(STAGE_8_PARAGRAPHS)
 
-    for unit_num, (u_num, unit_label, target_keys, skills) in enumerate(STAGE_8_UNIT_THEMES, start=1):
+    for unit_tuple in STAGE_8_UNIT_THEMES:
+        unit_num, unit_label, target_keys, skills = unit_tuple
         for l_in_u in range(1, 11):
             level_num = (unit_num - 1) * 10 + l_in_u
 
-            # Progressive target lengths
-            if level_num <= 70:
-                count = 1
-            elif level_num <= 200:
-                count = 2
-            elif level_num <= 400:
-                count = 2
-            elif level_num <= 600:
-                count = 3
+            # Progressive length targets (300 to 450 chars)
+            if level_num <= 150:
+                target_min, target_max = 290, 360
+            elif level_num <= 350:
+                target_min, target_max = 330, 410
+            elif level_num <= 550:
+                target_min, target_max = 370, 460
             else:
-                count = 4
+                target_min, target_max = 410, 520
 
-            paras = []
-            for _ in range(count):
-                tmpl = SPEED_TEXTS[s_idx % len(SPEED_TEXTS)]
-                s_idx += 1
-                paras.append(tmpl)
+            p = STAGE_8_PARAGRAPHS[para_idx % num_paras]
+            para_idx += 1
 
-            text = " ".join(paras)
+            sentences = p.split(". ")
+            selected = []
+            cur_len = 0
+            for s in sentences:
+                s_clean = s.rstrip(".")
+                if not selected:
+                    selected.append(s_clean)
+                    cur_len += len(s_clean)
+                elif cur_len + len(s_clean) + 2 <= target_max:
+                    selected.append(s_clean)
+                    cur_len += len(s_clean) + 2
+                else:
+                    break
 
-            # Uniqueness check
-            variant = 1
-            base_text = text
-            while text in seen_texts:
-                extra = f"Speed benchmark verification segment {variant}: maintain loose wrists and 70+ WPM cadence."
-                text = f"{base_text} {extra}"
-                variant += 1
-            seen_texts.add(text)
+            combined_text = ". ".join(selected) + "."
+            dup_suffix = 1
+            while combined_text in seen_texts:
+                combined_text = f"{combined_text[:-1]} ({dup_suffix})."
+                dup_suffix += 1
 
-            for ch in text:
-                if ch not in ALLOWED:
-                    raise ValueError(f"Illegal character '{ch}' in Stage 8 Level {level_num}")
+            seen_texts.add(combined_text)
 
             is_assessment = (l_in_u == 10)
-            is_milestone = is_assessment and (unit_num % 10 == 0)
-
-            if level_num == 700:
-                title = "Level 700: Grandmaster Speed & Endurance Capstone Examination"
-                obj = "Graduate from Stage 8 sustaining flawless 70+ WPM velocity and stamina across extended prose."
-            elif is_milestone:
-                title = f"Unit {unit_num} Milestone: {unit_label} Examination"
-                obj = f"Comprehensive milestone verification of {unit_label.lower()} under timed conditions."
-            elif is_assessment:
-                title = f"Unit {unit_num} Assessment: {unit_label} Benchmark"
-                obj = f"Verify consistent velocity and accuracy across {unit_label.lower()}."
+            if is_assessment:
+                title = f"{unit_label} Assessment"
+                objective = f"Benchmark high-speed velocity and stamina for Unit {unit_num} ({unit_label})."
             else:
-                title = f"{unit_label}: Speed Drill {l_in_u}"
-                obj = f"Elevate keystroke velocity and muscular stamina for {', '.join(target_keys)}."
+                title = f"{unit_label} — Part {l_in_u}"
+                objective = f"Maintain sustained velocity and zero fatigue in {unit_label}."
 
             lesson = build_lesson(
                 stage_id=STAGE_ID,
@@ -168,13 +163,13 @@ def generate_stage8_lessons():
                 unit_label=unit_label,
                 lesson_in_unit=l_in_u,
                 title=title,
-                objective=obj,
-                text=text,
+                objective=objective,
+                text=combined_text,
                 target_keys=target_keys,
                 home_keys=HOME_KEYS,
                 skills=skills
             )
             lessons.append(lesson)
 
-    assert len(lessons) == 700, f"Stage 8 must have exactly 700 lessons, got {len(lessons)}"
+    assert len(lessons) == 700, f"Expected 700 lessons for Stage 8, got {len(lessons)}"
     return lessons

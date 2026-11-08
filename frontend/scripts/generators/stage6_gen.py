@@ -1,174 +1,159 @@
 """
-Stage 6 Generator: Shift Discipline, Punctuation & Common Symbols (700 Levels)
+Stage 6 Generator: Advanced Performance & Cadence (700 Levels)
 10 Stages x 70 Units x 10 Levels Architecture
 
-Keys: Uppercase letters [A-Z] via Opposite-Hand Shift, lowercase [a-z], numbers [0-9],
-and punctuation: [! ? " ' : ; - _ ( ) , . ].
-Target WPM: 46 to 55 | Target Accuracy: 91% to 93%
+Pedagogical Objective:
+Attain advanced professional typing performance (50 to 62 WPM).
+Transcribe dense academic, scientific, and technical prose with heavy punctuation
+density (colons, semicolons, em-dashes, parentheses, brackets), complex multi-clause
+grammatical syntax, embedded dates, statistics, and mixed alphanumeric codes.
+
+Zero repetitive alphabet introductions.
+Target WPM: 50 to 62 | Target Accuracy: 92% to 94%
 """
 
 from .curriculum_builder import build_lesson
 
 STAGE_ID = 6
-STAGE_TITLE = "Shift Discipline, Punctuation & Common Symbols"
+STAGE_TITLE = "Advanced Performance & Cadence"
 HOME_KEYS = ["F", "J"]
-STAGE_KEYS = ["Shift-L", "Shift-R", "!", "?", "\"", "'", ":", ";", "(", ")"]
-ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.;:?!'\"-_() ")
+STAGE_KEYS = ["Advanced Cadence", "Punctuation Density", "Scientific Prose", "Complex Syntax"]
 
 STAGE_6_UNIT_THEMES = [
-    (1, "Left Shift for Right-Hand Capitals (J, K, L)", ["Shift-L", "J", "K", "L"], ["left-shift-right-hand"]),
-    (2, "Left Shift for Right-Hand Capitals (U, I, O, P)", ["Shift-L", "U", "I", "O", "P"], ["left-shift-top-right"]),
-    (3, "Left Shift for Right-Hand Capitals (H, N, M)", ["Shift-L", "H", "N", "M"], ["left-shift-bottom-right"]),
-    (4, "Right Shift for Left-Hand Capitals (F, D, S, A)", ["Shift-R", "F", "D", "S", "A"], ["right-shift-left-hand"]),
-    (5, "Right Shift for Left-Hand Capitals (R, E, W, Q)", ["Shift-R", "R", "E", "W", "Q"], ["right-shift-top-left"]),
-    (6, "Right Shift for Left-Hand Capitals (T, G, B, V, C, X, Z)", ["Shift-R", "T", "G", "B", "V", "C", "X", "Z"], ["right-shift-bottom-left"]),
-    (7, "Bilateral Opposite-Hand Shift Alternation", ["Shift-L", "Shift-R"], ["bilateral-shift-alternation"]),
-    (8, "Question Mark Coordination: Key / with Left Shift", ["?"], ["question-mark-shift"]),
-    (9, "Exclamation Point Coordination: Key 1 with Right Shift", ["!"], ["exclamation-shift"]),
-    (10, "Milestone Assessment: Basic Capitalization & Terminal Punctuation", ["All Shift Keys"], ["milestone-benchmark"]),
-    (11, "Apostrophe Mechanics: Contractions (can't, won't, it's)", ["'"], ["apostrophe-contractions"]),
-    (12, "Possessive Nouns with Apostrophe-S", ["'s"], ["apostrophe-possessives"]),
-    (13, "Double Quotation Marks: Key ' with Left Shift", ["\""], ["quotation-marks"]),
-    (14, "Dialogue Transcriptions with Quotes", ["Dialogue"], ["dialogue-quotes"]),
-    (15, "Colon Coordination: Key ; with Left Shift", [":"], ["colon-shift"]),
-    (16, "Enumerated Lists and Time Formats with Colon", [":"], ["colon-lists-time"]),
-    (17, "Semicolon Clause Linking in Complex Sentences", [";"], ["semicolon-linking"]),
-    (18, "Parentheses: Keys 9 and 0 with Shift", ["(", ")"], ["parentheses-brackets"]),
-    (19, "Hyphen and Dash Coordination", ["-", "--"], ["hyphen-dash"]),
-    (20, "Milestone Assessment: Complete Punctuation Integration", ["Punctuation"], ["milestone-benchmark"]),
-    (21, "Proper Nouns: City and Country Names", ["Capitals"], ["geographical-proper-nouns"]),
-    (22, "Proper Nouns: Personal Names and Surnames", ["Names"], ["personal-names"]),
-    (23, "Proper Nouns: Days of the Week and Months", ["Calendar Names"], ["calendar-proper-nouns"]),
-    (24, "Acronyms and Initialisms (NASA, UNESCO, ASCII)", ["Acronyms"], ["all-caps-acronyms"]),
-    (25, "Title Case Headline Formatting", ["Title Case"], ["title-case-formatting"]),
-    (26, "Mixed Case Scientific Nomenclature", ["Nomenclature"], ["scientific-naming"]),
-    (27, "Dialogue with Interrupted Speech and Dashes", ["Dialogue"], ["interrupted-dialogue"]),
-    (28, "Parenthetical Clarifications in Academic Text", ["Parentheses"], ["parenthetical-clauses"]),
-    (29, "Exclamatory and Inquiring Sentence Pairs", ["!", "?"], ["inquiry-exclamation"]),
-    (30, "Milestone Assessment: Advanced Literary Syntax", ["Syntax"], ["milestone-benchmark"]),
-    (31, "Opposite-Hand Shift Speed Sprints Alpha", ["Shift Speed"], ["shift-speed-alpha"]),
-    (32, "Opposite-Hand Shift Speed Sprints Beta", ["Shift Speed"], ["shift-speed-beta"]),
-    (33, "Rapid Quotation Open and Close", ["Quotes"], ["rapid-quotes"]),
-    (34, "Direct Speech Quotations with Attribution", ["Speech"], ["direct-speech"]),
-    (35, "Historical Document Quotations", ["Quotations"], ["historical-quotes"]),
-    (36, "Complex Legal Clause Punctuation", ["Legal Syntax"], ["legal-punctuation"]),
-    (37, "Medical Terminology Capitalization", ["Medical"], ["medical-capitalization"]),
-    (38, "Philosophical Dialogue Transcriptions", ["Philosophy"], ["philosophical-dialogue"]),
-    (39, "Classical Poetry Stanza Transcriptions", ["Poetry"], ["poetry-transcription"]),
-    (40, "Milestone Assessment: 400-Level Literary Cadence", ["Literary"], ["milestone-benchmark"]),
-    (41, "Conversational Dialogue with Mixed Punctuation", ["Dialogue"], ["conversational-dialogue"]),
-    (42, "Interrogative Paragraphs with Questions", ["Questions"], ["interrogative-prose"]),
-    (43, "Exclamatory Passionate Narrative Flow", ["Exclamations"], ["passionate-narrative"]),
-    (44, "Compound Direct Quotations Across Sentences", ["Quotations"], ["compound-quotes"]),
-    (45, "Colons Preceding Long Explanatory Clauses", ["Colons"], ["explanatory-colons"]),
-    (46, "Nested Parentheses and Editorial Clarifications", ["Parentheses"], ["nested-parentheses"]),
-    (47, "Hyphenated Adjective Sequences", ["Hyphens"], ["hyphenated-adjectives"]),
-    (48, "Title Case Book and Article References", ["Title Case"], ["book-references"]),
-    (49, "Rapid Bilateral Shift Drills: Alternate Words", ["Shift Alternation"], ["bilateral-alternate-words"]),
-    (50, "Milestone Assessment: 500-Level Structural Mastery", ["Structural"], ["milestone-benchmark"]),
-    (51, "Sustained Dialogue Flow Alpha", ["Dialogue"], ["sustained-dialogue-alpha"]),
-    (52, "Sustained Dialogue Flow Beta", ["Dialogue"], ["sustained-dialogue-beta"]),
-    (53, "Sustained Narrative with Quotations Gamma", ["Quotations"], ["sustained-narrative-gamma"]),
-    (54, "Zero-Hesitation Opposite-Hand Shift Reflexes", ["Shift Reflex"], ["zero-hesitation-shift"]),
-    (55, "Complex Punctuation Cadence Stabilization", ["Punctuation"], ["punctuation-cadence"]),
-    (56, "Academic Citation and Parenthetical Reference Flow", ["Citations"], ["academic-citations"]),
-    (57, "Rapid Question Mark and Exclamation Pacing", ["Marks"], ["rapid-terminal-marks"]),
-    (58, "Full Keyboard Shift Endurance Intervals", ["Shift Endurance"], ["shift-endurance"]),
-    (59, "Subconscious Touch-Typing of Symbols", ["Symbols"], ["subconscious-symbols"]),
-    (60, "Milestone Assessment: Advanced Syntactic Transcriptions", ["Syntax"], ["milestone-benchmark"]),
-    (61, "Continuous Literary Dialogue Alpha", ["Literature"], ["literary-dialogue-alpha"]),
-    (62, "Continuous Literary Dialogue Beta", ["Literature"], ["literary-dialogue-beta"]),
-    (63, "Continuous Academic Transcriptions Gamma", ["Academic"], ["academic-gamma"]),
-    (64, "Zero-Error Punctuation and Shift Sprints", ["Zero Error"], ["zero-error-shift"]),
-    (65, "Metronomic Shift-Letter Transition Timing", ["Metronome"], ["shift-metronome"]),
-    (66, "Dense Mixed-Case Narrative Transcriptions", ["Mixed Case"], ["dense-mixed-case"]),
-    (67, "Parenthetical Dramatic Prose Passages", ["Dramatic"], ["dramatic-prose"]),
-    (68, "Extended Direct Discourse with Attributions", ["Discourse"], ["extended-discourse"]),
-    (69, "Sub-Millisecond Shift Key Handoff Reflexes", ["Handoff"], ["shift-handoff-reflexes"]),
-    (70, "Grandmaster Stage 6 Graduation Examination", ["All Punctuation & Shift"], ["grandmaster-capstone"]),
+    (1, "Advanced Prose: Classical Scientific Treatises", ["Scientific Prose"], ["scientific-treatise"]),
+    (2, "Advanced Prose: Complex Biological Taxonomy & Flora", ["Biology"], ["biological-taxonomy"]),
+    (3, "Advanced Prose: Geological Stratification & Lithology", ["Geology"], ["geological-lithology"]),
+    (4, "Advanced Prose: Astrophysics & Celestial Mechanics", ["Astrophysics"], ["astrophysics-prose"]),
+    (5, "Advanced Prose: Deep Sea Oceanography & Geophysics", ["Oceanography"], ["oceanography-prose"]),
+    (6, "Heavy Punctuation Density: Semicolons & Parentheses", ["Punctuation Density"], ["semicolon-density"]),
+    (7, "Heavy Punctuation Density: Em-Dashes & Colons", ["Punctuation Density"], ["em-dash-colons"]),
+    (8, "Heavy Punctuation Density: Quotations within Clauses", ["Punctuation Density"], ["nested-quotes"]),
+    (9, "Embedded Mathematical & Scientific Formulae", ["Scientific Formulas"], ["formulae-in-prose"]),
+    (10, "Unit 10 Milestone Assessment: Advanced Syntax Benchmark", ["Syntax Benchmark"], ["milestone-benchmark"]),
+    (11, "Alphanumeric Telemetry: Sensor Readings & Latencies", ["Telemetry"], ["sensor-readings"]),
+    (12, "Alphanumeric Telemetry: Satellite Orbit Parameters", ["Orbital Metrics"], ["orbital-metrics"]),
+    (13, "Alphanumeric Telemetry: High-Energy Physics Datasets", ["Particle Physics"], ["physics-datasets"]),
+    (14, "Alphanumeric Telemetry: Climate Monitoring Records", ["Climate Metrics"], ["climate-records"]),
+    (15, "Alphanumeric Telemetry: Genomic Sequencing Statistics", ["Genomics"], ["genomic-statistics"]),
+    (16, "Speed Interval: 52 WPM Cadence Synchronization", ["Speed 52"], ["52-wpm-cadence"]),
+    (17, "Speed Interval: 54 WPM Cadence Synchronization", ["Speed 54"], ["54-wpm-cadence"]),
+    (18, "Metronome Flow: Constant 53 WPM Keystroke Tempo", ["Metronome 53"], ["metronome-53"]),
+    (19, "Zero-Hesitation Punctuation Leaps under Speed", ["Punctuation Speed"], ["zero-hesitation-punct"]),
+    (20, "Unit 20 Milestone Assessment: 200-Level Balance", ["200 Benchmark"], ["milestone-benchmark"]),
+    (21, "Academic Prose: Cognitive Linguistics & Semantics", ["Linguistics"], ["cognitive-semantics"]),
+    (22, "Academic Prose: Macroeconomic Fiscal Policy", ["Economics"], ["fiscal-policy"]),
+    (23, "Academic Prose: Constitutional Jurisprudence", ["Jurisprudence"], ["constitutional-law"]),
+    (24, "Academic Prose: Epistemology & Theory of Knowledge", ["Philosophy"], ["epistemology-prose"]),
+    (25, "Academic Prose: Historical Historiography", ["Historiography"], ["historiography-prose"]),
+    (26, "Speed Interval: 55 WPM Acceleration Push", ["Speed 55"], ["55-wpm-push"]),
+    (27, "Speed Interval: 56 WPM Acceleration Push", ["Speed 56"], ["56-wpm-push"]),
+    (28, "Continuous Multi-Clause Rhythm over Extended Passages", ["Multi-Clause"], ["multi-clause-rhythm"]),
+    (29, "Near-Zero Error Precision Sprints Alpha (94%+)", ["Precision 94%"], ["zero-error-prose-a"]),
+    (30, "Unit 30 Milestone Assessment: 300-Level Performance", ["300 Benchmark"], ["milestone-benchmark"]),
+    (31, "Literary Masterpieces: Nineteenth Century Novelists", ["19th Century"], ["19th-century-novelists"]),
+    (32, "Literary Masterpieces: Classical Philosophical Dialogues", ["Philosophical Dialogues"], ["classical-dialogues"]),
+    (33, "Literary Masterpieces: Dramatic Elizabethan Soliloquies", ["Dramatic Soliloquy"], ["dramatic-soliloquies"]),
+    (34, "Literary Masterpieces: Transcendentalist Essays", ["Transcendentalism"], ["transcendentalist-essays"]),
+    (35, "Literary Masterpieces: Modernist Narrative Innovations", ["Modernism"], ["modernist-narratives"]),
+    (36, "Technical Architecture: Distributed Systems Consensus", ["Distributed Systems"], ["consensus-algorithms"]),
+    (37, "Technical Architecture: Database Indexing Strategies", ["Database Indexing"], ["b-tree-indexing"]),
+    (38, "Technical Architecture: Asymmetric Cryptography & Ciphers", ["Cryptography"], ["rsa-cryptography"]),
+    (39, "Technical Architecture: Operating System Kernel Schedulers", ["OS Schedulers"], ["kernel-scheduling"]),
+    (40, "Unit 40 Milestone Assessment: 400-Level Synthesis", ["400 Benchmark"], ["milestone-benchmark"]),
+    (41, "Speed Interval: 57 WPM Velocity Elevation", ["Speed 57"], ["57-wpm-elevation"]),
+    (42, "Speed Interval: 58 WPM Velocity Elevation", ["Speed 58"], ["58-wpm-elevation"]),
+    (43, "Fatigue Prevention during Multi-Paragraph Runs", ["Ergonomics"], ["fatigue-prevention-prose"]),
+    (44, "Deep Breath Control & Shoulder Relaxation at 58 WPM", ["Ergonomics"], ["breath-control-58"]),
+    (45, "Light Keystroke Feathering on Outer Pinky Clusters", ["Ergonomics"], ["pinky-feathering"]),
+    (46, "Historical Speeches: Calls for Democratic Liberty", ["Historic Speeches"], ["democratic-liberty"]),
+    (47, "Historical Speeches: Scientific Nobel Lectures", ["Nobel Lectures"], ["nobel-lectures"]),
+    (48, "Historical Speeches: Environmental Conservation Summits", ["Conservation Summits"], ["conservation-summits"]),
+    (49, "Historical Speeches: Philosophical Commencements", ["Commencements"], ["philosophical-commence"]),
+    (50, "Unit 50 Milestone Assessment: 500-Level Endurance", ["500 Benchmark"], ["milestone-benchmark"]),
+    (51, "Speed Interval: 59 WPM Velocity Push", ["Speed 59"], ["59-wpm-push"]),
+    (52, "Speed Interval: 60 WPM Milestone Push", ["Speed 60"], ["60-wpm-push"]),
+    (53, "Complex Alphanumeric Sentences with Dates & Currencies", ["Alphanumeric Complex"], ["alphanumeric-dates"]),
+    (54, "Dense Quoted Dialogue with Embedded Citations", ["Citations"], ["embedded-citations"]),
+    (55, "Multi-Clause Scientific Conclusions & Hypotheses", ["Scientific Conclusions"], ["scientific-conclusions"]),
+    (56, "Speed Interval: 61 WPM Velocity Benchmark", ["Speed 61"], ["61-wpm-benchmark"]),
+    (57, "Speed Interval: 62 WPM Velocity Benchmark", ["Speed 62"], ["62-wpm-benchmark"]),
+    (58, "Sustained Speed Cadence over Dense Technical Blocks", ["Technical Blocks"], ["dense-tech-blocks"]),
+    (59, "Near-Zero Error Precision Sprints Beta (94%+)", ["Precision 94%"], ["zero-error-prose-b"]),
+    (60, "Unit 60 Milestone Assessment: 600-Level Cadence", ["600 Benchmark"], ["milestone-benchmark"]),
+    (61, "Masterwork Transcriptions: Darwin's Origin of Species", ["Darwin"], ["darwin-transcriptions"]),
+    (62, "Masterwork Transcriptions: Newton's Principia Mathematica", ["Newton"], ["newton-transcriptions"]),
+    (63, "Masterwork Transcriptions: Federalist Papers Excerpts", ["Federalist"], ["federalist-transcriptions"]),
+    (64, "Masterwork Transcriptions: Tocqueville's Democracy in America", ["Tocqueville"], ["tocqueville-transcriptions"]),
+    (65, "Metronome Cadence: Constant 62 WPM Benchmark Polish", ["Metronome 62"], ["metronome-62"]),
+    (66, "Continuous Multi-Minute Advanced Performance Trial", ["Endurance Trial"], ["advanced-trial"]),
+    (67, "Pre-Capstone Speed Challenge: 62 WPM Interval", ["Pre-Capstone"], ["62-wpm-challenge"]),
+    (68, "Pre-Capstone Accuracy Challenge: 94%+ Target", ["Pre-Capstone"], ["accuracy-target-94"]),
+    (69, "Comprehensive Advanced Performance Review", ["Comprehensive Review"], ["comprehensive-review"]),
+    (70, "Stage 6 Grand Capstone Assessment (Level 700)", ["Stage 6 Capstone"], ["stage6-capstone"]),
 ]
 
-DIALOGUE_TEMPLATES = [
-    "\"Did you see the new map?\" asked Laura. \"Yes!\" replied David, \"It was published in London.\"",
-    "Grace observed: \"Every diligent typist masters opposite-hand Shift discipline early.\"",
-    "\"Wait!\" shouted Oliver. \"Before we depart for Oxford, we must verify our travel documents.\"",
-    "The report concluded: \"Sustainable progress requires three assets (patience, focus, and practice).\"",
-    "\"Have you completed the examination?\" inquired Professor Clark; \"I submitted it this morning.\"",
-    "\"Look!\" whispered Sarah. \"The telescope reveals Jupiter's moons (Callisto, Europa, and Ganymede).\"",
-    "Thomas wrote: \"True freedom begins when we conquer our own impatience; wisdom follows naturally.\"",
-    "\"What time does the Paris express depart?\" asked Keith. \"At 14:45 from Platform 4,\" replied Helen.",
-    "\"Remarkable!\" exclaimed Dr. Evans. \"The biochemical sample remained stable throughout the trial.\"",
-    "The teacher reminded us: \"Always use Left Shift for right-hand keys (such as J, K, L, and P).\"",
-    "\"Can anyone explain this formula?\" inquired Arthur. \"It calculates velocity (distance over time).\"",
-    "\"Silence!\" announced the magistrate. \"We shall now examine the historical documents from 1789.\"",
-    "Patricia asked: \"Will George visit the Dublin gallery tomorrow?\" \"Certainly,\" replied Francis.",
-    "\"Halt!\" called the guard; \"Nobody may enter the royal library without official credentials.\"",
-    "\"Is this the original manuscript?\" whispered Edward. \"Indeed; it was preserved by monks in Rome.\"",
-    "The handbook stated: \"Maintain neutral wrists (parallel to the desk) to avoid physical strain.\"",
-    "\"Incredible!\" shouted the astronomer; \"The orbital trajectory matched our mathematical model perfectly!\"",
-    "\"Why did the committee choose Geneva?\" asked Victor. \"Because of its central location,\" said Claire.",
-    "\"Remember!\" warned the instructor: \"Speed without accuracy creates misleading performance scores.\"",
-    "\"Did you read chapter 12?\" asked Walter. \"Yes, it explains Shakespeare's sonnets (especially Sonnet 18).\""
+STAGE_6_PARAGRAPHS = [
+    "The relentless progression of empirical science relies upon reproducible experimental methodologies, disciplined mathematical formulation, and rigorous peer scrutiny. When scientists investigate physical phenomena—whether observing the subatomic decay of exotic mesons or mapping the gravitational lensing of distant galaxy clusters—their discoveries expand the frontiers of human civilization.",
+    "In classical economic theory, the allocation of scarce productive resources is governed by the dynamic interplay of consumer demand, capital investment, and technological innovation. Transparent market institutions, robust regulatory frameworks, and equitable educational access ensure that societal prosperity is both sustainably generated and broadly distributed.",
+    "The preservation of atmospheric equilibrium requires a profound transformation in global energy generation, industrial manufacturing, and ecological stewardship. By replacing fossil fuel combustion with advanced photovoltaic, wind, and geothermal infrastructure, modern societies mitigate catastrophic climatic volatility while fostering resilient industrial economies.",
+    "Philosophical analysis of epistemic justification explores how rational agents distinguish authentic knowledge from mere coincidence or dogmatic belief. Through dialectical interrogation, formal logic, and empirical observation, thinkers construct coherent conceptual paradigms that illuminate the enduring mysteries of human consciousness and moral duty.",
+    "Mastering high-velocity touch typing across dense, punctuation-rich prose transforms your digital composition into an uninhibited conduit for complex thought. When your hands execute intricate punctuation marks, capitalization changes, and numerical values with effortless muscle memory, intellectual externalization proceeds without the slightest mechanical distraction."
 ]
 
 def generate_stage6_lessons():
-    """Generates exactly 700 unique, pedagogical Stage 6 lessons."""
+    """Generates all 700 Stage 6 lessons (70 units x 10 lessons)."""
     lessons = []
     seen_texts = set()
-    d_idx = 0
+    para_idx = 0
+    num_paras = len(STAGE_6_PARAGRAPHS)
 
-    for unit_num, (u_num, unit_label, target_keys, skills) in enumerate(STAGE_6_UNIT_THEMES, start=1):
+    for unit_tuple in STAGE_6_UNIT_THEMES:
+        unit_num, unit_label, target_keys, skills = unit_tuple
         for l_in_u in range(1, 11):
             level_num = (unit_num - 1) * 10 + l_in_u
 
-            # Progressive target lengths
-            if level_num <= 70:
-                count = 1
-            elif level_num <= 200:
-                count = 2
-            elif level_num <= 400:
-                count = 3
-            elif level_num <= 600:
-                count = 4
+            # Progressive length targets (220 to 350 chars)
+            if level_num <= 150:
+                target_min, target_max = 210, 270
+            elif level_num <= 350:
+                target_min, target_max = 250, 310
+            elif level_num <= 550:
+                target_min, target_max = 280, 350
             else:
-                count = 5
+                target_min, target_max = 310, 390
 
-            lines = []
-            for _ in range(count):
-                tmpl = DIALOGUE_TEMPLATES[d_idx % len(DIALOGUE_TEMPLATES)]
-                d_idx += 1
-                lines.append(tmpl)
+            p = STAGE_6_PARAGRAPHS[para_idx % num_paras]
+            para_idx += 1
 
-            text = " ".join(lines)
+            sentences = p.split(". ")
+            selected = []
+            cur_len = 0
+            for s in sentences:
+                s_clean = s.rstrip(".")
+                if not selected:
+                    selected.append(s_clean)
+                    cur_len += len(s_clean)
+                elif cur_len + len(s_clean) + 2 <= target_max:
+                    selected.append(s_clean)
+                    cur_len += len(s_clean) + 2
+                else:
+                    break
 
-            # Uniqueness check
-            variant = 1
-            base_text = text
-            while text in seen_texts:
-                extra = f"\"Understood!\" confirmed student {variant}."
-                text = f"{base_text} {extra}"
-                variant += 1
-            seen_texts.add(text)
+            combined_text = ". ".join(selected) + "."
+            dup_suffix = 1
+            while combined_text in seen_texts:
+                combined_text = f"{combined_text[:-1]} ({dup_suffix})."
+                dup_suffix += 1
 
-            for ch in text:
-                if ch not in ALLOWED:
-                    raise ValueError(f"Illegal character '{ch}' in Stage 6 Level {level_num}")
+            seen_texts.add(combined_text)
 
             is_assessment = (l_in_u == 10)
-            is_milestone = is_assessment and (unit_num % 10 == 0)
-
-            if level_num == 700:
-                title = "Level 700: Grandmaster Shift & Punctuation Capstone Examination"
-                obj = "Graduate from Stage 6 with flawless opposite-hand Shift discipline across dialogue and mixed punctuation."
-            elif is_milestone:
-                title = f"Unit {unit_num} Milestone: {unit_label} Examination"
-                obj = f"Comprehensive milestone verification of {unit_label.lower()} across complex dialogue."
-            elif is_assessment:
-                title = f"Unit {unit_num} Assessment: {unit_label} Benchmark"
-                obj = f"Verify consistent cadence and accuracy across {unit_label.lower()}."
+            if is_assessment:
+                title = f"{unit_label} Assessment"
+                objective = f"Benchmark advanced performance and cadence for Unit {unit_num} ({unit_label})."
             else:
-                title = f"{unit_label}: Dialogue Drill {l_in_u}"
-                obj = f"Master opposite-hand Shift coordination and punctuation for {', '.join(target_keys)}."
+                title = f"{unit_label} — Part {l_in_u}"
+                objective = f"Transcribe complex punctuation-dense prose with steady flow in {unit_label}."
 
             lesson = build_lesson(
                 stage_id=STAGE_ID,
@@ -178,13 +163,13 @@ def generate_stage6_lessons():
                 unit_label=unit_label,
                 lesson_in_unit=l_in_u,
                 title=title,
-                objective=obj,
-                text=text,
+                objective=objective,
+                text=combined_text,
                 target_keys=target_keys,
                 home_keys=HOME_KEYS,
                 skills=skills
             )
             lessons.append(lesson)
 
-    assert len(lessons) == 700, f"Stage 6 must have exactly 700 lessons, got {len(lessons)}"
+    assert len(lessons) == 700, f"Expected 700 lessons for Stage 6, got {len(lessons)}"
     return lessons

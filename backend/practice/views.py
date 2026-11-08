@@ -517,7 +517,13 @@ class FingerMasteryView(APIView):
             left_speed = 0.0
 
         left_candidates = [item for item in left_fingers if item['has_data']]
-        left_strongest = max(left_candidates, key=lambda x: (x['speed'], x['accuracy']))['name'] if left_candidates else None
+        left_best_obj = max(left_candidates, key=lambda x: (x['speed'], x['accuracy'])) if left_candidates else None
+        left_strongest = left_best_obj['name'] if left_best_obj else None
+        left_strongest_details = {
+            'name': left_best_obj['name'],
+            'speed': left_best_obj['speed'],
+            'accuracy': left_best_obj['accuracy'],
+        } if left_best_obj else None
 
         left_summary = {
             'speed': left_speed,
@@ -525,6 +531,7 @@ class FingerMasteryView(APIView):
             'total_keystrokes': left_tot,
             'has_data': left_has_data,
             'strongest_finger': left_strongest,
+            'strongest_finger_details': left_strongest_details,
         }
 
         # Calculate Right Hand Summary
@@ -545,7 +552,13 @@ class FingerMasteryView(APIView):
             right_speed = 0.0
 
         right_candidates = [item for item in right_fingers if item['has_data']]
-        right_strongest = max(right_candidates, key=lambda x: (x['speed'], x['accuracy']))['name'] if right_candidates else None
+        right_best_obj = max(right_candidates, key=lambda x: (x['speed'], x['accuracy'])) if right_candidates else None
+        right_strongest = right_best_obj['name'] if right_best_obj else None
+        right_strongest_details = {
+            'name': right_best_obj['name'],
+            'speed': right_best_obj['speed'],
+            'accuracy': right_best_obj['accuracy'],
+        } if right_best_obj else None
 
         right_summary = {
             'speed': right_speed,
@@ -553,6 +566,7 @@ class FingerMasteryView(APIView):
             'total_keystrokes': right_tot,
             'has_data': right_has_data,
             'strongest_finger': right_strongest,
+            'strongest_finger_details': right_strongest_details,
         }
 
         # Calculate Thumbs Summary

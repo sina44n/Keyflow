@@ -773,7 +773,7 @@ export const AcademyResultsScreen = ({
         <button
           type="button"
           onClick={onRetry}
-          className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-bold font-mono text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-md"
+          className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-bold font-mono text-xs uppercase tracking-wider transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] flex items-center justify-center gap-2 cursor-pointer shadow-md"
         >
           <RotateCcw className="w-4 h-4 text-slate-400" />
           <span>Try Again</span>
@@ -783,7 +783,7 @@ export const AcademyResultsScreen = ({
         <button
           type="button"
           onClick={onBack}
-          className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-bold font-mono text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-md"
+          className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-bold font-mono text-xs uppercase tracking-wider transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] flex items-center justify-center gap-2 cursor-pointer shadow-md"
         >
           <LayoutGrid className="w-4 h-4 text-slate-400" />
           <span>Back to Academy</span>
@@ -794,7 +794,7 @@ export const AcademyResultsScreen = ({
           type="button"
           onClick={handleNextAction}
           disabled={!passed && !onNext}
-          className={`flex-[1.2] py-2.5 px-4 rounded-xl font-black font-mono text-xs uppercase tracking-wider transition-all duration-150 flex items-center justify-center gap-2 shadow-lg ${
+          className={`flex-[1.2] py-2.5 px-4 rounded-xl font-black font-mono text-xs uppercase tracking-wider transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] flex items-center justify-center gap-2 shadow-lg ${
             passed || onNext
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 hover:brightness-110 shadow-emerald-500/25 cursor-pointer active:scale-98'
               : 'bg-slate-800/60 text-slate-500 border border-slate-700/40 cursor-not-allowed'

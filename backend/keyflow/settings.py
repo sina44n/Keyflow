@@ -255,15 +255,19 @@ GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
 
 # Ensure configured FRONTEND_URL and Vercel domains are trusted by CORS and CSRF
 _cors_list = [origin.strip() for origin in CORS_ALLOWED_ORIGINS if origin.strip()]
+for _trusted_cors in ['https://keyflow-typing.vercel.app']:
+    if _trusted_cors not in _cors_list:
+        _cors_list.append(_trusted_cors)
 if FRONTEND_URL and FRONTEND_URL.strip() not in _cors_list:
     _cors_list.append(FRONTEND_URL.strip())
 CORS_ALLOWED_ORIGINS = _cors_list
 
 _csrf_list = [origin.strip() for origin in CSRF_TRUSTED_ORIGINS if origin.strip()]
+for _trusted_csrf in ['https://keyflow-typing.vercel.app', 'https://*.vercel.app']:
+    if _trusted_csrf not in _csrf_list:
+        _csrf_list.append(_trusted_csrf)
 if FRONTEND_URL and FRONTEND_URL.strip() not in _csrf_list:
     _csrf_list.append(FRONTEND_URL.strip())
-if 'https://*.vercel.app' not in _csrf_list:
-    _csrf_list.append('https://*.vercel.app')
 CSRF_TRUSTED_ORIGINS = _csrf_list
 
 # Clerk Authentication Settings

@@ -42,7 +42,7 @@ export const LeaderboardFilters = ({
               key={cat.id}
               type="button"
               onClick={() => setCategory(cat.id)}
-              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-medium whitespace-nowrap transition-all duration-150 cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-mono font-medium whitespace-nowrap transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
                 isActive
                   ? 'bg-[var(--accent)] text-white shadow-[0_2px_10px_color-mix(in_srgb,var(--accent)_30%,transparent)]'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--bg-surface)_60%,transparent)]'
@@ -65,7 +65,7 @@ export const LeaderboardFilters = ({
                 key={p.id}
                 type="button"
                 onClick={() => setPeriod(p.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all duration-150 cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
                   isActive
                     ? 'bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-sm'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'

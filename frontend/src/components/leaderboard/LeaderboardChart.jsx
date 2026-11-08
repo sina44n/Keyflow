@@ -150,7 +150,7 @@ export const LeaderboardChart = ({ entries, category }) => {
                 key={entry.user_id}
                 onMouseEnter={() => setHoveredIdx(idx)}
                 onMouseLeave={() => setHoveredIdx(null)}
-                className="cursor-pointer transition-all duration-200"
+                className="cursor-pointer transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]"
               >
                 {/* Bar */}
                 <rect
@@ -159,7 +159,7 @@ export const LeaderboardChart = ({ entries, category }) => {
                   width={barWidth}
                   height={Math.max(4, barH)}
                   rx={6}
-                  className={`transition-all duration-200 ${
+                  className={`transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isFirst
                       ? 'fill-[var(--accent)]'
                       : isHovered
@@ -209,7 +209,7 @@ export const LeaderboardChart = ({ entries, category }) => {
 
       {/* Dynamic Hover Details Card */}
       {hoveredIdx !== null && entries[hoveredIdx] && (
-        <div className="mt-3 p-3 rounded-xl bg-[var(--bg-elevated)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex flex-wrap items-center justify-between gap-3 text-xs font-mono animate-in fade-in duration-150">
+        <div className="mt-3 p-3 rounded-xl bg-[var(--bg-elevated)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] flex flex-wrap items-center justify-between gap-3 text-xs font-mono animate-in fade-in duration-220 ease-[cubic-bezier(0.22,1,0.36,1)]">
           <div className="flex items-center gap-2">
             <span className="px-2 py-0.5 rounded bg-[var(--accent)] text-white font-bold">
               #{entries[hoveredIdx].rank}

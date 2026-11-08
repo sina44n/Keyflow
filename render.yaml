@@ -1,0 +1,44 @@
+# KEYFLOW Infrastructure Blueprint — Render Infrastructure-as-Code
+# Automatically provisions persistent PostgreSQL database and Django WSGI service
+services:
+  - type: web
+    name: keyflow-backend
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt && python backend/manage.py migrate --no-input
+    startCommand: gunicorn --chdir backend keyflow.wsgi:application --bind 0.0.0.0:$PORT --workers 3
+    healthCheckPath: /api/health/
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: keyflow-db
+          property: connectionString
+      - key: ALLOWED_HOSTS
+        value: localhost,127.0.0.1,testserver,.onrender.com,.railway.app,.vercel.app,keyflow-typing.vercel.app
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://keyflow-typing.vercel.app
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://keyflow-typing.vercel.app
+      - key: FRONTEND_URL
+        value: https://keyflow-typing.vercel.app
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_ISSUER
+        value: https://new-kitten-8257.clerk.accounts.dev
+      - key: CLERK_JWKS_URL
+        value: https://new-kitten-8257.clerk.accounts.dev/.well-known/jwks.json
+
+databases:
+  - name: keyflow-db
+    databaseName: keyflow
+    user: keyflow_user
+    plan: free
+

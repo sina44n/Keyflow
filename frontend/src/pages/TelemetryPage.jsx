@@ -168,7 +168,7 @@ export default function TelemetryPage() {
         </div>
 
         {/* 3. Reference-Based Circular Intelligence Infographic */}
-        <CircularIntelligenceInfographic sessions={sessions} />
+        <CircularIntelligenceInfographic sessions={sessions} activeReport={activeReport} />
 
         {/* 4. Progress Overview Time-Series */}
         <ProgressOverviewChart sessions={sessions} activeReportMetrics={metrics} activeReport={activeReport} />
@@ -196,13 +196,13 @@ export default function TelemetryPage() {
         <CharacterPerformanceChart characterStats={metrics.characterStats} />
 
         {/* 7. Historical Practice Calendar 12-Month Matrix (Matching Reference Image 5) */}
-        <HistoricalPracticeCalendar sessions={sessions} currentUserId={userId} />
+        <HistoricalPracticeCalendar sessions={sessions} currentUserId={userId} activeReport={activeReport} metrics={metrics} />
 
         {/* 8. Scientific Recommendations & Actionable Insights */}
         <PersonalizedInsights metrics={metrics} sessions={sessions} />
 
         {/* 9. Personal Records & Milestones */}
-        <PersonalRecords sessions={sessions} />
+        <PersonalRecords sessions={sessions} activeReport={activeReport} periodMetrics={metrics} />
 
         {/* 10. Profile & Settings Modal */}
         <TelemetryProfileModal

@@ -49,12 +49,12 @@ export const ExploreStageModal = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="explore-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="relative w-full max-w-lg rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
+      <div className="relative w-full max-w-lg rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
         {/* Close Button */}
         <button
           type="button"

@@ -65,7 +65,7 @@ export const LeaderboardPodium = ({ topThree, category, period }) => {
           return (
             <div
               key={config.rank}
-              className={`relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] border border-dashed border-[var(--border)] p-6 flex flex-col justify-between transition-all duration-200 ${
+              className={`relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] border border-dashed border-[var(--border)] p-6 flex flex-col justify-between transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                 config.rank === 1 ? 'md:order-1' : config.rank === 2 ? 'md:order-0' : 'md:order-2'
               }`}
             >
@@ -109,7 +109,7 @@ export const LeaderboardPodium = ({ topThree, category, period }) => {
         return (
           <div
             key={config.rank}
-            className={`relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] p-6 transition-all duration-300 hover:-translate-y-1 ${config.borderClass} ${
+            className={`relative overflow-hidden rounded-2xl bg-[var(--bg-surface)] p-6 transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-lg ${config.borderClass} ${
               config.rank === 1 ? 'md:order-1' : config.rank === 2 ? 'md:order-0' : 'md:order-2'
             }`}
           >

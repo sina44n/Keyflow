@@ -10,7 +10,7 @@ Target WPM: 75 to 95 | Target Accuracy: 95% to 97%
 from .curriculum_builder import build_lesson
 
 STAGE_ID = 10
-STAGE_TITLE = "Master Typist & Specialization"
+STAGE_TITLE = "Grandmaster Typist & Capstone"
 HOME_KEYS = ["F", "J"]
 STAGE_KEYS = ["Grandmaster Prose", "Classical Literature", "Dense Nomenclature", "85+ WPM"]
 ALLOWED = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789,.;:?!'\"-_()[]{}=><&|!/\\$*+~`@#%^— ")

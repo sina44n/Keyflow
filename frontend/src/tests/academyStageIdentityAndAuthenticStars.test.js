@@ -62,16 +62,16 @@ describe('KEYFLOW — Masterpiece Stage Identity, Selector Alignment & Authentic
       assert.equal(STAGE_META.length, 10, 'Must have exactly 10 curriculum stages');
 
       const expectedTitles = [
-        'Home Row Foundations',
-        'Top Row Control',
-        'Bottom Row Control',
-        'Full Alphabet Mastery & Cross-Row Transitions',
-        'Number Row Mastery & Ten-Key Dexterity',
-        'Shift Discipline, Punctuation & Common Symbols',
-        'High-Frequency Vocabulary & Rhythm Cadence',
-        'Speed & Endurance Building',
-        'Technical, Numeric & Professional Fluency',
-        'Master Typist & Specialization',
+        'Complete Keyboard Education & Foundation',
+        'Foundation & Controlled Fluency',
+        'Word & Sentence Mastery',
+        'Paragraph Fluency & Cohesion',
+        'Intermediate Speed Development',
+        'Advanced Performance & Cadence',
+        'Professional & Technical Fluency',
+        'High-Speed Mastery & Stamina',
+        'Elite Performance Benchmarks',
+        'Grandmaster Typist & Capstone',
       ];
 
       STAGE_META.forEach((stage, idx) => {
@@ -104,7 +104,7 @@ describe('KEYFLOW — Masterpiece Stage Identity, Selector Alignment & Authentic
       assert.equal(savedStage, 4, 'Must remember Stage 4 across reload');
 
       const resolvedMeta = STAGE_META[savedStage - 1];
-      assert.equal(resolvedMeta.title, 'Full Alphabet Mastery & Cross-Row Transitions');
+      assert.equal(resolvedMeta.title, 'Paragraph Fluency & Cohesion');
     });
 
     it('respects URL query param over stored stage if explicitly provided', () => {
@@ -113,7 +113,7 @@ describe('KEYFLOW — Masterpiece Stage Identity, Selector Alignment & Authentic
 
       const resolvedStage = urlQueryStage || parseInt(globalThis.localStorage.getItem('keyflow_active_stage'), 10) || 1;
       assert.equal(resolvedStage, 6);
-      assert.equal(STAGE_META[resolvedStage - 1].title, 'Shift Discipline, Punctuation & Common Symbols');
+      assert.equal(STAGE_META[resolvedStage - 1].title, 'Advanced Performance & Cadence');
     });
   });
 

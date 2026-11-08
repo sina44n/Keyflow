@@ -7,7 +7,11 @@ import { getPersonalRecords, formatDuration } from '../../utils/telemetryStorage
  * Displays authenticated personal bests and lifetime milestones
  * calculated strictly from recorded user sessions.
  */
-export default function PersonalRecords({ sessions = [] }) {
+export default function PersonalRecords({
+  sessions = [],
+  activeReport = 'overall',
+  periodMetrics = null,
+}) {
   const records = React.useMemo(() => {
     return getPersonalRecords(sessions);
   }, [sessions]);
@@ -17,25 +21,76 @@ export default function PersonalRecords({ sessions = [] }) {
   const totalPracticeSec = records?.totalPracticeSeconds ?? 0;
   const longestSeconds = records?.longestSessionSeconds ?? 0;
 
+  const isToday = activeReport === 'today' || activeReport === 'daily';
+  const isWeekly = activeReport === 'weekly';
+
+  const speedTitle = isToday
+    ? "Today's Peak Speed"
+    : isWeekly
+      ? "This Week's Peak Speed"
+      : 'Highest Typing Speed';
+
+  const speedVal = isToday || isWeekly
+    ? ((periodMetrics?.bestWpm || 0) > 0 ? `${periodMetrics.bestWpm} WPM` : '—')
+    : ((records?.highestWpm || 0) > 0 ? `${records.highestWpm} WPM` : '—');
+
+  const speedDesc = isToday
+    ? 'Peak speed recorded across completed practice today.'
+    : isWeekly
+      ? 'Peak speed recorded across practice this week.'
+      : 'All-time personal best speed recorded in completed practice.';
+
+  const accuracyTitle = isToday
+    ? "Today's Accuracy"
+    : isWeekly
+      ? "This Week's Accuracy"
+      : 'Peak Accuracy';
+
+  const accuracyVal = isToday || isWeekly
+    ? ((periodMetrics?.accuracy !== null && periodMetrics?.accuracy !== undefined && (periodMetrics?.attempts || 0) > 0) ? `${periodMetrics.accuracy}%` : '—')
+    : ((records?.bestAccuracy || 0) > 0 ? `${records.bestAccuracy}%` : '—');
+
+  const accuracyDesc = isToday
+    ? 'Overall accuracy rating achieved today.'
+    : isWeekly
+      ? 'Overall accuracy rating achieved this week.'
+      : 'Highest precision achieved in an active session.';
+
+  const sessionsTitle = isToday
+    ? "Today's Completed Drills"
+    : isWeekly
+      ? "This Week's Completed Drills"
+      : 'Completed Sessions';
+
+  const sessionsVal = isToday || isWeekly
+    ? (periodMetrics?.attempts || 0).toLocaleString()
+    : totalCompleted.toLocaleString();
+
+  const sessionsDesc = isToday
+    ? 'Successfully completed drills logged today.'
+    : isWeekly
+      ? 'Successfully completed drills logged this week.'
+      : 'Total successfully passed drills and workstation sprints.';
+
   const cards = [
     {
-      title: 'Highest Typing Speed',
-      value: (records?.highestWpm || 0) > 0 ? `${records.highestWpm} WPM` : '—',
-      desc: 'All-time personal best speed recorded in completed practice.',
+      title: speedTitle,
+      value: speedVal,
+      desc: speedDesc,
       icon: '⚡',
       color: 'text-amber-500 bg-amber-500/10 border-amber-500/30'
     },
     {
-      title: 'Peak Accuracy',
-      value: (records?.bestAccuracy || 0) > 0 ? `${records.bestAccuracy}%` : '—',
-      desc: 'Highest precision achieved in an active session.',
+      title: accuracyTitle,
+      value: accuracyVal,
+      desc: accuracyDesc,
       icon: '🎯',
       color: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30'
     },
     {
       title: 'Longest Focused Session',
       value: longestSeconds > 0 ? formatDuration(longestSeconds) : (records?.longestSessionFormatted && records.longestSessionFormatted !== '0s' ? records.longestSessionFormatted : '—'),
-      desc: 'Maximum uninterrupted typing practice without idle gaps.',
+      desc: 'All-time maximum uninterrupted typing practice without idle gaps.',
       icon: '⏱️',
       color: 'text-sky-500 bg-sky-500/10 border-sky-500/30'
     },
@@ -51,9 +106,9 @@ export default function PersonalRecords({ sessions = [] }) {
       color: 'text-purple-500 bg-purple-500/10 border-purple-500/30'
     },
     {
-      title: 'Completed Sessions',
-      value: totalCompleted.toLocaleString(),
-      desc: 'Total successfully passed drills and workstation sprints.',
+      title: sessionsTitle,
+      value: sessionsVal,
+      desc: sessionsDesc,
       icon: '📜',
       color: 'text-indigo-500 bg-indigo-500/10 border-indigo-500/30'
     },
@@ -81,7 +136,7 @@ export default function PersonalRecords({ sessions = [] }) {
         {cards.map((card, idx) => (
           <div
             key={idx}
-            className="p-5 rounded-2xl bg-[var(--bg-main)] border border-[var(--border)] flex items-start gap-4 transition-all hover:border-[var(--text-muted)]/50"
+            className="p-5 rounded-2xl bg-[var(--bg-main)] border border-[var(--border)] flex items-start gap-4 transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[var(--text-muted)]/50 hover:shadow-xs"
           >
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 border ${card.color}`}>
               {card.icon}

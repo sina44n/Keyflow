@@ -184,7 +184,7 @@ export const PathConnector = ({ containerRef, cardRefs, lessons, activeLessonNum
             strokeLinecap="round"
             strokeLinejoin="round"
             filter={p.isCompleted ? "url(#circuitGreenGlow)" : "url(#circuitRedGlow)"}
-            className="transition-all duration-300"
+            className="transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]"
           />
         );
       })}
@@ -200,7 +200,7 @@ export const PathConnector = ({ containerRef, cardRefs, lessons, activeLessonNum
           stroke={n.active ? 'var(--text-primary, #FFFFFF)' : 'var(--border-subtle, #151D28)'}
           strokeWidth="1"
           filter={n.active ? "url(#circuitRedGlow)" : undefined}
-          className="transition-all duration-300"
+          className="transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]"
         />
       ))}
     </svg>

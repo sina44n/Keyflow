@@ -14,6 +14,9 @@ import {
   DAY_HEADERS,
   dayHeaders,
   generatePersonalizedInsights,
+  CALENDAR_ACTIVITY_SHADES,
+  CALENDAR_BORDER_SHADES,
+  calculateActivityLevel,
 } from './telemetryStorage.js';
 
 describe('KEYFLOW Telemetry & Biomechanical Intelligence Engine Tests', () => {
@@ -194,6 +197,42 @@ describe('KEYFLOW Telemetry & Biomechanical Intelligence Engine Tests', () => {
       assert.ok(foundDay);
       assert.equal(foundDay.intensity, 4);
       assert.equal(foundDay.attempts, 1);
+    });
+
+    it('defines exactly four distinct green activity shades with proper border pairs', () => {
+      assert.equal(CALENDAR_ACTIVITY_SHADES.level1, '#bbf7d0'); // Very Light Green
+      assert.equal(CALENDAR_ACTIVITY_SHADES.level2, '#4ade80'); // Light Green
+      assert.equal(CALENDAR_ACTIVITY_SHADES.level3, '#16a34a'); // Medium Green
+      assert.equal(CALENDAR_ACTIVITY_SHADES.level4, '#14532d'); // Dark Green
+
+      assert.equal(CALENDAR_BORDER_SHADES.level1, '#86efac');
+      assert.equal(CALENDAR_BORDER_SHADES.level2, '#22c55e');
+      assert.equal(CALENDAR_BORDER_SHADES.level3, '#15803d');
+      assert.equal(CALENDAR_BORDER_SHADES.level4, '#052e16');
+
+      // Verify all 4 shades are unique
+      const shadeValues = [
+        CALENDAR_ACTIVITY_SHADES.level1,
+        CALENDAR_ACTIVITY_SHADES.level2,
+        CALENDAR_ACTIVITY_SHADES.level3,
+        CALENDAR_ACTIVITY_SHADES.level4,
+      ];
+      assert.equal(new Set(shadeValues).size, 4);
+    });
+
+    it('dynamically calculates activity levels across varied practice history', () => {
+      const multiDayHistory = [60, 180, 360, 720];
+      const levels = multiDayHistory.map((d) => calculateActivityLevel(d, multiDayHistory));
+      assert.deepEqual(levels, [1, 2, 3, 4], 'Low, Moderate, High, Highest activity levels should map to 1, 2, 3, 4');
+
+      // Zero activity must return 0 (neutral)
+      assert.equal(calculateActivityLevel(0, multiDayHistory), 0);
+      assert.equal(calculateActivityLevel(null, multiDayHistory), 0);
+      assert.equal(calculateActivityLevel(undefined, multiDayHistory), 0);
+      assert.equal(calculateActivityLevel(-10, multiDayHistory), 0);
+
+      // Higher practice activity must produce higher level
+      assert.ok(calculateActivityLevel(60, multiDayHistory) < calculateActivityLevel(720, multiDayHistory));
     });
 
     it('handles empty activity history safely without NaN or undefined totals', () => {

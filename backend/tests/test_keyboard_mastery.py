@@ -132,3 +132,4 @@ class KeyboardMasteryTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['total_sessions'], 0)
         self.assertEqual(res.data['character_stats'], {})
+

@@ -117,7 +117,7 @@ export const Navbar = () => {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-[color-mix(in_srgb,var(--bg-main)_90%,transparent)] border-b border-[var(--border)] transition-colors duration-200">
+    <header className="sticky top-0 z-50 w-full backdrop-blur-md bg-[color-mix(in_srgb,var(--bg-main)_90%,transparent)] border-b border-[var(--border)] transition-colors duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
       <div className="container-app h-16 flex items-center justify-between gap-2 lg:gap-4">
         {/* Brand Logo */}
         <Link
@@ -125,12 +125,12 @@ export const Navbar = () => {
           className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] rounded-lg py-1 shrink-0"
           aria-label="KEYFLOW Home"
         >
-          <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] group-hover:border-[var(--accent)] flex items-center justify-center transition-all duration-200 relative shrink-0 shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
-            <Keyboard className="w-4 h-4 text-[var(--accent)] transition-transform group-hover:scale-105" aria-hidden="true" />
+          <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] group-hover:border-[var(--accent)] flex items-center justify-center transition-all duration-260 ease-[cubic-bezier(0.22,1,0.36,1)] relative shrink-0 shadow-[0_0_10px_color-mix(in_srgb,var(--accent)_20%,transparent)]">
+            <Keyboard className="w-4 h-4 text-[var(--accent)] transition-transform duration-260 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-105" aria-hidden="true" />
             <div className="absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-[var(--accent)] shadow-[0_0_4px_var(--accent)]" />
           </div>
           <div className="flex flex-col shrink-0 justify-center">
-            <span className="font-mono text-sm sm:text-base font-extrabold tracking-wider text-[var(--text-primary)] leading-none group-hover:text-[var(--accent)] transition-colors whitespace-nowrap">
+            <span className="font-mono text-sm sm:text-base font-extrabold tracking-wider text-[var(--text-primary)] leading-none group-hover:text-[var(--accent)] transition-colors duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] whitespace-nowrap">
               KEY<span className="text-[var(--accent)]">FLOW</span>
             </span>
             <span className="text-[9px] text-[var(--text-muted)] tracking-wider uppercase font-mono mt-0.5 whitespace-nowrap">
@@ -158,16 +158,16 @@ export const Navbar = () => {
                 key={link.href}
                 type="button"
                 onClick={() => handleNavClick(link)}
-                className={`relative ${visibilityClass} items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all duration-150 cursor-pointer whitespace-nowrap ${
+                className={`relative ${visibilityClass} items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-mono font-medium transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'text-[var(--text-primary)] bg-[var(--bg-elevated)] border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] shadow-[0_0_12px_color-mix(in_srgb,var(--accent)_20%,transparent)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--bg-elevated)_60%,transparent)]'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors ${isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`} aria-hidden="true" />
+                <Icon className={`w-3.5 h-3.5 shrink-0 transition-colors duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] ${isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`} aria-hidden="true" />
                 <span className="whitespace-nowrap">{link.label}</span>
                 {isActive && (
-                  <span className="absolute -bottom-[9px] left-3 right-3 h-[2px] bg-[var(--accent)] shadow-[0_0_8px_var(--accent)] rounded-full" />
+                  <span className="absolute -bottom-[9px] left-3 right-3 h-[2px] bg-[var(--accent)] shadow-[0_0_8px_var(--accent)] rounded-full transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]" />
                 )}
               </button>
             );
@@ -188,7 +188,7 @@ export const Navbar = () => {
                 <button
                   type="button"
                   onClick={() => setUserMenuOpen((prev) => !prev)}
-                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] transition-all cursor-pointer shrink-0 shadow-xs"
+                  className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-primary)] transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer shrink-0 shadow-xs"
                   aria-expanded={userMenuOpen}
                   aria-haspopup="menu"
                   aria-label="User profile and settings menu"
@@ -199,12 +199,12 @@ export const Navbar = () => {
                   <span className="font-semibold max-w-[100px] truncate">
                     {user?.profile?.display_name || user?.username || 'Learner'}
                   </span>
-                  <ChevronDown className={`w-3.5 h-3.5 text-[var(--text-muted)] transition-transform duration-150 ${userMenuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 text-[var(--text-muted)] transition-transform duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {/* Dropdown Menu */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-100 font-mono text-xs backdrop-blur-md">
+                  <div className="absolute right-0 top-full mt-2 w-72 max-w-[calc(100vw-1.5rem)] rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-2.5 z-50 animate-in fade-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] font-mono text-xs backdrop-blur-md">
                     <div className="px-3 py-2 border-b border-[var(--border)] mb-1">
                       <div className="font-bold text-[var(--text-primary)] truncate">
                         {user?.profile?.display_name || user?.username}
@@ -382,7 +382,7 @@ export const Navbar = () => {
 
       {/* Mobile Menu Drawer (<md) */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-4 space-y-3 animate-in fade-in duration-150">
+        <div className="md:hidden border-b border-[var(--border)] bg-[var(--bg-surface)] px-4 py-4 space-y-3 animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
           <nav className="space-y-1" aria-label="Mobile navigation">
             {navLinks.map((link) => {
               const Icon = link.icon;

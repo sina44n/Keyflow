@@ -1202,7 +1202,7 @@ export const WorkstationPage = () => {
 
         {/* Focus Mode floating banner */}
         {focusMode && (
-          <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 text-xs font-mono animate-in fade-in duration-150">
+          <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--accent)]/40 text-xs font-mono animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
             <div className="flex items-center gap-2 text-[var(--text-secondary)]">
               <Eye className="w-4 h-4 text-[var(--accent)]" />
               <span>Focus Mode Active • Distraction-free typing</span>

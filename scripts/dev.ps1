@@ -50,10 +50,12 @@ if ($backendAlreadyRunning) {
     Write-Host "  -> Port 8000 is occupied. Probing health..." -ForegroundColor DarkGray
     try {
         $health = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/health/" -TimeoutSec 3 -ErrorAction Stop
-        if ($health.status -eq "ok" -and $health.database -eq "ok") {
+        $dbOk = ($health.database -eq "ok" -or ($health.database -is [PSCustomObject] -and $health.database.status -eq "ok") -or ($health.database.status -eq "ok"))
+        if ($health.status -eq "ok" -and $dbOk) {
             Write-Host "[OK] Existing Django process is healthy. Reusing process." -ForegroundColor Green
         } else {
-            Write-Host "[WARNING] Existing backend returned degraded state: $($health.database)" -ForegroundColor Yellow
+            $dbDesc = if ($health.database.status) { $health.database.status } else { $health.database }
+            Write-Host "[WARNING] Existing backend returned degraded state: $dbDesc" -ForegroundColor Yellow
         }
     } catch {
         Write-Host "[ERROR] Port 8000 is occupied by an unresponsive process." -ForegroundColor Red
@@ -77,7 +79,8 @@ if ($backendAlreadyRunning) {
         Start-Sleep -Milliseconds 500
         try {
             $health = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/health/" -TimeoutSec 2 -ErrorAction Stop
-            if ($health.status -eq "ok" -and $health.database -eq "ok") {
+            $dbOk = ($health.database -eq "ok" -or ($health.database -is [PSCustomObject] -and $health.database.status -eq "ok") -or ($health.database.status -eq "ok"))
+            if ($health.status -eq "ok" -and $dbOk) {
                 $isHealthy = $true
                 break
             }

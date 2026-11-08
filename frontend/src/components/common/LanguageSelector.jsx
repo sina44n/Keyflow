@@ -30,7 +30,7 @@ export const LanguageSelector = ({ compact = false }) => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
         aria-label="Select language"
         aria-expanded={isOpen}
       >
@@ -41,11 +41,11 @@ export const LanguageSelector = ({ compact = false }) => {
             {currentLanguageConfig.nativeName}
           </span>
         )}
-        <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] transition-transform duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 max-h-80 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1.5 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in zoom-in-95 duration-100`}>
+        <div className={`absolute ${isRTL ? 'left-0' : 'right-0'} mt-2 w-56 max-h-80 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] p-1.5 shadow-2xl backdrop-blur-xl z-50 animate-in fade-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]`}>
           <div className="px-2.5 py-1.5 text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--text-muted)] border-b border-[var(--border)] mb-1">
             {t('nav.selectLanguage', 'Select Language')} ({supportedLanguages.length})
           </div>

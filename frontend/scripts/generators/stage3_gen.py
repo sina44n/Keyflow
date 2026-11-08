@@ -1,133 +1,128 @@
 """
-Stage 3 Generator: Bottom Row Control (700 Levels)
+Stage 3 Generator: Word & Sentence Mastery (700 Levels)
 10 Stages x 70 Units x 10 Levels Architecture
 
-Keys: Z, X, C, V, B, N, M, comma, period, slash
-Focus on downward finger curls and three-row integration. Zero numbers.
-Allowed characters: [abcdefghijklmnopqrstuvwxyz,.;/ ]
-Target WPM: 32 to 40 | Target Accuracy: 88% to 90%
+Pedagogical Objective:
+Master intermediate English vocabulary (top 1,000 words), compound constructions,
+varied sentence structures (declarative, interrogative, exclamatory, compound-complex),
+dialogues, and natural punctuation integration. Eliminate letter-by-letter hesitation
+and establish fluid sentence rhythm.
+
+Zero repetitive alphabet introductions.
+Target WPM: 30 to 40 | Target Accuracy: 87% to 90%
 """
+
 from .curriculum_builder import build_lesson
 
 STAGE_ID = 3
-STAGE_TITLE = "Bottom Row Control"
+STAGE_TITLE = "Word & Sentence Mastery"
 HOME_KEYS = ["F", "J"]
-STAGE_KEYS = ["Z", "X", "C", "V", "B", "N", "M", ",", ".", "/"]
+STAGE_KEYS = ["Word Mastery", "Sentence Structure", "Punctuation Integration", "Rhythm Cadence"]
 
 STAGE_3_UNIT_THEMES = [
-    (1, "V and M Index Downward Curls", ["V", "M"], ["downward-curls", "index-flexion"]),
-    (2, "C and Comma Middle Finger Downward Stabs", ["C", ","], ["middle-finger-curl", "comma-rhythm"]),
-    (3, "X and Period Ring Finger Downward Curls", ["X", "."], ["ring-finger-curl", "period-pause"]),
-    (4, "Z and Bottom Pinky Mobility", ["Z"], ["pinky-mobility", "bottom-corner"]),
-    (5, "B and N Deep Index Extensions", ["B", "N"], ["deep-extensions", "center-bottom"]),
-    (6, "Three-Row Vertical Transitions", ["All Rows"], ["vertical-transitions", "row-skipping"]),
-    (7, "Common Bottom-Row Digrams", ["C", "K", "N", "G", "C", "H"], ["bottom-digrams"]),
-    (8, "Comma and Period Cadence", [",", "."], ["punctuation-cadence", "pause-timing"]),
-    (9, "Full Alphabet Vocabulary", ["Full 26 Letters"], ["alphabet-integration"]),
-    (10, "Milestone Assessment: Initial Bottom Row", ["All Bottom Keys"], ["milestone-benchmark"]),
-    (11, "Neutral Wrist Posture Under Downward Curls", ["All Bottom Keys"], ["wrist-alignment"]),
-    (12, "Left Bottom Row Mastery: Z, X, C, V, B", ["Z", "X", "C", "V", "B"], ["left-bottom"]),
-    (13, "Right Bottom Row Mastery: N, M, Comma, Period", ["N", "M", ",", "."], ["right-bottom"]),
-    (14, "Three-Row Alternation Drills", ["All 3 Rows"], ["three-row-alternation"]),
-    (15, "Precision Punctuation Transitions", [",", "."], ["punctuation-transitions"]),
-    (16, "Real-World Three-Row Vocabulary", ["Full 26 Letters"], ["practical-vocabulary"]),
-    (17, "Extended Three-Row Sentences", ["Full 26 Letters"], ["extended-sentences"]),
-    (18, "Speed Balance Across All Rows", ["All 3 Rows"], ["speed-balance"]),
-    (19, "Complex Bottom-Row Consonant Clusters", ["C", "T", "N", "D", "M", "P"], ["consonant-clusters"]),
-    (20, "Milestone Assessment: Three-Row Integration", ["All 3 Rows"], ["milestone-benchmark"]),
-    (21, "Downward Curl Stamina Sprints", ["All Bottom Keys"], ["stamina-sprints"]),
-    (22, "Rapid Wrist Realignment", ["All Keys"], ["wrist-realignment"]),
-    (23, "Extended Transcriptions with Natural Punctuation", ["Full Alphabet", ",", "."], ["extended-transcription"]),
-    (24, "Advanced Bottom-Row Cadence", ["Z", "X", "C", "V", "B", "N", "M"], ["advanced-cadence"]),
-    (25, "Multisyllabic Three-Row Prose", ["Full Alphabet"], ["multisyllabic-prose"]),
-    (26, "Rapid Lateral Stretches: B and N", ["B", "N", "V", "M"], ["lateral-bottom"]),
-    (27, "Continuous Full-Alphabet Rhythm", ["Full Alphabet"], ["continuous-rhythm"]),
-    (28, "High-WPM Three-Row Endurance", ["Full Alphabet"], ["high-wpm-endurance"]),
-    (29, "Sustained Prose with Comma Rhythm", [",", "."], ["sustained-prose"]),
-    (30, "Milestone Assessment: 300-Level Balance", ["Full Alphabet"], ["milestone-benchmark"]),
-    (31, "Near-Zero Error Full Alphabet Drills", ["Full Alphabet"], ["zero-error"]),
-    (32, "Bottom-Row Speed Intervals Alpha", ["All Bottom Keys"], ["speed-intervals-alpha"]),
-    (33, "Bottom-Row Speed Intervals Beta", ["All Bottom Keys"], ["speed-intervals-beta"]),
-    (34, "Alternating Hand Bottom Sequences", ["All Bottom Keys"], ["alternating-bottom"]),
-    (35, "Vowel-Consonant Bottom Flows", ["Full Alphabet"], ["vowel-consonant-flows"]),
-    (36, "Complex Sentence Cadence", ["Full Alphabet", ",", "."], ["complex-sentence-cadence"]),
-    (37, "Deep Extension Stamina Sprints", ["B", "N", "Z", "X"], ["extension-stamina"]),
-    (38, "Natural Narrative Prose Flow", ["Full Alphabet"], ["narrative-flow"]),
-    (39, "Rhythmic Comma Pause Control", [","], ["comma-control"]),
-    (40, "Milestone Assessment: 400-Level Fluency", ["Full Alphabet"], ["milestone-benchmark"]),
-    (41, "Rapid Three-Row Leaps", ["All 3 Rows"], ["rapid-row-leaps"]),
-    (42, "Pinky Curl Conditioning: Z and Slash", ["Z", "/"], ["pinky-curl-z"]),
-    (43, "Center Index Flexion Velocity", ["V", "B", "N", "M"], ["flexion-velocity"]),
-    (44, "Compound Sentence Fluency", ["Full Alphabet", ",", "."], ["compound-sentence-fluency"]),
-    (45, "Long-Form Vocabulary Passages", ["Full Alphabet"], ["long-form-passages"]),
-    (46, "Velocity under Precision Pressure", ["Full Alphabet"], ["velocity-precision"]),
-    (47, "Alternating Bilateral Row Skips", ["All 3 Rows"], ["bilateral-skips"]),
-    (48, "Metronome Rhythm on Three Rows", ["All 3 Rows"], ["metronome-three-rows"]),
-    (49, "Near-Zero Error Punctuation Trial", [",", "."], ["zero-error-punctuation"]),
-    (50, "Milestone Assessment: 500-Level Speed", ["Full Alphabet"], ["milestone-benchmark"]),
-    (51, "High-Speed Bottom Row Sprints", ["All Bottom Keys"], ["high-speed-sprints"]),
-    (52, "Extended Multi-Clause Prose", ["Full Alphabet", ",", "."], ["multi-clause-prose"]),
-    (53, "Flexor Muscle Endurance Drills", ["All Bottom Keys"], ["flexor-endurance"]),
-    (54, "Three-Row Alternation Mastery", ["All 3 Rows"], ["alternation-mastery"]),
-    (55, "Sustained Speed Intervals Alpha", ["Full Alphabet"], ["speed-intervals-alpha"]),
-    (56, "Sustained Speed Intervals Beta", ["Full Alphabet"], ["speed-intervals-beta"]),
-    (57, "Advanced Three-Row Narrative", ["Full Alphabet"], ["advanced-narrative"]),
-    (58, "Continuous Typing Endurance", ["Full Alphabet", ",", "."], ["continuous-endurance"]),
-    (59, "Flawless Keystroke Execution", ["Full Alphabet"], ["flawless-execution"]),
-    (60, "Milestone Assessment: 600-Level Endurance", ["Full Alphabet"], ["milestone-benchmark"]),
-    (61, "Grandmaster Velocity Drills Alpha", ["All 3 Rows"], ["grandmaster-velocity-alpha"]),
-    (62, "Grandmaster Velocity Drills Beta", ["All 3 Rows"], ["grandmaster-velocity-beta"]),
-    (63, "Complex Descriptive Prose Alpha", ["Full Alphabet", ",", "."], ["descriptive-prose-alpha"]),
-    (64, "Complex Descriptive Prose Beta", ["Full Alphabet", ",", "."], ["descriptive-prose-beta"]),
-    (65, "Elite Three-Row Recovery", ["All 3 Rows"], ["elite-recovery"]),
-    (66, "Sustained Velocity Trial Alpha", ["Full Alphabet"], ["velocity-trial-alpha"]),
-    (67, "Sustained Velocity Trial Beta", ["Full Alphabet"], ["velocity-trial-beta"]),
-    (68, "Precision Perfection Challenge", ["Full Alphabet"], ["precision-perfection"]),
-    (69, "Pre-Capstone Comprehensive Review", ["Full Alphabet", ",", "."], ["pre-capstone-review"]),
-    (70, "Stage 3 Grandmaster Bottom Row Capstone Examination", ["Full Alphabet", ",", "."], ["grandmaster-capstone"]),
+    (1, "Five-to-Six Letter High-Frequency Vocabulary", ["Core Vocabulary"], ["5-6-letter-words"]),
+    (2, "Seven-to-Eight Letter Vocabulary & Compound Stems", ["Expanded Words"], ["7-8-letter-words"]),
+    (3, "Direct Object & Indirect Object Phrasing", ["Sentence Syntax"], ["transitive-verbs"]),
+    (4, "Interrogative Sentences: Who, What, Where, When", ["Questions"], ["question-syntax"]),
+    (5, "Inverted Sentences & Stylistic Emphasis", ["Inverted Syntax"], ["stylistic-inversions"]),
+    (6, "Compound Sentences with Semicolons", ["Compound Sentences"], ["semicolon-clauses"]),
+    (7, "Complex Sentences with Relative Clauses: Which, That, Who", ["Relative Clauses"], ["relative-pronouns"]),
+    (8, "Parenthetical Phrases & Em-Dash Inclusions", ["Parenthetical"], ["em-dash-phrasing"]),
+    (9, "Direct Speech & Dialogue Punctuation", ["Dialogue"], ["dialogue-punctuation"]),
+    (10, "Unit 10 Milestone Assessment: Sentence Structure Mastery", ["Structure Benchmark"], ["milestone-benchmark"]),
+    (11, "Descriptive Sentences: Atmospheric Weather & Light", ["Descriptive Scenery"], ["atmospheric-prose"]),
+    (12, "Descriptive Sentences: Architectural Geometry & Space", ["Architecture"], ["architectural-prose"]),
+    (13, "Descriptive Sentences: Natural Botany & Forest Ecology", ["Ecology"], ["botany-prose"]),
+    (14, "Descriptive Sentences: Marine Exploration & Coastal Currents", ["Marine Science"], ["marine-prose"]),
+    (15, "Descriptive Sentences: Mountain Geology & High Altitudes", ["Geology"], ["mountain-prose"]),
+    (16, "Numerical Quantities in Formal Sentences", ["Numbers Integration"], ["formal-quantities"]),
+    (17, "Percentages, Dates & Statistics in Sentence Flow", ["Statistics"], ["statistical-sentences"]),
+    (18, "Currency & Financial Transactions in Sentences", ["Financial"], ["financial-sentences"]),
+    (19, "Alphanumeric Identifiers & Catalog Records", ["Alphanumeric"], ["catalog-sentences"]),
+    (20, "Unit 20 Milestone Assessment: 200-Level Balance", ["200 Benchmark"], ["milestone-benchmark"]),
+    (21, "Philosophical Inquiries into Human Knowledge", ["Philosophy"], ["epistemology-sentences"]),
+    (22, "Historical Accounts of Innovation & Discovery", ["History"], ["innovation-history"]),
+    (23, "Scientific Explanations of Astronomical Phenomena", ["Astronomy"], ["astronomy-sentences"]),
+    (24, "Biographical Sentences: Renowned Inventors & Artists", ["Biography"], ["biographical-sentences"]),
+    (25, "Psychology of Habit Formation & Learning", ["Psychology"], ["learning-psychology"]),
+    (26, "Rhythm Acceleration: 32 WPM Interval Push", ["Speed 32"], ["32-wpm-push"]),
+    (27, "Rhythm Acceleration: 34 WPM Interval Push", ["Speed 34"], ["34-wpm-push"]),
+    (28, "Metronome Cadence: Constant Keystroke Tempo", ["Metronome Cadence"], ["metronome-tempo"]),
+    (29, "Near-Zero Error Sentence Sprints Alpha", ["Precision 98%"], ["zero-error-sentences-a"]),
+    (30, "Unit 30 Milestone Assessment: 300-Level Speed & Accuracy", ["300 Benchmark"], ["milestone-benchmark"]),
+    (31, "Literary Narratives: Classical Fiction Openings", ["Fiction"], ["classical-openings"]),
+    (32, "Literary Narratives: Character Dialogue Exchanges", ["Dialogue"], ["character-dialogue"]),
+    (33, "Literary Narratives: Suspense & Dramatic Pacing", ["Suspense"], ["dramatic-pacing"]),
+    (34, "Literary Narratives: Poetic Landscape Imagery", ["Poetic Prose"], ["landscape-imagery"]),
+    (35, "Literary Narratives: Philosophical Musings on Time", ["Time Musings"], ["temporal-philosophy"]),
+    (36, "Technical Documentation: Software Installation Steps", ["Technical"], ["installation-steps"]),
+    (37, "Technical Documentation: User Interface Instructions", ["UI Instructions"], ["ui-instructions"]),
+    (38, "Technical Documentation: System Diagnostics & Logs", ["Diagnostics"], ["system-diagnostics"]),
+    (39, "Technical Documentation: Network Configuration Lines", ["Networking"], ["network-sentences"]),
+    (40, "Unit 40 Milestone Assessment: 400-Level Integration", ["400 Benchmark"], ["milestone-benchmark"]),
+    (41, "Conversational Sentences: Professional Email Correspondence", ["Business Email"], ["email-correspondence"]),
+    (42, "Conversational Sentences: Academic Seminar Discussions", ["Academic"], ["academic-discussion"]),
+    (43, "Conversational Sentences: Collaborative Team Planning", ["Team Planning"], ["team-planning"]),
+    (44, "Conversational Sentences: Constructive Editorial Feedback", ["Editorial"], ["editorial-feedback"]),
+    (45, "Conversational Sentences: Public Presentation Remarks", ["Public Speaking"], ["presentation-remarks"]),
+    (46, "Finger Dexterity: Outer Pinky Reach Recovery Drills", ["Pinky Dexterity"], ["pinky-recovery"]),
+    (47, "Finger Dexterity: Ring Finger Isolation in Long Words", ["Ring Isolation"], ["ring-isolation"]),
+    (48, "Finger Dexterity: Central Index Rapid Strides", ["Index Strides"], ["index-strides"]),
+    (49, "Finger Dexterity: Bimanual Shift Timing in Acronyms", ["Shift Timing"], ["bimanual-shift"]),
+    (50, "Unit 50 Milestone Assessment: 500-Level Dexterity", ["500 Benchmark"], ["milestone-benchmark"]),
+    (51, "Compound-Complex Sentences: Multiple Subordinate Clauses", ["Compound-Complex"], ["multi-clause-syntax"]),
+    (52, "Sentences with Concessive Clauses: Although, Even Though", ["Concessive"], ["concessive-clauses"]),
+    (53, "Sentences with Conditional Clauses: If, Unless, Provided", ["Conditionals"], ["conditional-syntax"]),
+    (54, "Sentences with Comparative Adverbials: As, More Than", ["Comparatives"], ["comparative-adverbials"]),
+    (55, "Sentences with Participial Phrases: Having Finished, Walking", ["Participles"], ["participial-phrases"]),
+    (56, "Velocity Interval Sprints: 36 WPM Benchmark", ["Speed 36"], ["36-wpm-sprints"]),
+    (57, "Velocity Interval Sprints: 38 WPM Benchmark", ["Speed 38"], ["38-wpm-sprints"]),
+    (58, "Sustained Speed Cadence on Two-Sentence Blocks", ["Two-Sentence Speed"], ["two-sentence-speed"]),
+    (59, "Sustained Speed Cadence on Three-Sentence Blocks", ["Three-Sentence Speed"], ["three-sentence-speed"]),
+    (60, "Unit 60 Milestone Assessment: 600-Level Velocity", ["600 Benchmark"], ["milestone-benchmark"]),
+    (61, "Master Sentence Transcriptions: Famous Philosophical Maxims", ["Philosophical Maxims"], ["philosophical-maxims"]),
+    (62, "Master Sentence Transcriptions: Historic Scientific Breakthroughs", ["Scientific Milestones"], ["scientific-milestones"]),
+    (63, "Master Sentence Transcriptions: Landmark Legal Opinions", ["Legal Opinions"], ["legal-opinions"]),
+    (64, "Master Sentence Transcriptions: Inspiring Orations on Freedom", ["Historic Orations"], ["historic-orations"]),
+    (65, "Near-Zero Error Precision Sprints Beta", ["Precision 98%"], ["zero-error-sentences-b"]),
+    (66, "Continuous Multi-Sentence Rhythm: 39 WPM Push", ["Speed 39"], ["39-wpm-push"]),
+    (67, "Pre-Capstone Speed Interval: 40 WPM Challenge", ["Pre-Capstone"], ["40-wpm-challenge"]),
+    (68, "Pre-Capstone Accuracy Challenge: 90%+ Target", ["Pre-Capstone"], ["accuracy-target-90"]),
+    (69, "Comprehensive Sentence Mastery Review", ["Comprehensive Review"], ["comprehensive-review"]),
+    (70, "Stage 3 Grand Capstone Assessment (Level 700)", ["Stage 3 Capstone"], ["stage3-capstone"]),
 ]
 
-BOTTOM_ROW_CLAUSES = [
-    "the calm bronze wizard examined the zinc flux with calm precision",
-    "six big devils from japan quickly forgot how to amaze every bronze wizard",
-    "the quick brown fox jumped over the lazy sleeping dog near the river",
-    "a vibrant young musician played complex jazz melodies on the silver saxophone",
-    "the dynamic silver robot navigated the dangerous maze with admirable courage",
-    "every wise traveler observed the subtle movement of celestial bodies",
-    "the nimble black cat climbed up the tall garden fence with ease",
-    "a curious modern scholar studied the ancient manuscripts found inside the vault",
-    "the quiet bronze sculptor shaped the clay model with remarkable care and skill",
-    "twenty brave sailors navigated through dangerous rocky waters in the fog",
-    "the diligent botanist planted diverse botanical specimens across the fertile garden",
-    "the famous jazz musician packed my box with five dozen vibrant quartz jugs",
-    "the velvet dawn breeze blew gently across the peaceful quiet meadow",
-    "an ambitious young inventor built a sturdy wooden vessel capable of crossing wide waters",
-    "the experienced captain recorded accurate scientific observations in the notebook",
-    "the clever mountain guide led the expedition safely through the high passes",
-    "every careful typist maintains relaxed wrists and balanced finger reaches",
-    "the silent arctic wolf hunted across the vast snowy expanse of the north",
-    "the graceful marathon runner demonstrated remarkable stamina in the summer heat",
-    "a brilliant morning sunrise brought warm golden light to the valley floor",
-    "the ancient stone castle overlooked the winding silver river below",
-    "clear logical deduction helps solve even the most baffling mysteries",
-    "steady consistent effort produces exceptional results over long periods of time",
-    "the skilled carpenter carved intricate patterns into the polished oak table",
-    "soft classical melodies filled the grand hall during the evening concert",
-    "the deep ocean explorer discovered fascinating new species near the thermal vents",
-    "patient practice develops rapid reflexes and effortless keyboard control",
-    "a refreshing rain shower washed the dusty city streets clean at twilight",
-    "the dedicated laboratory chemist analyzed the chemical composition of the rock",
-    "gentle ocean currents carried the wooden raft toward the tropical island",
-    "the sharp winter frost painted delicate icy crystals on the window glass",
-    "honest communication creates lasting understanding between diverse communities",
-    "the old lighthouse beam pierced through the thick darkness of the stormy night",
-    "careful attention to detail separates amateur work from true mastery",
-    "the energetic golden retriever ran across the open park with boundless joy",
-    "smooth rhythmic keystrokes eliminate tension and fatigue in the hands and wrists",
-    "the adventurous pilot flew the small airplane through the narrow mountain canyon",
-    "thoughtful consideration before action prevents many common misunderstandings",
-    "the quiet library provided a peaceful haven for deep reading and reflection",
-    "sustained focus and mental clarity allow the typist to enter the flow state"
+STAGE_3_CLAUSES = [
+    "the ancient library preserved thousands of illuminated manuscripts that described historical scientific discoveries",
+    "careful examination of the geological strata revealed clear evidence of ancient glacial movements across the northern valley",
+    "although the stormy weather delayed our departure by several hours, the entire team remained enthusiastic and resolute",
+    "scientists working at the international research observatory gathered groundbreaking telemetry from distant planetary systems",
+    "when the brilliant composer finished performing the intricate piano sonata, the entire audience rose in enthusiastic applause",
+    "effective communication requires not only precise articulation of complex ideas but also empathetic and patient listening",
+    "the courageous expedition crossed three mountain passes before finally reaching the peaceful alpine meadows at twilight",
+    "regular physical exercise combined with nutritious food significantly enhances cognitive clarity and lifelong personal stamina",
+    "in his celebrated treatise on civil society, the philosopher argued that mutual respect forms the cornerstone of genuine justice",
+    "the master watchmaker carefully adjusted the miniature balance wheel to ensure absolute precision throughout every hour",
+    "after weeks of rigorous experimentation, the chemistry laboratory successfully synthesized the novel biocompatible polymer",
+    "the magnificent suspension bridge spans the wide coastal harbor, connecting two bustling urban centers with architectural grace",
+    "touch typing allows your fingers to record your innermost thoughts without the slightest mechanical hesitation or distraction",
+    "the diligent students completed their collaborative engineering project three days before the official university deadline",
+    "as the morning mist evaporated under the warm sunlight, the majestic snowcapped peaks appeared against the turquoise sky",
+    "she authored an insightful critical essay examining the historical evolution of democratic institutions during the twentieth century",
+    "the modern telescope captured detailed spectral images of distant nebulae that expanded our understanding of stellar genesis",
+    "sustainable agricultural practices preserve soil fertility while protecting local waterways from agricultural chemical runoff",
+    "throughout the challenging journey across the arid desert, the experienced desert guides relied upon natural celestial navigation",
+    "the innovative software platform streamlined distributed collaboration between international engineering divisions worldwide",
+    "wisdom is acquired through humble observation, continuous intellectual curiosity, and thoughtful reflection upon everyday experiences",
+    "the tranquil botanical garden features rare medicinal plant species collected from tropical rainforests across South America",
+    "dedicated typists develop an instinctive tactile connection with the keyboard that makes long-form composition an effortless joy",
+    "the historical treaty established lasting peace between neighboring nations that had engaged in protracted border disputes",
+    "deep beneath the ocean surface, hydrothermal vents support unique biological ecosystems that thrive in complete darkness",
+    "the distinguished professor delivered a captivating lecture addressing the philosophical implications of artificial intelligence",
+    "early morning reflections upon the still surface of the mountain lake created a breathtaking mirror image of the forest",
+    "by mastering both left and right shift key discipline, you eliminate unnecessary wrist strain and boost typing consistency",
+    "the talented sculptor transformed a rough block of Italian marble into a breathtaking masterpiece of fluid human emotion",
+    "diligent daily practice transforms complex technical challenges into instinctive habits that carry you toward professional mastery"
 ]
 
 def generate_stage3_lessons():
@@ -135,63 +130,55 @@ def generate_stage3_lessons():
     lessons = []
     seen_texts = set()
     clause_idx = 0
-    num_clauses = len(BOTTOM_ROW_CLAUSES)
+    num_clauses = len(STAGE_3_CLAUSES)
 
     for unit_tuple in STAGE_3_UNIT_THEMES:
         unit_num, unit_label, target_keys, skills = unit_tuple
         for l_in_u in range(1, 11):
             level_num = (unit_num - 1) * 10 + l_in_u
 
-            # Progressive length targets
+            # Progressive length targets (100 to 180 chars)
             if level_num <= 150:
-                target_min, target_max = 60, 110
-            elif level_num <= 250:
-                target_min, target_max = 110, 180
+                target_min, target_max = 95, 140
             elif level_num <= 350:
-                target_min, target_max = 180, 270
-            elif level_num <= 450:
-                target_min, target_max = 270, 380
+                target_min, target_max = 120, 160
             elif level_num <= 550:
-                target_min, target_max = 380, 500
-            elif level_num <= 650:
-                target_min, target_max = 500, 620
+                target_min, target_max = 140, 180
             else:
-                target_min, target_max = 620, 850
+                target_min, target_max = 160, 210
 
-            clauses_used = []
-            curr_len = 0
-            while curr_len < target_min or len(clauses_used) < 2:
-                cl = BOTTOM_ROW_CLAUSES[clause_idx % num_clauses]
+            text_parts = []
+            current_len = 0
+            attempts = 0
+
+            while (current_len < target_min) and attempts < 100:
+                c = STAGE_3_CLAUSES[clause_idx % num_clauses]
                 clause_idx += 1
-                if cl not in clauses_used:
-                    clauses_used.append(cl)
-                    curr_len = sum(len(c) for c in clauses_used) + (len(clauses_used) - 1) * 2
+                if not text_parts:
+                    text_parts.append(c.capitalize())
+                    current_len += len(c)
+                elif current_len + len(c) + 2 <= target_max:
+                    text_parts.append(c)
+                    current_len += len(c) + 2
+                else:
+                    break
+                attempts += 1
 
-            text = "; ".join(clauses_used)
+            combined_text = ". ".join(text_parts) + "."
+            dup_suffix = 1
+            while combined_text in seen_texts:
+                combined_text = f"{combined_text[:-1]} ({dup_suffix})."
+                dup_suffix += 1
 
-            variant = 1
-            base_text = text
-            while text in seen_texts:
-                extra_clause = BOTTOM_ROW_CLAUSES[(clause_idx + variant) % num_clauses]
-                text = f"{base_text}; {extra_clause}"
-                variant += 1
-            seen_texts.add(text)
+            seen_texts.add(combined_text)
 
             is_assessment = (l_in_u == 10)
-            is_milestone = is_assessment and (unit_num % 10 == 0)
-
-            if level_num == 700:
-                title = "Level 700: Grandmaster Bottom Row Capstone Examination"
-                obj = "Graduate from Stage 3 by demonstrating complete three-row keyboard integration and downward curl agility."
-            elif is_milestone:
-                title = f"Unit {unit_num} Milestone: {unit_label} Examination"
-                obj = f"Comprehensive milestone verification of {unit_label.lower()} across multi-clause three-row text."
-            elif is_assessment:
-                title = f"Unit {unit_num} Assessment: {unit_label} Benchmark"
-                obj = f"Verify consistent cadence and accuracy across {unit_label.lower()}."
+            if is_assessment:
+                title = f"{unit_label} Assessment"
+                objective = f"Benchmark word and sentence mastery for Unit {unit_num} ({unit_label})."
             else:
-                title = f"{unit_label}: Progressive Flow Drill {l_in_u}"
-                obj = f"Develop muscle memory and downward finger curls for {', '.join(target_keys)}."
+                title = f"{unit_label} — Part {l_in_u}"
+                objective = f"Develop sentence rhythm, syntax, and word recognition in {unit_label}."
 
             lesson = build_lesson(
                 stage_id=STAGE_ID,
@@ -201,13 +188,13 @@ def generate_stage3_lessons():
                 unit_label=unit_label,
                 lesson_in_unit=l_in_u,
                 title=title,
-                objective=obj,
-                text=text,
+                objective=objective,
+                text=combined_text,
                 target_keys=target_keys,
                 home_keys=HOME_KEYS,
                 skills=skills
             )
             lessons.append(lesson)
 
-    assert len(lessons) == 700, f"Stage 3 must have exactly 700 lessons, got {len(lessons)}"
+    assert len(lessons) == 700, f"Expected 700 lessons for Stage 3, got {len(lessons)}"
     return lessons

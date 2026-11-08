@@ -5,7 +5,12 @@ import {
   getWeekStartPreference,
   setWeekStartPreference,
   DAY_HEADERS as SHARED_DAY_HEADERS,
+  CALENDAR_ACTIVITY_SHADES,
+  CALENDAR_BORDER_SHADES,
+  calculateActivityLevel,
 } from '../../utils/telemetryStorage';
+
+export { CALENDAR_ACTIVITY_SHADES, CALENDAR_BORDER_SHADES, calculateActivityLevel };
 
 /**
  * HistoricalPracticeCalendar
@@ -21,6 +26,8 @@ export default function HistoricalPracticeCalendar({
   sessions = [],
   currentUserId = null,
   _currentUserId = null,
+  activeReport = 'overall',
+  metrics = null,
 }) {
   const effectiveUserId = currentUserId || _currentUserId;
   const [weekStart, setWeekStart] = useState(() => getWeekStartPreference(effectiveUserId));
@@ -51,13 +58,13 @@ export default function HistoricalPracticeCalendar({
     if (!isCurrentMonth) return 'bg-transparent border-transparent opacity-0 pointer-events-none';
     switch (level) {
       case 1:
-        return 'bg-emerald-200 dark:bg-emerald-950/70 border-emerald-300 dark:border-emerald-800';
+        return 'bg-[#bbf7d0] border-[#86efac] text-emerald-950';
       case 2:
-        return 'bg-emerald-400 dark:bg-emerald-700 border-emerald-500 dark:border-emerald-600';
+        return 'bg-[#4ade80] border-[#22c55e] text-emerald-950';
       case 3:
-        return 'bg-emerald-500 dark:bg-emerald-600 border-emerald-600 dark:border-emerald-500';
+        return 'bg-[#16a34a] border-[#15803d] text-white';
       case 4:
-        return 'bg-emerald-600 dark:bg-emerald-500 border-emerald-700 dark:border-emerald-400';
+        return 'bg-[#14532d] border-[#052e16] text-white';
       default:
         return 'bg-[var(--bg-main)] border-[var(--border)]/60 hover:border-[var(--text-muted)]';
     }
@@ -99,14 +106,25 @@ export default function HistoricalPracticeCalendar({
             </div>
           </div>
 
-          {/* Activity Intensity Legend */}
-          <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+          {/* Activity Intensity Legend: Less → [Level 1] [Level 2] [Level 3] [Level 4] → More */}
+          <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]" aria-label="Activity Intensity Legend">
             <span>Less</span>
-            <div className="w-3.5 h-3.5 rounded-sm bg-[var(--bg-main)] border border-[var(--border)]" />
-            <div className="w-3.5 h-3.5 rounded-sm bg-emerald-200 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800" />
-            <div className="w-3.5 h-3.5 rounded-sm bg-emerald-400 dark:bg-emerald-700 border border-emerald-500" />
-            <div className="w-3.5 h-3.5 rounded-sm bg-emerald-500 dark:bg-emerald-600 border border-emerald-600" />
-            <div className="w-3.5 h-3.5 rounded-sm bg-emerald-600 dark:bg-emerald-500 border border-emerald-700" />
+            <div
+              className="w-3.5 h-3.5 rounded-xs bg-[#bbf7d0] border border-[#86efac]"
+              title="Level 1 — Low Activity"
+            />
+            <div
+              className="w-3.5 h-3.5 rounded-xs bg-[#4ade80] border border-[#22c55e]"
+              title="Level 2 — Moderate Activity"
+            />
+            <div
+              className="w-3.5 h-3.5 rounded-xs bg-[#16a34a] border border-[#15803d]"
+              title="Level 3 — High Activity"
+            />
+            <div
+              className="w-3.5 h-3.5 rounded-xs bg-[#14532d] border border-[#052e16]"
+              title="Level 4 — Highest Activity"
+            />
             <span>More</span>
           </div>
         </div>
@@ -118,19 +136,41 @@ export default function HistoricalPracticeCalendar({
         <div className="lg:col-span-3 space-y-4">
           <div className="p-5 rounded-2xl bg-[var(--bg-main)] border border-[var(--border)]">
             <div className="text-3xl font-extrabold text-[var(--text-main)] font-mono tracking-tight">
-              {calendarData?.formattedTotalDuration || calendarData?.totalDurationFormatted || '0s'}
+              {activeReport === 'today' || activeReport === 'daily'
+                ? (metrics?.durationFormatted || '0s')
+                : activeReport === 'weekly'
+                  ? (metrics?.durationFormatted || '0s')
+                  : (calendarData?.formattedTotalDuration || calendarData?.totalDurationFormatted || '0s')}
             </div>
             <div className="text-sm font-semibold text-[var(--text-main)] mt-1">
-              Practice Time Last 12 Months
+              {activeReport === 'today' || activeReport === 'daily'
+                ? "Today's Practice Time"
+                : activeReport === 'weekly'
+                  ? "This Week's Practice Time"
+                  : 'Practice Time Last 12 Months'}
             </div>
             <p className="text-xs text-[var(--text-muted)] mt-2 leading-relaxed">
-              The practice calendar shows total practice time and number of attempts per day, as well as the weekly totals.
+              {activeReport === 'today' || activeReport === 'daily'
+                ? "Daily practice activity logged today, synchronized across all telemetry modules."
+                : activeReport === 'weekly'
+                  ? "Weekly practice totals for the current week, respecting your week-start preference."
+                  : "The practice calendar shows total practice time and number of attempts per day, as well as the weekly totals."}
             </p>
 
             <div className="mt-4 pt-4 border-t border-[var(--border)] flex items-center justify-between text-xs">
-              <span className="text-[var(--text-muted)]">Total Attempts:</span>
+              <span className="text-[var(--text-muted)]">
+                {activeReport === 'today' || activeReport === 'daily'
+                  ? "Today's Attempts:"
+                  : activeReport === 'weekly'
+                    ? "Weekly Attempts:"
+                    : "Total Attempts:"}
+              </span>
               <span className="font-mono font-bold text-[var(--text-main)]">
-                {calendarData?.totalAttempts || 0}
+                {activeReport === 'today' || activeReport === 'daily'
+                  ? (metrics?.attempts || 0)
+                  : activeReport === 'weekly'
+                    ? (metrics?.attempts || 0)
+                    : (calendarData?.totalAttempts || 0)}
               </span>
             </div>
           </div>
@@ -226,7 +266,7 @@ export default function HistoricalPracticeCalendar({
                             onClick={() => setSelectedDay(day)}
                             onMouseEnter={() => setHoveredDay(day)}
                             onMouseLeave={() => setHoveredDay(null)}
-                            className={`aspect-square w-full rounded-2xs border text-[8px] font-mono transition-all relative flex items-center justify-center cursor-pointer ${
+                            className={`aspect-square w-full rounded-2xs border text-[8px] font-mono transition-all duration-220 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-105 hover:z-10 relative flex items-center justify-center cursor-pointer ${
                               getCellBg(intensityLevel, true)
                             } ${
                               isSelected ? 'ring-2 ring-[var(--accent)] ring-offset-1 z-10' : ''
@@ -235,7 +275,7 @@ export default function HistoricalPracticeCalendar({
                             aria-label={`${dateString}: ${formatDuration(durationSec)}`}
                           >
                             {day.attempts > 0 ? (
-                              <span className="opacity-0 hover:opacity-100 absolute inset-0 flex items-center justify-center bg-black/75 text-white rounded-2xs text-[8px] font-bold">
+                              <span className="opacity-0 hover:opacity-100 transition-opacity duration-200 ease-out absolute inset-0 flex items-center justify-center bg-black/75 text-white rounded-2xs text-[8px] font-bold">
                                 {dayNumber}
                               </span>
                             ) : null}
@@ -263,7 +303,7 @@ export default function HistoricalPracticeCalendar({
 
       {/* Floating Hover Details Pill */}
       {hoveredDay && (
-        <div className="mt-4 px-3 sm:px-4 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-xs text-[var(--text-main)] flex flex-wrap items-center justify-between gap-2 animate-fadeIn">
+        <div className="mt-4 px-3 sm:px-4 py-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border)] text-xs text-[var(--text-main)] flex flex-wrap items-center justify-between gap-2 animate-in fade-in duration-220">
           <span className="font-semibold">{hoveredDay.dateStr || hoveredDay.date}</span>
           <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[var(--text-muted)] font-mono">
             <span>Practice Time: <strong className="text-[var(--text-main)]">{formatDuration(hoveredDay.durationSeconds ?? hoveredDay.duration ?? 0)}</strong></span>

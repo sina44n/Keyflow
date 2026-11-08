@@ -139,7 +139,7 @@ export const QuoteCard = ({ className = '' }) => {
   if (!quote) return null;
 
   return (
-    <div className={`relative p-6 sm:p-7 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-lg overflow-hidden transition-all duration-300 hover:border-[var(--accent)] ${className}`}>
+    <div className={`relative p-6 sm:p-7 rounded-2xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-lg overflow-hidden transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] hover:border-[var(--accent)] hover:shadow-xl ${className}`}>
       {/* Background quotation watermark */}
       <QuoteIcon className="absolute -bottom-4 -right-4 w-28 h-28 text-[var(--accent)] opacity-5 pointer-events-none" />
 

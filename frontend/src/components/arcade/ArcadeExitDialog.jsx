@@ -9,12 +9,12 @@ export const ArcadeExitDialog = ({ isOpen, onCancel, onConfirm }) => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="abandon-run-title"
     >
-      <div className="w-full max-w-sm rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 sm:p-6 shadow-2xl space-y-4 text-center animate-in zoom-in-95 duration-150">
+      <div className="w-full max-w-sm rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] p-5 sm:p-6 shadow-2xl space-y-4 text-center animate-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
         <div className="w-12 h-12 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center mx-auto shadow-inner">
           <AlertTriangle className="w-6 h-6" />
         </div>

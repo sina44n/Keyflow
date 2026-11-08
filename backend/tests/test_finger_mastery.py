@@ -139,6 +139,8 @@ class FingerMasteryTests(TestCase):
         # Keystroke-weighted speed: (40*20 + 35*10) / 30 = (800 + 350) / 30 = 1150 / 30 = 38.3
         self.assertEqual(left['speed'], 38.3)
         self.assertEqual(left['strongest_finger'], 'Index')
+        self.assertEqual(left['strongest_finger_details']['name'], 'Index')
+        self.assertEqual(left['strongest_finger_details']['speed'], 40.0)
 
         right = data['right_hand']
         self.assertTrue(right['has_data'])
@@ -146,6 +148,8 @@ class FingerMasteryTests(TestCase):
         # (48*25 + 36*15) / 40 = (1200 + 540) / 40 = 1740 / 40 = 43.5
         self.assertEqual(right['speed'], 43.5)
         self.assertEqual(right['strongest_finger'], 'Index')
+        self.assertEqual(right['strongest_finger_details']['name'], 'Index')
+        self.assertEqual(right['strongest_finger_details']['speed'], 48.0)
 
         thumbs = data['thumbs']
         self.assertTrue(thumbs['has_data'])
@@ -182,3 +186,4 @@ class FingerMasteryTests(TestCase):
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data['total_sessions'], 0)
         self.assertFalse(res.data['left_hand']['has_data'])
+

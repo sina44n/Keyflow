@@ -168,7 +168,7 @@ export const SoundSelector = ({
       <button
         type="button"
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)] text-xs font-mono transition-all cursor-pointer ${
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)] text-xs font-mono transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
           isAudible ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
         } ${className}`}
         aria-expanded={isOpen}
@@ -177,7 +177,7 @@ export const SoundSelector = ({
       >
         {isAudible ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
         <span>{isAudible ? currentProfileObj.name : 'Muted'}</span>
-        <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 transition-transform duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] ${isOpen ? 'rotate-180' : ''}`} />
       </button>
     );
   };
@@ -191,7 +191,7 @@ export const SoundSelector = ({
         <div
           className={`absolute z-50 ${
             align === 'left' ? 'left-0' : 'right-0'
-          } top-full mt-2 w-80 sm:w-96 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-3.5 font-mono animate-in fade-in zoom-in-95 duration-150 select-none text-left`}
+          } top-full mt-2 w-80 sm:w-96 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-3.5 font-mono animate-in fade-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] select-none text-left`}
           role="dialog"
           aria-label="Keyboard Sound Studio"
         >
@@ -238,7 +238,7 @@ export const SoundSelector = ({
                   setSoundEnabled(false);
                 }
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-bold font-mono transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-bold font-mono transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
                 isAudible
                   ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)] shadow-xs'
                   : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:border-[var(--text-secondary)]'
@@ -263,7 +263,7 @@ export const SoundSelector = ({
                   key={cat.id}
                   type="button"
                   onClick={() => setActiveCategory(cat.id)}
-                  className={`px-2 py-1 rounded-lg transition-all whitespace-nowrap cursor-pointer ${
+                  className={`px-2 py-1 rounded-lg transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] whitespace-nowrap cursor-pointer ${
                     isCatActive
                       ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] font-bold shadow-xs border border-[var(--border)]'
                       : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'

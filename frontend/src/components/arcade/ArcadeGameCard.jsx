@@ -39,7 +39,7 @@ export const ArcadeGameCard = ({ game, record, stats, onPlay, onToggleLike }) =>
       role="button"
       tabIndex={0}
       aria-label={`Play ${game.title}`}
-      className="card-panel group flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border border-neutral-200/90 dark:border-neutral-800 bg-white dark:bg-[#151515] shadow-xs hover:shadow-xl transition-all duration-300 hover:-translate-y-1.5 hover:border-[var(--accent)] cursor-pointer select-none"
+      className="card-panel group flex flex-col justify-between overflow-hidden rounded-xl sm:rounded-2xl border border-neutral-200/90 dark:border-neutral-800 bg-white dark:bg-[#151515] shadow-xs hover:shadow-lg transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-1 hover:border-[var(--accent)] cursor-pointer select-none"
       onClick={() => onPlay(game.id)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -52,8 +52,8 @@ export const ArcadeGameCard = ({ game, record, stats, onPlay, onToggleLike }) =>
       <div className="relative aspect-video w-full overflow-hidden bg-neutral-950">
         <AnimatedGameThumbnail game={game} />
         {/* Sleek Centered Play Button Overlay on Hover */}
-        <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none">
-          <div className="w-12 h-12 rounded-full bg-[var(--accent)] text-white flex items-center justify-center shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-300">
+        <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity duration-260 ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none">
+          <div className="w-12 h-12 rounded-full bg-[var(--accent)] text-white flex items-center justify-center shadow-xl transform scale-75 group-hover:scale-100 transition-transform duration-260 ease-[cubic-bezier(0.22,1,0.36,1)]">
             <Play className="w-5 h-5 ml-0.5 fill-current" />
           </div>
         </div>
@@ -62,7 +62,7 @@ export const ArcadeGameCard = ({ game, record, stats, onPlay, onToggleLike }) =>
       {/* 2. Card Content Area — Centered Title and Left/Right Reference Badges */}
       <div className="p-3.5 sm:p-4 flex flex-col justify-between space-y-3">
         {/* Centered Game Title */}
-        <h3 className="text-center text-sm sm:text-base font-bold text-neutral-800 dark:text-neutral-100 group-hover:text-[var(--accent)] transition-colors leading-snug line-clamp-1">
+        <h3 className="text-center text-sm sm:text-base font-bold text-neutral-800 dark:text-neutral-100 group-hover:text-[var(--accent)] transition-colors duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] leading-snug line-clamp-1">
           {t(`arcade.${game.id}.title`) !== `arcade.${game.id}.title` ? t(`arcade.${game.id}.title`) : game.title}
         </h3>
 

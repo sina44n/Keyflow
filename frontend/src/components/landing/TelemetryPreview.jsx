@@ -197,7 +197,7 @@ export const TelemetryPreview = () => {
                       </div>
                       <div className="w-full h-1.5 rounded-full bg-[var(--bg-elevated)] overflow-hidden">
                         <div
-                          className="h-full rounded-full transition-all duration-300"
+                          className="h-full rounded-full transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]"
                           style={{
                             width: item.hasData ? `${Math.min(100, (item.speedNum / 110) * 100)}%` : '0%',
                             backgroundColor: item.color,

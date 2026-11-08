@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Download,
@@ -32,10 +32,22 @@ export const CircularIntelligenceInfographic = ({
   sessions = [],
   title = 'Typing Performance Overview',
   subtitle = 'Biomechanical Keystroke Intelligence & Metric Distribution',
-  showRangeFilter = true,
+  showRangeFilter = false,
+  activeReport = 'overall',
   showActions = true,
 }) => {
-  const [range, setRange] = useState('all'); // '7d' | '30d' | '90d' | 'all'
+  const effectiveRange = useMemo(() => {
+    if (activeReport === 'today' || activeReport === 'daily') return 'today';
+    if (activeReport === 'weekly') return 'weekly';
+    return 'all';
+  }, [activeReport]);
+
+  const [range, setRange] = useState(effectiveRange);
+
+  useEffect(() => {
+    setRange(effectiveRange);
+  }, [effectiveRange]);
+
   const [selectedNode, setSelectedNode] = useState(null);
 
   // Filtered session dataset
@@ -239,11 +251,10 @@ export const CircularIntelligenceInfographic = ({
                 key={tab.id}
                 type="button"
                 onClick={() => setRange(tab.id)}
-                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer font-semibold ${
-                  range === tab.id
+                className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer font-semibold ${range === tab.id
                     ? 'bg-[var(--accent)] text-[var(--accent-fg)] shadow-xs font-bold'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-                }`}
+                  }`}
               >
                 {tab.label}
               </button>
@@ -368,7 +379,7 @@ export const CircularIntelligenceInfographic = ({
               return (
                 <g
                   key={node.id}
-                  className="lower-node cursor-pointer transition-transform duration-200"
+                  className="lower-node cursor-pointer transition-transform duration-260 ease-[cubic-bezier(0.22,1,0.36,1)]"
                   onClick={() => setSelectedNode(node)}
                   role="button"
                   tabIndex={0}
@@ -382,7 +393,7 @@ export const CircularIntelligenceInfographic = ({
                     fill="none"
                     stroke={node.color}
                     strokeWidth={isSelected ? '8' : '6.5'}
-                    className="transition-all duration-200"
+                    className="transition-all duration-260 ease-[cubic-bezier(0.22,1,0.36,1)]"
                   />
 
                   {/* Inner Floating White/Theme Disc */}
