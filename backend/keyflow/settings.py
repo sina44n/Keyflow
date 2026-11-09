@@ -108,30 +108,162 @@ TEMPLATES = [
 WSGI_APPLICATION = 'keyflow.wsgi.application'
 
 # ---------------------------------------------------------------------------
-# Database — PostgreSQL required (explicit SQLite opt-in allowed)
+# Database Configuration & Multi-Source Resolution
 # ---------------------------------------------------------------------------
-_database_url = config('DATABASE_URL', default=None)
+import logging
+from urllib.parse import urlparse
 
-if not _database_url:
-    raise ImproperlyConfigured(
-        "\n\n"
-        "===================================================\n"
-        "  KEYFLOW: DATABASE_URL is not configured.\n"
-        "===================================================\n"
-        "  PostgreSQL is required. Set DATABASE_URL in your\n"
-        "  .env file. Example:\n"
-        "    DATABASE_URL=postgresql://user:pass@localhost:5432/keyflow_dev\n"
-        "\n"
-        "  To use SQLite for local development (explicit opt-in):\n"
-        "    DATABASE_URL=sqlite:///./db.sqlite3\n"
-        "===================================================\n"
-    )
+logger = logging.getLogger(__name__)
+
+SUPPORTED_DB_ENV_VARS = (
+    'DATABASE_URL',
+    'INTERNAL_DATABASE_URL',
+    'POSTGRES_URL',
+    'POSTGRESQL_URL',
+)
+
+
+def _sanitize_env_value(val):
+    """Safely strips leading/trailing whitespace and matching surrounding quotes."""
+    if not val or not isinstance(val, str):
+        return None
+    cleaned = val.strip()
+    if (cleaned.startswith('"') and cleaned.endswith('"')) or (cleaned.startswith("'") and cleaned.endswith("'")):
+        cleaned = cleaned[1:-1].strip()
+    return cleaned if cleaned else None
+
+
+def _resolve_database_url():
+    """
+    Resolves the database URL according to strict priority:
+    1. Exact os.environ matching (DATABASE_URL -> INTERNAL_DATABASE_URL -> POSTGRES_URL -> POSTGRESQL_URL)
+    2. Trimmed os.environ key matching with diagnostic reporting (guards against accidental UI whitespace)
+    3. Decouple config() fallback (reads local backend/.env)
+    Never exposes credentials or secrets.
+    """
+    # 1. Exact os.environ matching
+    for key in SUPPORTED_DB_ENV_VARS:
+        raw_val = os.environ.get(key)
+        cleaned = _sanitize_env_value(raw_val)
+        if cleaned:
+            return cleaned, key, False
+
+    # 2. Trimmed os.environ key matching (guards against UI whitespace errors)
+    for k, v in os.environ.items():
+        trimmed_k = k.strip()
+        if trimmed_k in SUPPORTED_DB_ENV_VARS and trimmed_k != k:
+            cleaned = _sanitize_env_value(v)
+            if cleaned:
+                logger.warning(
+                    f"[KEYFLOW Configuration Diagnostic] Environment variable '{k}' contained "
+                    f"accidental whitespace and was matched as '{trimmed_k}'."
+                )
+                return cleaned, trimmed_k, True
+
+    # 3. Decouple config() fallback (reads local backend/.env)
+    for key in SUPPORTED_DB_ENV_VARS:
+        try:
+            raw_val = config(key, default=None)
+            cleaned = _sanitize_env_value(raw_val)
+            if cleaned:
+                return cleaned, key, False
+        except Exception:
+            pass
+
+    return None, None, False
+
+
+def validate_and_configure_database(raw_url, is_debug=DEBUG):
+    """
+    Validates database URL against production security policies:
+    - Value is not empty
+    - URL is parseable
+    - Scheme is supported PostgreSQL (postgresql:// or postgres://)
+    - Production SQLite is strictly rejected (SQLite requires explicit DEBUG=True)
+    - Hostname exists
+    - Database name exists
+    - Django database engine resolves to PostgreSQL
+    Never reveals credentials in exceptions or logs.
+    """
+    if not raw_url:
+        raise ImproperlyConfigured(
+            "\n\n"
+            "===================================================\n"
+            "  KEYFLOW DATABASE CONFIGURATION ERROR\n"
+            "===================================================\n"
+            "  No valid PostgreSQL database configuration was detected.\n"
+            "\n"
+            "  Checked:\n"
+            "    - DATABASE_URL\n"
+            "    - INTERNAL_DATABASE_URL\n"
+            "    - POSTGRES_URL\n"
+            "    - POSTGRESQL_URL\n"
+            "\n"
+            "  PostgreSQL is required in production.\n"
+            "  No database credentials were exposed.\n"
+            "===================================================\n"
+        )
+
+    try:
+        parsed = urlparse(raw_url)
+    except Exception as exc:
+        raise ImproperlyConfigured(
+            "KEYFLOW DATABASE CONFIGURATION ERROR: Malformed database URL. "
+            "Unable to parse configuration. No credentials exposed."
+        ) from exc
+
+    scheme = (parsed.scheme or '').lower()
+
+    # Handle SQLite (strictly local-development opt-in only)
+    if scheme == 'sqlite':
+        if not is_debug:
+            raise ImproperlyConfigured(
+                "KEYFLOW DATABASE CONFIGURATION ERROR: SQLite is only permitted in local "
+                "development (DEBUG=True). Production deployments require PostgreSQL. "
+                "No credentials exposed."
+            )
+        db_config = dj_database_url.parse(raw_url, conn_max_age=600)
+        return db_config
+
+    # Handle PostgreSQL
+    if scheme not in ('postgresql', 'postgres'):
+        raise ImproperlyConfigured(
+            f"KEYFLOW DATABASE CONFIGURATION ERROR: Unsupported database scheme '{scheme}'. "
+            "PostgreSQL ('postgresql://' or 'postgres://') is required. "
+            "No credentials exposed."
+        )
+
+    if not parsed.hostname:
+        raise ImproperlyConfigured(
+            "KEYFLOW DATABASE CONFIGURATION ERROR: Missing hostname in PostgreSQL configuration. "
+            "URL must follow the format 'postgresql://USER:PASSWORD@HOST:PORT/DBNAME'. "
+            "No credentials exposed."
+        )
+
+    db_name = (parsed.path or '').lstrip('/')
+    if not db_name:
+        raise ImproperlyConfigured(
+            "KEYFLOW DATABASE CONFIGURATION ERROR: Missing database name in PostgreSQL configuration. "
+            "URL must follow the format 'postgresql://USER:PASSWORD@HOST:PORT/DBNAME'. "
+            "No credentials exposed."
+        )
+
+    db_config = dj_database_url.parse(raw_url, conn_max_age=600)
+    if db_config.get('ENGINE') != 'django.db.backends.postgresql':
+        raise ImproperlyConfigured(
+            "KEYFLOW DATABASE CONFIGURATION ERROR: Resolved database engine is not PostgreSQL. "
+            "No credentials exposed."
+        )
+
+    return db_config
+
+
+# Execute resolution and validation
+_raw_database_url, _matched_source, _has_key_whitespace = _resolve_database_url()
+_database_config = validate_and_configure_database(_raw_database_url, is_debug=DEBUG)
 
 DATABASES = {
-    'default': dj_database_url.parse(
-        _database_url,
-        conn_max_age=600,
-    )
+    'default': _database_config
 }
 
 # Anchor relative SQLite paths to BASE_DIR so management commands and servers
