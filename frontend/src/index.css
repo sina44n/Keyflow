@@ -1415,6 +1415,7 @@ a:hover {
 
 /* Typing engine states */
 .char-correct   { color: var(--typing-correct); }
+.char-corrected { color: var(--typing-corrected, #EAB308); }
 .char-incorrect { color: var(--typing-incorrect); text-decoration: underline; background-color: color-mix(in srgb, var(--typing-incorrect) 15%, transparent); border-radius: 2px; }
 .char-current   { color: var(--text-primary); border-bottom: 2px solid var(--typing-caret); animation: caretPulse 1s ease-in-out infinite; }
 .char-untyped   { color: var(--typing-untyped); }

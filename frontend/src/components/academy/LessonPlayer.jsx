@@ -164,6 +164,7 @@ export const LessonPlayer = ({
     inputRef,
     isActive: !isCompleted && !completedResult,
     disabled: isCompleted || Boolean(completedResult),
+    onKeystroke: (k) => setLastKeystroke(k),
   });
 
   useEffect(() => { handleReset(); }, [lesson?.id, handleReset]);
@@ -292,10 +293,14 @@ export const LessonPlayer = ({
     if (isCompleted) return;
     if (e.key === 'Escape') return;
     if (e.key === 'Tab') {
-      e.preventDefault();
+      if (targetText && targetText[typed.length] === '\t') {
+        e.preventDefault();
+      } else {
+        return;
+      }
     }
     setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
-  }, [isCompleted]);
+  }, [isCompleted, targetText, typed.length]);
 
   const handleInputChange = useCallback((e) => {
     if (isCompleted || !targetText) return;

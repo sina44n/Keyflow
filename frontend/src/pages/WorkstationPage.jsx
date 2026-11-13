@@ -330,6 +330,7 @@ export const WorkstationPage = () => {
     inputRef,
     isActive: isTypingActive,
     disabled: !isTypingActive,
+    onKeystroke: (k) => setLastKeystroke(k),
   });
 
   const setWpmGoal = useCallback((val) => {
@@ -1509,8 +1510,8 @@ export const WorkstationPage = () => {
                         return;
                       }
                       if (e.key === 'Tab') {
-                        e.preventDefault();
                         if (currentTargetChar === '\t') {
+                          e.preventDefault();
                           handleInputChange({ target: { value: typed + '\t' } });
                         }
                         return;

@@ -28,6 +28,7 @@ export const HeroSection = () => {
   const [startTime, setStartTime] = useState(null);
   const [wpm, setWpm] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
+  const [correctedIndices, setCorrectedIndices] = useState(() => new Set());
   const [isCompleted, setIsCompleted] = useState(false);
   const { playClick } = useKeyboardSound();
   const [keyboardGuideOn, setKeyboardGuideOn] = useState(() => getGuidePreferences().keyboardGuide);
@@ -64,6 +65,9 @@ export const HeroSection = () => {
       const actualChar = val[charIndex];
       const isError = actualChar !== SAMPLE_TEXT[charIndex];
       playClick(isError);
+      if (isError) {
+        setCorrectedIndices((prev) => new Set(prev).add(charIndex));
+      }
       setLastKeystroke({ key: actualChar, code: '', id: performance.now() });
     } else if (val.length < inputVal.length) {
       setLastKeystroke({ key: 'backspace', code: 'Backspace', id: performance.now() });
@@ -96,6 +100,7 @@ export const HeroSection = () => {
     setStartTime(null);
     setWpm(0);
     setAccuracy(100);
+    setCorrectedIndices(new Set());
     setIsCompleted(false);
     setLastKeystroke(null);
     if (inputRef.current) inputRef.current.focus();
@@ -106,6 +111,7 @@ export const HeroSection = () => {
     inputRef,
     isActive: !isCompleted,
     disabled: isCompleted,
+    onKeystroke: (k) => setLastKeystroke(k),
   });
 
   return (
@@ -263,7 +269,7 @@ export const HeroSection = () => {
                 aria-label="Live interactive typing passage"
               >
                 {SAMPLE_TEXT.split('').map((char, idx) => {
-                  const feedback = getCharacterFeedback(idx, inputVal, SAMPLE_TEXT, false);
+                  const feedback = getCharacterFeedback(idx, inputVal, SAMPLE_TEXT, false, correctedIndices);
                   return (
                     <span key={idx} className={feedback.className}>
                       {char}
@@ -279,9 +285,7 @@ export const HeroSection = () => {
                   onChange={handleInputChange}
                   onKeyDown={(e) => {
                     if (e.key === 'Escape') return;
-                    if (e.key === 'Tab') {
-                      e.preventDefault();
-                    }
+                    if (e.key === 'Tab') return;
                     setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
                   }}
                   className="absolute inset-0 opacity-0 cursor-default"
