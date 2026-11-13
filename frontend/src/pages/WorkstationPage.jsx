@@ -38,6 +38,7 @@ import { usePlatformConfig } from '../context/PlatformConfigContext';
 import { recordTelemetrySession } from '../utils/telemetryStorage';
 import { generateCustomTypingPrompt } from '../utils/textUtilities';
 import { getAuthoritativeFingerForChar } from '../utils/touchTypingMap';
+import { useUniversalTypingFocus } from '../utils/useUniversalTypingFocus';
 
 // New Workstation modular components
 import { WorkstationToolbar } from '../components/workstation/WorkstationToolbar';
@@ -312,6 +313,24 @@ export const WorkstationPage = () => {
       handlePause();
     }
   }, [isPaused, startTime, isCompleted, handleResume, handlePause]);
+
+  // Universal Typing Input Focus: immediate typing readiness without requiring a click
+  const isTypingActive =
+    !isCompleted &&
+    !sessionResults &&
+    !isPaused &&
+    !customStudioOpen &&
+    !savedTextsOpen &&
+    !historyOpen &&
+    !shortcutsOpen &&
+    !competitionsOpen &&
+    !profileModalOpen;
+
+  useUniversalTypingFocus({
+    inputRef,
+    isActive: isTypingActive,
+    disabled: !isTypingActive,
+  });
 
   const setWpmGoal = useCallback((val) => {
     const num = val ? Number(val) : null;

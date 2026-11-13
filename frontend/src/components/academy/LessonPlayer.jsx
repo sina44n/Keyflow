@@ -29,6 +29,7 @@ import {
 } from '../../utils/typingFeedback';
 import { useI18n } from '../../i18n/I18nContext';
 import { calculateViewportScroll, isReducedMotionPreferred } from '../../utils/fourLineScroll';
+import { useUniversalTypingFocus } from '../../utils/useUniversalTypingFocus';
 
 /**
  * LessonPlayer — Masterpiece Typing Workstation matching the reference design.
@@ -157,6 +158,13 @@ export const LessonPlayer = ({
     clearInterval(timerRef.current);
     setTimeout(() => { if (inputRef.current) inputRef.current.focus(); }, 50);
   }, []);
+
+  // Universal Typing Input Focus: immediate typing readiness without requiring a click
+  useUniversalTypingFocus({
+    inputRef,
+    isActive: !isCompleted && !completedResult,
+    disabled: isCompleted || Boolean(completedResult),
+  });
 
   useEffect(() => { handleReset(); }, [lesson?.id, handleReset]);
 

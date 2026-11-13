@@ -17,6 +17,7 @@ import { useKeyboardSound } from '../../context/SoundContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { getGuidePreferences, saveGuidePreferences } from '../../utils/lessonProgress';
 import { getCharacterFeedback, countCorrectChars } from '../../utils/typingFeedback';
+import { useUniversalTypingFocus } from '../../utils/useUniversalTypingFocus';
 
 const SAMPLE_TEXT = 'the quick brown fox jumps over the lazy dog and flows with speed';
 
@@ -99,6 +100,13 @@ export const HeroSection = () => {
     setLastKeystroke(null);
     if (inputRef.current) inputRef.current.focus();
   };
+
+  // Universal Typing Input Focus: immediate typing readiness without requiring a click
+  useUniversalTypingFocus({
+    inputRef,
+    isActive: !isCompleted,
+    disabled: isCompleted,
+  });
 
   return (
     <section className="section-spacing pt-8 sm:pt-12 pb-16 relative overflow-hidden">
