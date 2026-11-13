@@ -34,6 +34,7 @@ import { useKeyboardSound } from '../context/SoundContext';
 import { useI18n } from '../i18n/I18nContext';
 import { practiceAPI, profileAPI, competitionAPI } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { usePlatformConfig } from '../context/PlatformConfigContext';
 import { recordTelemetrySession } from '../utils/telemetryStorage';
 import { generateCustomTypingPrompt } from '../utils/textUtilities';
 import { getAuthoritativeFingerForChar } from '../utils/touchTypingMap';
@@ -100,10 +101,17 @@ export const WorkstationPage = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
   const { user } = useAuth();
+  const { config } = usePlatformConfig();
 
   // Mode settings
   const [mode, setMode] = useState('timed'); // 'timed' | 'words' | 'passage' | 'accuracy'
-  const [timeLimit, setTimeLimit] = useState(30);
+  const [timeLimit, setTimeLimit] = useState(() => config?.default_duration || 30);
+
+  useEffect(() => {
+    if (config?.default_duration && !user?.id) {
+      setTimeLimit(config.default_duration);
+    }
+  }, [config?.default_duration, user?.id]);
   const [wordLimit, setWordLimit] = useState(25);
   const [selectedPassageIndex, setSelectedPassageIndex] = useState(0);
 
@@ -1262,6 +1270,9 @@ export const WorkstationPage = () => {
             isRunning={isRunning}
             sessionState={sessionState}
             onTogglePause={handleTogglePause}
+            allowedDurations={config?.allowed_durations}
+            customTextEnabled={config?.custom_text_enabled}
+            competitionEnabled={config?.competition_enabled}
             t={t}
           />
         )}

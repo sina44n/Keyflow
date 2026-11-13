@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Settings, Save, Loader2, AlertTriangle, CheckCircle2, Clock } from 'lucide-react';
 import { adminApi } from '../adminApi';
 
 export const AdminSettingsPage = () => {
@@ -178,6 +178,47 @@ export const AdminSettingsPage = () => {
                   <span className="text-[11px] text-[#77748B]">Display active administrative announcements to visitors</span>
                 </div>
               </label>
+            </div>
+          </div>
+
+          {/* Typing Controls & Durations Card */}
+          <div className="rounded-xl bg-white border border-[#E8E5F0] p-6 shadow-sm space-y-4">
+            <h3 className="text-sm font-bold text-[#29243B] border-b border-[#EFEDF5] pb-3 flex items-center space-x-2">
+              <Clock className="w-4 h-4 text-[#7357D9]" />
+              <span>Typing Controls & Allowed Durations</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold text-[#29243B] block mb-1">
+                  Default Test Duration (Seconds)
+                </label>
+                <input
+                  type="number"
+                  min="5"
+                  max="600"
+                  value={settings.default_duration || 60}
+                  onChange={(e) => setSettings({ ...settings, default_duration: parseInt(e.target.value, 10) || 60 })}
+                  className="w-full px-3 py-2 rounded-lg bg-[#F7F7FC] border border-[#E8E5F0] text-xs text-[#29243B] focus:outline-none focus:border-[#7357D9]"
+                />
+                <span className="text-[11px] text-[#77748B] mt-1 block">Default duration loaded for new sessions</span>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-[#29243B] block mb-1">
+                  Allowed Durations (Comma Separated Seconds)
+                </label>
+                <input
+                  type="text"
+                  value={Array.isArray(settings.allowed_durations) ? settings.allowed_durations.join(', ') : (settings.allowed_durations || '15, 30, 60, 120, 300')}
+                  onChange={(e) => {
+                    const parsed = e.target.value.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !isNaN(n) && n > 0);
+                    setSettings({ ...settings, allowed_durations: parsed });
+                  }}
+                  className="w-full px-3 py-2 rounded-lg bg-[#F7F7FC] border border-[#E8E5F0] text-xs text-[#29243B] font-mono focus:outline-none focus:border-[#7357D9]"
+                />
+                <span className="text-[11px] text-[#77748B] mt-1 block">Durations permitted for timed practice (e.g. 15, 30, 60, 120, 300)</span>
+              </div>
             </div>
           </div>
 

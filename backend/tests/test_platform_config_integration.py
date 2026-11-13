@@ -259,3 +259,196 @@ class PlatformConfigIntegrationTests(TestCase):
         self.assertNotEqual(self.owner.clerk_id, self.normal_user.clerk_id)
         self.assertEqual(self.normal_user.role, 'USER')
         self.assertFalse(self.normal_user.is_super_admin)
+
+    def test_06_allowed_durations_enforcement(self):
+        """Unsupported timed test durations are rejected with 400 Bad Request."""
+        config = GlobalPlatformConfig.get_config()
+        config.allowed_durations = [15, 30, 60, 120]
+        config.guest_typing_enabled = True
+        config.maintenance_mode = False
+        config.save()
+
+        self.client.force_authenticate(user=None)
+
+        # 1. Timed test with unsupported duration (45s) -> 400
+        invalid_payload = {
+            'session_type': 'timed',
+            'duration_seconds': 45,
+            'total_chars': 200,
+            'correct_chars': 190,
+            'incorrect_chars': 10,
+        }
+        res_invalid = self.client.post(
+            '/api/practice/sessions/',
+            data=json.dumps(invalid_payload),
+            content_type='application/json',
+        )
+        self.assertEqual(res_invalid.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(res_invalid.json().get('error'), 'unsupported_duration')
+
+        # 2. Timed test with allowed duration (60s) -> 201
+        valid_payload = {
+            'session_type': 'timed',
+            'duration_seconds': 60,
+            'total_chars': 200,
+            'correct_chars': 190,
+            'incorrect_chars': 10,
+        }
+        res_valid = self.client.post(
+            '/api/practice/sessions/',
+            data=json.dumps(valid_payload),
+            content_type='application/json',
+        )
+        self.assertEqual(res_valid.status_code, status.HTTP_201_CREATED)
+
+    def test_07_custom_text_and_registration_flags(self):
+        """Custom text and registration flags strictly block restricted submissions."""
+        config = GlobalPlatformConfig.get_config()
+        config.maintenance_mode = False
+        config.custom_text_enabled = False
+        config.registration_enabled = False
+        config.save()
+
+        # 1. Custom text submission -> 403
+        self.client.force_authenticate(user=self.normal_user)
+        custom_payload = {
+            'session_type': 'custom',
+            'duration_seconds': 60,
+            'total_chars': 100,
+            'correct_chars': 95,
+            'incorrect_chars': 5,
+        }
+        res_custom = self.client.post(
+            '/api/practice/sessions/',
+            data=json.dumps(custom_payload),
+            content_type='application/json',
+        )
+        self.assertEqual(res_custom.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(res_custom.json().get('error'), 'custom_text_disabled')
+
+        # 2. Registration disabled -> 403
+        self.client.force_authenticate(user=None)
+        register_payload = {
+            'username': 'newuser123',
+            'email': 'newuser123@example.com',
+            'password': 'SecurePassword123!',
+        }
+        res_reg = self.client.post(
+            '/api/auth/register/',
+            data=json.dumps(register_payload),
+            content_type='application/json',
+        )
+        self.assertEqual(res_reg.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('Registration is currently disabled', res_reg.json().get('error', ''))
+
+    def test_08_announcement_crud_and_admin_leak_protection(self):
+        """Owner can CRUD announcements, normal user cannot, and ADMINS announcements never leak to public."""
+        # 1. Normal user tries to create announcement -> 403
+        self.client.force_login(self.normal_user)
+        self.client.force_authenticate(user=self.normal_user)
+        res_create_denied = self.client.post(
+            '/api/admin/announcements/',
+            data={'title': 'Hack', 'message': 'Deny me'},
+        )
+        self.assertEqual(res_create_denied.status_code, status.HTTP_403_FORBIDDEN)
+
+        # 2. Owner creates admin-only announcement
+        self.client.force_login(self.owner)
+        self.client.force_authenticate(user=self.owner)
+        res_create_admin = self.client.post(
+            '/api/admin/announcements/',
+            data={
+                'title': 'Internal Security Notice',
+                'message': 'Audit logs are being rotated',
+                'type': 'WARNING',
+                'target_audience': 'ADMINS',
+            },
+        )
+        self.assertEqual(res_create_admin.status_code, status.HTTP_201_CREATED)
+        admin_anno_id = res_create_admin.json().get('announcement', {}).get('id')
+
+        # 3. Owner creates public announcement
+        res_create_pub = self.client.post(
+            '/api/admin/announcements/',
+            data={
+                'title': 'Welcome New Typists',
+                'message': 'Enjoy learning flow',
+                'type': 'INFO',
+                'target_audience': 'ALL',
+            },
+        )
+        self.assertEqual(res_create_pub.status_code, status.HTTP_201_CREATED)
+        pub_anno_id = res_create_pub.json().get('announcement', {}).get('id')
+
+        # 4. Normal user queries active announcements -> sees ALL, does NOT see ADMINS
+        self.client.force_login(self.normal_user)
+        self.client.force_authenticate(user=self.normal_user)
+        res_annos = self.client.get('/api/announcements/active/')
+        self.assertEqual(res_annos.status_code, status.HTTP_200_OK)
+        active_ids = [a['id'] for a in res_annos.json().get('announcements', [])]
+        self.assertIn(pub_anno_id, active_ids)
+        self.assertNotIn(admin_anno_id, active_ids)
+
+        # 5. Owner edits public announcement
+        self.client.force_login(self.owner)
+        self.client.force_authenticate(user=self.owner)
+        res_update = self.client.put(
+            f'/api/admin/announcements/{pub_anno_id}/',
+            data={'title': 'Updated Welcome Banner', 'message': 'Updated text'},
+            content_type='application/json',
+        )
+        self.assertEqual(res_update.status_code, status.HTTP_200_OK)
+
+        # 6. Public announcement has updated content
+        res_annos_updated = self.client.get('/api/announcements/active/')
+        updated_pub = next(a for a in res_annos_updated.json()['announcements'] if a['id'] == pub_anno_id)
+        self.assertEqual(updated_pub['title'], 'Updated Welcome Banner')
+
+        # 7. Owner deletes announcement
+        res_delete = self.client.delete(f'/api/admin/announcements/{pub_anno_id}/')
+        self.assertEqual(res_delete.status_code, status.HTTP_200_OK)
+        self.assertEqual(res_delete.json().get('status'), 'deleted')
+
+    def test_09_maintenance_mode_reversible_recovery(self):
+        """Toggling maintenance mode immediately blocks and restores consumer access without restart."""
+        config = GlobalPlatformConfig.get_config()
+
+        # Step 1: Enable maintenance
+        config.maintenance_mode = True
+        config.maintenance_message = 'Undergoing scheduled maintenance.'
+        config.save()
+
+        self.client.force_login(self.normal_user)
+        self.client.force_authenticate(user=self.normal_user)
+        res_blocked = self.client.get('/api/practice/passages/')
+        self.assertEqual(res_blocked.status_code, status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        # Step 2: Disable maintenance
+        config.maintenance_mode = False
+        config.save()
+
+        res_restored = self.client.get('/api/practice/passages/')
+        self.assertEqual(res_restored.status_code, status.HTTP_200_OK)
+
+    def test_10_account_switching_and_privilege_boundary(self):
+        """Switching between accounts completely decouples permissions and rejects forged owner claims."""
+        # Step 1: Normal user attempts to claim owner identity via ClerkSyncView -> 403 Forbidden
+        self.client.force_login(self.normal_user)
+        self.client.force_authenticate(user=self.normal_user)
+        res_forgery = self.client.post(
+            '/api/auth/clerk-sync/',
+            data={'email': 'sina44n07@gmail.com', 'display_name': 'Hacker Impersonator'},
+            content_type='application/json',
+        )
+        self.assertEqual(res_forgery.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertIn('Permission denied', res_forgery.json().get('detail', ''))
+
+        # Step 2: Normal user cannot access admin
+        res_admin_normal = self.client.get('/api/admin/overview/')
+        self.assertEqual(res_admin_normal.status_code, status.HTTP_403_FORBIDDEN)
+
+        # Step 3: Owner signs in -> has access
+        self.client.force_login(self.owner)
+        self.client.force_authenticate(user=self.owner)
+        res_admin_owner = self.client.get('/api/admin/overview/')
+        self.assertEqual(res_admin_owner.status_code, status.HTTP_200_OK)

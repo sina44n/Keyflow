@@ -81,6 +81,17 @@ class RecordPracticeSessionView(APIView):
                     {'error': 'custom_text_disabled', 'detail': 'Custom text typing is currently disabled by administrator.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
+            if session_type == 'timed':
+                duration_val = int(data.get('duration_seconds', 0))
+                allowed = config.allowed_durations or [15, 30, 60, 120, 300]
+                if allowed and duration_val not in allowed:
+                    return Response(
+                        {
+                            'error': 'unsupported_duration',
+                            'detail': f'Test duration {duration_val}s is not permitted. Allowed durations: {allowed}',
+                        },
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
         except Exception:
             pass
 

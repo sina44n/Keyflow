@@ -70,8 +70,11 @@ export const WorkstationToolbar = ({
   sessionState = 'idle',
   onTogglePause,
   t,
+  allowedDurations,
+  customTextEnabled = true,
+  competitionEnabled = true,
 }) => {
-  const TIME_OPTIONS = [15, 30, 60, 120];
+  const TIME_OPTIONS = allowedDurations && allowedDurations.length ? allowedDurations : [15, 30, 60, 120];
   const WORD_OPTIONS = [10, 25, 50, 100];
 
   // Derive active dynamic generation mode label and icon
@@ -169,46 +172,50 @@ export const WorkstationToolbar = ({
           </button>
 
           {/* Custom Mode */}
-          <button
-            type="button"
-            onClick={onOpenCustomStudio}
-            className={`h-7 px-2.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              customActive
-                ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/50'
-            }`}
-            title={customTitle ? `Custom Studio: ${customTitle} (Alt+C)` : "Open Custom Typing Studio (Alt+C)"}
-            aria-label="Open Custom Typing Studio"
-            aria-pressed={customActive}
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Custom</span>
-            {customActive && (
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse ml-0.5" />
-            )}
-          </button>
+          {customTextEnabled && (
+            <button
+              type="button"
+              onClick={onOpenCustomStudio}
+              className={`h-7 px-2.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                customActive
+                  ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/50'
+              }`}
+              title={customTitle ? `Custom Studio: ${customTitle} (Alt+C)` : "Open Custom Typing Studio (Alt+C)"}
+              aria-label="Open Custom Typing Studio"
+              aria-pressed={customActive}
+            >
+              <Sliders className="w-3.5 h-3.5" />
+              <span>Custom</span>
+              {customActive && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse ml-0.5" />
+              )}
+            </button>
+          )}
 
           {/* Competition Arena Trigger Button */}
-          <button
-            type="button"
-            onClick={onOpenCompetitions}
-            className={`h-7 px-2.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
-              activeCompetition
-                ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/50'
-            }`}
-            title="Typing Competition Arena"
-            aria-label="Typing Competition Arena"
-            aria-pressed={Boolean(activeCompetition)}
-          >
-            <Trophy className="w-3.5 h-3.5 text-amber-400" />
-            <span>Competition</span>
-            {activeCompetition && (
-              <span className="text-[10px] bg-black/30 px-1.5 py-0.2 rounded font-bold">
-                {activeCompetition.code}
-              </span>
-            )}
-          </button>
+          {competitionEnabled && (
+            <button
+              type="button"
+              onClick={onOpenCompetitions}
+              className={`h-7 px-2.5 rounded-lg text-xs font-mono font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                activeCompetition
+                  ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-bold shadow-xs'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface)]/50'
+              }`}
+              title="Typing Competition Arena"
+              aria-label="Typing Competition Arena"
+              aria-pressed={Boolean(activeCompetition)}
+            >
+              <Trophy className="w-3.5 h-3.5 text-amber-400" />
+              <span>Competition</span>
+              {activeCompetition && (
+                <span className="text-[10px] bg-black/30 px-1.5 py-0.2 rounded font-bold">
+                  {activeCompetition.code}
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         {/* Right group: Duration Options (15s, 30s, 60s, 120s with equal widths) */}

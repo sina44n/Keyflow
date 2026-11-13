@@ -710,6 +710,7 @@ class AdminAnnouncementsView(APIView):
         message = data.get('message', '').strip()
         msg_type = data.get('type', 'INFO').upper()
         target_audience = data.get('target_audience', 'ALL').upper()
+        expires_at = data.get('expires_at')
 
         if not title or not message:
             return Response({'error': 'Title and message are required.'}, status=status.HTTP_400_BAD_REQUEST)
@@ -721,6 +722,7 @@ class AdminAnnouncementsView(APIView):
             target_audience=target_audience,
             is_active=True,
             created_by=request.user,
+            expires_at=expires_at,
         )
         AdminAuditLog.log('ANNOUNCEMENT_CREATED', request.user, 'PlatformAnnouncement', announcement.id, announcement.title)
 
@@ -756,6 +758,10 @@ class AdminAnnouncementDetailView(APIView):
             announcement.message = str(data['message']).strip()
         if 'type' in data:
             announcement.type = str(data['type']).upper()
+        if 'target_audience' in data:
+            announcement.target_audience = str(data['target_audience']).upper()
+        if 'expires_at' in data:
+            announcement.expires_at = data['expires_at']
 
         announcement.save()
         AdminAuditLog.log('ANNOUNCEMENT_UPDATED', request.user, 'PlatformAnnouncement', announcement.id, announcement.title)
@@ -821,6 +827,10 @@ class AdminSettingsView(APIView):
             config.guest_typing_enabled = bool(data['guest_typing_enabled'])
         if 'announcements_enabled' in data:
             config.announcements_enabled = bool(data['announcements_enabled'])
+        if 'default_duration' in data:
+            config.default_duration = int(data['default_duration'])
+        if 'allowed_durations' in data and isinstance(data['allowed_durations'], list):
+            config.allowed_durations = [int(x) for x in data['allowed_durations'] if int(x) > 0]
 
         config.save()
         AdminAuditLog.log('PLATFORM_SETTINGS_UPDATED', request.user, 'GlobalPlatformConfig', 1, 'Settings', data)
