@@ -49,14 +49,14 @@ export const Footer = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8">
           {/* Brand Column */}
           <div className="md:col-span-2 space-y-4">
-            <a href="#" className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] rounded-lg py-1">
+            <Link to="/" className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] rounded-lg py-1">
               <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center shadow-xs">
                 <Keyboard className="w-4 h-4 text-[var(--accent)]" aria-hidden="true" />
               </div>
               <span className="font-mono text-base font-extrabold tracking-wider text-[var(--text-primary)]">
                 KEY<span className="text-[var(--accent)]">FLOW</span>
               </span>
-            </a>
+            </Link>
 
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed max-w-sm">
               {t('footer.tagline', 'The premier typing academy and telemetry platform engineered to rewire neuromuscular memory, eradicate glance habits, and build effortless typing velocity.')}
@@ -126,8 +126,8 @@ export const Footer = () => {
           <p>{t('footer.copyright', { year: CURRENT_YEAR }, `© ${CURRENT_YEAR} KEYFLOW. All rights reserved.`)}</p>
           <div className="flex items-center gap-5 text-[11px]">
             <Link to="/academy" className="hover:text-[var(--text-primary)] transition-colors">{t('nav.academy', 'Academy')}</Link>
-            <a href="#themes" className="hover:text-[var(--text-primary)] transition-colors">{t('nav.themes', 'Themes')}</a>
-            <a href="#telemetry" className="hover:text-[var(--text-primary)] transition-colors">{t('nav.telemetry', 'Telemetry')}</a>
+            <Link to="/themes" className="hover:text-[var(--text-primary)] transition-colors">{t('nav.themes', 'Themes')}</Link>
+            <Link to="/telemetry" className="hover:text-[var(--text-primary)] transition-colors">{t('nav.telemetry', 'Telemetry')}</Link>
           </div>
         </div>
       </div>

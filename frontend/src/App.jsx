@@ -47,6 +47,7 @@ const ThemesPage = lazy(() => import('./pages/ThemesPage'));
 import { ClerkProvider } from '@clerk/react';
 import { AuthenticateWithRedirectCallback } from '@clerk/react';
 import { Footer } from './components/common/Footer';
+import { ScrollToTop } from './components/common/ScrollToTop';
 import { getClerkPublishableKey, getClerkEnvironmentStatus } from './utils/clerkEnv';
 import { PlatformConfigProvider, usePlatformConfig } from './context/PlatformConfigContext';
 import { useAuth } from './context/AuthContext';
@@ -140,6 +141,7 @@ function App() {
         <I18nProvider>
           <PlatformConfigProvider>
             <BrowserRouter>
+              <ScrollToTop />
               <AppShell>
               <Routes>
                 {/* Public Pages */}

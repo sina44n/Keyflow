@@ -89,7 +89,7 @@ export const Navbar = () => {
     ...(config?.arcade_enabled !== false ? [{ label: t('nav.arcade') || 'Arcade', href: '/arcade', isInternal: true, icon: Gamepad2, primary: true }] : []),
     { label: t('nav.telemetry') || 'Telemetry', href: '/telemetry', isInternal: true, icon: BarChart3, primary: false },
     ...(config?.leaderboard_enabled !== false ? [{ label: t('nav.leaderboard') || 'Leaderboard', href: '/leaderboard', isInternal: true, icon: Trophy, primary: false }] : []),
-    { label: t('nav.themes') || 'Themes', href: '/#themes', isInternal: false, icon: Palette, primary: false },
+    { label: t('nav.themes') || 'Themes', href: '/themes', isInternal: true, icon: Palette, primary: false },
   ];
 
   const handleNavClick = (link) => {
