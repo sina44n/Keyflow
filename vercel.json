@@ -33,15 +33,11 @@
   ],
   "rewrites": [
     {
-      "source": "/api",
-      "destination": "https://keyflow-3-7241.onrender.com/api/"
+      "source": "/api/:path*",
+      "destination": "https://keyflow-3-7241.onrender.com/api/:path*"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "https://keyflow-3-7241.onrender.com/api/$1"
-    },
-    {
-      "source": "/((?!api).*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
