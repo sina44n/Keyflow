@@ -1,0 +1,40 @@
+/**
+ * KEYFLOW Super Admin — Lavender Executive Design System
+ * Theme Tokens & Utilities for White + Soft Lavender + Purple Aesthetic
+ */
+
+:root {
+  --admin-bg-main: #F7F7FC;
+  --admin-card-bg: #FFFFFF;
+  --admin-lavender: #F0EDFF;
+  --admin-selected: #EEEAFE;
+  --admin-primary: #7357D9;
+  --admin-primary-hover: #6246C5;
+  --admin-deep: #51419A;
+  --admin-text-primary: #29243B;
+  --admin-text-secondary: #77748B;
+  --admin-text-muted: #9692A7;
+  --admin-border: #E8E5F0;
+  --admin-divider: #EFEDF5;
+}
+
+.admin-card {
+  background-color: #FFFFFF;
+  border: 1px solid #E8E5F0;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(41, 36, 59, 0.04);
+}
+
+.admin-card-hover {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.admin-card-hover:hover {
+  border-color: #D6D0E8;
+  box-shadow: 0 4px 12px 0 rgba(115, 87, 217, 0.06);
+}
+
+.admin-lavender-box {
+  background-color: #F0EDFF;
+  border: 1px solid #E8E5F0;
+}
+

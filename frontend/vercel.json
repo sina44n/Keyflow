@@ -5,11 +5,15 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/api/:path*",
-      "destination": "https://keyflow-backend.onrender.com/api/:path*"
+      "source": "/api",
+      "destination": "https://keyflow-3-7241.onrender.com/api/"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/api/(.*)",
+      "destination": "https://keyflow-3-7241.onrender.com/api/$1"
+    },
+    {
+      "source": "/((?!api).*)",
       "destination": "/index.html"
     }
   ]

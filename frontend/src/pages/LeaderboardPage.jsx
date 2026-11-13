@@ -1,15 +1,15 @@
 /**
  * KEYFLOW Global Leaderboard Page
  * ===============================
- * Real, data-driven Top 10 typing leaderboard powered by registered KEYFLOW typists.
- * Implements:
- * 1. Overview platform statistics cards (Registered Typists, Active, Top Speed, Season Timer)
- * 2. Period filters: Daily, Weekly, Monthly, All Time
- * 3. Category selectors: Speed Ranking (Net WPM), Accuracy Ranking (%), Overall Ranking
- * 4. Top 3 Podium showcase with prominent gold champion card & silver/bronze cards
- * 5. Top 10 Performance SVG chart
- * 6. Detailed Global Ranking Table with user highlight
- * 7. Authenticated "My Rank" status card / Guest sign-in call to action
+ * Exact MasterTyper Reference Image 4 & 5 Layout Match:
+ * 1. Centered Header: "⚡ Live Rankings", large "Leaderboard", "See how you rank against other typists"
+ * 2. Centered Scope Navigation (Row 1): Global | Weekly | Competitions
+ * 3. Centered Duration Selector (Row 2): 15s | 30s | 60s | 120s
+ * 4. Competitive 3-Player Podium: Left #2 (Silver), Center #1 (Gold, elevated with Crown), Right #3 (Pink)
+ * 5. Explainer Banner: "ⓘ Ranked by Score = WPM × Accuracy%..."
+ * 6. Top 10 Performance Bar Chart: dynamic domain scaling so tallest bar occupies ~88% of plot height
+ * 7. Subordinate Telemetry Overview Cards & Global Rankings Table
+ * 8. My Rank Card / Guest Sign-in CTA
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -20,36 +20,41 @@ import { LeaderboardFilters } from '../components/leaderboard/LeaderboardFilters
 import { LeaderboardPodium } from '../components/leaderboard/LeaderboardPodium';
 import { LeaderboardChart } from '../components/leaderboard/LeaderboardChart';
 import { LeaderboardTable } from '../components/leaderboard/LeaderboardTable';
+import { LeaderboardCompetitions } from '../components/leaderboard/LeaderboardCompetitions';
 import { MyRankCard } from '../components/leaderboard/MyRankCard';
-import { Trophy, AlertCircle, RefreshCw } from 'lucide-react';
+import { Zap, AlertCircle, RefreshCw } from 'lucide-react';
 
 export const LeaderboardPage = () => {
   const { user, isAuthenticated } = useAuth();
 
+  const [scope, setScope] = useState('global');
   const [period, setPeriod] = useState('all_time');
   const [category, setCategory] = useState('speed');
+  const [duration, setDuration] = useState('15');
   const [leaderboardData, setLeaderboardData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fetch leaderboard data from DRF API
+  // Fetch leaderboard data from DRF API with exact duration filtering
   const fetchLeaderboard = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const response = await leaderboardAPI.getLeaderboard({
-        period,
+        scope,
+        period: scope === 'weekly' ? 'weekly' : period,
         category,
+        duration,
         limit: 10,
       });
       setLeaderboardData(response.data);
     } catch (err) {
-      console.error('Failed to load leaderboard:', err);
-      setError('Unable to load leaderboard telemetry. Please check your connection and retry.');
+      console.error('Failed to load leaderboard telemetry:', err);
+      setError('Unable to connect to live telemetry network. Please retry.');
     } finally {
       setIsLoading(false);
     }
-  }, [period, category]);
+  }, [scope, period, category, duration]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -99,39 +104,29 @@ export const LeaderboardPage = () => {
 
   return (
     <main className="min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 space-y-8">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 pb-4 border-b border-[var(--border)]">
-          <div>
-            {error ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-xs font-mono text-red-500 dark:text-red-400 font-semibold mb-3">
-                <span className="w-2 h-2 rounded-full bg-red-500" />
-                <span>Telemetry Offline — Backend Unreachable</span>
-              </div>
-            ) : isLoading && !leaderboardData ? (
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-surface)] border border-[var(--border)] text-xs font-mono text-[var(--text-muted)] font-semibold mb-3">
-                <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse" />
-                <span>Connecting to Telemetry Network...</span>
-              </div>
-            ) : (
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] border border-[color-mix(in_srgb,var(--accent)_25%,transparent)] text-xs font-mono text-[var(--accent)] font-semibold mb-3">
-                <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-ping" />
-                <span>Verified Global Telemetry</span>
-              </div>
-            )}
-            <h1 className="text-3xl sm:text-4xl font-extrabold font-mono tracking-tight text-[var(--text-primary)] flex items-center gap-3">
-              <Trophy className="w-8 h-8 text-[var(--accent)] shrink-0" />
-              <span>Leaderboard</span>
-            </h1>
-            <p className="mt-2 text-sm sm:text-base font-mono text-[var(--text-secondary)] max-w-2xl">
-              Authentic typing performance records from registered KEYFLOW typists. Ranked by precision metrics in real time.
-            </p>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 space-y-8">
+        {/* PHASE 2: Centered Leaderboard Heading (Exact Reference Image 4 Match) */}
+        <div className="text-center space-y-2 pt-2 pb-1">
+          {/* Top Live Rankings Pill */}
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/25 text-xs font-mono text-amber-600 dark:text-amber-400 font-bold mb-1">
+            <Zap className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+            <span>Live Rankings</span>
           </div>
+
+          {/* Centered Heading */}
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-mono tracking-tight text-[var(--text-primary)]">
+            Leaderboard
+          </h1>
+
+          {/* Centered Subtitle */}
+          <p className="text-sm sm:text-base font-mono text-[var(--text-secondary)] max-w-lg mx-auto">
+            See how you rank against other typists
+          </p>
         </div>
 
         {/* Error Notification */}
         {error && (
-          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 flex items-center justify-between text-xs font-mono">
+          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-500 dark:text-red-400 flex items-center justify-between text-xs font-mono max-w-2xl mx-auto">
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{error}</span>
@@ -147,49 +142,64 @@ export const LeaderboardPage = () => {
           </div>
         )}
 
-        {/* Section A: Platform Overview Cards */}
-        <LeaderboardOverview stats={leaderboardData?.stats} period={period} />
-
-        {/* Section B: Filters (Period & Category) */}
+        {/* PHASE 3: Clean Filter Placement Directly Beneath Heading (Reference Image 4) */}
         <LeaderboardFilters
+          scope={scope}
+          setScope={setScope}
           period={period}
           setPeriod={setPeriod}
           category={category}
           setCategory={setCategory}
+          duration={duration}
+          setDuration={setDuration}
           isLoading={isLoading}
           onRefresh={fetchLeaderboard}
+          timeRemaining={leaderboardData?.stats?.period_time_remaining}
         />
 
-        {/* Section C: Top 3 Podium Cards */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
-              Podium Contenders
-            </h2>
-            <span className="text-xs font-mono text-[var(--text-muted)]">
-              {period === 'all_time' ? 'All-Time Champions' : `Top 3 for ${period}`}
-            </span>
-          </div>
-          <LeaderboardPodium topThree={topThree} category={category} period={period} />
+        {/* Competitive 3-Player Podium (Exact Reference Image 4 Match) */}
+        <div className="pt-2">
+          <LeaderboardPodium
+            topThree={topThree}
+            category={category}
+            period={scope === 'weekly' ? 'weekly' : `${duration}s`}
+            currentUserId={user?.id}
+          />
         </div>
 
-        {/* Section D: Top 10 Performance Graph */}
-        <LeaderboardChart entries={leaderboardData?.entries} category={category} />
-
-        {/* Section E: Detailed Global Ranking Table */}
+        {/* Global Rankings Table directly beneath Podium (Reference Image 4) */}
         <LeaderboardTable
           entries={leaderboardData?.entries}
           currentUserId={user?.id}
           currentUsername={user?.username}
-          period={period}
+          period={scope === 'weekly' ? 'weekly' : `${duration}s`}
         />
 
-        {/* Section F: My Standing Card / Guest Sign-In CTA */}
+        {/* Full-Size Top 10 Performance Curve Chart (Reference Image 5) */}
+        <LeaderboardChart entries={leaderboardData?.entries} category={category} />
+
+        {/* Tournament Lobbies Browser (rendered when scope === 'competitions') */}
+        {scope === 'competitions' && (
+          <LeaderboardCompetitions competitions={leaderboardData?.competitions} />
+        )}
+
+        {/* Platform Overview Cards (Subordinate Telemetry Section) */}
+        <div className="space-y-3 pt-4">
+          <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
+            Platform Benchmarks & Community Telemetry
+          </h2>
+          <LeaderboardOverview
+            stats={leaderboardData?.stats}
+            period={scope === 'weekly' ? 'weekly' : period}
+          />
+        </div>
+
+        {/* Personal Rank / Guest CTA */}
         <MyRankCard
           myRank={leaderboardData?.my_rank}
           isAuthenticated={isAuthenticated}
           user={user}
-          period={period}
+          period={scope === 'weekly' ? 'weekly' : `${duration}s`}
         />
       </div>
     </main>
@@ -197,4 +207,3 @@ export const LeaderboardPage = () => {
 };
 
 export default LeaderboardPage;
-

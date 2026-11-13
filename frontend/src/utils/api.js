@@ -226,4 +226,16 @@ export const leaderboardAPI = {
   getHealth: () => api.get('/leaderboard/health/'),
 };
 
+// ---------------------------------------------------------------------------
+// Platform Configuration & Announcements API Methods
+// ---------------------------------------------------------------------------
+export const platformAPI = {
+  getConfig: () => api.get('/platform/config/'),
+};
+
+export const announcementsAPI = {
+  getActive: () => api.get('/announcements/active/'),
+  dismiss: (id) => api.post(`/announcements/${id}/dismiss/`),
+};
+
 export default api;

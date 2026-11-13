@@ -102,11 +102,54 @@ def resolve_clerk_identity(payload):
     if not clerk_id:
         raise AuthenticationFailed("Clerk session token is missing the required 'sub' claim.")
 
+    owner_email = getattr(settings, 'OWNER_EMAIL', 'sina44n07@gmail.com').strip().lower()
+    owner_clerk_ids = set(getattr(settings, 'OWNER_CLERK_IDS', ['user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn']))
+
     # 1. Existing Clerk identity match
     user = User.objects.filter(clerk_id=clerk_id).first()
     if user:
-        if not user.is_active:
+        if not user.is_active or getattr(user, 'status', 'ACTIVE') == 'DELETED':
             raise AuthenticationFailed("This account has been deactivated.")
+        if getattr(user, 'status', 'ACTIVE') == 'BANNED':
+            raise AuthenticationFailed("This account has been banned by platform administration.")
+        if getattr(user, 'status', 'ACTIVE') == 'SUSPENDED':
+            reason = getattr(user, 'suspension_reason', '') or 'Contact support.'
+            raise AuthenticationFailed(f"This account has been suspended: {reason}")
+
+        # Protect and auto-promote platform owner
+        if (user.email and user.email.lower() == owner_email) or clerk_id in owner_clerk_ids:
+            needs_update = False
+            fields_to_update = []
+            if user.email.lower() != owner_email and (clerk_id in owner_clerk_ids):
+                # Ensure owner email consistency if no collision with another active user
+                conflict = User.objects.filter(email__iexact=owner_email).exclude(pk=user.pk).exists()
+                if not conflict:
+                    user.email = owner_email
+                    fields_to_update.append('email')
+                    needs_update = True
+            if getattr(user, 'role', '') != 'SUPER_ADMIN':
+                user.role = 'SUPER_ADMIN'
+                fields_to_update.append('role')
+                needs_update = True
+            if not user.is_staff:
+                user.is_staff = True
+                fields_to_update.append('is_staff')
+                needs_update = True
+            if not user.is_superuser:
+                user.is_superuser = True
+                fields_to_update.append('is_superuser')
+                needs_update = True
+            if getattr(user, 'status', '') != 'ACTIVE':
+                user.status = 'ACTIVE'
+                fields_to_update.append('status')
+                needs_update = True
+            if not getattr(user, 'is_email_verified', False):
+                user.is_email_verified = True
+                fields_to_update.append('is_email_verified')
+                needs_update = True
+            if needs_update:
+                user.save(update_fields=fields_to_update)
+
         return user
 
     # 2. Extract email from claims
@@ -123,21 +166,28 @@ def resolve_clerk_identity(payload):
 
     # If email was not included in session token claims, attempt Clerk API query
     if not email:
-        clerk_user_data = fetch_clerk_user_info(clerk_id)
-        if clerk_user_data:
-            primary_id = clerk_user_data.get('primary_email_address_id')
-            email_addresses = clerk_user_data.get('email_addresses', [])
-            for ea in email_addresses:
-                if ea.get('id') == primary_id or not email:
-                    email = ea.get('email_address')
-            if not name:
-                fn = clerk_user_data.get('first_name', '')
-                ln = clerk_user_data.get('last_name', '')
-                name = f"{fn} {ln}".strip()
-            if not picture:
-                picture = clerk_user_data.get('image_url', '')
-            if not username_claim:
-                username_claim = clerk_user_data.get('username')
+        try:
+            clerk_user_data = fetch_clerk_user_info(clerk_id)
+            if clerk_user_data:
+                primary_id = clerk_user_data.get('primary_email_address_id')
+                email_addresses = clerk_user_data.get('email_addresses', [])
+                for ea in email_addresses:
+                    if ea.get('id') == primary_id or not email:
+                        email = ea.get('email_address')
+                if not name:
+                    fn = clerk_user_data.get('first_name', '')
+                    ln = clerk_user_data.get('last_name', '')
+                    name = f"{fn} {ln}".strip()
+                if not picture:
+                    picture = clerk_user_data.get('image_url', '')
+                if not username_claim:
+                    username_claim = clerk_user_data.get('username')
+        except Exception as exc:
+            logger.warning(f"[KEYFLOW Clerk] Error during fetch_clerk_user_info: {exc}")
+
+    # Fallback to configured owner identity if known owner Clerk ID matches
+    if not email and clerk_id in owner_clerk_ids:
+        email = owner_email
 
     if email:
         email = str(email).strip().lower()
@@ -147,10 +197,39 @@ def resolve_clerk_identity(payload):
         if email:
             existing_user = User.objects.filter(email__iexact=email).first()
             if existing_user:
+                # Disconnect clerk_id from any other user that might hold it
+                conflict_user = User.objects.filter(clerk_id=clerk_id).exclude(id=existing_user.id).first()
+                if conflict_user:
+                    try:
+                        from practice.models import PracticeSession
+                        from games.models import GameSession
+                        from lessons.models import CurriculumLessonProgress, LessonProgress
+                        PracticeSession.objects.filter(user=conflict_user).update(user=existing_user)
+                        GameSession.objects.filter(user=conflict_user).update(user=existing_user)
+                        CurriculumLessonProgress.objects.filter(user=conflict_user).update(user=existing_user)
+                        LessonProgress.objects.filter(user=conflict_user).update(user=existing_user)
+                    except Exception as merge_err:
+                        logger.warning(f"[KEYFLOW Clerk] Non-critical error migrating data from conflict user: {merge_err}")
+
+                    conflict_user.clerk_id = None
+                    conflict_user.save(update_fields=['clerk_id'])
+
                 existing_user.clerk_id = clerk_id
                 if not existing_user.is_email_verified:
                     existing_user.is_email_verified = True
-                existing_user.save(update_fields=['clerk_id', 'is_email_verified'])
+                update_fields = ['clerk_id', 'is_email_verified']
+                if email.lower() == owner_email:
+                    existing_user.role = 'SUPER_ADMIN'
+                    existing_user.status = 'ACTIVE'
+                    existing_user.is_staff = True
+                    existing_user.is_superuser = True
+                    update_fields.extend(['role', 'status', 'is_staff', 'is_superuser'])
+                existing_user.save(update_fields=update_fields)
+
+                from accounts.models import UserProfile, UserPreferences
+                UserProfile.objects.get_or_create(user=existing_user)
+                UserPreferences.objects.get_or_create(user=existing_user)
+
                 logger.info(
                     f"[KEYFLOW Clerk] Successfully linked existing user id={existing_user.id} "
                     f"({existing_user.email}) to Clerk ID {clerk_id}"
@@ -170,6 +249,12 @@ def resolve_clerk_identity(payload):
             counter += 1
 
         target_email = email or f"{clerk_id}@clerk.keyflow.local"
+        existing_target = User.objects.filter(email__iexact=target_email).first()
+        if existing_target:
+            existing_target.clerk_id = clerk_id
+            existing_target.save(update_fields=['clerk_id'])
+            return existing_target
+
         new_user = User.objects.create_user(
             email=target_email,
             username=candidate_username,
@@ -180,12 +265,15 @@ def resolve_clerk_identity(payload):
         new_user.save()
 
         # Update profile if provided
-        if hasattr(new_user, 'profile'):
-            if name:
-                new_user.profile.display_name = name
-            if picture:
-                new_user.profile.avatar_url = picture
-            new_user.profile.save()
+        from accounts.models import UserProfile, UserPreferences
+        profile, _ = UserProfile.objects.get_or_create(user=new_user)
+        UserPreferences.objects.get_or_create(user=new_user)
+
+        if name:
+            profile.display_name = name
+        if picture:
+            profile.avatar_url = picture
+        profile.save()
 
         logger.info(
             f"[KEYFLOW Clerk] Provisioned new Django user id={new_user.id} "
@@ -248,6 +336,11 @@ class ClerkAuthentication(BaseAuthentication):
                 logger.info(f"[KEYFLOW Clerk] Gracefully handling unverified token on public view {request.path_info}: {exc}")
                 return None
             raise
+        except Exception as exc:
+            logger.warning(f"[KEYFLOW Clerk] Unhandled error during token verification on {request.path_info}: {exc}")
+            if self._is_public_view(request):
+                return None
+            raise AuthenticationFailed(f"Authentication failed: {str(exc)}")
 
     def verify_token(self, token):
         """
@@ -329,7 +422,7 @@ class ClerkAuthentication(BaseAuthentication):
                 )
             except jwt.ExpiredSignatureError:
                 raise AuthenticationFailed("Clerk session token has expired.")
-            except (jwt.PyJWKClientError, jwt.InvalidTokenError) as exc:
+            except (jwt.PyJWKClientError, jwt.InvalidTokenError, urllib.error.URLError, urllib.error.HTTPError, TimeoutError, Exception) as exc:
                 if getattr(settings, 'DEBUG', False):
                     logger.warning(f"[KEYFLOW Clerk] JWKS verification failed ({exc}). Decoding claims for development.")
                     try:

@@ -400,6 +400,16 @@ class CurriculumStageListView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        try:
+            from admin_api.models import GlobalPlatformConfig
+            if not GlobalPlatformConfig.get_config().academy_enabled:
+                return Response(
+                    {'error': 'academy_disabled', 'detail': 'Academy lessons are currently disabled by platform administration.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            pass
+
         stages = CurriculumStage.objects.filter(is_published=True).order_by('stage_number')
         serializer = CurriculumStageSerializer(stages, many=True, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -486,6 +496,16 @@ class CurriculumRecordProgressView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, identifier):
+        try:
+            from admin_api.models import GlobalPlatformConfig
+            if not GlobalPlatformConfig.get_config().academy_enabled:
+                return Response(
+                    {'error': 'academy_disabled', 'detail': 'Academy lessons are currently disabled by platform administration.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            pass
+
         if identifier.isdigit():
             level = CurriculumLevel.objects.filter(id=int(identifier), is_published=True).first()
         else:

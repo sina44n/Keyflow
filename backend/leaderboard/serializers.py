@@ -4,6 +4,7 @@ Leaderboard Serializers
 Serializers for the Global Leaderboard API:
 - LeaderboardEntrySerializer: individual ranked typist performance record
 - LeaderboardStatsSerializer: summary platform and period statistics
+- CompetitionSummarySerializer: available typing competition lobbies
 - LeaderboardResponseSerializer: top-level response envelope
 """
 
@@ -16,6 +17,7 @@ class LeaderboardEntrySerializer(serializers.Serializer):
     username = serializers.CharField()
     display_name = serializers.CharField()
     avatar_url = serializers.CharField(allow_blank=True, default='')
+    continent = serializers.CharField(allow_blank=True, default='')
     net_wpm = serializers.FloatField()
     gross_wpm = serializers.FloatField()
     accuracy = serializers.FloatField()
@@ -60,10 +62,23 @@ class MyRankSerializer(serializers.Serializer):
     message = serializers.CharField(allow_blank=True, required=False)
 
 
+class CompetitionSummarySerializer(serializers.Serializer):
+    code = serializers.CharField()
+    name = serializers.CharField()
+    challenge_type = serializers.CharField()
+    target_limit = serializers.IntegerField()
+    status = serializers.CharField()
+    participants_count = serializers.IntegerField()
+    created_at = serializers.DateTimeField()
+
+
 class LeaderboardResponseSerializer(serializers.Serializer):
+    scope = serializers.CharField(default='global')
     period = serializers.CharField()
     category = serializers.CharField()
+    duration = serializers.CharField(default='all')
+    continent = serializers.CharField(default='all')
     stats = LeaderboardStatsSerializer()
     entries = LeaderboardEntrySerializer(many=True)
     my_rank = MyRankSerializer(allow_null=True)
-
+    competitions = CompetitionSummarySerializer(many=True, required=False, allow_null=True)

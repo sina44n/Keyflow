@@ -12,6 +12,7 @@ import { LanguageSelector } from './LanguageSelector';
 import { Button } from './Button';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
+import { usePlatformConfig } from '../../context/PlatformConfigContext';
 import { useI18n } from '../../i18n/I18nContext';
 import {
   Keyboard,
@@ -30,6 +31,7 @@ import {
   Target,
   Sliders,
   Shield,
+  Crown,
 } from 'lucide-react';
 import TelemetryProfileModal from '../telemetry/TelemetryProfileModal';
 
@@ -42,7 +44,7 @@ export const Navbar = () => {
 
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, clerkUser, isAuthenticated, logout } = useAuth();
   const { t } = useI18n();
   useTheme();
 
@@ -79,12 +81,14 @@ export const Navbar = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const { config } = usePlatformConfig();
+
   const navLinks = [
     { label: t('nav.workstation') || 'Workstation', href: '/workstation', isInternal: true, icon: Keyboard, primary: true },
-    { label: t('nav.academy') || 'Academy', href: '/academy', isInternal: true, icon: BookOpen, primary: true },
-    { label: t('nav.arcade') || 'Arcade', href: '/arcade', isInternal: true, icon: Gamepad2, primary: true },
+    ...(config?.academy_enabled !== false ? [{ label: t('nav.academy') || 'Academy', href: '/academy', isInternal: true, icon: BookOpen, primary: true }] : []),
+    ...(config?.arcade_enabled !== false ? [{ label: t('nav.arcade') || 'Arcade', href: '/arcade', isInternal: true, icon: Gamepad2, primary: true }] : []),
     { label: t('nav.telemetry') || 'Telemetry', href: '/telemetry', isInternal: true, icon: BarChart3, primary: false },
-    { label: t('nav.leaderboard') || 'Leaderboard', href: '/leaderboard', isInternal: true, icon: Trophy, primary: false },
+    ...(config?.leaderboard_enabled !== false ? [{ label: t('nav.leaderboard') || 'Leaderboard', href: '/leaderboard', isInternal: true, icon: Trophy, primary: false }] : []),
     { label: t('nav.themes') || 'Themes', href: '/#themes', isInternal: false, icon: Palette, primary: false },
   ];
 
@@ -220,6 +224,23 @@ export const Navbar = () => {
 
                     {/* Profile Navigation Links */}
                     <div className="space-y-0.5">
+                      {Boolean(
+                        user?.is_super_admin ||
+                        user?.role === 'SUPER_ADMIN' ||
+                        (user?.email && user.email.toLowerCase() === 'sina44n07@gmail.com') ||
+                        (clerkUser?.primaryEmailAddress?.emailAddress && clerkUser.primaryEmailAddress.emailAddress.toLowerCase() === 'sina44n07@gmail.com')
+                      ) && (
+                        <Link
+                          to="/admin"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-left text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 transition-colors font-medium cursor-pointer"
+                        >
+                          <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                            <Crown className="w-3.5 h-3.5 text-amber-400" />
+                          </div>
+                          <span>Super Admin Center</span>
+                        </Link>
+                      )}
                       <button
                         type="button"
                         onClick={() => {

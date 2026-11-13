@@ -41,6 +41,17 @@ class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        try:
+            from admin_api.models import GlobalPlatformConfig
+            config = GlobalPlatformConfig.get_config()
+            if not config.registration_enabled:
+                return Response(
+                    {'error': 'Registration is currently disabled by platform administration.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            pass
+
         serializer = RegisterSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -541,7 +552,10 @@ class ClerkSyncView(APIView):
     def post(self, request):
         user = request.user
         data = request.data or {}
-        profile, _ = UserProfile.objects.get_or_create(user=user)
+        profile = getattr(user, 'profile', None)
+        if not profile:
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            user.profile = profile
 
         display_name = data.get('display_name') or data.get('name')
         avatar_url = data.get('avatar_url') or data.get('picture')
@@ -556,19 +570,121 @@ class ClerkSyncView(APIView):
             updated_profile = True
         if updated_profile:
             profile.save()
+            user.profile = profile
 
         # Update placeholder email with real verified email when available and no conflict exists
+        owner_email = getattr(settings, 'OWNER_EMAIL', 'sina44n07@gmail.com').strip().lower()
+        owner_clerk_ids = set(getattr(settings, 'OWNER_CLERK_IDS', ['user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn']))
+
+        is_verified_owner = bool(
+            (user.email and user.email.lower() == owner_email) or
+            (getattr(user, 'clerk_id', '') in owner_clerk_ids)
+        )
+
         if email and isinstance(email, str):
             clean_email = email.strip().lower()
             if '@' in clean_email:
-                if user.email.endswith('@clerk.keyflow.local') or not user.email:
-                    conflict = User.objects.filter(email__iexact=clean_email).exclude(pk=user.pk).exists()
-                    if not conflict:
-                        user.email = clean_email
-                        user.is_email_verified = True
-                        user.save(update_fields=['email', 'is_email_verified'])
+                if clean_email == owner_email:
+                    if not is_verified_owner:
+                        return Response({
+                            'detail': 'Permission denied: Cannot claim platform owner identity.'
+                        }, status=status.HTTP_403_FORBIDDEN)
+
+                    canonical_owner = User.objects.filter(email__iexact=owner_email).first()
+                    if canonical_owner and canonical_owner.pk != user.pk:
+                        try:
+                            from practice.models import PracticeSession
+                            from games.models import GameSession
+                            from lessons.models import CurriculumLessonProgress, LessonProgress
+                            PracticeSession.objects.filter(user=user).update(user=canonical_owner)
+                            GameSession.objects.filter(user=user).update(user=canonical_owner)
+                            CurriculumLessonProgress.objects.filter(user=user).update(user=canonical_owner)
+                            LessonProgress.objects.filter(user=user).update(user=canonical_owner)
+                        except Exception as transfer_err:
+                            pass
+
+                        c_id = user.clerk_id
+                        user.clerk_id = None
+                        user.save(update_fields=['clerk_id'])
+
+                        canonical_owner.clerk_id = c_id
+                        canonical_owner.role = 'SUPER_ADMIN'
+                        canonical_owner.status = 'ACTIVE'
+                        canonical_owner.is_staff = True
+                        canonical_owner.is_superuser = True
+                        canonical_owner.is_email_verified = True
+                        canonical_owner.save()
+                        user = canonical_owner
+
+                        profile, _ = UserProfile.objects.get_or_create(user=user)
+                        if display_name and display_name.strip():
+                            profile.display_name = str(display_name).strip()[:50]
+                        if avatar_url and avatar_url.strip():
+                            profile.avatar_url = str(avatar_url).strip()
+                        profile.save()
+                else:
+                    if user.email.endswith('@clerk.keyflow.local') or not user.email:
+                        existing_user = User.objects.filter(email__iexact=clean_email).exclude(pk=user.pk).first()
+                        if existing_user:
+                            c_id = user.clerk_id
+                            user.clerk_id = None
+                            user.save(update_fields=['clerk_id'])
+
+                            existing_user.clerk_id = c_id
+                            existing_user.is_email_verified = True
+                            existing_user.save(update_fields=['clerk_id', 'is_email_verified'])
+
+                            try:
+                                from practice.models import PracticeSession
+                                from games.models import GameSession
+                                from lessons.models import CurriculumLessonProgress, LessonProgress
+                                PracticeSession.objects.filter(user=user).update(user=existing_user)
+                                GameSession.objects.filter(user=user).update(user=existing_user)
+                                CurriculumLessonProgress.objects.filter(user=user).update(user=existing_user)
+                                LessonProgress.objects.filter(user=user).update(user=existing_user)
+                            except Exception:
+                                pass
+                            user = existing_user
+                            profile, _ = UserProfile.objects.get_or_create(user=user)
+                            if display_name and display_name.strip():
+                                profile.display_name = str(display_name).strip()[:50]
+                            if avatar_url and avatar_url.strip():
+                                profile.avatar_url = str(avatar_url).strip()
+                            profile.save()
+                        else:
+                            user.email = clean_email
+                            user.is_email_verified = True
+                            user.save(update_fields=['email', 'is_email_verified'])
+
+        # Guarantee owner status if user is owner
+        if user.email and user.email.lower() == owner_email:
+            needs_save = False
+            fields = []
+            if getattr(user, 'role', '') != 'SUPER_ADMIN':
+                user.role = 'SUPER_ADMIN'
+                fields.append('role')
+                needs_save = True
+            if not user.is_staff:
+                user.is_staff = True
+                fields.append('is_staff')
+                needs_save = True
+            if not user.is_superuser:
+                user.is_superuser = True
+                fields.append('is_superuser')
+                needs_save = True
+            if getattr(user, 'status', '') != 'ACTIVE':
+                user.status = 'ACTIVE'
+                fields.append('status')
+                needs_save = True
+            if not getattr(user, 'is_email_verified', False):
+                user.is_email_verified = True
+                fields.append('is_email_verified')
+                needs_save = True
+            if needs_save:
+                user.save(update_fields=fields)
 
         user.refresh_from_db()
+        user.profile = profile
         return Response({
             'status': 'synchronized',
             'user': FullUserSerializer(user).data,

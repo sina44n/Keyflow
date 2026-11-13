@@ -65,6 +65,7 @@ LOCAL_APPS = [
     'leaderboard',
     'games',
     'quotes',
+    'admin_api',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -82,6 +83,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'admin_api.middleware.PlatformMaintenanceMiddleware',
 ]
 
 ROOT_URLCONF = 'keyflow.urls'
@@ -409,6 +411,11 @@ CLERK_ISSUER = config('CLERK_ISSUER', default='')
 CLERK_JWKS_URL = config('CLERK_JWKS_URL', default='')
 CLERK_PEM_PUBLIC_KEY = config('CLERK_PEM_PUBLIC_KEY', default='')
 CLERK_TEST_PUBLIC_KEY = None
+
+# Platform Owner Identity Settings
+OWNER_EMAIL = config('OWNER_EMAIL', default='sina44n07@gmail.com')
+_owner_clerk_ids_str = config('OWNER_CLERK_IDS', default='user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn')
+OWNER_CLERK_IDS = [cid.strip() for cid in _owner_clerk_ids_str.split(',') if cid.strip()]
 
 # ---------------------------------------------------------------------------
 # Email (Password Reset & Verification)

@@ -70,9 +70,20 @@ urlpatterns = [
 
     # Typing Arcade Games
     path('api/games/', include('games.urls')),
+    path('api/arcade/', include('games.urls')),
 
     # Random Personalized Quotes
     path('api/quotes/', include('quotes.urls')),
+
+    # Super Admin Control Center API
+    path('api/admin/', include('admin_api.urls')),
+
+    # Public Platform Configuration & Active Announcements
+    path('api/platform/config/', include([
+        path('', __import__('admin_api.public_views', fromlist=['PublicPlatformConfigView']).PublicPlatformConfigView.as_view(), name='public_platform_config'),
+    ])),
+    path('api/announcements/active/', __import__('admin_api.public_views', fromlist=['PublicAnnouncementsView']).PublicAnnouncementsView.as_view(), name='public_announcements_active'),
+    path('api/announcements/<int:announcement_id>/dismiss/', __import__('admin_api.public_views', fromlist=['PublicAnnouncementDismissView']).PublicAnnouncementDismissView.as_view(), name='public_announcement_dismiss'),
 ]
 
 # Customize admin site

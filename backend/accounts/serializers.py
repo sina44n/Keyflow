@@ -91,7 +91,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ['display_name', 'bio', 'avatar_url', 'timezone', 'updated_at']
+        fields = ['display_name', 'bio', 'avatar_url', 'timezone', 'continent', 'updated_at']
         read_only_fields = ['updated_at']
 
 
@@ -124,30 +124,33 @@ class FullUserSerializer(serializers.ModelSerializer):
     """Complete user payload returned after login or /me."""
     profile = serializers.SerializerMethodField()
     preferences = serializers.SerializerMethodField()
+    is_super_admin = serializers.BooleanField(read_only=True)
+    is_admin = serializers.BooleanField(read_only=True)
+    is_owner = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'email', 'username', 'clerk_id', 'is_email_verified', 'date_joined', 'profile', 'preferences']
+        fields = [
+            'id', 'email', 'username', 'clerk_id', 'is_email_verified',
+            'role', 'status', 'is_staff', 'is_superuser', 'is_super_admin', 'is_admin', 'is_owner',
+            'date_joined', 'profile', 'preferences'
+        ]
         read_only_fields = fields
 
     def get_profile(self, obj):
-        try:
-            profile = obj.profile
-        except (UserProfile.DoesNotExist, AttributeError):
-            if obj.pk:
-                profile, _ = UserProfile.objects.get_or_create(user=obj)
-            else:
-                profile = None
+        if not obj or not obj.pk:
+            return None
+        profile = UserProfile.objects.filter(user=obj).first()
+        if not profile:
+            profile, _ = UserProfile.objects.get_or_create(user=obj)
         return UserProfileSerializer(profile).data if profile else None
 
     def get_preferences(self, obj):
-        try:
-            prefs = obj.preferences
-        except (UserPreferences.DoesNotExist, AttributeError):
-            if obj.pk:
-                prefs, _ = UserPreferences.objects.get_or_create(user=obj)
-            else:
-                prefs = None
+        if not obj or not obj.pk:
+            return None
+        prefs = UserPreferences.objects.filter(user=obj).first()
+        if not prefs:
+            prefs, _ = UserPreferences.objects.get_or_create(user=obj)
         return UserPreferencesSerializer(prefs).data if prefs else None
 
 

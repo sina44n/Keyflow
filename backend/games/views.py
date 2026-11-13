@@ -41,6 +41,16 @@ class GameStatsView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        try:
+            from admin_api.models import GlobalPlatformConfig
+            if not GlobalPlatformConfig.get_config().arcade_enabled:
+                return Response(
+                    {'error': 'arcade_disabled', 'detail': 'Arcade games are currently disabled by platform administration.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            pass
+
         user = request.user if request.user and request.user.is_authenticated else None
         guest_id = request.headers.get('X-Guest-ID') or request.GET.get('guest_id') or ''
 
@@ -215,6 +225,16 @@ class RecordGameSessionView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        try:
+            from admin_api.models import GlobalPlatformConfig
+            if not GlobalPlatformConfig.get_config().arcade_enabled:
+                return Response(
+                    {'error': 'arcade_disabled', 'detail': 'Arcade games are currently disabled by platform administration.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            pass
+
         user = request.user if request.user and request.user.is_authenticated else None
         data = request.data or {}
 
@@ -426,6 +446,16 @@ class MultiplayerRoomListCreateView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def post(self, request):
+        try:
+            from admin_api.models import GlobalPlatformConfig
+            if not GlobalPlatformConfig.get_config().arcade_enabled:
+                return Response(
+                    {'error': 'arcade_disabled', 'detail': 'Arcade games are currently disabled by platform administration.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            pass
+
         user = request.user if request.user and request.user.is_authenticated else None
         data = request.data or {}
 

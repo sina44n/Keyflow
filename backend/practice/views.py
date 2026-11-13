@@ -67,6 +67,23 @@ class RecordPracticeSessionView(APIView):
         user = request.user if request.user and request.user.is_authenticated else None
         data = request.data or {}
 
+        try:
+            from admin_api.models import GlobalPlatformConfig
+            config = GlobalPlatformConfig.get_config()
+            if not user and not config.guest_typing_enabled:
+                return Response(
+                    {'error': 'guest_typing_disabled', 'detail': 'Guest practice is currently disabled. Please sign in to practice.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            session_type = data.get('session_type', 'timed')
+            if (session_type == 'custom' or data.get('is_custom')) and not config.custom_text_enabled:
+                return Response(
+                    {'error': 'custom_text_disabled', 'detail': 'Custom text typing is currently disabled by administrator.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            pass
+
         # Idempotency check: prevent duplicate session creation on retries
         client_session_id = str(data.get('session_id') or data.get('sessionId') or data.get('id') or '').strip() or None
         if client_session_id:
@@ -735,6 +752,16 @@ class CompetitionStartView(APIView):
 
     def post(self, request, code):
         try:
+            from admin_api.models import GlobalPlatformConfig
+            if not GlobalPlatformConfig.get_config().competition_enabled:
+                return Response(
+                    {'error': 'competitions_disabled', 'detail': 'Live competitions are currently disabled by administrator.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            pass
+
+        try:
             competition = Competition.objects.get(code__iexact=code)
         except Competition.DoesNotExist:
             return Response({'error': 'Competition not found.'}, status=status.HTTP_404_NOT_FOUND)
@@ -755,6 +782,16 @@ class CompetitionJoinView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, code):
+        try:
+            from admin_api.models import GlobalPlatformConfig
+            if not GlobalPlatformConfig.get_config().competition_enabled:
+                return Response(
+                    {'error': 'competitions_disabled', 'detail': 'Live competitions are currently disabled by administrator.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            pass
+
         try:
             competition = Competition.objects.get(code__iexact=code)
         except Competition.DoesNotExist:
@@ -799,6 +836,16 @@ class CompetitionSubmitView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, code):
+        try:
+            from admin_api.models import GlobalPlatformConfig
+            if not GlobalPlatformConfig.get_config().competition_enabled:
+                return Response(
+                    {'error': 'competitions_disabled', 'detail': 'Live competitions are currently disabled by administrator.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except Exception:
+            pass
+
         try:
             competition = Competition.objects.get(code__iexact=code)
         except Competition.DoesNotExist:
