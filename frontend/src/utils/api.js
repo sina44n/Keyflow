@@ -22,6 +22,12 @@ export const getApiBaseUrl = (customEnvUrl) => {
     const cleanUrl = envUrl.replace(/\/+$/, '');
     return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
   }
+
+  // When deployed on Vercel production, talk directly to the active Render backend
+  if (typeof window !== 'undefined' && window.location && window.location.hostname.includes('vercel.app')) {
+    return 'https://keyflow-3-7241.onrender.com/api';
+  }
+
   return typeof window !== 'undefined' ? '/api' : 'http://127.0.0.1:8000/api';
 };
 
