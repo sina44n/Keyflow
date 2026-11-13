@@ -95,3 +95,4 @@ class PublicAnnouncementDismissView(APIView):
 
     def post(self, request, announcement_id):
         return Response({'status': 'dismissed', 'id': announcement_id}, status=status.HTTP_200_OK)
+
