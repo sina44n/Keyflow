@@ -96,6 +96,57 @@ export function calculateConsistency(wpmValues = []) {
   return consistency;
 }
 
+// Static pre-allocated, frozen feedback descriptors to eliminate heap churn and GC pauses during high-speed typing
+const FEEDBACK_INCORRECT = Object.freeze({
+  status: 'incorrect',
+  isCorrect: false,
+  isIncorrect: true,
+  isCorrected: false,
+  isCurrent: false,
+  isTyped: true,
+  className: 'char-incorrect',
+});
+
+const FEEDBACK_CORRECTED = Object.freeze({
+  status: 'corrected',
+  isCorrect: true,
+  isIncorrect: false,
+  isCorrected: true,
+  isCurrent: false,
+  isTyped: true,
+  className: 'char-corrected',
+});
+
+const FEEDBACK_CORRECT = Object.freeze({
+  status: 'correct',
+  isCorrect: true,
+  isIncorrect: false,
+  isCorrected: false,
+  isCurrent: false,
+  isTyped: true,
+  className: 'char-correct',
+});
+
+const FEEDBACK_CURRENT = Object.freeze({
+  status: 'current',
+  isCorrect: false,
+  isIncorrect: false,
+  isCorrected: false,
+  isCurrent: true,
+  isTyped: false,
+  className: 'char-current',
+});
+
+const FEEDBACK_UNTYPED = Object.freeze({
+  status: 'untyped',
+  isCorrect: false,
+  isIncorrect: false,
+  isCorrected: false,
+  isCurrent: false,
+  isTyped: false,
+  className: 'char-untyped',
+});
+
 /**
  * Computes live character feedback for a specific character position.
  * Handles spaces, punctuation, uppercase/lowercase letters, repeated characters,
@@ -128,63 +179,23 @@ export function getCharacterFeedback(index, typed = '', targetText = '', isCompl
     );
 
     if (!isCorrect) {
-      return {
-        status: 'incorrect',
-        isCorrect: false,
-        isIncorrect: true,
-        isCorrected: false,
-        isCurrent: false,
-        isTyped: true,
-        className: 'char-incorrect',
-      };
+      return FEEDBACK_INCORRECT;
     }
 
     if (hadError) {
-      return {
-        status: 'corrected',
-        isCorrect: true,
-        isIncorrect: false,
-        isCorrected: true,
-        isCurrent: false,
-        isTyped: true,
-        className: 'char-corrected',
-      };
+      return FEEDBACK_CORRECTED;
     }
 
-    return {
-      status: 'correct',
-      isCorrect: true,
-      isIncorrect: false,
-      isCorrected: false,
-      isCurrent: false,
-      isTyped: true,
-      className: 'char-correct',
-    };
+    return FEEDBACK_CORRECT;
   }
 
   const isCurrent = index === typed.length && !isCompleted;
 
   if (isCurrent) {
-    return {
-      status: 'current',
-      isCorrect: false,
-      isIncorrect: false,
-      isCorrected: false,
-      isCurrent: true,
-      isTyped: false,
-      className: 'char-current',
-    };
+    return FEEDBACK_CURRENT;
   }
 
-  return {
-    status: 'untyped',
-    isCorrect: false,
-    isIncorrect: false,
-    isCorrected: false,
-    isCurrent: false,
-    isTyped: false,
-    className: 'char-untyped',
-  };
+  return FEEDBACK_UNTYPED;
 }
 
 /**

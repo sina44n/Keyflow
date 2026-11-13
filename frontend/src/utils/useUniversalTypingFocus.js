@@ -98,6 +98,15 @@ export function dispatchTypingCharacter(inputEl, key) {
       inputEl.value = nextVal;
     }
 
+    // Set selection range to end so subsequent native typing continues at the correct position
+    try {
+      if (typeof inputEl.setSelectionRange === 'function') {
+        inputEl.setSelectionRange(nextVal.length, nextVal.length);
+      }
+    } catch {
+      // Ignore unsupported input types
+    }
+
     const EventCtor = typeof InputEvent !== 'undefined'
       ? InputEvent
       : typeof Event !== 'undefined'
@@ -130,6 +139,7 @@ export function useUniversalTypingFocus({
   disabled = false,
   onFocusStateChange = null,
   onKeystroke = null,
+  onDirectInput = null,
 }) {
   const isFocusedRef = useRef(false);
 
@@ -246,8 +256,42 @@ export function useUniversalTypingFocus({
         // Focus the input immediately
         focusInput();
 
-        // Deliver the keystroke directly into the input so the character is not dropped
-        const dispatched = dispatchTypingCharacter(inputRef.current, e.key);
+        let dispatched = false;
+
+        // Authoritative single-path processing:
+        if (typeof onDirectInput === 'function') {
+          const inputEl = inputRef.current;
+          const currentVal = inputEl?.value || '';
+          let nextVal = currentVal;
+          if (isBackspace) {
+            if (currentVal.length > 0) nextVal = currentVal.slice(0, -1);
+          } else if (isPrintable) {
+            nextVal = currentVal + e.key;
+          } else if (isEnter) {
+            nextVal = currentVal + '\n';
+          }
+
+          if (nextVal !== currentVal) {
+            if (inputEl) {
+              const prototype = typeof window !== 'undefined' && window.HTMLInputElement ? window.HTMLInputElement.prototype : null;
+              const nativeSetter = prototype ? Object.getOwnPropertyDescriptor(prototype, 'value')?.set : null;
+              if (nativeSetter) {
+                nativeSetter.call(inputEl, nextVal);
+              } else {
+                inputEl.value = nextVal;
+              }
+              try {
+                if (typeof inputEl.setSelectionRange === 'function') {
+                  inputEl.setSelectionRange(nextVal.length, nextVal.length);
+                }
+              } catch {}
+            }
+            onDirectInput(nextVal);
+            dispatched = true;
+          }
+        } else {
+          dispatched = dispatchTypingCharacter(inputRef.current, e.key);
+        }
 
         if (dispatched && typeof onKeystroke === 'function') {
           const perfNow = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
@@ -258,7 +302,7 @@ export function useUniversalTypingFocus({
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isActive, disabled, inputRef, focusInput, onKeystroke]);
+  }, [isActive, disabled, inputRef, focusInput, onKeystroke, onDirectInput]);
 
   return {
     focusInput,

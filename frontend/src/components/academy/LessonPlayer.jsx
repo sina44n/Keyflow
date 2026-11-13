@@ -100,6 +100,9 @@ export const LessonPlayer = ({
   const [scrollLine, setScrollLine] = useState(0);
   const [scrollOffsetPx, setScrollOffsetPx] = useState(0);
   const [isMultiLine, setIsMultiLine] = useState(false);
+  const cachedLineHeightRef = useRef(null);
+  const cachedBaseOffsetTopRef = useRef(null);
+  const lastActiveOffsetTopRef = useRef(null);
 
   const inputRef = useRef(null);
   const timerRef = useRef(null);
@@ -151,6 +154,9 @@ export const LessonPlayer = ({
     setLastKeystroke(null);
     setScrollLine(0);
     setScrollOffsetPx(0);
+    cachedLineHeightRef.current = null;
+    cachedBaseOffsetTopRef.current = null;
+    lastActiveOffsetTopRef.current = null;
     if (viewportRef.current) {
       viewportRef.current.scrollTo({ top: 0, behavior: 'instant' });
     }
@@ -165,6 +171,7 @@ export const LessonPlayer = ({
     isActive: !isCompleted && !completedResult,
     disabled: isCompleted || Boolean(completedResult),
     onKeystroke: (k) => setLastKeystroke(k),
+    onDirectInput: (val) => handleInputChange({ target: { value: val } }),
   });
 
   useEffect(() => { handleReset(); }, [lesson?.id, handleReset]);
@@ -205,17 +212,17 @@ export const LessonPlayer = ({
     if (inputRef.current) inputRef.current.focus();
   }, []);
 
-  // ── Precision 4-Line Rendered-Line Auto-Scrolling (Workstation Reused) ────
-  // Viewport strictly displays exactly 4 visual lines when text exceeds 4 lines.
-  // When active typing progresses into the 3rd visible line (lineIndex >= 2),
-  // smoothly translate the text track upward by exactly 1 line height so the active
-  // line moves to the 2nd visible position (index 1), revealing the next upcoming line.
+  // Measure total visual lines when text loads or container resizes
   useEffect(() => {
     if (!viewportRef.current || !textTrackRef.current) return;
+    cachedLineHeightRef.current = null;
+    cachedBaseOffsetTopRef.current = null;
+    lastActiveOffsetTopRef.current = null;
 
     const computedLineHeight =
       parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
       44;
+    cachedLineHeightRef.current = computedLineHeight;
 
     const allChars = textTrackRef.current.querySelectorAll('.typing-char');
     let totalLines = 1;
@@ -225,13 +232,19 @@ export const LessonPlayer = ({
       totalLines = Math.round((last.top - first.top) / computedLineHeight) + 1;
     }
 
-    const shouldActivateMultiLine = totalLines > 4;
-    if (isMultiLine !== shouldActivateMultiLine) {
-      setIsMultiLine(shouldActivateMultiLine);
-    }
+    setIsMultiLine(totalLines > 4);
+  }, [targetText]);
 
-    if (!shouldActivateMultiLine || isCompleted) {
-      if (!shouldActivateMultiLine && (scrollLine !== 0 || scrollOffsetPx !== 0)) {
+  // ── Precision 4-Line Rendered-Line Auto-Scrolling (Workstation Reused) ────
+  // Viewport strictly displays exactly 4 visual lines when text exceeds 4 lines.
+  // When active typing progresses into the 3rd visible line (lineIndex >= 2),
+  // smoothly translate the text track upward by exactly 1 line height so the active
+  // line moves to the 2nd visible position (index 1), revealing the next upcoming line.
+  useEffect(() => {
+    if (!viewportRef.current || !textTrackRef.current) return;
+
+    if (!isMultiLine || isCompleted) {
+      if (!isMultiLine && (scrollLine !== 0 || scrollOffsetPx !== 0)) {
         setScrollLine(0);
         setScrollOffsetPx(0);
       }
@@ -239,6 +252,7 @@ export const LessonPlayer = ({
     }
 
     if (typed.length === 0) {
+      lastActiveOffsetTopRef.current = null;
       if (scrollLine !== 0 || scrollOffsetPx !== 0) {
         setScrollLine(0);
         setScrollOffsetPx(0);
@@ -249,29 +263,50 @@ export const LessonPlayer = ({
     const activeSpan = activeCharSpanRef.current;
     if (!activeSpan) return;
 
-    const firstCharSpan = allChars[0] || textTrackRef.current.firstElementChild;
+    // Fast-path: if active character has not moved to a new line offset, skip layout measurements completely
+    const currentOffsetTop = activeSpan.offsetTop;
+    if (lastActiveOffsetTopRef.current !== null && currentOffsetTop === lastActiveOffsetTopRef.current) {
+      return;
+    }
+
+    const firstCharSpan = textTrackRef.current.querySelector('.typing-char') || textTrackRef.current.firstElementChild;
     if (!firstCharSpan) return;
 
-    const activeRect = activeSpan.getBoundingClientRect();
-    const firstRect = firstCharSpan.getBoundingClientRect();
-    const relativeTop = Math.max(0, activeRect.top - firstRect.top);
-    const activeRow = Math.round(relativeTop / computedLineHeight);
+    if (cachedLineHeightRef.current === null) {
+      cachedLineHeightRef.current =
+        parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
+        activeSpan.offsetHeight ||
+        44;
+    }
+    const computedLineHeight = cachedLineHeightRef.current;
 
+    if (cachedBaseOffsetTopRef.current === null) {
+      cachedBaseOffsetTopRef.current = firstCharSpan.offsetTop;
+    }
+    const baseOffsetTop = cachedBaseOffsetTopRef.current;
+    const relativeTop = Math.max(0, currentOffsetTop - baseOffsetTop);
+    lastActiveOffsetTopRef.current = currentOffsetTop;
+
+    const activeRow = Math.round(relativeTop / computedLineHeight);
     const { targetScrollTop, scrollLine: targetLine } = calculateViewportScroll(activeRow, computedLineHeight);
 
     if (targetLine !== scrollLine || targetScrollTop !== scrollOffsetPx) {
       setScrollLine(targetLine);
       setScrollOffsetPx(targetScrollTop);
     }
-  }, [typed.length, targetText, isCompleted, scrollLine, scrollOffsetPx, isMultiLine]);
+  }, [typed.length, isCompleted, scrollLine, scrollOffsetPx, isMultiLine]);
 
   // Window resize handler ensures line alignment is preserved on responsive width changes
   useEffect(() => {
     const handleResize = () => {
       if (!viewportRef.current || !textTrackRef.current) return;
+      cachedLineHeightRef.current = null;
+      cachedBaseOffsetTopRef.current = null;
+      lastActiveOffsetTopRef.current = null;
       const computedLineHeight =
         parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
         44;
+      cachedLineHeightRef.current = computedLineHeight;
 
       const allChars = textTrackRef.current.querySelectorAll('.typing-char');
       if (allChars.length > 0) {

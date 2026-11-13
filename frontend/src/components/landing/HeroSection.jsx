@@ -36,6 +36,8 @@ export const HeroSection = () => {
   const [lastKeystroke, setLastKeystroke] = useState(null);
   const inputRef = useRef(null);
 
+  const targetChars = useMemo(() => SAMPLE_TEXT.split(''), []);
+
   const currentTargetChar = useMemo(() => {
     if (inputVal.length >= SAMPLE_TEXT.length) return null;
     return SAMPLE_TEXT[inputVal.length];
@@ -112,6 +114,7 @@ export const HeroSection = () => {
     isActive: !isCompleted,
     disabled: isCompleted,
     onKeystroke: (k) => setLastKeystroke(k),
+    onDirectInput: (val) => handleInputChange({ target: { value: val } }),
   });
 
   return (
@@ -268,10 +271,10 @@ export const HeroSection = () => {
                 role="region"
                 aria-label="Live interactive typing passage"
               >
-                {SAMPLE_TEXT.split('').map((char, idx) => {
+                {targetChars.map((char, idx) => {
                   const feedback = getCharacterFeedback(idx, inputVal, SAMPLE_TEXT, false, correctedIndices);
                   return (
-                    <span key={idx} className={feedback.className}>
+                    <span key={idx} className={`${feedback.className} typing-char`}>
                       {char}
                     </span>
                   );
@@ -290,6 +293,10 @@ export const HeroSection = () => {
                   }}
                   className="absolute inset-0 opacity-0 cursor-default"
                   autoFocus
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
                   aria-label="Type the text passage above"
                 />
               </div>

@@ -331,6 +331,7 @@ export const WorkstationPage = () => {
     isActive: isTypingActive,
     disabled: !isTypingActive,
     onKeystroke: (k) => setLastKeystroke(k),
+    onDirectInput: (val) => handleInputChange({ target: { value: val } }),
   });
 
   const setWpmGoal = useCallback((val) => {
@@ -412,6 +413,9 @@ export const WorkstationPage = () => {
   const [scrollOffsetPx, setScrollOffsetPx] = useState(0);
   const secondTimelineRef = useRef([]);
   const lastSampleSecondRef = useRef(0);
+  const cachedLineHeightRef = useRef(null);
+  const cachedBaseOffsetTopRef = useRef(null);
+  const lastActiveOffsetTopRef = useRef(null);
 
   // Determine current active text
   const currentTargetText = useMemo(() => {
@@ -442,6 +446,16 @@ export const WorkstationPage = () => {
     return PRACTICE_PASSAGES[selectedPassageIndex].text;
   }, [mode, wordLimit, selectedPassageIndex, customPrompt, activeCompetition, timeLimit]);
 
+  // Memoize character array to avoid re-splitting long passages on every keystroke
+  const targetChars = useMemo(() => currentTargetText.split(''), [currentTargetText]);
+
+  // Invalidate geometry cache when font or passage changes
+  useEffect(() => {
+    cachedLineHeightRef.current = null;
+    cachedBaseOffsetTopRef.current = null;
+    lastActiveOffsetTopRef.current = null;
+  }, [fontSize, currentTargetText]);
+
   // ── Precision 4-Line Rendered-Line Auto-Scrolling ─────────────────────────
   // The viewport strictly displays exactly 4 visible lines at all times.
   // When active typing progresses into the 3rd visible line (lineIndex >= 2),
@@ -462,6 +476,7 @@ export const WorkstationPage = () => {
       })();
 
     if (typed.length === 0) {
+      lastActiveOffsetTopRef.current = null;
       if (scrollLine !== 0 || scrollOffsetPx !== 0) {
         setScrollLine(0);
         setScrollOffsetPx(0);
@@ -472,19 +487,32 @@ export const WorkstationPage = () => {
     const activeSpan = activeCharSpanRef.current;
     if (!activeSpan) return;
 
+    // Fast-path: if active character has not moved to a new line offset, skip layout measurements completely
+    const currentOffsetTop = activeSpan.offsetTop;
+    if (lastActiveOffsetTopRef.current !== null && currentOffsetTop === lastActiveOffsetTopRef.current) {
+      return;
+    }
+
     const firstCharSpan = textTrackRef.current.querySelector('.typing-char') || textTrackRef.current.firstElementChild;
     if (!firstCharSpan) return;
 
-    // Accurate rendered line-height
-    const computedLineHeight =
-      parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
-      activeSpan.offsetHeight ||
-      39;
+    // Accurate rendered line-height (cached across same font/size lifecycle)
+    if (cachedLineHeightRef.current === null) {
+      cachedLineHeightRef.current =
+        parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
+        activeSpan.offsetHeight ||
+        39;
+    }
+    const computedLineHeight = cachedLineHeightRef.current;
 
     // Relative vertical position of active character from Line 1 (0-indexed)
-    const baseOffsetTop = firstCharSpan.offsetTop;
-    const relativeTop = Math.max(0, activeSpan.offsetTop - baseOffsetTop);
-    
+    if (cachedBaseOffsetTopRef.current === null) {
+      cachedBaseOffsetTopRef.current = firstCharSpan.offsetTop;
+    }
+    const baseOffsetTop = cachedBaseOffsetTopRef.current;
+    const relativeTop = Math.max(0, currentOffsetTop - baseOffsetTop);
+    lastActiveOffsetTopRef.current = currentOffsetTop;
+
     // Accurate 0-indexed rendered line row: Line 0, Line 1, Line 2, Line 3, ...
     const activeRow = Math.round(relativeTop / computedLineHeight);
 
@@ -505,9 +533,13 @@ export const WorkstationPage = () => {
   useEffect(() => {
     const handleResize = () => {
       if (!viewportRef.current || !textTrackRef.current) return;
+      cachedLineHeightRef.current = null;
+      cachedBaseOffsetTopRef.current = null;
+      lastActiveOffsetTopRef.current = null;
       const computedLineHeight =
         parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
         39;
+      cachedLineHeightRef.current = computedLineHeight;
       setScrollOffsetPx(scrollLine * computedLineHeight);
     };
 
@@ -996,6 +1028,9 @@ export const WorkstationPage = () => {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    cachedLineHeightRef.current = null;
+    cachedBaseOffsetTopRef.current = null;
+    lastActiveOffsetTopRef.current = null;
     if (viewportRef.current) {
       viewportRef.current.scrollTo({ top: 0, behavior: 'instant' });
     }
@@ -1475,7 +1510,7 @@ export const WorkstationPage = () => {
                       <div className="absolute -top-1 -left-[3px] w-2 h-2 rounded-full bg-slate-500/90 shadow-xs" />
                     </div>
 
-                    {currentTargetText.split('').map((char, idx) => {
+                    {targetChars.map((char, idx) => {
                       const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted, correctedIndices);
                       const isCurrent =
                         (idx === typed.length && !isCompleted) ||

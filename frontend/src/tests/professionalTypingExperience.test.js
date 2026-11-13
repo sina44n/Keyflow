@@ -328,4 +328,66 @@ describe('KEYFLOW — Phase 3 Professional Typing Experience Masterpiece Contrac
       assert.strictEqual(uncorrected, 2);
     });
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 7. Checkpoints 4–8: Smooth Typing Optimization Contracts
+  // ───────────────────────────────────────────────────────────────────────────
+  describe('7. Checkpoints 4–8 Smooth Typing Engineering Optimizations', () => {
+    it('returns frozen shared feedback descriptors eliminating heap allocations during typing', () => {
+      const fb1 = getCharacterFeedback(10, 'abc', 'abcdef', false);
+      const fb2 = getCharacterFeedback(20, 'abc', 'abcdef', false);
+      assert.strictEqual(fb1, fb2, 'Untyped feedback must return identical frozen reference');
+      assert.strictEqual(Object.isFrozen(fb1), true, 'Feedback descriptor must be frozen');
+
+      const fbCorrect1 = getCharacterFeedback(0, 'a', 'a', false);
+      const fbCorrect2 = getCharacterFeedback(0, 'a', 'a', false);
+      assert.strictEqual(fbCorrect1, fbCorrect2, 'Correct feedback must return identical frozen reference');
+    });
+
+    it('preserves native selection range when dispatchTypingCharacter is invoked', () => {
+      let rangeSet = null;
+      const mockInput = {
+        value: 'he',
+        setSelectionRange: (start, end) => { rangeSet = { start, end }; },
+        dispatchEvent: () => {},
+      };
+
+      dispatchTypingCharacter(mockInput, 'y');
+      assert.deepStrictEqual(rangeSet, { start: 3, end: 3 }, 'setSelectionRange must match nextVal.length');
+    });
+
+    it('supports onDirectInput as an authoritative single-path input mechanism in useUniversalTypingFocus', () => {
+      assert.ok(
+        hookSrc.includes('onDirectInput'),
+        'Hook must support onDirectInput'
+      );
+      assert.ok(
+        workstationSrc.includes('onDirectInput:'),
+        'WorkstationPage must wire onDirectInput'
+      );
+      assert.ok(
+        lessonPlayerSrc.includes('onDirectInput:'),
+        'LessonPlayer must wire onDirectInput'
+      );
+      assert.ok(
+        heroSectionSrc.includes('onDirectInput:'),
+        'HeroSection must wire onDirectInput'
+      );
+    });
+
+    it('defines base .typing-char border-bottom: 2px solid transparent in index.css to eliminate layout micro-jitter', () => {
+      assert.ok(
+        indexCssSrc.includes('.typing-char    { display: inline; border-bottom: 2px solid transparent; }'),
+        'Base .typing-char must define transparent bottom border'
+      );
+    });
+
+    it('equips HeroSection typing input with safe autocomplete, autocorrect, autocapitalize, and spellcheck off', () => {
+      assert.ok(heroSectionSrc.includes('autoComplete="off"'), 'HeroSection input must have autoComplete off');
+      assert.ok(heroSectionSrc.includes('autoCorrect="off"'), 'HeroSection input must have autoCorrect off');
+      assert.ok(heroSectionSrc.includes('autoCapitalize="off"'), 'HeroSection input must have autoCapitalize off');
+      assert.ok(heroSectionSrc.includes('spellCheck={false}'), 'HeroSection input must have spellCheck disabled');
+    });
+  });
 });
+

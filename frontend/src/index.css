@@ -1414,6 +1414,7 @@ a:hover {
 .text-error   { color: var(--ui-error); }
 
 /* Typing engine states */
+.typing-char    { display: inline; border-bottom: 2px solid transparent; }
 .char-correct   { color: var(--typing-correct); }
 .char-corrected { color: var(--typing-corrected, #EAB308); }
 .char-incorrect { color: var(--typing-incorrect); text-decoration: underline; background-color: color-mix(in srgb, var(--typing-incorrect) 15%, transparent); border-radius: 2px; }
