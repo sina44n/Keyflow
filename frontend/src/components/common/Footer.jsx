@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Keyboard, Terminal } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useI18n } from '../../i18n/I18nContext';
+import { STAGE_META } from '../../data/curriculumEngine';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -78,14 +79,18 @@ export const Footer = () => {
             <h4 className="text-xs font-bold uppercase tracking-wider font-mono text-[var(--text-primary)]">
               {t('nav.academy', 'Academy')}
             </h4>
-            <ul className="space-y-2 text-xs text-[var(--text-secondary)]">
-              <li><Link to="/academy?stage=1" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage1', 'Stage 1: Home Row Foundations')}</Link></li>
-              <li><Link to="/academy?stage=2" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage2', 'Stage 2: Top Row Control')}</Link></li>
-              <li><Link to="/academy?stage=3" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage3', 'Stage 3: Bottom Row Control')}</Link></li>
-              <li><Link to="/academy?stage=4" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage4', 'Stage 4: Morphemes & Trigrams')}</Link></li>
-              <li><Link to="/academy?stage=5" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage5', 'Stage 5: Word Flow & Cadence')}</Link></li>
-              <li><Link to="/academy?stage=6" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage6', 'Stage 6: Sentence Rhythm & Shift')}</Link></li>
-              <li><Link to="/academy?stage=7" className="hover:text-[var(--accent)] transition-colors">{t('academy.stage7', 'Stage 7: Speed Endurance & Capstone')}</Link></li>
+            <ul className="space-y-1.5 text-xs text-[var(--text-secondary)]">
+              {STAGE_META.map((stage) => (
+                <li key={stage.stageId}>
+                  <Link
+                    to={`/academy?stage=${stage.stageId}`}
+                    className="hover:text-[var(--accent)] transition-colors truncate block"
+                    title={`Stage ${stage.stageId}: ${stage.title}`}
+                  >
+                    {`Stage ${stage.stageId}: ${stage.title}`}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 

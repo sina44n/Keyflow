@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useI18n } from '../../i18n/I18nContext';
 import { Button } from '../common/Button';
 import { ArrowRight, Keyboard } from 'lucide-react';
+import { STAGE_META } from '../../data/curriculumEngine';
 
 export const CTASection = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const totalStages = STAGE_META?.length || 10;
 
   return (
     <section className="section-spacing border-t border-[var(--border)] relative overflow-hidden bg-[var(--bg-main)]">
@@ -50,16 +52,8 @@ export const CTASection = () => {
               size="md"
               onClick={() => navigate('/academy')}
             >
-              {t('cta.exploreAcademy')}
+              {t('cta.exploreAcademy', { count: totalStages }, `Explore ${totalStages}-Stage Academy`)}
             </Button>
-          </div>
-
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-4 text-[11px] font-mono text-[var(--text-muted)]">
-            <span>{t('cta.free')}</span>
-            <span>•</span>
-            <span>{t('cta.noLogin')}</span>
-            <span>•</span>
-            <span>{t('cta.apiReady')}</span>
           </div>
         </div>
       </div>

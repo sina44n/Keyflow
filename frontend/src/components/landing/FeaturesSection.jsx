@@ -8,9 +8,11 @@
 import React from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { Target, Layers, Gamepad2, Volume2, ShieldCheck, Zap } from 'lucide-react';
+import { STAGE_META } from '../../data/curriculumEngine';
 
 export const FeaturesSection = () => {
   const { t } = useI18n();
+  const totalStages = STAGE_META?.length || 10;
 
   const features = [
     {
@@ -21,7 +23,7 @@ export const FeaturesSection = () => {
     },
     {
       icon: Layers,
-      title: t('features.card1.title'),
+      title: t('features.card1.title', { count: totalStages }, `${totalStages}-Stage Neuromuscular Academy`),
       desc: t('features.card1.desc'),
       badge: t('nav.academy'),
     },

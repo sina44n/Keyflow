@@ -18,12 +18,14 @@ import { useI18n } from '../../i18n/I18nContext';
 import { getGuidePreferences, saveGuidePreferences } from '../../utils/lessonProgress';
 import { getCharacterFeedback, countCorrectChars } from '../../utils/typingFeedback';
 import { useUniversalTypingFocus } from '../../utils/useUniversalTypingFocus';
+import { STAGE_META } from '../../data/curriculumEngine';
 
 const SAMPLE_TEXT = 'the quick brown fox jumps over the lazy dog and flows with speed';
 
 export const HeroSection = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const totalStages = STAGE_META?.length || 10;
   const [inputVal, setInputVal] = useState('');
   const [startTime, setStartTime] = useState(null);
   const [wpm, setWpm] = useState(0);
@@ -134,7 +136,7 @@ export const HeroSection = () => {
             {/* Status Chip */}
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--text-secondary)] font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
-              <span>{t('hero.badge', '0ms Input Latency • ANSI 60% Virtual Guide')}</span>
+              <span>{t('hero.badge', 'Interactive ANSI 60% Virtual Guide')}</span>
             </div>
 
             {/* Headline */}
@@ -163,7 +165,7 @@ export const HeroSection = () => {
                 size="md"
                 onClick={() => navigate('/academy')}
               >
-                {t('hero.exploreAcademy', 'Explore 7-Stage Academy')}
+                {t('hero.exploreAcademy', { count: totalStages }, `Explore ${totalStages}-Stage Academy`)}
               </Button>
             </div>
 
@@ -171,15 +173,15 @@ export const HeroSection = () => {
             <div className="pt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-mono text-[var(--text-muted)]">
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--ui-success)]" />
-                <span>{t('hero.latency', '0ms Input Latency')}</span>
+                <span>{t('features.card2.title', 'Sub-Millisecond Engine')}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
-                <span>{t('hero.anchoring', 'Zero-Glance Anchoring')}</span>
+                <span>{t('hero.anchoring', 'Tactile Key Anchoring')}</span>
               </span>
               <span className="flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)]" />
-                <span>{t('hero.themes', '12 Studio Themes')}</span>
+                <span>{t('nav.themes', 'Studio Themes')}</span>
               </span>
             </div>
           </div>
@@ -364,7 +366,7 @@ export const HeroSection = () => {
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] text-[var(--accent)] flex items-center justify-center">
               <Zap className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">{t('hero.latency', '0ms Input Latency')}</h3>
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">{t('features.card2.title', 'Sub-Millisecond Engine')}</h3>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
               {t('features.card2.desc', 'Native keydown event processing with sub-millisecond precision and instant caret repositioning.')}
             </p>
@@ -374,7 +376,7 @@ export const HeroSection = () => {
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] text-[var(--ui-success)] flex items-center justify-center">
               <Keyboard className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">{t('features.card1.title', '7-Stage Academy')}</h3>
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">{t('features.card1.title', { count: totalStages }, `${totalStages}-Stage Academy`)}</h3>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
               {t('features.card1.desc', 'Progressive multi-tiered curriculum with 4,200 total drills targeting finger isolation, spatial mapping, and blind motor confidence.')}
             </p>
@@ -384,7 +386,7 @@ export const HeroSection = () => {
             <div className="w-8 h-8 rounded-lg bg-[var(--bg-elevated)] text-[var(--accent)] flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-[var(--text-primary)]">{t('hero.themes', '12 Studio Themes')}</h3>
+            <h3 className="text-sm font-bold text-[var(--text-primary)]">{t('nav.themes', 'Studio Themes')}</h3>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
               {t('features.card4.desc', 'Tailored palettes tested for high-contrast legibility and zero visual fatigue during prolonged 3-hour focus sprints.')}
             </p>
