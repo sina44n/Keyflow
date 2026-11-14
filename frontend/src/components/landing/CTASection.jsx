@@ -8,7 +8,7 @@ import { STAGE_META } from '../../data/curriculumEngine';
 export const CTASection = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const totalStages = STAGE_META?.length || 10;
+  const totalStages = STAGE_META?.length ?? 0;
 
   return (
     <section className="section-spacing border-t border-[var(--border)] relative overflow-hidden bg-[var(--bg-main)]">

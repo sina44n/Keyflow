@@ -574,7 +574,7 @@ export const AuthPage = ({ mode = 'login' }) => {
                 Neuromuscular Mastery
               </span>
               <h3 className="text-sm font-semibold mt-2 text-white/95">
-                4,200 progressive levels • 7 arcade games • sub-millisecond telemetry
+                7,000 progressive levels • 9 arcade games • sub-millisecond telemetry
               </h3>
             </div>
           </div>

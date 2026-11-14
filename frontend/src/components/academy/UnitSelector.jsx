@@ -12,8 +12,8 @@ export const UnitSelector = ({
   activeUnit = 1,
   onSelectUnit,
   unitProgress = {},
-  unlockedUnitCount = 7,
-  totalUnits = 7,
+  unlockedUnitCount = 1,
+  totalUnits = 1,
 }) => {
   const { t } = useI18n();
   const scrollRef = useRef(null);

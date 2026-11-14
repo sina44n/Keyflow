@@ -32,8 +32,8 @@ export const StageLessonMap = ({ stageId, onSelectLesson }) => {
   }, [stageId, currentUnit, recommended]);
 
   const completedCount = useMemo(() => getStageCompletedCount(stageId), [stageId]);
-  const totalStageLessons = stageMeta.totalLessons || 10;
-  const completedPct = Math.min(100, Math.round((completedCount / totalStageLessons) * 100));
+  const totalStageLessons = stageMeta?.totalLessons || (units.reduce((acc, u) => acc + (u.lessonsCount || 0), 0)) || 0;
+  const completedPct = totalStageLessons > 0 ? Math.min(100, Math.round((completedCount / totalStageLessons) * 100)) : 0;
 
   if (!currentUnit) return null;
 
@@ -43,7 +43,7 @@ export const StageLessonMap = ({ stageId, onSelectLesson }) => {
       <div className="card-panel p-5 space-y-3">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
-            <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">Stage {stageId} of 10</div>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-[var(--text-muted)]">Stage {stageId} of {STAGE_META.length}</div>
             <h2 className="text-lg font-bold text-[var(--text-primary)]">{stageMeta.title}</h2>
           </div>
           <div className="text-right">

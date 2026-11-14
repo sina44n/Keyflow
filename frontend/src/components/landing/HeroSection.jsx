@@ -25,7 +25,7 @@ const SAMPLE_TEXT = 'the quick brown fox jumps over the lazy dog and flows with 
 export const HeroSection = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const totalStages = STAGE_META?.length || 10;
+  const totalStages = STAGE_META?.length ?? 0;
   const [inputVal, setInputVal] = useState('');
   const [startTime, setStartTime] = useState(null);
   const [wpm, setWpm] = useState(0);
@@ -378,7 +378,7 @@ export const HeroSection = () => {
             </div>
             <h3 className="text-sm font-bold text-[var(--text-primary)]">{t('features.card1.title', { count: totalStages }, `${totalStages}-Stage Academy`)}</h3>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-              {t('features.card1.desc', 'Progressive multi-tiered curriculum with 4,200 total drills targeting finger isolation, spatial mapping, and blind motor confidence.')}
+              {t('features.card1.desc', 'Progressive multi-tiered curriculum targeting finger isolation, spatial mapping, and blind motor confidence.')}
             </p>
           </div>
 

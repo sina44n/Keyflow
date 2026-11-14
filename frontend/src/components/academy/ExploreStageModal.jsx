@@ -17,6 +17,9 @@ export const ExploreStageModal = ({
 }) => {
   if (!isOpen || !stageMeta) return null;
 
+  const totalLessons = stageMeta.totalLessons || (stageMeta.endLevel && stageMeta.startLevel ? (stageMeta.endLevel - stageMeta.startLevel + 1) : 700);
+  const totalUnits = stageMeta.unitsCount || Math.ceil(totalLessons / 10);
+
   const handleConfirm = async () => {
     try {
       // Local unlock
@@ -83,7 +86,7 @@ export const ExploreStageModal = ({
         {/* Informational Body */}
         <div className="space-y-3 text-xs sm:text-sm text-[var(--text-secondary)] leading-relaxed">
           <p>
-            You are choosing to explore all <span className="font-bold text-[var(--text-primary)]">700 levels</span> (70 units) of this stage independently.
+            You are choosing to explore all <span className="font-bold text-[var(--text-primary)]">{totalLessons} levels</span> ({totalUnits} units) of this stage independently.
           </p>
 
           <div className="p-3.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] space-y-2">
@@ -99,11 +102,11 @@ export const ExploreStageModal = ({
           <ul className="space-y-1.5 text-xs text-[var(--text-muted)]">
             <li className="flex items-center gap-2">
               <CheckCircle2 className="w-3.5 h-3.5 text-[var(--accent)] shrink-0" />
-              <span>Full access to 70 units from tactile drills to capstones</span>
+              <span>Full access to {totalUnits} units from tactile drills to capstones</span>
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="w-3.5 h-3.5 text-[var(--accent)] shrink-0" />
-              <span>Free navigation across all 700 levels in this stage</span>
+              <span>Free navigation across all {totalLessons} levels in this stage</span>
             </li>
             <li className="flex items-center gap-2">
               <CheckCircle2 className="w-3.5 h-3.5 text-[var(--accent)] shrink-0" />
@@ -127,7 +130,7 @@ export const ExploreStageModal = ({
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] text-[var(--accent-fg)] text-xs font-mono font-bold shadow-md hover:opacity-90 active:scale-98 transition-all cursor-pointer"
           >
             <Sparkles className="w-3.5 h-3.5 fill-current" />
-            <span>Unlock All 700 Levels</span>
+            <span>Unlock All {totalLessons} Levels</span>
           </button>
         </div>
       </div>

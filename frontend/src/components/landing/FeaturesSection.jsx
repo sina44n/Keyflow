@@ -1,8 +1,8 @@
 /**
  * KEYFLOW Features Section
  * ========================
- * Highlights precision telemetry, 4,200 progressive levels,
- * 7 arcade games, and acoustic sound profiles.
+ * Highlights precision telemetry, multi-stage curriculum,
+ * arcade games, and acoustic sound profiles.
  */
 
 import React from 'react';
@@ -12,7 +12,7 @@ import { STAGE_META } from '../../data/curriculumEngine';
 
 export const FeaturesSection = () => {
   const { t } = useI18n();
-  const totalStages = STAGE_META?.length || 10;
+  const totalStages = STAGE_META?.length ?? 0;
 
   const features = [
     {

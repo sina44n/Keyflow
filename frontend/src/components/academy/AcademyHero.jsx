@@ -10,12 +10,12 @@ import { useI18n } from '../../i18n/I18nContext';
  * Right: 3 compact statistics cards.
  */
 export const AcademyHero = ({
-  overallProgress = 38,
-  completedUnits = 7,
-  totalUnits = 20,
-  streak = 5,
-  accuracy = 96,
-  accuracyChange = '+2%',
+  overallProgress = 0,
+  completedUnits = 0,
+  totalUnits = 0,
+  streak = 0,
+  accuracy = 0,
+  accuracyChange = null,
 }) => {
   const { t } = useI18n();
   return (

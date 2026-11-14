@@ -3,7 +3,7 @@ import React from 'react';
 /**
  * AcademyIllustrationEngine
  * =========================================================================
- * Production vector SVG illustration engine for the 4,200-level KEYFLOW Academy.
+ * Production vector SVG illustration engine for the KEYFLOW Academy curriculum.
  * Directly replicated from the user-provided reference screenshots:
  * - Warm, creamy, friendly, tactile aesthetic
  * - 18 distinct educational motifs parameterized by targetKeys, skills, unit, and lesson
@@ -38,7 +38,7 @@ export const AcademyIllustrationEngine = ({
 };
 
 /**
- * Deterministically maps each lesson across all 4,200 levels to one of the 18 motifs.
+ * Deterministically maps each lesson across all curriculum levels to one of the 18 motifs.
  */
 function resolveMotif(lessonNum, unitNum, lessonInUnit, title, skills, targetKeys) {
   // Explicit Unit 1 Exact Reference Mappings

@@ -22,7 +22,7 @@ export const LessonMap = ({
   onSelectUnit,
   unitsData = [],
   unitProgress = {},
-  unlockedUnitCount = 30,
+  unlockedUnitCount = 1,
   viewAllLevels = false,
 }) => {
   const containerRef = useRef(null);

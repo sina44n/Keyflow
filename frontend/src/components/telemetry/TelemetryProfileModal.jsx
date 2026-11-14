@@ -944,11 +944,11 @@ export default function TelemetryProfileModal({ isOpen, onClose, sessions = [], 
                       All KEYFLOW features are 100% unlocked for your account:
                     </p>
                     <ul className="text-xs font-mono text-[var(--text-muted)] space-y-1 list-disc list-inside">
-                      <li>Complete 7-Stage, 4,200-Level Curriculum</li>
+                      <li>Complete 10-Stage, 7,000-Level Curriculum</li>
                       <li>Scientific Keystroke Telemetry & Biomechanical Analytics</li>
                       <li>Tactile Audio Studio (20 Sound Profiles)</li>
                       <li>Full 16-Theme Studio Showcase</li>
-                      <li>Arcade Hub (7 Typing Games)</li>
+                      <li>Arcade Hub (9 Typing Games)</li>
                     </ul>
 
                     <div className="pt-3 border-t border-[var(--border)] text-[11px] text-[var(--text-muted)] italic">

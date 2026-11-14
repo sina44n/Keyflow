@@ -303,7 +303,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
   }
 
   const startLessonNum = viewAllLevels ? 1 : (currentUnit?.startLesson || 1);
-  const endLessonNum = viewAllLevels ? 700 : (currentUnit?.endLesson || 10);
+  const endLessonNum = viewAllLevels ? (activeStageMeta?.totalLessons || 700) : (currentUnit?.endLesson || 10);
 
   return (
     <div className="relative min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)] pb-16 overflow-x-hidden selection:bg-[var(--accent)] selection:text-[var(--accent-fg)]">
@@ -348,7 +348,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 }`}
               >
                 <Grid className="w-3 h-3" />
-                <span>All 700 Levels</span>
+                <span>All {activeStageMeta?.totalLessons || 700} Levels</span>
               </button>
             </div>
 
@@ -403,9 +403,9 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
               <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-muted)]">
                 <span>
                   {viewAllLevels ? (
-                    <>All 700 Lessons · Full Stage Overview</>
+                    <>All {activeStageMeta?.totalLessons || 700} Lessons · Full Stage Overview</>
                   ) : (
-                    <>Unit {activeUnit} of 70: <span className="text-[var(--text-primary)] font-semibold">{currentUnit?.unitLabel}</span></>
+                    <>Unit {activeUnit} of {stageUnits.length}: <span className="text-[var(--text-primary)] font-semibold">{currentUnit?.unitLabel}</span></>
                   )}
                 </span>
                 <span className="text-[var(--border)]">•</span>
@@ -429,8 +429,8 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                 {stageMenuOpen && (
                   <div className="absolute left-0 top-full mt-2 z-50 w-80 sm:w-96 rounded-2xl bg-[var(--bg-card)] border border-[var(--border)] shadow-2xl p-2.5 animate-in fade-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]">
                     <div className="px-3 py-2 border-b border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text-muted)]">
-                      <span className="font-bold">Curriculum Stages (10)</span>
-                      <span className="text-[var(--accent)] font-bold">7,000 Levels Total</span>
+                      <span className="font-bold">Curriculum Stages ({STAGE_META.length})</span>
+                      <span className="text-[var(--accent)] font-bold">{STAGE_META.reduce((acc, s) => acc + (s.totalLessons || 0), 0).toLocaleString()} Levels Total</span>
                     </div>
                     <div className="space-y-1.5 mt-1.5 max-h-80 overflow-y-auto pr-1 no-scrollbar">
                       {STAGE_META.map((st) => {
@@ -476,7 +476,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                                 <span className="text-xs font-bold leading-tight truncate">{st.title}</span>
                                 <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
                                   <span className="text-[10px] text-[var(--text-muted)] leading-tight truncate shrink-0">
-                                    {st.badge} · 700 Levels
+                                    {st.badge} · {st.totalLessons || 700} Levels
                                   </span>
                                   {isSelfPaced ? (
                                     <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/15 text-cyan-500 shrink-0">
@@ -501,7 +501,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                                     setExploreModalStage(st);
                                   }}
                                   className="w-16 h-7 inline-flex items-center justify-center text-[10px] font-mono font-bold rounded-lg bg-[var(--accent)]/10 text-[var(--accent)] hover:bg-[var(--accent)] hover:text-[var(--accent-fg)] transition-colors cursor-pointer text-center"
-                                  title="Unlock all 700 levels of this stage for self-paced practice"
+                                  title={`Unlock all ${st.totalLessons || 700} levels of this stage for self-paced practice`}
                                 >
                                   Explore
                                 </button>
@@ -513,7 +513,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
                                     setExploreModalStage(st);
                                   }}
                                   className="w-7 h-7 inline-flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border)]/30 transition-colors cursor-pointer"
-                                  title="Enable full self-paced access across all 700 levels"
+                                  title={`Enable full self-paced access across all ${st.totalLessons || 700} levels`}
                                 >
                                   <Compass className="w-3.5 h-3.5" />
                                 </button>
@@ -547,7 +547,7 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
           <LessonMap
             stageId={activeStageId}
             activeUnit={activeUnit}
-            unitLabel={viewAllLevels ? `All 700 Levels` : (currentUnit?.unitLabel || activeStageMeta.title)}
+            unitLabel={viewAllLevels ? `All ${activeStageMeta?.totalLessons || 700} Levels` : (currentUnit?.unitLabel || activeStageMeta.title)}
             lessons={displayLessons}
             activeLessonNum={recommended.lessonNum}
             onSelectLesson={handleSelectLesson}
