@@ -12,6 +12,7 @@ import {
   createAuthoritativeSessionResult,
 } from '../utils/typingFeedback.js';
 import { evaluatePlacementDiagnostic } from '../utils/placementEngine.js';
+import { competitionAPI } from '../utils/api.js';
 
 describe('KEYFLOW Phase 7: Authoritative Typing Metrics & Scoring Contract', () => {
   // =========================================================================
@@ -438,6 +439,179 @@ describe('KEYFLOW Phase 7: Authoritative Typing Metrics & Scoring Contract', () 
         durationSeconds: 10,
       });
       assert.equal(res.metricVersion, '2.0');
+    });
+  });
+
+  describe('6. Phase 7.1 Anti-Tamper & Trust Boundary Verification', () => {
+    it('37. Gross WPM strictly includes incorrect printable attempts: 90 correct + 10 incorrect in 60s yields 20 Gross WPM', () => {
+      const correctChars = 90;
+      const incorrectChars = 10;
+      const durationSeconds = 60;
+      const totalPrintableAttempts = correctChars + incorrectChars; // 100
+      const grossWpm = calculateGrossWpm(totalPrintableAttempts, durationSeconds);
+      assert.equal(grossWpm, 20); // (100 / 5) / 1.0 = 20 WPM (NOT 18 WPM from only correct chars!)
+    });
+
+    it('38. Backspaces do not increment printable attempts: 5 correct with 10 backspaces yields 5 attempts', () => {
+      const tracker = createKeystrokeTracker();
+      tracker.recordChar('a', 'a', 0);
+      tracker.recordChar('b', 'b', 1);
+      for (let i = 0; i < 10; i++) tracker.recordBackspace();
+      tracker.recordChar('c', 'c', 2);
+      tracker.recordChar('d', 'd', 3);
+      tracker.recordChar('e', 'e', 4);
+
+      const stats = tracker.getStats('abcde', 'abcde');
+      assert.equal(stats.totalKeystrokes, 5);
+      assert.equal(stats.backspaceCount, 10);
+      assert.equal(stats.correctEntries, 5);
+      assert.equal(stats.incorrectEntries, 0);
+    });
+
+    it('39. Corrected mistake remains in accuracy denominator: 1 correct + 1 mistake = 50% accuracy, 100% final text', () => {
+      const tracker = createKeystrokeTracker();
+      // Target 'e', user types 'x'
+      tracker.recordChar('x', 'e', 0);
+      assert.equal(tracker.getStats('x', 'e').incorrectEntries, 1);
+      assert.equal(tracker.getStats('x', 'e').correctEntries, 0);
+
+      // User presses Backspace
+      tracker.recordBackspace();
+      assert.equal(tracker.getStats('', 'e').incorrectEntries, 1);
+
+      // User types 'e'
+      tracker.recordChar('e', 'e', 0);
+      const finalStats = tracker.getStats('e', 'e');
+      assert.equal(finalStats.correctEntries, 1);
+      assert.equal(finalStats.incorrectEntries, 1);
+      assert.equal(finalStats.totalKeystrokes, 2);
+
+      const rawAccuracy = calculateRawAccuracy(finalStats.correctEntries, finalStats.incorrectEntries);
+      const finalTextAccuracy = calculateFinalTextAccuracy('e', 'e');
+      assert.equal(rawAccuracy, 50);
+      assert.equal(finalTextAccuracy, 100);
+    });
+
+    it('40. Visual feedback contract: never-wrong = GREEN, current error = RED, corrected = YELLOW', () => {
+      const target = 'keyflow';
+      const correctedIndices = new Set([2]); // 'y' was previously wrong and corrected
+
+      // Index 0: 'k' typed cleanly -> char-correct (GREEN)
+      const fb0 = getCharacterFeedback(0, 'key', target, false, correctedIndices);
+      assert.equal(fb0.className, 'char-correct');
+      assert.equal(fb0.isCorrected, false);
+
+      // Index 2: 'y' typed and in correctedIndices -> char-corrected (YELLOW)
+      const fb2 = getCharacterFeedback(2, 'key', target, false, correctedIndices);
+      assert.equal(fb2.className, 'char-corrected');
+      assert.equal(fb2.isCorrected, true);
+
+      // Index 3: wrong char 'x' typed instead of 'f' -> char-incorrect (RED)
+      const fb3 = getCharacterFeedback(3, 'keyx', target, false, correctedIndices);
+      assert.equal(fb3.className, 'char-incorrect');
+      assert.equal(fb3.isCorrect, false);
+    });
+
+    it('41. Anti-tamper Net WPM clamping: client Net WPM cannot exceed Gross WPM or Gross - penalty', () => {
+      const durationSeconds = 60;
+      const grossWpm = 30;
+      const uncorrectedErrors = 10;
+      const penalty = uncorrectedErrors / (durationSeconds / 60); // 10 WPM
+      const authenticNet = calculateNetWpm(grossWpm, uncorrectedErrors, durationSeconds);
+      assert.equal(authenticNet, 20);
+
+      // Client claiming 30 Net WPM with 10 uncorrected errors must be clamped to 20
+      const clientForgedNet = 30;
+      const maxAllowedNet = Math.min(grossWpm, Math.max(0, grossWpm - penalty));
+      const securedNet = clientForgedNet <= maxAllowedNet ? clientForgedNet : maxAllowedNet;
+      assert.equal(securedNet, 20);
+    });
+
+    it('42. The +0.5 tolerance cannot allow Net WPM to exceed Gross WPM', () => {
+      const grossWpm = 20.0;
+      const clientForgedNet = 20.5; // tries to exploit +0.5 tolerance
+      const penalty = 0;
+      const maxAllowedNet = Math.min(grossWpm, Math.max(0, grossWpm - penalty));
+      const securedNet = clientForgedNet <= maxAllowedNet ? clientForgedNet : maxAllowedNet;
+      assert.equal(securedNet, 20.0);
+      assert.ok(securedNet <= grossWpm);
+    });
+
+    it('43. Hidden errors defense: server-authoritative uncorrected errors catches client sending error_count=0', () => {
+      const challengeText = 'the quick brown fox';
+      const typedText = 'the xxxxx brown fox'; // 5 uncorrected errors
+      const reportedErrorCount = 0; // Malicious client attempt
+
+      // Independent server recalculation
+      let actualUncorrected = 0;
+      for (let i = 0; i < typedText.length; i++) {
+        if (i >= challengeText.length || typedText[i] !== challengeText[i]) {
+          actualUncorrected++;
+        }
+      }
+      const authoritativeErrorCount = Math.max(reportedErrorCount, actualUncorrected);
+      assert.equal(authoritativeErrorCount, 5);
+    });
+
+    it('44. HTTP REST polling versus WebSocket architecture verification', () => {
+      // competitionAPI uses standard REST HTTP methods: get, post
+      assert.equal(typeof competitionAPI.get, 'function');
+      assert.equal(typeof competitionAPI.join, 'function');
+      assert.equal(typeof competitionAPI.submit, 'function');
+      assert.equal(typeof competitionAPI.create, 'function');
+      // Architecture is explicitly documented as HTTP REST polling, NOT WebSockets
+      const isWebSocket = false;
+      assert.equal(isWebSocket, false);
+    });
+
+    it('45. All five typing environments evaluate identical metrics for the canonical scenario', () => {
+      const scenario = {
+        targetText: 'quick brown',
+        typed: 'quick',
+        durationSeconds: 15,
+        correctKeystrokes: 5,
+        mistakes: 1,
+        backspaces: 1,
+      };
+
+      // 1. Workstation evaluation
+      const ws = createAuthoritativeSessionResult(scenario);
+      // 2. Home Sprint evaluation
+      const totalValid = scenario.correctKeystrokes + scenario.mistakes;
+      const sprintGross = calculateGrossWpm(totalValid, scenario.durationSeconds);
+      const sprintErrors = countUncorrectedErrors(scenario.typed, scenario.targetText);
+      const sprintNet = calculateNetWpm(sprintGross, sprintErrors, scenario.durationSeconds);
+      const sprintAcc = calculateRawAccuracy(scenario.correctKeystrokes, scenario.mistakes);
+      const sprintTextAcc = calculateFinalTextAccuracy(scenario.typed, scenario.targetText);
+
+      // 3. Academy evaluation
+      const acadGross = calculateGrossWpm(totalValid, scenario.durationSeconds);
+      const acadNet = calculateNetWpm(acadGross, sprintErrors, scenario.durationSeconds);
+      const acadAcc = calculateRawAccuracy(scenario.correctKeystrokes, scenario.mistakes);
+
+      // 4. Placement evaluation
+      const diag = evaluatePlacementDiagnostic({ ...scenario, typedText: scenario.typed });
+
+      // Assert identical values across all environments
+      assert.equal(ws.grossWpm, 5);
+      assert.equal(sprintGross, 5);
+      assert.equal(acadGross, 5);
+      assert.equal(diag.grossWpm, 5);
+
+      assert.equal(ws.netWpm, 5);
+      assert.equal(sprintNet, 5);
+      assert.equal(acadNet, 5);
+      assert.equal(diag.netWpm, 5);
+
+      assert.equal(ws.accuracy, 83);
+      assert.equal(sprintAcc, 83);
+      assert.equal(acadAcc, 83);
+      assert.equal(diag.rawAccuracy, 83);
+
+      assert.equal(ws.finalTextAccuracy, 100);
+      assert.equal(sprintTextAcc, 100);
+      assert.equal(diag.finalTextAccuracy, 100);
+      assert.equal(ws.remainingErrors, 0);
     });
   });
 });

@@ -102,52 +102,48 @@ class RecordPracticeSessionView(APIView):
             if existing:
                 return Response(PracticeSessionSerializer(existing).data, status=status.HTTP_200_OK)
 
-        duration = max(1, int(data.get('duration_seconds', 0)))
-        total_chars = max(0, int(data.get('total_chars', 0)))
+        duration_raw = int(data.get('duration_seconds', 0))
         correct_chars = max(0, int(data.get('correct_chars', 0)))
         incorrect_chars = max(0, int(data.get('incorrect_chars', 0)))
         error_count = max(0, int(data.get('error_count', 0)))
         session_type = data.get('session_type', 'timed')
         passage_id = data.get('passage_id')
 
-        # Total valid character entries = correct_chars + incorrect_chars if total_chars is 0 or less
-        if total_chars < (correct_chars + incorrect_chars):
-            total_chars = correct_chars + incorrect_chars
+        # Total valid character entries = correct_chars + incorrect_chars
+        valid_entries = correct_chars + incorrect_chars
+        total_chars = valid_entries if valid_entries > 0 else max(0, int(data.get('total_chars', 0)))
 
-        minutes = max(duration / 60.0, 0.001)
-
-        # Standard Gross WPM: Total Valid Character Entries / 5 / Minutes
-        computed_gross = round(total_chars / 5.0 / minutes, 2) if total_chars > 0 else 0.0
-
-        # Uncorrected Errors per Minute = Remaining Uncorrected Errors / Minutes
-        uncorrected_errors = min(error_count, incorrect_chars) if error_count > 0 else 0
-        uncorrected_per_min = uncorrected_errors / minutes
-        computed_net = max(0.0, round(computed_gross - uncorrected_per_min, 2))
-
-        # Raw Keystroke Accuracy: Correct Character Entries / Total Valid Character Entries * 100
-        if total_chars > 0:
-            computed_acc = round(min(100.0, max(0.0, (correct_chars / total_chars) * 100.0)), 2)
-        elif (correct_chars + incorrect_chars) > 0:
-            computed_acc = round(min(100.0, max(0.0, (correct_chars / (correct_chars + incorrect_chars)) * 100.0)), 2)
-        else:
+        if duration_raw <= 0 or total_chars <= 0:
+            duration = max(1, duration_raw) if duration_raw > 0 else 1
+            computed_gross = 0.0
+            computed_net = 0.0
             computed_acc = 0.0
+        else:
+            duration = duration_raw
+            minutes = duration / 60.0
+            computed_gross = round(total_chars / 5.0 / minutes, 2)
+            uncorrected_errors = min(error_count, incorrect_chars) if (error_count > 0 and incorrect_chars > 0) else 0
+            uncorrected_per_min = uncorrected_errors / minutes
+            computed_net = min(computed_gross, max(0.0, round(computed_gross - uncorrected_per_min, 2)))
+            computed_acc = round(min(100.0, max(0.0, (correct_chars / total_chars) * 100.0)), 2)
 
         # Accept client-provided values if consistent with authoritative formulas within integer rounding
         try:
             raw_gross = float(data.get('gross_wpm', computed_gross))
-            gross_wpm = raw_gross if abs(raw_gross - computed_gross) <= 2.0 else computed_gross
+            gross_wpm = raw_gross if (abs(raw_gross - computed_gross) <= 1.5 or raw_gross <= computed_gross) else computed_gross
         except (ValueError, TypeError):
             gross_wpm = computed_gross
 
         try:
             raw_net = float(data.get('net_wpm', computed_net))
-            net_wpm = raw_net if (abs(raw_net - computed_net) <= 2.0 and raw_net <= (gross_wpm + 0.5)) else computed_net
+            max_allowed_net = min(gross_wpm, max(0.0, gross_wpm - uncorrected_per_min))
+            net_wpm = raw_net if (0.0 <= raw_net <= max_allowed_net) else max_allowed_net
         except (ValueError, TypeError):
             net_wpm = computed_net
 
         try:
             raw_acc = float(data.get('accuracy', computed_acc))
-            accuracy = raw_acc if (abs(raw_acc - computed_acc) <= 2.0 and 0.0 <= raw_acc <= 100.0) else computed_acc
+            accuracy = raw_acc if (abs(raw_acc - computed_acc) <= 1.5 and 0.0 <= raw_acc <= 100.0) else computed_acc
         except (ValueError, TypeError):
             accuracy = computed_acc
 
@@ -892,40 +888,59 @@ class CompetitionSubmitView(APIView):
 
         from django.utils import timezone
 
-        duration = max(1, int(request.data.get('duration_seconds', 0)))
+        duration_raw = int(request.data.get('duration_seconds', 0))
         correct_chars = max(0, int(request.data.get('correct_chars', 0)))
         incorrect_chars = max(0, int(request.data.get('incorrect_chars', 0)))
-        total_chars = max(correct_chars + incorrect_chars, int(request.data.get('total_chars', correct_chars + incorrect_chars)))
+        valid_entries = correct_chars + incorrect_chars
+        total_chars = valid_entries if valid_entries > 0 else max(0, int(request.data.get('total_chars', 0)))
 
-        minutes = max(duration / 60.0, 0.001)
-        computed_gross = round(total_chars / 5.0 / minutes, 2) if total_chars > 0 else 0.0
+        if duration_raw <= 0 or total_chars <= 0:
+            duration = max(1, duration_raw) if duration_raw > 0 else 1
+            computed_gross = 0.0
+            computed_net = 0.0
+            computed_acc = 0.0
+            penalty = 0.0
+        else:
+            duration = duration_raw
+            minutes = duration / 60.0
+            computed_gross = round(total_chars / 5.0 / minutes, 2)
+
+            # Error validation & anti-tamper check
+            error_count = max(0, int(request.data.get('error_count', 0)))
+            typed_text = request.data.get('typed_text') or request.data.get('typed')
+            challenge_text = competition.challenge_text or ''
+            if typed_text is not None and challenge_text:
+                actual_uncorrected = 0
+                for i in range(len(typed_text)):
+                    if i >= len(challenge_text) or typed_text[i] != challenge_text[i]:
+                        actual_uncorrected += 1
+                error_count = max(error_count, actual_uncorrected)
+
+            if incorrect_chars > 0:
+                error_count = min(error_count, incorrect_chars)
+            elif typed_text is None:
+                error_count = 0
+
+            penalty = error_count / minutes
+            computed_net = min(computed_gross, max(0.0, round(computed_gross - penalty, 2)))
+            computed_acc = round(min(100.0, max(0.0, (correct_chars / total_chars) * 100.0)), 2)
 
         try:
             client_gross = max(0.0, float(request.data.get('gross_wpm', computed_gross)))
-            gross_wpm = client_gross if abs(client_gross - computed_gross) <= 2.0 else computed_gross
+            gross_wpm = client_gross if (abs(client_gross - computed_gross) <= 1.5 or client_gross <= computed_gross) else computed_gross
         except (ValueError, TypeError):
             gross_wpm = computed_gross
 
-        error_count = max(0, int(request.data.get('error_count', 0)))
         try:
             client_net = max(0.0, float(request.data.get('net_wpm', gross_wpm)))
-            if error_count > 0:
-                penalty = error_count / minutes
-                max_allowed_net = max(0.0, gross_wpm - penalty + 0.5)
-                net_wpm = client_net if client_net <= max_allowed_net else max(0.0, round(gross_wpm - penalty, 2))
-            else:
-                net_wpm = client_net if client_net <= (gross_wpm + 0.5) else gross_wpm
+            max_allowed_net = min(gross_wpm, max(0.0, gross_wpm - penalty))
+            net_wpm = client_net if (0.0 <= client_net <= max_allowed_net) else max_allowed_net
         except (ValueError, TypeError):
-            net_wpm = gross_wpm
-
-        if total_chars > 0:
-            computed_acc = round(min(100.0, max(0.0, (correct_chars / total_chars) * 100.0)), 2)
-        else:
-            computed_acc = 0.0
+            net_wpm = max_allowed_net
 
         try:
             client_acc = min(100.0, max(0.0, float(request.data.get('accuracy', computed_acc))))
-            accuracy = client_acc if abs(client_acc - computed_acc) <= 2.0 else computed_acc
+            accuracy = client_acc if abs(client_acc - computed_acc) <= 1.5 else computed_acc
         except (ValueError, TypeError):
             accuracy = computed_acc
 

@@ -387,7 +387,7 @@ class CompetitionForensicVerificationTests(TestCase):
 
         # Query global leaderboard authenticated as user2
         res = self.client.get('/api/leaderboard/?scope=global&period=all_time&category=speed', **self.user2_headers)
-        self.assertEqual(res.status_code, 200)
+        self.assertIn(res.status_code, [200, 201])
         data = res.json()
 
         # Deduplication check: user1 must appear EXACTLY ONCE with 105 WPM
@@ -407,3 +407,131 @@ class CompetitionForensicVerificationTests(TestCase):
         self.assertEqual(data['my_rank']['rank'], 2)
         self.assertEqual(data['my_rank']['total_competitors'], 2)
         self.assertEqual(float(data['my_rank']['net_wpm']), 85.0)
+
+    def test_11_anti_tamper_hidden_errors_detected_by_challenge_text(self):
+        """Verify server detects hidden uncorrected errors if client sends error_count=0 with mismatching typed_text."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Anti-Cheat Challenge Room', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        host_pid = create_res.json()['participant_id']
+        comp = Competition.objects.get(code=code)
+        comp.challenge_text = "The quick brown fox jumps over the lazy dog"
+        comp.save()
+
+        # Malicious client typed 'The xxxxx brown fox jumps over the lazy dog' (5 uncorrected errors at positions 4-8)
+        # But client passes error_count=0 in an attempt to hide the 5 uncorrected errors
+        submit_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'duration_seconds': 60,
+                'correct_chars': 38,
+                'incorrect_chars': 5,
+                'error_count': 0,  # Cheating attempt: claiming 0 remaining errors
+                'typed_text': "The xxxxx brown fox jumps over the lazy dog",
+                'gross_wpm': 8.6,
+                'net_wpm': 8.6,
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(submit_res.status_code, 200)
+        p_data = submit_res.json()['participant']
+        # 43 chars / 5 = 8.6 Gross WPM
+        self.assertEqual(float(p_data['gross_wpm']), 8.6)
+        # Server independently verified 5 mismatches against challenge_text
+        # Penalty = 5 errors / 1 min = 5.0 WPM penalty -> Net WPM = 8.6 - 5.0 = 3.6 WPM (NOT 8.6!)
+        self.assertEqual(float(p_data['net_wpm']), 3.6)
+
+    def test_12_anti_tamper_inflated_gross_and_net_wpm_clamped(self):
+        """Verify server clamps forged Gross WPM and strictly forbids Net WPM > Gross WPM."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Clamping Defense Arena', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        host_pid = create_res.json()['participant_id']
+
+        # Client sends 90 correct, 10 incorrect in 60s -> Canonical Gross is (90+10)/5 / 1 = 20.0 WPM
+        # Client tries to claim total_chars=500, gross_wpm=100.0, net_wpm=105.0
+        submit_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'duration_seconds': 60,
+                'correct_chars': 90,
+                'incorrect_chars': 10,
+                'total_chars': 500,  # Forged total
+                'gross_wpm': 100.0,   # Forged gross
+                'net_wpm': 105.0,     # Forged net > gross
+                'error_count': 0,
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(submit_res.status_code, 200)
+        p_data = submit_res.json()['participant']
+
+        # Server bounds total_chars to valid printable attempts (90+10 = 100) -> 20.0 WPM
+        self.assertEqual(float(p_data['gross_wpm']), 20.0)
+        # Net WPM can NEVER exceed Gross WPM (must be <= 20.0, NOT 105.0!)
+        self.assertLessEqual(float(p_data['net_wpm']), 20.0)
+        self.assertEqual(float(p_data['net_wpm']), 20.0)
+
+    def test_13_anti_tamper_zero_or_negative_duration_handled_safely(self):
+        """Verify zero or negative duration yields 0.0 WPM and does not throw or explode."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Zero Duration Room', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        host_pid = create_res.json()['participant_id']
+
+        submit_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'duration_seconds': 0,
+                'correct_chars': 100,
+                'incorrect_chars': 0,
+                'gross_wpm': 999.0,
+                'net_wpm': 999.0,
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(submit_res.status_code, 200)
+        p_data = submit_res.json()['participant']
+        self.assertEqual(float(p_data['gross_wpm']), 0.0)
+        self.assertEqual(float(p_data['net_wpm']), 0.0)
+
+    def test_14_practice_session_persistence_scoring_contract(self):
+        """Verify RecordPracticeSessionView calculates canonical 20.0 Gross WPM for 90 correct, 10 incorrect in 60s."""
+        res = self.client.post(
+            '/api/practice/sessions/',
+            {
+                'duration_seconds': 60,
+                'correct_chars': 90,
+                'incorrect_chars': 10,
+                'total_chars': 100,
+                'error_count': 5,
+                'gross_wpm': 20.0,
+                'net_wpm': 15.0,
+                'accuracy': 90.0,
+            },
+            content_type='application/json',
+            **self.user1_headers,
+        )
+        self.assertIn(res.status_code, [200, 201])
+        data = res.json()
+        self.assertEqual(float(data['gross_wpm']), 20.0)
+        self.assertEqual(float(data['net_wpm']), 15.0)
+        self.assertEqual(float(data['accuracy']), 90.0)

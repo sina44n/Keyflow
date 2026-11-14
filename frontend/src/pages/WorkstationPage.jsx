@@ -857,6 +857,7 @@ export const WorkstationPage = () => {
             correct_chars: finalCorrect,
             incorrect_chars: finalMistakes,
             error_count: remainingErrors,
+            typed_text: typed,
           })
           .catch(() => {});
       }
