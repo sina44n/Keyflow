@@ -16,7 +16,14 @@ import { SoundSelector } from '../common/SoundSelector';
 import { useKeyboardSound } from '../../context/SoundContext';
 import { useI18n } from '../../i18n/I18nContext';
 import { getGuidePreferences, saveGuidePreferences } from '../../utils/lessonProgress';
-import { getCharacterFeedback, countCorrectChars } from '../../utils/typingFeedback';
+import {
+  getCharacterFeedback,
+  countCorrectChars,
+  calculateGrossWpm,
+  calculateNetWpm,
+  calculateRawAccuracy,
+  countUncorrectedErrors,
+} from '../../utils/typingFeedback';
 import { useUniversalTypingFocus } from '../../utils/useUniversalTypingFocus';
 import { STAGE_META } from '../../data/curriculumEngine';
 
@@ -29,7 +36,12 @@ export const HeroSection = () => {
   const [inputVal, setInputVal] = useState('');
   const [startTime, setStartTime] = useState(null);
   const [wpm, setWpm] = useState(0);
+  const [grossWpm, setGrossWpm] = useState(0);
+  const [netWpm, setNetWpm] = useState(0);
   const [accuracy, setAccuracy] = useState(100);
+  const [correctStrokes, setCorrectStrokes] = useState(0);
+  const [mistakes, setMistakes] = useState(0);
+  const [backspaces, setBackspaces] = useState(0);
   const [correctedIndices, setCorrectedIndices] = useState(() => new Set());
   const [isCompleted, setIsCompleted] = useState(false);
   const { playClick } = useKeyboardSound();
@@ -63,34 +75,56 @@ export const HeroSection = () => {
 
   const handleInputChange = (e) => {
     const val = e.target.value;
+    let addedCorrect = 0;
+    let addedMistakes = 0;
 
     if (val.length > inputVal.length) {
-      const charIndex = val.length - 1;
-      const actualChar = val[charIndex];
-      const isError = actualChar !== SAMPLE_TEXT[charIndex];
-      playClick(isError);
-      if (isError) {
-        setCorrectedIndices((prev) => new Set(prev).add(charIndex));
+      for (let i = inputVal.length; i < val.length; i++) {
+        const actualChar = val[i];
+        const isError = actualChar !== SAMPLE_TEXT[i];
+        if (isError) {
+          addedMistakes += 1;
+          setCorrectedIndices((prev) => new Set(prev).add(i));
+        } else {
+          addedCorrect += 1;
+        }
       }
-      setLastKeystroke({ key: actualChar, code: '', id: performance.now() });
+      playClick(addedMistakes > 0);
+      setLastKeystroke({ key: val[val.length - 1], code: '', id: performance.now() });
     } else if (val.length < inputVal.length) {
+      const addedBackspaces = inputVal.length - val.length;
+      setBackspaces((b) => b + addedBackspaces);
       setLastKeystroke({ key: 'backspace', code: 'Backspace', id: performance.now() });
     }
 
+    const now = Date.now();
+    const effectiveStart = startTime || now;
     if (!startTime && val.length > 0) {
-      setStartTime(Date.now());
+      setStartTime(now);
     }
+
+    const newCorrect = correctStrokes + addedCorrect;
+    const newMistakes = mistakes + addedMistakes;
+    if (addedCorrect > 0) setCorrectStrokes(newCorrect);
+    if (addedMistakes > 0) setMistakes(newMistakes);
 
     setInputVal(val);
 
-    if (val.length > 0) {
-      const elapsedMinutes = startTime ? (Date.now() - startTime) / 60000 : 0.01;
-      const wordsTyped = val.length / 5;
-      const calculatedWpm = Math.round(wordsTyped / Math.max(elapsedMinutes, 0.01));
-      setWpm(calculatedWpm);
+    const totalValid = newCorrect + newMistakes;
+    const elapsedSec = (now - effectiveStart) / 1000;
 
-      const correctChars = countCorrectChars(val, SAMPLE_TEXT);
-      const acc = Math.round((correctChars / val.length) * 100);
+    if (totalValid > 0 && elapsedSec >= 0.5) {
+      const gross = calculateGrossWpm(totalValid, elapsedSec);
+      const uncorrected = countUncorrectedErrors(val, SAMPLE_TEXT);
+      const net = calculateNetWpm(gross, uncorrected, elapsedSec);
+      setGrossWpm(gross);
+      setNetWpm(net);
+      setWpm(gross);
+
+      const acc = calculateRawAccuracy(newCorrect, newMistakes);
+      setAccuracy(acc);
+    } else if (totalValid > 0) {
+      const acc = calculateRawAccuracy(newCorrect, newMistakes);
       setAccuracy(acc);
     }
 
@@ -103,7 +137,12 @@ export const HeroSection = () => {
     setInputVal('');
     setStartTime(null);
     setWpm(0);
+    setGrossWpm(0);
+    setNetWpm(0);
     setAccuracy(100);
+    setCorrectStrokes(0);
+    setMistakes(0);
+    setBackspaces(0);
     setCorrectedIndices(new Set());
     setIsCompleted(false);
     setLastKeystroke(null);
@@ -337,7 +376,7 @@ export const HeroSection = () => {
                   <div className="flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[var(--accent)] shrink-0" />
                     <span className="text-xs font-semibold text-[var(--text-primary)]">
-                      Sprint finished: <strong>{wpm} WPM</strong> at <strong>{accuracy}% accuracy</strong>!
+                      Sprint finished: <strong>{netWpm > 0 && netWpm !== grossWpm ? `${netWpm} Net WPM (${grossWpm} Gross)` : `${wpm} WPM`}</strong> at <strong>{accuracy}% accuracy</strong>!
                     </span>
                   </div>
                   <div className="flex items-center gap-2">

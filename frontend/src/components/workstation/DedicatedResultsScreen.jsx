@@ -119,6 +119,7 @@ export const DedicatedResultsScreen = ({
   } = activeResults;
 
   const displayedWpm = Math.max(0, Math.round(grossWpm || activeResults?.wpm || 0));
+  const displayedNetWpm = Math.max(0, Math.round(netWpm !== undefined ? netWpm : (activeResults?.netWpm ?? displayedWpm)));
   const actualDuration = durationSeconds || duration || 1;
   const displayedAccuracy = rawAccuracy !== undefined ? rawAccuracy : accuracy;
   const correctEntries = correctKeystrokes || correctChars;
@@ -396,21 +397,25 @@ export const DedicatedResultsScreen = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center bg-[var(--bg-surface)] p-6 sm:p-8 rounded-3xl border border-[var(--border)] shadow-xl relative overflow-hidden">
         {/* Left Column: Big Net WPM & Accuracy */}
         <div className="lg:col-span-3 flex lg:flex-col justify-around lg:justify-center gap-6 text-left">
-          {/* Primary Speed (Gross WPM) */}
+          {/* Primary Speed (Net WPM if uncorrected errors exist, else Gross WPM) */}
           <div>
             <div className="flex items-center gap-2">
               <span className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">
                 wpm
               </span>
               <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-[var(--accent)]/10 text-[var(--accent)] font-bold">
-                speed
+                {displayedNetWpm < displayedWpm ? 'net speed' : 'speed'}
               </span>
             </div>
             <div className="text-6xl sm:text-7xl font-extrabold text-[var(--accent)] tracking-tight mt-1">
-              {displayedWpm}
+              {displayedNetWpm}
             </div>
             <div className="text-[11px] text-[var(--text-muted)] mt-0.5 font-mono">
-              gross: <span className="text-[var(--text-primary)] font-bold">{displayedWpm}</span> wpm
+              {displayedNetWpm < displayedWpm ? (
+                <>net: <span className="text-[var(--text-primary)] font-bold">{displayedNetWpm}</span> • gross: <span className="text-[var(--text-primary)] font-bold">{displayedWpm}</span> wpm</>
+              ) : (
+                <>gross: <span className="text-[var(--text-primary)] font-bold">{displayedWpm}</span> wpm</>
+              )}
             </div>
           </div>
 

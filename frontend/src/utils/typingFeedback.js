@@ -14,11 +14,11 @@
  * @param {number} [decimals=0] - Decimal places to round to (default 0)
  * @returns {number} Gross WPM
  */
-export function calculateGrossWpm(totalValidEntries = 0, durationSeconds = 1, decimals = 0) {
+export function calculateGrossWpm(totalValidEntries = 0, durationSeconds = 0, decimals = 0) {
   const entries = Math.max(0, Number(totalValidEntries) || 0);
-  const seconds = Math.max(0.1, Number(durationSeconds) || 0);
+  const seconds = Math.max(0, Number(durationSeconds) || 0);
+  if (entries <= 0 || seconds <= 0) return 0;
   const minutes = seconds / 60;
-  if (minutes <= 0) return 0;
   const rawWpm = (entries / 5) / minutes;
   const clamped = Math.max(0, rawWpm);
   if (decimals > 0) {
@@ -59,14 +59,14 @@ export function countUncorrectedErrors(typed = '', targetText = '') {
  * @param {number} [decimals=0] - Decimal places to round to
  * @returns {number} Net WPM
  */
-export function calculateNetWpm(grossWpm = 0, uncorrectedErrors = 0, durationSeconds = 1, decimals = 0) {
+export function calculateNetWpm(grossWpm = 0, uncorrectedErrors = 0, durationSeconds = 0, decimals = 0) {
   const rawGross = Math.max(0, Number(grossWpm) || 0);
   const errors = Math.max(0, Number(uncorrectedErrors) || 0);
-  const seconds = Math.max(0.1, Number(durationSeconds) || 0);
+  const seconds = Math.max(0, Number(durationSeconds) || 0);
+  if (rawGross <= 0 || seconds <= 0) return 0;
   const minutes = seconds / 60;
-  if (minutes <= 0) return 0;
   const penaltyPerMinute = errors / minutes;
-  const netRaw = Math.max(0, rawGross - penaltyPerMinute);
+  const netRaw = Math.min(rawGross, Math.max(0, rawGross - penaltyPerMinute));
   if (decimals > 0) {
     const factor = Math.pow(10, decimals);
     return Math.round(netRaw * factor) / factor;

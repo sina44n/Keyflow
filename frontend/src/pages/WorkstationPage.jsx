@@ -856,6 +856,7 @@ export const WorkstationPage = () => {
             duration_seconds: testDurationSec,
             correct_chars: finalCorrect,
             incorrect_chars: finalMistakes,
+            error_count: remainingErrors,
           })
           .catch(() => {});
       }

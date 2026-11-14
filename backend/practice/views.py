@@ -906,9 +906,15 @@ class CompetitionSubmitView(APIView):
         except (ValueError, TypeError):
             gross_wpm = computed_gross
 
+        error_count = max(0, int(request.data.get('error_count', 0)))
         try:
             client_net = max(0.0, float(request.data.get('net_wpm', gross_wpm)))
-            net_wpm = client_net if client_net <= (gross_wpm + 0.5) else gross_wpm
+            if error_count > 0:
+                penalty = error_count / minutes
+                max_allowed_net = max(0.0, gross_wpm - penalty + 0.5)
+                net_wpm = client_net if client_net <= max_allowed_net else max(0.0, round(gross_wpm - penalty, 2))
+            else:
+                net_wpm = client_net if client_net <= (gross_wpm + 0.5) else gross_wpm
         except (ValueError, TypeError):
             net_wpm = gross_wpm
 
