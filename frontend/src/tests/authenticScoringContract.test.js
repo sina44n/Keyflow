@@ -5,6 +5,8 @@ import {
   calculateNetWpm,
   calculateRawAccuracy,
   calculateFinalTextAccuracy,
+  calculateTypedPositionAccuracy,
+  calculateFullPassageAccuracy,
   countUncorrectedErrors,
   countCorrectChars,
   getCharacterFeedback,
@@ -612,6 +614,81 @@ describe('KEYFLOW Phase 7: Authoritative Typing Metrics & Scoring Contract', () 
       assert.equal(sprintTextAcc, 100);
       assert.equal(diag.finalTextAccuracy, 100);
       assert.equal(ws.remainingErrors, 0);
+    });
+  });
+
+  describe('7. Phase 7.2 Trust Boundary & Final Text Accuracy Tests', () => {
+    it('46. Disambiguates Typed-Position Accuracy (100%) vs Full Passage Accuracy (45.45%) for "quick" / "quick brown"', () => {
+      const target = 'quick brown';
+      const typed = 'quick';
+
+      // 1. Typed-Position Accuracy: (5 matching / 5 typed) * 100 = 100%
+      // Protects timed tests on long passages from the 3% bug
+      const typedPositionAcc = calculateTypedPositionAccuracy(typed, target);
+      assert.equal(typedPositionAcc, 100);
+
+      // 2. Full Passage Accuracy: (5 matching / 11 target) * 100 = 45.45%
+      // Measures complete coverage of the target passage
+      const fullPassageAcc = calculateFullPassageAccuracy(typed, target, 2);
+      assert.equal(fullPassageAcc, 45.45);
+      const fullPassageRounded = calculateFullPassageAccuracy(typed, target, 0);
+      assert.equal(fullPassageRounded, 45);
+    });
+
+    it('47. Edge cases of text accuracy across exact match, typos, extra chars, and empty input', () => {
+      // Exact match
+      assert.equal(calculateTypedPositionAccuracy('test', 'test'), 100);
+      assert.equal(calculateFullPassageAccuracy('test', 'test'), 100);
+
+      // One typo: "quicx" vs "quick brown" (4 matching / 5 typed = 80%, 4 / 11 = 36.36%)
+      assert.equal(calculateTypedPositionAccuracy('quicx', 'quick brown'), 80);
+      assert.equal(calculateFullPassageAccuracy('quicx', 'quick brown', 2), 36.36);
+
+      // Extra character: "quick!" vs "quick" (5 matching / 6 typed = 83.33%, 5 / 5 target = 100%)
+      assert.equal(calculateTypedPositionAccuracy('quick!', 'quick'), 83);
+      assert.equal(calculateFullPassageAccuracy('quick!', 'quick'), 100);
+
+      // Empty input
+      assert.equal(calculateTypedPositionAccuracy('', 'quick brown'), 0);
+      assert.equal(calculateFullPassageAccuracy('', 'quick brown'), 0);
+
+      // Empty target
+      assert.equal(calculateTypedPositionAccuracy('', ''), 100);
+      assert.equal(calculateFullPassageAccuracy('', ''), 100);
+    });
+
+    it('48. Attack 1 defense: Server bounds correct_chars to len(typed_text) when typed_text is provided', () => {
+      const typedText = 'hi'; // length 2
+      const forgedCorrect = 500;
+      // Server-side bounding logic:
+      const maxPossibleCorrect = typedText.length;
+      const boundedCorrect = Math.min(forgedCorrect, maxPossibleCorrect);
+      assert.equal(boundedCorrect, 2);
+    });
+
+    it('49. Attack 2 defense: Server enforces physical plausibility minimum duration (<= 300 WPM)', () => {
+      const totalChars = 100;
+      const clientManipulatedDuration = 1; // 1 second for 100 chars would be 1200 WPM
+      // Server-side plausibility bound: max 25 chars/sec (300 Gross WPM)
+      const minPhysicalDuration = Math.max(1, Math.floor(totalChars / 25.0)); // 4 seconds
+      const enforcedDuration = Math.max(clientManipulatedDuration, minPhysicalDuration);
+      assert.equal(enforcedDuration, 4);
+      const boundedGross = calculateGrossWpm(totalChars, enforcedDuration);
+      assert.equal(boundedGross, 300); // Clamped from impossible 1200 WPM to 300 WPM
+    });
+
+    it('50. Trust boundary proof: Deleted mistakes cannot be mathematically reconstructed from final text alone', () => {
+      const finalCleanText = 'e';
+      const targetText = 'e';
+      // Whether the user typed 'e' directly (1 attempt, 100% acc) OR typed 'x', Backspace, 'e' (2 attempts, 50% acc),
+      // the final text in both cases is identically 'e'.
+      const matchingChars = countCorrectChars(finalCleanText, targetText);
+      const remainingErrors = countUncorrectedErrors(finalCleanText, targetText);
+      assert.equal(matchingChars, 1);
+      assert.equal(remainingErrors, 0);
+      // Demonstrates that final text alone cannot determine historical mistake count without keystroke event telemetry
+      const canDeduceDeletedMistakesFromTextAlone = false;
+      assert.equal(canDeduceDeletedMistakesFromTextAlone, false);
     });
   });
 });

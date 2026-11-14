@@ -535,3 +535,67 @@ class CompetitionForensicVerificationTests(TestCase):
         self.assertEqual(float(data['gross_wpm']), 20.0)
         self.assertEqual(float(data['net_wpm']), 15.0)
         self.assertEqual(float(data['accuracy']), 90.0)
+
+    def test_15_attack1_forged_counters_bounded_by_typed_text_length(self):
+        """Verify Attack 1: server bounds correct_chars to len(typed_text) when typed_text is provided."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Attack 1 Arena', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        host_pid = create_res.json()['participant_id']
+
+        # Malicious client sends typed_text='hi' (2 chars) but claims correct_chars=500 in 60s
+        submit_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'duration_seconds': 60,
+                'correct_chars': 500,
+                'incorrect_chars': 0,
+                'typed_text': 'hi',
+                'gross_wpm': 100.0,
+                'net_wpm': 100.0,
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(submit_res.status_code, 200)
+        p_data = submit_res.json()['participant']
+        # correct_chars clamped to len('hi') = 2
+        self.assertLessEqual(p_data['correct_chars'], 2)
+        # Gross WPM calculated from at most 2 characters in 1 minute = (2 / 5) / 1.0 = 0.4 WPM (NOT 100.0 WPM!)
+        self.assertLessEqual(float(p_data['gross_wpm']), 1.0)
+
+    def test_16_attack2_forged_duration_bounded_by_physical_plausibility(self):
+        """Verify Attack 2: server clamps impossible duration (e.g. 1s for 100 chars) to physical plausibility limit."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Attack 2 Arena', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        host_pid = create_res.json()['participant_id']
+
+        # Malicious client sends 100 chars with duration_seconds=1 (claiming 1200 WPM)
+        submit_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'duration_seconds': 1,
+                'correct_chars': 100,
+                'incorrect_chars': 0,
+                'gross_wpm': 1200.0,
+                'net_wpm': 1200.0,
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(submit_res.status_code, 200)
+        p_data = submit_res.json()['participant']
+        # Physical plausibility bounds duration to at least 4 seconds (100 / 25)
+        # Gross WPM cannot exceed 300 WPM
+        self.assertLessEqual(float(p_data['gross_wpm']), 300.0)

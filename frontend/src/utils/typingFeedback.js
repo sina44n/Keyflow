@@ -261,6 +261,17 @@ export function calculateRawAccuracy(correctEntries = 0, incorrectEntries = 0, d
  * @param {number} [decimals=0] - Decimal places to round to
  * @returns {number} Final text accuracy percentage (0 to 100)
  */
+/**
+ * Computes Typed-Position Accuracy: measures the correctness of the positions typed by the user.
+ * Formula: (matching characters / typed.length) * 100
+ * Resolves the "3% bug" on timed runs over long passages: a user typing 50 chars cleanly in 15s
+ * achieves 100% typed-position accuracy (not 2.5% against a 2000-char passage).
+ *
+ * @param {string} typed - Full user-typed string
+ * @param {string} targetText - Full target passage string
+ * @param {number} [decimals=0] - Decimal places to round to
+ * @returns {number} Typed position accuracy percentage (0 to 100)
+ */
 export function calculateFinalTextAccuracy(typed = '', targetText = '', decimals = 0) {
   if (!targetText || targetText.length === 0) {
     return (!typed || typed.length === 0) ? 100 : 0;
@@ -272,6 +283,38 @@ export function calculateFinalTextAccuracy(typed = '', targetText = '', decimals
   if (relevantLength <= 0) return 0;
 
   const raw = (correct / relevantLength) * 100;
+  const clamped = Math.max(0, Math.min(100, raw));
+  if (decimals > 0) {
+    const factor = Math.pow(10, decimals);
+    return Math.round(clamped * factor) / factor;
+  }
+  return Math.round(clamped);
+}
+
+/** Alias for calculateFinalTextAccuracy explicitly identifying the denominator as typed positions */
+export const calculateTypedPositionAccuracy = calculateFinalTextAccuracy;
+
+/**
+ * Computes Full Passage Accuracy: measures the matching characters against the total target text length.
+ * Formula: (matching characters / targetText.length) * 100
+ *
+ * Canonical Example:
+ * Target: "quick brown" (length 11), typed: "quick" (matching 5)
+ * Formula: (5 / 11) * 100 = 45.45% -> 45% (or 45.45% with 2 decimals)
+ *
+ * @param {string} typed - Full user-typed string
+ * @param {string} targetText - Full target passage string
+ * @param {number} [decimals=0] - Decimal places to round to
+ * @returns {number} Full passage accuracy percentage (0 to 100)
+ */
+export function calculateFullPassageAccuracy(typed = '', targetText = '', decimals = 0) {
+  if (!targetText || targetText.length === 0) {
+    return (!typed || typed.length === 0) ? 100 : 0;
+  }
+  if (!typed || typeof typed !== 'string' || typed.length === 0) return 0;
+
+  const correct = countCorrectChars(typed, targetText);
+  const raw = (correct / targetText.length) * 100;
   const clamped = Math.max(0, Math.min(100, raw));
   if (decimals > 0) {
     const factor = Math.pow(10, decimals);

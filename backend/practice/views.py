@@ -891,8 +891,30 @@ class CompetitionSubmitView(APIView):
         duration_raw = int(request.data.get('duration_seconds', 0))
         correct_chars = max(0, int(request.data.get('correct_chars', 0)))
         incorrect_chars = max(0, int(request.data.get('incorrect_chars', 0)))
+        typed_text = request.data.get('typed_text') or request.data.get('typed')
+        challenge_text = competition.challenge_text or ''
+
+        # Internal consistency: If typed_text is provided, cross-validate correct_chars against actual string length
+        if typed_text is not None and challenge_text:
+            actual_uncorrected = 0
+            actual_correct = 0
+            for i in range(len(typed_text)):
+                if i < len(challenge_text) and typed_text[i] == challenge_text[i]:
+                    actual_correct += 1
+                else:
+                    actual_uncorrected += 1
+            # If client claims forged correct_chars > len(typed_text), bound to len(typed_text)
+            correct_chars = max(actual_correct, min(correct_chars, len(typed_text)))
+        elif typed_text is not None:
+            correct_chars = min(correct_chars, len(typed_text))
+
         valid_entries = correct_chars + incorrect_chars
         total_chars = valid_entries if valid_entries > 0 else max(0, int(request.data.get('total_chars', 0)))
+
+        # Physical plausibility check: bound minimum duration (max 300 Gross WPM = 25 chars/sec)
+        min_physical_duration = max(1, int(total_chars / 25.0)) if total_chars > 0 else 1
+        if duration_raw > 0 and duration_raw < min_physical_duration:
+            duration_raw = min_physical_duration
 
         if duration_raw <= 0 or total_chars <= 0:
             duration = max(1, duration_raw) if duration_raw > 0 else 1
@@ -907,13 +929,7 @@ class CompetitionSubmitView(APIView):
 
             # Error validation & anti-tamper check
             error_count = max(0, int(request.data.get('error_count', 0)))
-            typed_text = request.data.get('typed_text') or request.data.get('typed')
-            challenge_text = competition.challenge_text or ''
             if typed_text is not None and challenge_text:
-                actual_uncorrected = 0
-                for i in range(len(typed_text)):
-                    if i >= len(challenge_text) or typed_text[i] != challenge_text[i]:
-                        actual_uncorrected += 1
                 error_count = max(error_count, actual_uncorrected)
 
             if incorrect_chars > 0:
