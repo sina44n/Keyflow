@@ -312,7 +312,7 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
             </div>
           </div>
 
-          {/* 8 Game Cards Responsive Grid (3 cols desktop, 2 cols tablet, 1 col mobile) */}
+          {/* Arcade Game Cards Responsive Grid (3 cols desktop, 2 cols tablet, 1 col mobile) */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
             {filteredGames.map((game) => (
               <ArcadeGameCard
@@ -324,26 +324,6 @@ export const ArcadeHub = ({ initialGameId = null, onGameChange = null, isEmbedde
                 onToggleLike={handleToggleLike}
               />
             ))}
-          </div>
-
-          {/* Bottom Overview Stat Band */}
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 sm:p-5 rounded-2xl bg-[var(--bg-elevated)]/60 border border-[var(--border)] text-center text-xs font-mono">
-            <div className="space-y-1">
-              <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">{t('arcade.totalGames')}</span>
-              <span className="text-base font-bold text-[var(--text-primary)]">{t('arcade.modesCount')}</span>
-            </div>
-            <div className="space-y-1">
-              <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Difficulty Engine</span>
-              <span className="text-base font-bold text-orange-400">8 Progressive Tiers</span>
-            </div>
-            <div className="space-y-1">
-              <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Performance System</span>
-              <span className="text-base font-bold text-emerald-400">Adaptive WebGL / 2D</span>
-            </div>
-            <div className="space-y-1">
-              <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider block">Score Tracking</span>
-              <span className="text-base font-bold text-[var(--accent)]">Local Bests Persisted</span>
-            </div>
           </div>
         </div>
       )}
