@@ -27,7 +27,7 @@ import {
 
 export { SHIFT_MAP, CALIBRATED_KEYS };
 
-export function KeyboardGuide({
+export const KeyboardGuide = React.memo(function KeyboardGuide({
   targetChar,
   lastKeystroke,
   isVisible = true,
@@ -490,6 +490,6 @@ export function KeyboardGuide({
       )}
     </div>
   );
-}
+});
 
 export default KeyboardGuide;

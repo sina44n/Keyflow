@@ -98,6 +98,68 @@ const PRACTICE_PASSAGES = [
 const TIME_OPTIONS = [15, 30, 60, 120];
 const WORD_OPTIONS = [10, 25, 50, 100];
 
+// Memoized individual character span: skips re-rendering when feedback class and caret status are unchanged
+const WorkstationCharacterSpan = React.memo(function WorkstationCharacterSpan({
+  char,
+  feedbackClassName,
+  isCurrent,
+  activeRef,
+}) {
+  return (
+    <span
+      ref={isCurrent ? activeRef : null}
+      className={`${feedbackClassName} typing-char`}
+    >
+      {char === '\n' ? '↵\n' : char}
+    </span>
+  );
+});
+
+// Memoized text track: isolates character rendering from timer ticks and unrelated workstation state updates
+const WorkstationTextTrack = React.memo(function WorkstationTextTrack({
+  currentTargetText,
+  typed,
+  isCompleted,
+  correctedIndices,
+  activeCharSpanRef,
+  pacingLineRef,
+}) {
+  const targetChars = useMemo(() => currentTargetText.split(''), [currentTargetText]);
+
+  return (
+    <>
+      {/* Subtle WPM Pacing Guide Line (PHASE 6) */}
+      <div
+        ref={pacingLineRef}
+        className="absolute top-0 left-0 w-[2px] pointer-events-none z-10 transition-none"
+        style={{
+          display: 'none',
+          backgroundColor: 'rgba(100, 116, 139, 0.75)',
+          boxShadow: '0 0 3px rgba(100, 116, 139, 0.4)',
+        }}
+      >
+        <div className="absolute -top-1 -left-[3px] w-2 h-2 rounded-full bg-slate-500/90 shadow-xs" />
+      </div>
+
+      {targetChars.map((char, idx) => {
+        const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted, correctedIndices);
+        const isCurrent =
+          (idx === typed.length && !isCompleted) ||
+          (idx === currentTargetText.length - 1 && typed.length >= currentTargetText.length);
+        return (
+          <WorkstationCharacterSpan
+            key={idx}
+            char={char}
+            feedbackClassName={feedback.className}
+            isCurrent={isCurrent}
+            activeRef={activeCharSpanRef}
+          />
+        );
+      })}
+    </>
+  );
+});
+
 export const WorkstationPage = () => {
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -236,6 +298,8 @@ export const WorkstationPage = () => {
   const totalActiveMsRef = useRef(0);
   const runningSegmentStartRef = useRef(null);
   const lastKeystrokeTimeRef = useRef(null);
+  const pendingKeystrokeRef = useRef(null);
+  const cachedPacingSpansRef = useRef(null);
 
   // Synchronous session tracker ref ensuring zero event loss & immunity to stale closures
   const sessionTrackerRef = useRef({
@@ -454,6 +518,8 @@ export const WorkstationPage = () => {
     cachedLineHeightRef.current = null;
     cachedBaseOffsetTopRef.current = null;
     lastActiveOffsetTopRef.current = null;
+    cachedPacingSpansRef.current = null;
+    pendingKeystrokeRef.current = null;
   }, [fontSize, currentTargetText]);
 
   // ── Precision 4-Line Rendered-Line Auto-Scrolling ─────────────────────────
@@ -576,8 +642,10 @@ export const WorkstationPage = () => {
       );
       const fraction = targetCharIdxFloat - Math.floor(targetCharIdxFloat);
 
-      const spans = viewportRef.current.querySelectorAll('.typing-char');
-      const span = spans[targetCharIdx];
+      if (!cachedPacingSpansRef.current || cachedPacingSpansRef.current.length === 0) {
+        cachedPacingSpansRef.current = viewportRef.current.querySelectorAll('.typing-char');
+      }
+      const span = cachedPacingSpansRef.current[targetCharIdx];
       if (span) {
         const left = span.offsetLeft + (span.offsetWidth * fraction);
         const top = span.offsetTop;
@@ -947,7 +1015,6 @@ export const WorkstationPage = () => {
             timestamp: Date.now(),
           };
           sessionTrackerRef.current.errorHistory.push(errItem);
-          setErrorHistory((prev) => [...prev, errItem]);
         } else {
           cEntry.correct += 1;
           sessionTrackerRef.current.correctKeystrokes += 1;
@@ -958,14 +1025,22 @@ export const WorkstationPage = () => {
         playClick(hasErrorInBulk);
       }
       const actualChar = val[val.length - 1];
-      setLastKeystroke({ key: actualChar, code: '', id: performance.now() });
+      const strokeToSet = pendingKeystrokeRef.current && (pendingKeystrokeRef.current.key === actualChar || pendingKeystrokeRef.current.key?.toLowerCase() === actualChar?.toLowerCase())
+        ? pendingKeystrokeRef.current
+        : { key: actualChar, code: '', id: performance.now() };
+      pendingKeystrokeRef.current = null;
+      setLastKeystroke(strokeToSet);
     } else if (val.length < typed.length) {
       // Backspace pressed: removes character, does NOT clear previous mistakes or alter error count
       const count = typed.length - val.length;
       lastKeystrokeTimeRef.current = performance.now();
       sessionTrackerRef.current.backspaces += count;
       setBackspaces((b) => b + count);
-      setLastKeystroke({ key: 'backspace', code: 'Backspace', id: performance.now() });
+      const strokeToSet = pendingKeystrokeRef.current && pendingKeystrokeRef.current.key === 'Backspace'
+        ? pendingKeystrokeRef.current
+        : { key: 'backspace', code: 'Backspace', id: performance.now() };
+      pendingKeystrokeRef.current = null;
+      setLastKeystroke(strokeToSet);
     }
 
     sessionTrackerRef.current.typed = val;
@@ -1033,6 +1108,8 @@ export const WorkstationPage = () => {
     cachedLineHeightRef.current = null;
     cachedBaseOffsetTopRef.current = null;
     lastActiveOffsetTopRef.current = null;
+    cachedPacingSpansRef.current = null;
+    pendingKeystrokeRef.current = null;
     if (viewportRef.current) {
       viewportRef.current.scrollTo({ top: 0, behavior: 'instant' });
     }
@@ -1499,34 +1576,14 @@ export const WorkstationPage = () => {
                           : 'transform 200ms cubic-bezier(0.2, 0, 0, 1)',
                     }}
                   >
-                    {/* Subtle WPM Pacing Guide Line (PHASE 6) */}
-                    <div
-                      ref={pacingLineRef}
-                      className="absolute top-0 left-0 w-[2px] pointer-events-none z-10 transition-none"
-                      style={{
-                        display: 'none',
-                        backgroundColor: 'rgba(100, 116, 139, 0.75)',
-                        boxShadow: '0 0 3px rgba(100, 116, 139, 0.4)',
-                      }}
-                    >
-                      <div className="absolute -top-1 -left-[3px] w-2 h-2 rounded-full bg-slate-500/90 shadow-xs" />
-                    </div>
-
-                    {targetChars.map((char, idx) => {
-                      const feedback = getCharacterFeedback(idx, typed, currentTargetText, isCompleted, correctedIndices);
-                      const isCurrent =
-                        (idx === typed.length && !isCompleted) ||
-                        (idx === currentTargetText.length - 1 && typed.length >= currentTargetText.length);
-                      return (
-                        <span
-                          key={idx}
-                          ref={isCurrent ? activeCharSpanRef : null}
-                          className={`${feedback.className} typing-char`}
-                        >
-                          {char === '\n' ? '↵\n' : char}
-                        </span>
-                      );
-                    })}
+                    <WorkstationTextTrack
+                      currentTargetText={currentTargetText}
+                      typed={typed}
+                      isCompleted={isCompleted}
+                      correctedIndices={correctedIndices}
+                      activeCharSpanRef={activeCharSpanRef}
+                      pacingLineRef={pacingLineRef}
+                    />
                   </div>
 
                   <input
@@ -1561,7 +1618,7 @@ export const WorkstationPage = () => {
                       if (['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Escape'].includes(e.key)) {
                         return;
                       }
-                      setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
+                      pendingKeystrokeRef.current = { key: e.key, code: e.code, id: performance.now() };
                     }}
                     disabled={isCompleted}
                     onPaste={(e) => e.preventDefault()}

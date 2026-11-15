@@ -23,7 +23,7 @@ import {
 
 export { KEY_COORDS };
 
-export function HandGuide({ targetChar, isVisible = true, standalone = false, hideHandsImage = false }) {
+export const HandGuide = React.memo(function HandGuide({ targetChar, isVisible = true, standalone = false, hideHandsImage = false }) {
   // Resolve active finger and key target using strict allowlist resolution
   const { activeFinger, targetPos, isHomeRowTarget } = useMemo(() => {
     if (!targetChar) return { activeFinger: null, targetPos: null, isHomeRowTarget: false };
@@ -128,6 +128,6 @@ export function HandGuide({ targetChar, isVisible = true, standalone = false, hi
   }
 
   return content;
-}
+});
 
 export default HandGuide;

@@ -34,7 +34,7 @@ import {
 } from 'lucide-react';
 import { SoundSelector } from '../common/SoundSelector';
 
-export const WorkstationToolbar = ({
+export const WorkstationToolbar = React.memo(function WorkstationToolbar({
   mode,
   setMode,
   timeLimit,
@@ -73,7 +73,7 @@ export const WorkstationToolbar = ({
   allowedDurations,
   customTextEnabled = true,
   competitionEnabled = true,
-}) => {
+}) {
   const TIME_OPTIONS = allowedDurations && allowedDurations.length ? allowedDurations : [15, 30, 60, 120];
   const WORD_OPTIONS = [10, 25, 50, 100];
 
@@ -487,4 +487,4 @@ export const WorkstationToolbar = ({
       </div>
     </div>
   );
-};
+});

@@ -18,7 +18,7 @@ import {
  * - Graceful fallback to static high-resolution asset if WebGL is unavailable
  * - Full memory cleanup on unmount or toggle off
  */
-export function Hand3DGuide({
+export const Hand3DGuide = React.memo(function Hand3DGuide({
   _targetChar,
   lastKeystroke,
   isVisible = true,
@@ -247,6 +247,6 @@ export function Hand3DGuide({
       />
     </div>
   );
-}
+});
 
 export default Hand3DGuide;
