@@ -989,3 +989,109 @@ class CompetitionForensicVerificationTests(TestCase):
         self.assertEqual(float(p4['gross_wpm']), 0.0)
         self.assertEqual(float(p4['net_wpm']), 0.0)
         self.assertEqual(float(p4['accuracy']), 0.0)
+
+    def test_25_competition_completed_and_cancelled_room_submission_rejection(self):
+        """Verify that completed or cancelled competition rooms strictly reject new participant score submissions."""
+        # 1. Room already completed
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Closed Room Arena', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        comp = Competition.objects.get(code=code)
+        comp.status = 'completed'
+        comp.save()
+
+        # Late participant who joined earlier attempts submission to completed room
+        part = CompetitionParticipant.objects.create(
+            competition=comp,
+            user=self.user1,
+            display_name='LateTypist',
+            status='joined',
+        )
+
+        sub_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': part.id,
+                'duration_seconds': 30,
+                'typed_text': comp.challenge_text,
+            },
+            content_type='application/json',
+            **self.user1_headers,
+        )
+        self.assertEqual(sub_res.status_code, 400)
+        self.assertIn('already completed', sub_res.json()['error'].lower())
+
+        # 2. Room cancelled
+        comp.status = 'cancelled'
+        comp.save()
+        sub_res_cancel = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': part.id,
+                'duration_seconds': 30,
+                'typed_text': comp.challenge_text,
+            },
+            content_type='application/json',
+            **self.user1_headers,
+        )
+        self.assertEqual(sub_res_cancel.status_code, 400)
+        self.assertIn('already cancelled', sub_res_cancel.json()['error'].lower())
+
+    def test_26_competition_malformed_participant_id_and_idempotent_duplicate_submission(self):
+        """Verify malformed participant IDs return 404 rather than 500, and duplicate submissions are idempotent."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Robustness Arena', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        host_pid = create_res.json()['participant_id']
+        comp = Competition.objects.get(code=code)
+
+        # 1. Malformed non-numeric participant ID -> 404 Not Found (not 500 crash)
+        bad_id_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': 'malicious-string-id',
+                'duration_seconds': 30,
+                'typed_text': comp.challenge_text,
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(bad_id_res.status_code, 404)
+
+        # 2. First genuine submission -> 200 OK
+        first_sub = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'duration_seconds': 30,
+                'typed_text': comp.challenge_text,
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(first_sub.status_code, 200)
+        orig_net = float(first_sub.json()['participant']['net_wpm'])
+
+        # 3. Duplicate submission with forged 300 WPM -> returns 200 idempotent with original scores preserved
+        dup_sub = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'net_wpm': 300.0,
+                'duration_seconds': 5,
+                'typed_text': comp.challenge_text,
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(dup_sub.status_code, 200)
+        self.assertEqual(float(dup_sub.json()['participant']['net_wpm']), orig_net)
+        self.assertEqual(dup_sub.json()['verification'], 'server_verified')

@@ -861,7 +861,7 @@ class CompetitionSubmitView(APIView):
         participant_id = request.data.get('participant_id')
         try:
             participant = competition.participants.get(id=participant_id)
-        except CompetitionParticipant.DoesNotExist:
+        except (CompetitionParticipant.DoesNotExist, ValueError):
             return Response({'error': 'Participant record not found in this competition.'}, status=status.HTTP_404_NOT_FOUND)
 
         # Enforce participant ownership if user is associated
@@ -877,6 +877,12 @@ class CompetitionSubmitView(APIView):
                     status=status.HTTP_403_FORBIDDEN
                 )
 
+        typed_text = request.data.get('typed_text')
+        if typed_text is None:
+            typed_text = request.data.get('typed')
+        challenge_text = competition.challenge_text or ''
+        verification_level = 'server_verified' if (typed_text is not None and challenge_text) else 'client_reported_unverified'
+
         # Idempotent response if participant already submitted
         if participant.status == 'completed':
             serializer = CompetitionSerializer(competition)
@@ -884,19 +890,44 @@ class CompetitionSubmitView(APIView):
                 'status': 'success',
                 'competition': serializer.data,
                 'participant': CompetitionParticipantSerializer(participant).data,
+                'verification': verification_level,
             })
+
+        # Reject new submissions to completed or cancelled competitions
+        if competition.status in ['completed', 'cancelled']:
+            return Response(
+                {'error': f'Cannot submit results: competition is already {competition.status}.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         from django.utils import timezone
 
         import math
 
-        duration_raw = int(request.data.get('duration_seconds', 0))
-        correct_chars_claimed = max(0, int(request.data.get('correct_chars', 0)))
-        incorrect_chars_claimed = max(0, int(request.data.get('incorrect_chars', 0)))
-        typed_text = request.data.get('typed_text')
-        if typed_text is None:
-            typed_text = request.data.get('typed')
-        challenge_text = competition.challenge_text or ''
+        try:
+            duration_raw = int(request.data.get('duration_seconds', 0))
+        except (ValueError, TypeError):
+            duration_raw = 0
+
+        try:
+            correct_chars_claimed = max(0, int(request.data.get('correct_chars', 0)))
+        except (ValueError, TypeError):
+            correct_chars_claimed = 0
+
+        try:
+            incorrect_chars_claimed = max(0, int(request.data.get('incorrect_chars', 0)))
+        except (ValueError, TypeError):
+            incorrect_chars_claimed = 0
+
+        try:
+            client_error_count = max(0, int(request.data.get('error_count', 0)))
+        except (ValueError, TypeError):
+            client_error_count = 0
+
+        try:
+            client_total_chars = max(0, int(request.data.get('total_chars', 0)))
+        except (ValueError, TypeError):
+            client_total_chars = 0
 
         # When typed_text is provided, derive correct_chars, uncorrected errors, and total characters
         # independently from server-verified evidence. Client values can NEVER increase the server-derived count.
@@ -914,7 +945,7 @@ class CompetitionSubmitView(APIView):
             incorrect_chars = actual_uncorrected
             # Server-verified printable attempts are bounded by actual submitted text length
             total_chars = len(typed_text)
-            error_count = max(max(0, int(request.data.get('error_count', 0))), actual_uncorrected)
+            error_count = max(client_error_count, actual_uncorrected)
         elif typed_text is not None:
             # Challenge text is empty: no characters can match
             actual_uncorrected = len(typed_text)
@@ -922,7 +953,7 @@ class CompetitionSubmitView(APIView):
             correct_chars = 0
             incorrect_chars = actual_uncorrected
             total_chars = len(typed_text)
-            error_count = max(max(0, int(request.data.get('error_count', 0))), actual_uncorrected)
+            error_count = max(client_error_count, actual_uncorrected)
         else:
             # Missing typed_text follows documented trust policy:
             # Server cannot independently verify text matching; client-supplied counters are accepted as unverified,
@@ -930,8 +961,8 @@ class CompetitionSubmitView(APIView):
             correct_chars = correct_chars_claimed
             incorrect_chars = incorrect_chars_claimed
             valid_entries = correct_chars + incorrect_chars
-            total_chars = valid_entries if valid_entries > 0 else max(0, int(request.data.get('total_chars', 0)))
-            error_count = max(0, int(request.data.get('error_count', 0)))
+            total_chars = valid_entries if valid_entries > 0 else client_total_chars
+            error_count = client_error_count
 
         # Physical plausibility check: bound minimum duration using upward rounding (max 300 Gross WPM = 25 chars/sec)
         # Prevents speed exceeding 300 WPM (e.g. 26 attempts in 1s would be 312 WPM with int(); math.ceil enforces 2s)
