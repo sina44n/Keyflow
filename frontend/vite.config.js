@@ -41,6 +41,9 @@ function djangoAutoStartPlugin() {
             windowsHide: true,
           })
           backendProc.on('error', (err) => console.warn('[Django Auto-Start] Spawn warning:', err.message))
+          backendProc.on('exit', (code) => {
+            if (code !== null && code !== 0) console.warn('[Django Auto-Start] Django process exited with code:', code)
+          })
         } catch (e) {
           console.warn('[Django Auto-Start] Spawn error:', e.message)
         }

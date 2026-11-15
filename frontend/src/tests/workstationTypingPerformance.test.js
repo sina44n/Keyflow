@@ -150,6 +150,21 @@ describe('KEYFLOW Workstation Typing Performance & Backend Recovery Contract', (
       );
     });
 
+    it('invalidates cachedPacingSpansRef on text/font changes, reset, and resize, with self-healing on length/disconnection mismatch', () => {
+      assert.ok(
+        workstationContent.includes('cachedPacingSpansRef.current = null;'),
+        'WorkstationPage must clear pacing spans cache on resize and reset'
+      );
+      assert.ok(
+        workstationContent.includes('cachedPacingSpansRef.current.length !== currentTargetText.length'),
+        'updatePacingLine must self-heal if cached NodeList length mismatches current passage'
+      );
+      assert.ok(
+        workstationContent.includes('!cachedPacingSpansRef.current[0].isConnected'),
+        'updatePacingLine must self-heal if cached spans are detached from the active DOM'
+      );
+    });
+
     it('preserves 4-line viewport constraints and line-by-line auto-scroll', () => {
       assert.ok(
         workstationContent.includes("height: 'calc(4 * 1.625em)'"),

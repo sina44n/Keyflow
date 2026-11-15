@@ -642,7 +642,11 @@ export const WorkstationPage = () => {
       );
       const fraction = targetCharIdxFloat - Math.floor(targetCharIdxFloat);
 
-      if (!cachedPacingSpansRef.current || cachedPacingSpansRef.current.length === 0) {
+      if (
+        !cachedPacingSpansRef.current ||
+        cachedPacingSpansRef.current.length !== currentTargetText.length ||
+        (cachedPacingSpansRef.current[0] && !cachedPacingSpansRef.current[0].isConnected)
+      ) {
         cachedPacingSpansRef.current = viewportRef.current.querySelectorAll('.typing-char');
       }
       const span = cachedPacingSpansRef.current[targetCharIdx];
