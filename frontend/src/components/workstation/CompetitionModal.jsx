@@ -39,6 +39,7 @@ export const CompetitionModal = ({
   const [competitions, setCompetitions] = useState([]);
   const [currentComp, setCurrentComp] = useState(activeCompetition);
   const [myParticipantId, setMyParticipantId] = useState(null);
+  const [myParticipantToken, setMyParticipantToken] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState(null);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -152,6 +153,7 @@ export const CompetitionModal = ({
       const created = res.data;
       setCurrentComp(created);
       setMyParticipantId(created.participant_id);
+      setMyParticipantToken(created.participant_token || null);
       setActiveTab('active');
       setStatusMessage({ type: 'success', text: `Created lobby ${created.code}! Share code with rivals.` });
     } catch (err) {
@@ -177,6 +179,7 @@ export const CompetitionModal = ({
       const comp = res.data;
       setCurrentComp(comp);
       setMyParticipantId(comp.participant_id);
+      setMyParticipantToken(comp.participant_token || null);
       setActiveTab('active');
       setStatusMessage({ type: 'success', text: `Joined ${comp.name}!` });
     } catch (err) {
@@ -198,6 +201,7 @@ export const CompetitionModal = ({
     onStartCompetitionTest({
       competition: currentComp,
       participantId: myParticipantId,
+      participantToken: myParticipantToken,
       challengeText: currentComp.challenge_text,
       challengeType: currentComp.challenge_type,
       targetLimit: currentComp.target_limit,
@@ -210,7 +214,10 @@ export const CompetitionModal = ({
     if (!currentComp) return;
     setIsLoading(true);
     try {
-      await competitionAPI.delete(currentComp.code, { participant_id: myParticipantId });
+      await competitionAPI.delete(currentComp.code, {
+        participant_id: myParticipantId,
+        participant_token: myParticipantToken,
+      });
       setStatusMessage({ type: 'success', text: `Room ${currentComp.code} deleted successfully.` });
       setCurrentComp(null);
       setActiveTab('lobbies');

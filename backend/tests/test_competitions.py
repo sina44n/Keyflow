@@ -119,6 +119,7 @@ class CompetitionAPITests(TestCase):
         )
         code = create_res.json()['code']
         host_p_id = create_res.json()['participant_id']
+        host_token = create_res.json().get('participant_token')
 
         # Player B joins
         join_res = self.client.post(
@@ -127,12 +128,14 @@ class CompetitionAPITests(TestCase):
             content_type='application/json',
         )
         p_b_id = join_res.json()['participant_id']
+        p_b_token = join_res.json().get('participant_token')
 
         # Player A submits: 85 WPM, 98% Acc
         self.client.post(
             f'/api/practice/competitions/{code}/submit/',
             {
                 'participant_id': host_p_id,
+                'participant_token': host_token,
                 'net_wpm': 85.0,
                 'gross_wpm': 88.0,
                 'accuracy': 98.0,
@@ -148,6 +151,7 @@ class CompetitionAPITests(TestCase):
             f'/api/practice/competitions/{code}/submit/',
             {
                 'participant_id': p_b_id,
+                'participant_token': p_b_token,
                 'net_wpm': 105.0,
                 'gross_wpm': 110.0,
                 'accuracy': 96.0,

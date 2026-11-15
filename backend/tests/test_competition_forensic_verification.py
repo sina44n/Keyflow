@@ -221,34 +221,43 @@ class CompetitionForensicVerificationTests(TestCase):
         )
         code = create_res.json()['code']
         p_a = create_res.json()['participant_id']
+        t_a = create_res.json().get('participant_token')
 
         # Join 3 more typists
-        j_b = self.client.post(f'/api/practice/competitions/{code}/join/', {'display_name': 'TypistB'}, content_type='application/json').json()['participant_id']
-        j_c = self.client.post(f'/api/practice/competitions/{code}/join/', {'display_name': 'TypistC'}, content_type='application/json').json()['participant_id']
-        j_d = self.client.post(f'/api/practice/competitions/{code}/join/', {'display_name': 'TypistD'}, content_type='application/json').json()['participant_id']
+        j_b_data = self.client.post(f'/api/practice/competitions/{code}/join/', {'display_name': 'TypistB'}, content_type='application/json').json()
+        j_b = j_b_data['participant_id']
+        t_b = j_b_data.get('participant_token')
+
+        j_c_data = self.client.post(f'/api/practice/competitions/{code}/join/', {'display_name': 'TypistC'}, content_type='application/json').json()
+        j_c = j_c_data['participant_id']
+        t_c = j_c_data.get('participant_token')
+
+        j_d_data = self.client.post(f'/api/practice/competitions/{code}/join/', {'display_name': 'TypistD'}, content_type='application/json').json()
+        j_d = j_d_data['participant_id']
+        t_d = j_d_data.get('participant_token')
 
         # Submissions:
         # Typist A: 100 WPM, 95% Acc, 30s
         self.client.post(f'/api/practice/competitions/{code}/submit/', {
-            'participant_id': p_a, 'net_wpm': 100.0, 'gross_wpm': 100.0, 'accuracy': 95.0,
+            'participant_id': p_a, 'participant_token': t_a, 'net_wpm': 100.0, 'gross_wpm': 100.0, 'accuracy': 95.0,
             'duration_seconds': 30, 'correct_chars': 238, 'incorrect_chars': 12,
         }, content_type='application/json')
 
         # Typist B: 100 WPM, 98% Acc, 30s -> Beats A on Accuracy
         self.client.post(f'/api/practice/competitions/{code}/submit/', {
-            'participant_id': j_b, 'net_wpm': 100.0, 'gross_wpm': 100.0, 'accuracy': 98.0,
+            'participant_id': j_b, 'participant_token': t_b, 'net_wpm': 100.0, 'gross_wpm': 100.0, 'accuracy': 98.0,
             'duration_seconds': 30, 'correct_chars': 245, 'incorrect_chars': 5,
         }, content_type='application/json')
 
         # Typist C: 100 WPM, 98% Acc, 25s -> Beats B on Duration (faster)
         self.client.post(f'/api/practice/competitions/{code}/submit/', {
-            'participant_id': j_c, 'net_wpm': 100.0, 'gross_wpm': 100.0, 'accuracy': 98.0,
+            'participant_id': j_c, 'participant_token': t_c, 'net_wpm': 100.0, 'gross_wpm': 100.0, 'accuracy': 98.0,
             'duration_seconds': 25, 'correct_chars': 204, 'incorrect_chars': 4,
         }, content_type='application/json')
 
         # Typist D: 110 WPM, 92% Acc, 30s -> Beats ALL on Net WPM
         self.client.post(f'/api/practice/competitions/{code}/submit/', {
-            'participant_id': j_d, 'net_wpm': 110.0, 'gross_wpm': 110.0, 'accuracy': 92.0,
+            'participant_id': j_d, 'participant_token': t_d, 'net_wpm': 110.0, 'gross_wpm': 110.0, 'accuracy': 92.0,
             'duration_seconds': 30, 'correct_chars': 253, 'incorrect_chars': 22,
         }, content_type='application/json')
 
@@ -659,9 +668,12 @@ class CompetitionForensicVerificationTests(TestCase):
                 {'display_name': name},
                 content_type='application/json',
             )
-            pid = join_res.json()['participant_id']
+            join_data = join_res.json()
+            pid = join_data['participant_id']
+            token = join_data.get('participant_token')
             payload = {
                 'participant_id': pid,
+                'participant_token': token,
                 'duration_seconds': duration,
                 'correct_chars': claimed_correct,
                 'incorrect_chars': claimed_incorrect,
@@ -792,12 +804,15 @@ class CompetitionForensicVerificationTests(TestCase):
                 {'display_name': f'P_{total_chars}'},
                 content_type='application/json',
             )
-            pid = join_res.json()['participant_id']
+            join_data = join_res.json()
+            pid = join_data['participant_id']
+            token = join_data.get('participant_token')
             # Client submits duration_seconds=1 for all cases
             submit_res = self.client.post(
                 f'/api/practice/competitions/{code}/submit/',
                 {
                     'participant_id': pid,
+                    'participant_token': token,
                     'duration_seconds': 1,
                     'correct_chars': total_chars,
                     'incorrect_chars': 0,
@@ -864,6 +879,7 @@ class CompetitionForensicVerificationTests(TestCase):
             content_type='application/json',
         )
         pid_2 = join_res.json()['participant_id']
+        token_2 = join_res.json().get('participant_token')
 
         # 1. Verified submission: typed_text supplied
         submit_res_1 = self.client.post(
@@ -884,6 +900,7 @@ class CompetitionForensicVerificationTests(TestCase):
             f'/api/practice/competitions/{code}/submit/',
             {
                 'participant_id': pid_2,
+                'participant_token': token_2,
                 'duration_seconds': 30,
                 'correct_chars': 50,
                 'incorrect_chars': 0,
@@ -909,10 +926,12 @@ class CompetitionForensicVerificationTests(TestCase):
         # Helper to join and submit
         def submit_with_dur(display_name, typed_text, dur):
             join = self.client.post(f'/api/practice/competitions/{code}/join/', {'display_name': display_name}, content_type='application/json')
-            pid = join.json()['participant_id']
+            join_data = join.json()
+            pid = join_data['participant_id']
+            token = join_data.get('participant_token')
             return self.client.post(
                 f'/api/practice/competitions/{code}/submit/',
-                {'participant_id': pid, 'duration_seconds': dur, 'typed_text': typed_text},
+                {'participant_id': pid, 'participant_token': token, 'duration_seconds': dur, 'typed_text': typed_text},
                 content_type='application/json'
             ).json()['participant']
 
@@ -946,11 +965,14 @@ class CompetitionForensicVerificationTests(TestCase):
 
         def test_scenario(name, typed_text, duration_sec, error_count_claim=0):
             join = self.client.post(f'/api/practice/competitions/{code}/join/', {'display_name': name}, content_type='application/json')
-            pid = join.json()['participant_id']
+            join_data = join.json()
+            pid = join_data['participant_id']
+            token = join_data.get('participant_token')
             res = self.client.post(
                 f'/api/practice/competitions/{code}/submit/',
                 {
                     'participant_id': pid,
+                    'participant_token': token,
                     'duration_seconds': duration_sec,
                     'typed_text': typed_text,
                     'error_count': error_count_claim,
@@ -1095,3 +1117,173 @@ class CompetitionForensicVerificationTests(TestCase):
         self.assertEqual(dup_sub.status_code, 200)
         self.assertEqual(float(dup_sub.json()['participant']['net_wpm']), orig_net)
         self.assertEqual(dup_sub.json()['verification'], 'server_verified')
+
+    def test_27_guest_participant_ownership_security_suite(self):
+        """Phase 7.7: Comprehensive Guest Participant Ownership Security Suite:
+        1. Guest A can submit using Guest A's valid secret token.
+        2. Guest B cannot submit using Guest A's public participant ID alone (401).
+        3. Guest B cannot submit using Guest A's ID with Guest B's secret token (403).
+        4. Guest B cannot submit using an invalid or guessed secret token (403).
+        5. Missing guest credentials are rejected (401).
+        6. A guest cannot overwrite another guest's result.
+        7. Registered-user ownership checks continue working.
+        8. Public lobby responses never expose guest secrets or token hashes.
+        9. Existing duplicate-submission and completed-room protections remain intact.
+        """
+        # Step A: Guest A creates competition
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {
+                'name': 'Guest Ownership Security Arena',
+                'challenge_text': 'Secure typing requires participant ownership tokens.',
+                'display_name': 'Guest Host A',
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(create_res.status_code, 201)
+        create_data = create_res.json()
+        code = create_data['code']
+        pid_a = create_data['participant_id']
+        token_a = create_data.get('participant_token')
+        self.assertTrue(token_a, 'Guest A must receive a cryptographically secure participant_token upon creation')
+        self.assertGreater(len(token_a), 20)
+
+        # Step B: Guest B joins competition
+        join_res = self.client.post(
+            f'/api/practice/competitions/{code}/join/',
+            {'display_name': 'Guest Rival B'},
+            content_type='application/json',
+        )
+        self.assertEqual(join_res.status_code, 201)
+        join_data = join_res.json()
+        pid_b = join_data['participant_id']
+        token_b = join_data.get('participant_token')
+        self.assertTrue(token_b, 'Guest B must receive a cryptographically secure participant_token upon joining')
+        self.assertNotEqual(token_a, token_b)
+
+        # Requirement 8: Public lobby response NEVER exposes guest secrets or hashes
+        detail_res = self.client.get(f'/api/practice/competitions/{code}/')
+        self.assertEqual(detail_res.status_code, 200)
+        detail_data = detail_res.json()
+        for p in detail_data['participants']:
+            self.assertNotIn('guest_token', p)
+            self.assertNotIn('guest_token_hash', p)
+            self.assertNotIn('participant_token', p)
+
+        challenge = create_data['challenge_text']
+
+        # Requirement 2 & 5: Guest B cannot submit using Guest A's public ID alone (missing credentials)
+        no_token_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': pid_a,
+                'duration_seconds': 30,
+                'typed_text': challenge,
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(no_token_res.status_code, 401)
+        self.assertIn('token required', no_token_res.json()['error'].lower())
+
+        # Requirement 4: Guest B cannot submit using an invalid or guessed secret
+        fake_token_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': pid_a,
+                'participant_token': 'wrong-guessed-token-12345',
+                'duration_seconds': 30,
+                'typed_text': challenge,
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(fake_token_res.status_code, 403)
+        self.assertIn('invalid participant token', fake_token_res.json()['error'].lower())
+
+        # Requirement 3 & 6: Guest B cannot submit using Guest A's ID with Guest B's secret
+        cross_token_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': pid_a,
+                'participant_token': token_b,
+                'duration_seconds': 30,
+                'typed_text': challenge,
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(cross_token_res.status_code, 403)
+        self.assertIn('invalid participant token', cross_token_res.json()['error'].lower())
+
+        # Verify Guest A is still uncompleted in database
+        part_a_db = CompetitionParticipant.objects.get(id=pid_a)
+        self.assertEqual(part_a_db.status, 'joined')
+        self.assertEqual(float(part_a_db.net_wpm), 0.0)
+
+        # Requirement 1: Guest A CAN submit using Guest A's valid secret
+        valid_sub_a = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': pid_a,
+                'participant_token': token_a,
+                'duration_seconds': 30,
+                'typed_text': challenge,
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(valid_sub_a.status_code, 200)
+        part_a_db.refresh_from_db()
+        self.assertEqual(part_a_db.status, 'completed')
+        self.assertGreater(float(part_a_db.net_wpm), 0.0)
+
+        # Requirement 9: Duplicate submission with Guest A's token preserves original score
+        orig_wpm = float(part_a_db.net_wpm)
+        dup_a = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': pid_a,
+                'participant_token': token_a,
+                'net_wpm': 300.0,
+                'duration_seconds': 5,
+                'typed_text': challenge,
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(dup_a.status_code, 200)
+        part_a_db.refresh_from_db()
+        self.assertEqual(float(part_a_db.net_wpm), orig_wpm)
+
+        # Guest B submits their genuine result
+        valid_sub_b = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': pid_b,
+                'participant_token': token_b,
+                'duration_seconds': 35,
+                'typed_text': challenge,
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(valid_sub_b.status_code, 200)
+
+        # Requirement 7: Registered-user ownership check continues working
+        reg_create = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Registered Arena', 'display_name': 'Host Reg'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        reg_code = reg_create.json()['code']
+        reg_pid = reg_create.json()['participant_id']
+
+        # Rival user attempts submitting for host -> 403
+        rival_attack = self.client.post(
+            f'/api/practice/competitions/{reg_code}/submit/',
+            {
+                'participant_id': reg_pid,
+                'duration_seconds': 30,
+                'typed_text': 'any text',
+            },
+            content_type='application/json',
+            **self.user1_headers,
+        )
+        self.assertEqual(rival_attack.status_code, 403)
+        self.assertIn('not authorized', rival_attack.json()['error'].lower())

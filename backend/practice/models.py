@@ -187,6 +187,18 @@ class CompetitionParticipant(models.Model):
     incorrect_chars = models.PositiveIntegerField(default=0)
     joined_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    guest_token_hash = models.CharField(max_length=64, blank=True, null=True, db_index=True)
+
+    def set_guest_token(self, token: str):
+        import hashlib
+        self.guest_token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+
+    def verify_guest_token(self, token: str) -> bool:
+        import hashlib, hmac
+        if not self.guest_token_hash or not token:
+            return False
+        token_hash = hashlib.sha256(token.strip().encode('utf-8')).hexdigest()
+        return hmac.compare_digest(token_hash, self.guest_token_hash)
 
     class Meta:
         db_table = 'practice_competition_participants'

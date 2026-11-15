@@ -700,8 +700,17 @@ class CompetitionListView(APIView):
             status='joined',
         )
 
+        guest_token = None
+        if not user:
+            import secrets
+            guest_token = secrets.token_urlsafe(32)
+            creator_participant.set_guest_token(guest_token)
+            creator_participant.save(update_fields=['guest_token_hash'])
+
         resp_data = CompetitionSerializer(competition).data
         resp_data['participant_id'] = creator_participant.id
+        if guest_token:
+            resp_data['participant_token'] = guest_token
         return Response(resp_data, status=status.HTTP_201_CREATED)
 
 
@@ -737,9 +746,18 @@ class CompetitionDetailView(APIView):
         else:
             # Guest-created room: verify participant is first participant (host)
             first_p = competition.participants.order_by('id').first()
+            provided_token = (
+                request.data.get('participant_token') or
+                request.query_params.get('participant_token') or
+                request.headers.get('X-Participant-Token')
+            )
             if first_p and str(first_p.id) == str(participant_id):
-                is_host = True
-            elif not participant_id:
+                if first_p.guest_token_hash:
+                    if provided_token and first_p.verify_guest_token(provided_token):
+                        is_host = True
+                else:
+                    is_host = True
+            elif not participant_id and first_p and not first_p.guest_token_hash:
                 is_host = True
 
         if not is_host:
@@ -830,8 +848,17 @@ class CompetitionJoinView(APIView):
             status='joined',
         )
 
+        guest_token = None
+        if not user:
+            import secrets
+            guest_token = secrets.token_urlsafe(32)
+            participant.set_guest_token(guest_token)
+            participant.save(update_fields=['guest_token_hash'])
+
         resp = CompetitionSerializer(competition).data
         resp['participant_id'] = participant.id
+        if guest_token:
+            resp['participant_token'] = guest_token
         return Response(resp, status=status.HTTP_201_CREATED)
 
 
@@ -864,7 +891,7 @@ class CompetitionSubmitView(APIView):
         except (CompetitionParticipant.DoesNotExist, ValueError):
             return Response({'error': 'Participant record not found in this competition.'}, status=status.HTTP_404_NOT_FOUND)
 
-        # Enforce participant ownership if user is associated
+        # Enforce participant ownership
         if participant.user:
             if not request.user or not request.user.is_authenticated:
                 return Response(
@@ -874,6 +901,23 @@ class CompetitionSubmitView(APIView):
             if participant.user != request.user:
                 return Response(
                     {'error': 'You are not authorized to submit results for another participant.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        else:
+            # Guest participant ownership verification:
+            # Requires cryptographically secure participant_token issued upon join/create
+            provided_token = (
+                request.data.get('participant_token') or
+                request.headers.get('X-Participant-Token')
+            )
+            if not provided_token or not isinstance(provided_token, str):
+                return Response(
+                    {'error': 'Participant token required for guest submission.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            if not participant.verify_guest_token(provided_token):
+                return Response(
+                    {'error': 'Invalid participant token for this guest.'},
                     status=status.HTTP_403_FORBIDDEN
                 )
 

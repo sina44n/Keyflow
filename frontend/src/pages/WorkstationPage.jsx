@@ -184,6 +184,7 @@ export const WorkstationPage = () => {
   // Competition state
   const [activeCompetition, setActiveCompetition] = useState(null);
   const [competitionParticipantId, setCompetitionParticipantId] = useState(null);
+  const [competitionParticipantToken, setCompetitionParticipantToken] = useState(null);
 
   // Modals state
   const [customStudioOpen, setCustomStudioOpen] = useState(false);
@@ -922,6 +923,7 @@ export const WorkstationPage = () => {
         competitionAPI
           .submit(activeCompetition.competition.code, {
             participant_id: competitionParticipantId,
+            participant_token: competitionParticipantToken || activeCompetition.participantToken || null,
             net_wpm: netWpm,
             gross_wpm: grossWpm,
             accuracy: rawAccuracy,
@@ -934,7 +936,7 @@ export const WorkstationPage = () => {
           .catch(() => {});
       }
     },
-    [typed, mistakes, correctKeystrokes, backspaces, currentTargetText, mode, timeLimit, wordLimit, user, activeCompetition, competitionParticipantId, customPrompt, wpmGoal, errorHistory, startTime]
+    [typed, mistakes, correctKeystrokes, backspaces, currentTargetText, mode, timeLimit, wordLimit, user, activeCompetition, competitionParticipantId, competitionParticipantToken, customPrompt, wpmGoal, errorHistory, startTime]
   );
 
   // Key input handler
@@ -1151,10 +1153,11 @@ export const WorkstationPage = () => {
   }, [customPrompt, currentTargetText, customGenerationMode, handleReset]);
 
   // Start Competition Test
-  const handleStartCompetitionTest = ({ competition, participantId, challengeText, challengeType, targetLimit }) => {
+  const handleStartCompetitionTest = ({ competition, participantId, participantToken, challengeText, challengeType, targetLimit }) => {
     setCustomPrompt(null);
-    setActiveCompetition({ competition, participantId, challengeText });
+    setActiveCompetition({ competition, participantId, participantToken, challengeText });
     setCompetitionParticipantId(participantId);
+    setCompetitionParticipantToken(participantToken || null);
     setMode(challengeType === 'timed' ? 'timed' : 'words');
     if (challengeType === 'timed') {
       setTimeLimit(targetLimit);
