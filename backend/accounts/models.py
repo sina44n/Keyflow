@@ -9,6 +9,29 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
+import base64
+import json
+
+def is_authentic_avatar_url(url: str) -> bool:
+    """
+    Validates whether an avatar URL points to an authentic user-provided profile picture.
+    Rejects empty values and Clerk's auto-generated generic purple placeholder avatars (type: default).
+    """
+    if not url or not isinstance(url, str):
+        return False
+    clean = url.strip()
+    if not clean:
+        return False
+    if 'img.clerk.com/' in clean:
+        try:
+            token = clean.split('img.clerk.com/')[-1].split('?')[0].split('/')[0]
+            padded = token + '=' * (-len(token) % 4)
+            data = json.loads(base64.b64decode(padded.replace('-', '+').replace('_', '/')).decode('utf-8'))
+            if data and data.get('type') == 'default':
+                return False
+        except Exception:
+            pass
+    return clean.startswith('http://') or clean.startswith('https://')
 
 OWNER_EMAIL = getattr(settings, 'OWNER_EMAIL', 'sina44n07@gmail.com')
 
@@ -164,6 +187,12 @@ class UserProfile(models.Model):
         if not self.display_name:
             self.display_name = self.user.username
         super().save(*args, **kwargs)
+
+    @property
+    def authentic_avatar_url(self) -> str:
+        """Returns avatar_url only if it is an authentic provider-sourced profile picture."""
+        raw = self.avatar_url or ''
+        return raw if is_authentic_avatar_url(raw) else ''
 
 
 class UserPreferences(models.Model):

@@ -12,6 +12,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Trophy, Medal, Zap, Target, Clock, ArrowRight, UserCheck } from 'lucide-react';
+import { LeaderboardAvatar } from './LeaderboardAvatar';
 
 export const LeaderboardTable = ({ entries, currentUserId, currentUsername, period }) => {
   const navigate = useNavigate();
@@ -145,17 +146,11 @@ export const LeaderboardTable = ({ entries, currentUserId, currentUsername, peri
                   {/* Player */}
                   <td className="py-3.5 px-4">
                     <div className="flex items-center gap-3">
-                      {entry.avatar_url ? (
-                        <img
-                          src={entry.avatar_url}
-                          alt={entry.display_name}
-                          className="w-9 h-9 rounded-xl object-cover border border-[var(--border)] shrink-0"
-                        />
-                      ) : (
-                        <div className="w-9 h-9 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border)] flex items-center justify-center font-mono font-bold text-xs text-[var(--accent)] shrink-0">
-                          {getInitials(entry.display_name || entry.username)}
-                        </div>
-                      )}
+                      <LeaderboardAvatar
+                        src={entry.avatar_url}
+                        name={entry.display_name || entry.username}
+                        size="table"
+                      />
 
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">

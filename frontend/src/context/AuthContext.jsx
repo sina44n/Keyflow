@@ -29,6 +29,7 @@ import {
   migrateGuestProgressToAccount,
   resetGuestProgress,
 } from '../utils/lessonProgress';
+import { isAuthenticAvatarUrl } from '../utils/avatarUtils';
 import {
   setArcadeStorageUser,
   syncArcadeRecordsFromBackend,
@@ -213,7 +214,9 @@ const ClerkAuthBridge = ({ children }) => {
 
         const syncPayload = {
           display_name: clerkUser.fullName || clerkUser.firstName || clerkUser.username || '',
-          avatar_url: clerkUser.imageUrl || '',
+          avatar_url: (clerkUser.hasImage !== false && isAuthenticAvatarUrl(clerkUser.imageUrl))
+            ? clerkUser.imageUrl
+            : '',
           email: clerkUser.primaryEmailAddress?.emailAddress || '',
         };
 
@@ -251,7 +254,9 @@ const ClerkAuthBridge = ({ children }) => {
               profile: {
                 display_name:
                   clerkUser.fullName || clerkUser.firstName || clerkUser.username || 'Typist',
-                avatar_url: clerkUser.imageUrl || '',
+                avatar_url: (clerkUser.hasImage !== false && isAuthenticAvatarUrl(clerkUser.imageUrl))
+                  ? clerkUser.imageUrl
+                  : '',
               },
               preferences: {},
               is_offline_fallback: true,

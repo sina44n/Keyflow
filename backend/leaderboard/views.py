@@ -210,7 +210,7 @@ class GlobalLeaderboardView(APIView):
                         user_continent = ''
                         try:
                             if hasattr(p.user, 'profile'):
-                                avatar_url = p.user.profile.avatar_url or ''
+                                avatar_url = getattr(p.user.profile, 'authentic_avatar_url', p.user.profile.avatar_url or '')
                                 display_name = p.user.profile.display_name or p.user.username
                                 user_continent = p.user.profile.continent or ''
                         except Exception:
@@ -300,7 +300,7 @@ class GlobalLeaderboardView(APIView):
                         user_continent = ''
                         try:
                             if hasattr(s.user, 'profile'):
-                                avatar_url = s.user.profile.avatar_url or ''
+                                avatar_url = getattr(s.user.profile, 'authentic_avatar_url', s.user.profile.avatar_url or '')
                                 display_name = s.user.profile.display_name or s.user.username
                                 user_continent = s.user.profile.continent or ''
                         except Exception:

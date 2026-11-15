@@ -15,7 +15,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from knox.models import AuthToken
 from knox.views import LoginView as KnoxLoginView, LogoutView, LogoutAllView
 
-from .models import UserProfile, UserPreferences, EmailVerificationToken
+from .models import UserProfile, UserPreferences, EmailVerificationToken, is_authentic_avatar_url
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -566,8 +566,10 @@ class ClerkSyncView(APIView):
             profile.display_name = str(display_name).strip()[:50]
             updated_profile = True
         if avatar_url and avatar_url.strip():
-            profile.avatar_url = str(avatar_url).strip()
-            updated_profile = True
+            clean_avatar = str(avatar_url).strip()
+            if is_authentic_avatar_url(clean_avatar):
+                profile.avatar_url = clean_avatar
+                updated_profile = True
         if updated_profile:
             profile.save()
             user.profile = profile
@@ -620,7 +622,9 @@ class ClerkSyncView(APIView):
                         if display_name and display_name.strip():
                             profile.display_name = str(display_name).strip()[:50]
                         if avatar_url and avatar_url.strip():
-                            profile.avatar_url = str(avatar_url).strip()
+                            clean_avatar = str(avatar_url).strip()
+                            if is_authentic_avatar_url(clean_avatar):
+                                profile.avatar_url = clean_avatar
                         profile.save()
                 else:
                     if user.email.endswith('@clerk.keyflow.local') or not user.email:
@@ -649,7 +653,9 @@ class ClerkSyncView(APIView):
                             if display_name and display_name.strip():
                                 profile.display_name = str(display_name).strip()[:50]
                             if avatar_url and avatar_url.strip():
-                                profile.avatar_url = str(avatar_url).strip()
+                                clean_avatar = str(avatar_url).strip()
+                                if is_authentic_avatar_url(clean_avatar):
+                                    profile.avatar_url = clean_avatar
                             profile.save()
                         else:
                             user.email = clean_email

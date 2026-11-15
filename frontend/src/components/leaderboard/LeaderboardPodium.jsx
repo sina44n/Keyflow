@@ -15,6 +15,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Crown, Medal, Zap, UserCheck, ArrowRight } from 'lucide-react';
+import { LeaderboardAvatar } from './LeaderboardAvatar';
 
 export const LeaderboardPodium = ({ topThree, category, period, currentUserId }) => {
   const navigate = useNavigate();
@@ -164,19 +165,12 @@ export const LeaderboardPodium = ({ topThree, category, period, currentUserId })
 
               {/* Circular Avatar */}
               <div className="relative mb-3">
-                {player.avatar_url ? (
-                  <img
-                    src={player.avatar_url}
-                    alt={player.display_name}
-                    className={`w-14 h-14 rounded-full object-cover shadow-sm ${slot.avatarRing}`}
-                  />
-                ) : (
-                  <div
-                    className={`w-14 h-14 rounded-full flex items-center justify-center font-mono font-black text-lg shadow-sm ${slot.avatarRing}`}
-                  >
-                    {getInitials(player.display_name || player.username)}
-                  </div>
-                )}
+                <LeaderboardAvatar
+                  src={player.avatar_url}
+                  name={player.display_name || player.username}
+                  size="podium"
+                  ringClass={slot.avatarRing}
+                />
 
                 {isCurrentUser && (
                   <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-[var(--accent)] text-[var(--accent-fg)] text-[9px] font-mono font-bold flex items-center gap-0.5 shadow-sm">
