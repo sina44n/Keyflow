@@ -995,10 +995,12 @@ class CompetitionSubmitView(APIView):
             competition.save()
 
         serializer = CompetitionSerializer(competition)
+        verification_level = 'server_verified' if (typed_text is not None and challenge_text) else 'client_reported_unverified'
         return Response({
             'status': 'success',
             'competition': serializer.data,
             'participant': CompetitionParticipantSerializer(participant).data,
+            'verification': verification_level,
         })
 
 

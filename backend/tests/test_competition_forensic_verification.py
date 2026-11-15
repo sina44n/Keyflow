@@ -844,3 +844,148 @@ class CompetitionForensicVerificationTests(TestCase):
         self.assertEqual(float(p_data['accuracy']), 100.0)
         self.assertEqual(p_data['correct_chars'], 5)
         self.assertEqual(p_data['total_chars'], 5)
+
+    def test_22_audit_b_verification_status_distinguishes_verified_vs_unverified(self):
+        """Audit B: Verify submission response explicitly distinguishes server_verified
+        (when typed_text is provided) from client_reported_unverified (legacy counter fallback)."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Verification Flag Arena', 'max_participants': 10, 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        host_pid = create_res.json()['participant_id']
+
+        # Player 2 joins while lobby is waiting
+        join_res = self.client.post(
+            f'/api/practice/competitions/{code}/join/',
+            {'display_name': 'LegacyPlayer'},
+            content_type='application/json',
+        )
+        pid_2 = join_res.json()['participant_id']
+
+        # 1. Verified submission: typed_text supplied
+        submit_res_1 = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'duration_seconds': 30,
+                'typed_text': 'Typing with precision',
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(submit_res_1.status_code, 200)
+        self.assertEqual(submit_res_1.json().get('verification'), 'server_verified')
+
+        # 2. Unverified submission: typed_text missing (counter fallback)
+        submit_res_2 = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': pid_2,
+                'duration_seconds': 30,
+                'correct_chars': 50,
+                'incorrect_chars': 0,
+            },
+            content_type='application/json',
+        )
+        self.assertEqual(submit_res_2.status_code, 200)
+        self.assertEqual(submit_res_2.json().get('verification'), 'client_reported_unverified')
+
+    def test_23_audit_a_duration_bounding_and_zero_duration_fallback(self):
+        """Audit A: Verify duration bounding against short, zero, and boundary inputs."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Duration Audit Arena', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        comp = Competition.objects.get(code=code)
+        comp.challenge_text = "x" * 200
+        comp.save()
+
+        # Helper to join and submit
+        def submit_with_dur(display_name, typed_text, dur):
+            join = self.client.post(f'/api/practice/competitions/{code}/join/', {'display_name': display_name}, content_type='application/json')
+            pid = join.json()['participant_id']
+            return self.client.post(
+                f'/api/practice/competitions/{code}/submit/',
+                {'participant_id': pid, 'duration_seconds': dur, 'typed_text': typed_text},
+                content_type='application/json'
+            ).json()['participant']
+
+        # 1. Zero duration -> 0.0 Gross WPM
+        p_zero = submit_with_dur('PZero', 'x' * 50, 0)
+        self.assertEqual(float(p_zero['gross_wpm']), 0.0)
+        self.assertEqual(float(p_zero['net_wpm']), 0.0)
+
+        # 2. Impossible micro duration: 1s for 50 chars -> clamped to 2s (ceil(50/25) = 2)
+        p_micro = submit_with_dur('PMicro', 'x' * 50, 1)
+        self.assertEqual(p_micro['duration_seconds'], 2)
+        self.assertEqual(float(p_micro['gross_wpm']), 300.0)
+
+        # 3. Normal duration: 30s for 50 chars -> 20.0 Gross WPM
+        p_norm = submit_with_dur('PNorm', 'x' * 50, 30)
+        self.assertEqual(p_norm['duration_seconds'], 30)
+        self.assertEqual(float(p_norm['gross_wpm']), 20.0)
+
+    def test_24_audit_d_shared_scenarios_cross_environment_parity(self):
+        """Audit D: Validate equivalent scoring inputs across shared scenarios on the backend."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Parity Arena', 'max_participants': 20, 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        comp = Competition.objects.get(code=code)
+        comp.challenge_text = "The quick brown fox jumps over the lazy dog today." # length 50
+        comp.save()
+
+        def test_scenario(name, typed_text, duration_sec, error_count_claim=0):
+            join = self.client.post(f'/api/practice/competitions/{code}/join/', {'display_name': name}, content_type='application/json')
+            pid = join.json()['participant_id']
+            res = self.client.post(
+                f'/api/practice/competitions/{code}/submit/',
+                {
+                    'participant_id': pid,
+                    'duration_seconds': duration_sec,
+                    'typed_text': typed_text,
+                    'error_count': error_count_claim,
+                },
+                content_type='application/json',
+            )
+            return res.json()['participant']
+
+        # Scenario 1: Perfect typing (50 chars in 30s)
+        p1 = test_scenario('S1_Perfect', comp.challenge_text, 30)
+        self.assertEqual(float(p1['gross_wpm']), 20.0)
+        self.assertEqual(float(p1['net_wpm']), 20.0)
+        self.assertEqual(float(p1['accuracy']), 100.0)
+
+        # Scenario 2: One uncorrected mistake ('The quicX ...' -> 1 uncorrected error)
+        one_err_text = "The quicX brown fox jumps over the lazy dog today."
+        p2 = test_scenario('S2_OneError', one_err_text, 30)
+        # Gross = (50 / 5) / 0.5 = 20.0 WPM
+        self.assertEqual(float(p2['gross_wpm']), 20.0)
+        # Net = 20.0 - (1 / 0.5) = 18.0 WPM
+        self.assertEqual(float(p2['net_wpm']), 18.0)
+        # Typed-Position Accuracy = (49 / 50) * 100 = 98.0%
+        self.assertEqual(float(p2['accuracy']), 98.0)
+
+        # Scenario 3: Partial passage completion (first 25 chars cleanly in 30s)
+        partial_text = comp.challenge_text[:25]
+        p3 = test_scenario('S3_Partial', partial_text, 30)
+        # Gross = (25 / 5) / 0.5 = 10.0 WPM
+        self.assertEqual(float(p3['gross_wpm']), 10.0)
+        self.assertEqual(float(p3['net_wpm']), 10.0)
+        # Typed-Position Accuracy = 100.0% (protects from 3% bug)
+        self.assertEqual(float(p3['accuracy']), 100.0)
+
+        # Scenario 4: Empty session ('' in 30s)
+        p4 = test_scenario('S4_Empty', '', 30)
+        self.assertEqual(float(p4['gross_wpm']), 0.0)
+        self.assertEqual(float(p4['net_wpm']), 0.0)
+        self.assertEqual(float(p4['accuracy']), 0.0)

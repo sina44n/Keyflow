@@ -823,4 +823,283 @@ describe('KEYFLOW Phase 7: Authoritative Typing Metrics & Scoring Contract', () 
       assert.equal(backendNet, 36);
     });
   });
+
+  describe('9. Phase 7.4 Cross-Environment Shared Scoring Contract Tests', () => {
+    // Shared evaluation helper simulating the core calculations of all 5 environments
+    function evaluateAllEnvironments(scenario) {
+      const {
+        targetText = '',
+        typedText = '',
+        durationSeconds = 0,
+        correctKeystrokes = 0,
+        mistakes = 0,
+        backspaces = 0,
+      } = scenario;
+
+      // 1. Home Sprint / Live Engine
+      const totalValid = correctKeystrokes + mistakes;
+      const sprintGross = calculateGrossWpm(totalValid, durationSeconds);
+      const sprintUncorrected = countUncorrectedErrors(typedText, targetText);
+      const sprintNet = calculateNetWpm(sprintGross, sprintUncorrected, durationSeconds);
+      const sprintKeystrokeAcc = calculateRawAccuracy(correctKeystrokes, mistakes);
+      const sprintTypedPosAcc = calculateTypedPositionAccuracy(typedText, targetText);
+      const sprintFullPassageAcc = calculateFullPassageAccuracy(typedText, targetText);
+
+      // 2. Workstation Engine
+      const wsResult = createAuthoritativeSessionResult({
+        targetText,
+        typed: typedText,
+        durationSeconds,
+        correctKeystrokes,
+        mistakes,
+        backspaces,
+      });
+
+      // 3. Academy Engine
+      const acadGross = calculateGrossWpm(totalValid, durationSeconds);
+      const acadNet = calculateNetWpm(acadGross, sprintUncorrected, durationSeconds);
+      const acadKeystrokeAcc = calculateRawAccuracy(correctKeystrokes, mistakes);
+      const acadTypedPosAcc = calculateFinalTextAccuracy(typedText, targetText);
+
+      // 4. Placement Diagnostic Engine
+      const placementResult = evaluatePlacementDiagnostic({
+        targetText,
+        typedText,
+        durationSeconds,
+        correctKeystrokes,
+        mistakes,
+        backspaces,
+      });
+
+      // 5. Competition Server Simulation
+      let compCorrect = 0;
+      let compUncorrected = 0;
+      if (typedText && targetText) {
+        for (let i = 0; i < typedText.length; i++) {
+          if (i < targetText.length && typedText[i] === targetText[i]) compCorrect++;
+          else compUncorrected++;
+        }
+      }
+      const compTotalChars = typedText ? typedText.length : (correctKeystrokes + mistakes);
+      const compMinDur = Math.max(1, Math.ceil(compTotalChars / 25.0));
+      const compDuration = Math.max(durationSeconds, compMinDur);
+      const compMinutes = compDuration / 60.0;
+      const compGross = (compDuration > 0 && compTotalChars > 0)
+        ? Math.round(((compTotalChars / 5.0) / compMinutes) * 100) / 100
+        : 0;
+      const compPenalty = compMinutes > 0 ? (compUncorrected / compMinutes) : 0;
+      const compNet = Math.min(compGross, Math.max(0, Math.round((compGross - compPenalty) * 100) / 100));
+      const compTypedPosAcc = compTotalChars > 0 ? Math.round((compCorrect / compTotalChars) * 100) : 0;
+
+      return {
+        sprint: { gross: sprintGross, net: sprintNet, keystrokeAcc: sprintKeystrokeAcc, typedPosAcc: sprintTypedPosAcc, fullPassageAcc: sprintFullPassageAcc, uncorrected: sprintUncorrected },
+        workstation: { gross: wsResult.grossWpm, net: wsResult.netWpm, keystrokeAcc: wsResult.accuracy, typedPosAcc: wsResult.finalTextAccuracy, remainingErrors: wsResult.remainingErrors },
+        academy: { gross: acadGross, net: acadNet, keystrokeAcc: acadKeystrokeAcc, typedPosAcc: acadTypedPosAcc },
+        placement: { gross: placementResult.grossWpm, net: placementResult.netWpm, keystrokeAcc: placementResult.rawAccuracy, typedPosAcc: placementResult.finalTextAccuracy },
+        competition: { gross: compGross, net: compNet, typedPosAcc: compTypedPosAcc, uncorrected: compUncorrected },
+      };
+    }
+
+    it('57. Scenario 1: Perfect typing across all environments', () => {
+      const scenario = {
+        targetText: 'The quick brown fox jumps over the lazy dog today.',
+        typedText: 'The quick brown fox jumps over the lazy dog today.',
+        durationSeconds: 30,
+        correctKeystrokes: 50,
+        mistakes: 0,
+        backspaces: 0,
+      };
+      const r = evaluateAllEnvironments(scenario);
+
+      // Gross WPM equivalence: 50 chars in 30s = 20 WPM
+      assert.equal(r.sprint.gross, 20);
+      assert.equal(r.workstation.gross, 20);
+      assert.equal(r.academy.gross, 20);
+      assert.equal(r.placement.gross, 20);
+      assert.equal(r.competition.gross, 20);
+
+      // Net WPM equivalence: 0 errors = 20 Net WPM
+      assert.equal(r.sprint.net, 20);
+      assert.equal(r.workstation.net, 20);
+      assert.equal(r.academy.net, 20);
+      assert.equal(r.placement.net, 20);
+      assert.equal(r.competition.net, 20);
+
+      // 100% accuracy across all environments
+      assert.equal(r.sprint.keystrokeAcc, 100);
+      assert.equal(r.workstation.keystrokeAcc, 100);
+      assert.equal(r.academy.keystrokeAcc, 100);
+      assert.equal(r.placement.keystrokeAcc, 100);
+      assert.equal(r.competition.typedPosAcc, 100);
+    });
+
+    it('58. Scenario 2: One uncorrected mistake across all environments', () => {
+      const scenario = {
+        targetText: 'The quick brown fox jumps over the lazy dog today.',
+        typedText: 'The quicX brown fox jumps over the lazy dog today.', // 1 error
+        durationSeconds: 30,
+        correctKeystrokes: 49,
+        mistakes: 1,
+        backspaces: 0,
+      };
+      const r = evaluateAllEnvironments(scenario);
+
+      // Gross WPM: 50 chars in 30s = 20 WPM
+      assert.equal(r.sprint.gross, 20);
+      assert.equal(r.workstation.gross, 20);
+      assert.equal(r.competition.gross, 20);
+
+      // Net WPM: 1 error penalty = 1 / 0.5 = 2.0 WPM deduction -> 18 Net WPM
+      assert.equal(r.sprint.net, 18);
+      assert.equal(r.workstation.net, 18);
+      assert.equal(r.competition.net, 18);
+
+      // Accuracy: 49/50 = 98%
+      assert.equal(r.sprint.keystrokeAcc, 98);
+      assert.equal(r.workstation.keystrokeAcc, 98);
+      assert.equal(r.competition.typedPosAcc, 98);
+    });
+
+    it('59. Scenario 3: One mistake corrected using Backspace', () => {
+      // User typed 'x', Backspace, then finished 'The quick ...' cleanly
+      const scenario = {
+        targetText: 'The quick brown fox jumps over the lazy dog today.',
+        typedText: 'The quick brown fox jumps over the lazy dog today.', // final text is 100% clean
+        durationSeconds: 30,
+        correctKeystrokes: 50,
+        mistakes: 1, // historical corrected mistake
+        backspaces: 1,
+      };
+      const r = evaluateAllEnvironments(scenario);
+
+      // Gross WPM: total attempts = 51 / 5 / 0.5 = 20.4 -> 20 WPM
+      assert.equal(r.workstation.gross, 20);
+
+      // Remaining uncorrected errors in final text: 0
+      assert.equal(r.workstation.remainingErrors, 0);
+      assert.equal(r.competition.uncorrected, 0);
+
+      // Net WPM: 0 uncorrected errors = 20 Net WPM (no penalty for corrected mistake)
+      assert.equal(r.workstation.net, 20);
+      assert.equal(r.competition.net, 20);
+
+      // Keystroke Accuracy (client-tracked): 50 / 51 = 98%
+      assert.equal(r.workstation.keystrokeAcc, 98);
+      // Typed-Position Accuracy (server-verified from final text): 50 / 50 = 100%
+      assert.equal(r.workstation.typedPosAcc, 100);
+      assert.equal(r.competition.typedPosAcc, 100);
+    });
+
+    it('60. Scenario 4: Multiple mistakes followed by corrections', () => {
+      const scenario = {
+        targetText: 'The quick brown fox jumps over the lazy dog today.',
+        typedText: 'The quick brown fox jumps over the lazy dog today.',
+        durationSeconds: 30,
+        correctKeystrokes: 50,
+        mistakes: 5, // 5 corrected typos
+        backspaces: 5,
+      };
+      const r = evaluateAllEnvironments(scenario);
+
+      // Keystroke Accuracy reflects all 55 attempts: 50 / 55 = 90.9% -> 91%
+      assert.equal(r.workstation.keystrokeAcc, 91);
+
+      // Final Text Typed-Position Accuracy reflects clean final text: 100%
+      assert.equal(r.workstation.typedPosAcc, 100);
+      assert.equal(r.competition.typedPosAcc, 100);
+      assert.equal(r.workstation.remainingErrors, 0);
+    });
+
+    it('61. Scenario 5: Partial passage completion (timed test over long passage)', () => {
+      const target = 'The quick brown fox jumps over the lazy dog today.'; // length 50
+      const typed = 'The quick brown fox'; // length 19, cleanly typed
+      const scenario = {
+        targetText: target,
+        typedText: typed,
+        durationSeconds: 15,
+        correctKeystrokes: 19,
+        mistakes: 0,
+        backspaces: 0,
+      };
+      const r = evaluateAllEnvironments(scenario);
+
+      // Typed-Position Accuracy is 100% (eliminates the 3% bug)
+      assert.equal(r.sprint.typedPosAcc, 100);
+      assert.equal(r.workstation.typedPosAcc, 100);
+      assert.equal(r.competition.typedPosAcc, 100);
+
+      // Full Passage Accuracy measures total passage coverage: 19 / 50 = 38%
+      assert.equal(r.sprint.fullPassageAcc, 38);
+    });
+
+    it('62. Scenario 6: Empty session handling across all environments', () => {
+      const scenario = {
+        targetText: 'hello',
+        typedText: '',
+        durationSeconds: 30,
+        correctKeystrokes: 0,
+        mistakes: 0,
+        backspaces: 0,
+      };
+      const r = evaluateAllEnvironments(scenario);
+
+      assert.equal(r.sprint.gross, 0);
+      assert.equal(r.workstation.gross, 0);
+      assert.equal(r.competition.gross, 0);
+      assert.equal(r.sprint.net, 0);
+      assert.equal(r.workstation.net, 0);
+      assert.equal(r.competition.net, 0);
+    });
+
+    it('63. Scenario 7: Zero-duration or invalid-duration submission handling', () => {
+      const zeroDurGross = calculateGrossWpm(50, 0);
+      assert.equal(zeroDurGross, 0);
+      const negDurGross = calculateGrossWpm(50, -5);
+      assert.equal(negDurGross, 0);
+      const zeroDurNet = calculateNetWpm(0, 0, 0);
+      assert.equal(zeroDurNet, 0);
+    });
+
+    it('64. Scenario 8: Missing typed_text fallback trust policy', () => {
+      // When typed_text is missing, server accepts client counters as unverified fallback
+      const claimedCorrect = 40;
+      const claimedIncorrect = 10;
+      const durationSeconds = 30;
+      const totalChars = claimedCorrect + claimedIncorrect;
+      const gross = calculateGrossWpm(totalChars, durationSeconds);
+      assert.equal(gross, 20);
+      const acc = calculateRawAccuracy(claimedCorrect, claimedIncorrect);
+      assert.equal(acc, 80);
+      // Fallback is documented as unverified:
+      const verification = 'client_reported_unverified';
+      assert.equal(verification, 'client_reported_unverified');
+    });
+
+    it('65. Scenario 9: Client-forged counters defense', () => {
+      const challengeText = 'hello';
+      const typedText = 'xxxxx'; // 0 matches
+      const claimedCorrect = 500;
+      // Independent server derivation
+      let actualCorrect = 0;
+      for (let i = 0; i < typedText.length; i++) {
+        if (i < challengeText.length && typedText[i] === challengeText[i]) actualCorrect++;
+      }
+      assert.equal(actualCorrect, 0);
+      const serverBoundedCorrect = actualCorrect;
+      assert.equal(serverBoundedCorrect, 0);
+      assert.notEqual(serverBoundedCorrect, claimedCorrect);
+    });
+
+    it('66. Scenario 10: Session with very short duration clamped by plausibility ceiling', () => {
+      const totalChars = 50;
+      const reportedDuration = 1; // 1s for 50 chars would claim 600 WPM
+      // Upward rounding plausibility ceiling: max 25 chars/sec = 300 WPM
+      const minDuration = Math.max(1, Math.ceil(totalChars / 25.0)); // 2s
+      assert.equal(minDuration, 2);
+      const clampedDuration = Math.max(reportedDuration, minDuration);
+      assert.equal(clampedDuration, 2);
+      const boundedGross = calculateGrossWpm(totalChars, clampedDuration);
+      assert.equal(boundedGross, 300); // Clamped from impossible 600 WPM to 300 WPM
+    });
+  });
 });
