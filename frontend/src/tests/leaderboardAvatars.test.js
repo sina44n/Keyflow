@@ -1,7 +1,8 @@
 /**
  * KEYFLOW Leaderboard Authentic Profile Avatars Unit Tests
  * =======================================================
- * Forensic verification for Phase 7.8:
+ * Forensic verification for Phase 7.8 & 7.9:
+ * - isGoogleAvatarHost domain validation contract
  * - isAuthenticAvatarUrl detection contract
  * - getInitials formatting contract
  * - LeaderboardAvatar component rendering & fallback contract
@@ -13,13 +14,59 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isAuthenticAvatarUrl, getInitials } from '../utils/avatarUtils.js';
+import { isAuthenticAvatarUrl, isGoogleAvatarHost, getInitials } from '../utils/avatarUtils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-describe('KEYFLOW Leaderboard Authentic Avatars Contract', () => {
-  it('isAuthenticAvatarUrl accepts authentic Google and external avatar URLs', () => {
+function makeClerkToken(payload) {
+  return 'https://img.clerk.com/' + Buffer.from(JSON.stringify(payload)).toString('base64');
+}
+
+describe('KEYFLOW Leaderboard Authentic Google Avatars Contract', () => {
+  it('isGoogleAvatarHost strictly accepts verified Google profile CDN domains over HTTPS', () => {
+    assert.strictEqual(
+      isGoogleAvatarHost('https://lh3.googleusercontent.com/a/ACg8ocIKasDvJq31cLOP2Q4FM=s96-c'),
+      true,
+      'lh3.googleusercontent.com must be accepted'
+    );
+    assert.strictEqual(
+      isGoogleAvatarHost('https://lh6.googleusercontent.com/photo.jpg'),
+      true,
+      'lh6.googleusercontent.com must be accepted'
+    );
+    assert.strictEqual(
+      isGoogleAvatarHost('https://googleusercontent.com/user/123'),
+      true,
+      'googleusercontent.com must be accepted'
+    );
+    assert.strictEqual(
+      isGoogleAvatarHost('https://lh3.ggpht.com/pic.jpg'),
+      true,
+      'lh3.ggpht.com must be accepted'
+    );
+
+    // Insecure HTTP rejected
+    assert.strictEqual(
+      isGoogleAvatarHost('http://lh3.googleusercontent.com/pic.jpg'),
+      false,
+      'Insecure HTTP must be rejected'
+    );
+
+    // Non-Google domains rejected
+    assert.strictEqual(isGoogleAvatarHost('https://evil-site.com/pic.jpg'), false);
+    assert.strictEqual(isGoogleAvatarHost('https://github.com/avatar.png'), false);
+
+    // Subdomain spoofing rejected
+    assert.strictEqual(isGoogleAvatarHost('https://googleusercontent.com.attacker.com/pic.png'), false);
+    assert.strictEqual(isGoogleAvatarHost('https://lh3.googleusercontent.com.evil.org/pic.png'), false);
+
+    // Path / query trickery rejected
+    assert.strictEqual(isGoogleAvatarHost('https://attacker.com/googleusercontent.com/pic.jpg'), false);
+    assert.strictEqual(isGoogleAvatarHost('https://attacker.com/pic.jpg?domain=googleusercontent.com'), false);
+  });
+
+  it('isAuthenticAvatarUrl accepts authentic Google direct and Clerk proxy URLs', () => {
     // Direct Google photo URL
     assert.strictEqual(
       isAuthenticAvatarUrl('https://lh3.googleusercontent.com/a/ACg8ocIKasDvJq31cLOP2Q4FM_pEyCZnqsOx5oL8eWa_UIz6GfMs6w=s96-c'),
@@ -27,49 +74,74 @@ describe('KEYFLOW Leaderboard Authentic Avatars Contract', () => {
       'Direct Google avatar URL must be recognized as authentic'
     );
 
-    // Clerk proxy wrapping Google avatar (type: "proxy")
-    const googleProxyToken = Buffer.from(JSON.stringify({
+    // Clerk proxy wrapping Google avatar (type: "proxy", src: *.googleusercontent.com)
+    const googleProxyUrl = makeClerkToken({
       type: 'proxy',
       src: 'https://lh3.googleusercontent.com/a/ACg8oc_sample=s1000-c',
       s: 'sig123',
-    })).toString('base64');
+    });
     assert.strictEqual(
-      isAuthenticAvatarUrl(`https://img.clerk.com/${googleProxyToken}`),
+      isAuthenticAvatarUrl(googleProxyUrl),
       true,
       'Clerk proxy URL wrapping a Google avatar must be recognized as authentic'
     );
+  });
 
-    // Standard HTTPS external photo
+  it('isAuthenticAvatarUrl strictly rejects arbitrary external HTTPS URLs', () => {
+    assert.strictEqual(
+      isAuthenticAvatarUrl('https://evil-site.com/avatar.png'),
+      false,
+      'Arbitrary external HTTPS URL must be rejected'
+    );
     assert.strictEqual(
       isAuthenticAvatarUrl('https://avatars.githubusercontent.com/u/12345'),
-      true,
-      'Standard HTTPS image URL must be recognized as authentic'
+      false,
+      'Non-Google third-party avatar URL must be rejected'
+    );
+    assert.strictEqual(
+      isAuthenticAvatarUrl('https://cdn.example.org/profile.jpg'),
+      false,
+      'Generic CDN image URL must be rejected'
     );
   });
 
-  it('isAuthenticAvatarUrl rejects Clerk generic purple placeholder avatars and invalid inputs', () => {
+  it('isAuthenticAvatarUrl rejects Clerk generic purple placeholder avatars and non-Google proxies', () => {
     // Clerk default placeholder token (type: "default")
-    const clerkDefaultToken = Buffer.from(JSON.stringify({
+    const clerkDefaultUrl = makeClerkToken({
       type: 'default',
       iid: 'ins_3LMocvBYysmHWl91ylt2KoLWpy8',
       rid: 'user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn',
       initials: 'SK',
-    })).toString('base64');
+    });
     assert.strictEqual(
-      isAuthenticAvatarUrl(`https://img.clerk.com/${clerkDefaultToken}`),
+      isAuthenticAvatarUrl(clerkDefaultUrl),
       false,
       'Clerk default generated avatar must be rejected to prevent displaying generic purple placeholder'
     );
 
-    // Empty and null inputs
+    // Clerk proxy wrapping an arbitrary external domain
+    const maliciousProxyUrl = makeClerkToken({
+      type: 'proxy',
+      src: 'https://evil-site.com/malicious.png',
+      s: 'fake_sig',
+    });
+    assert.strictEqual(
+      isAuthenticAvatarUrl(maliciousProxyUrl),
+      false,
+      'Clerk proxy wrapping non-Google image must be rejected'
+    );
+  });
+
+  it('isAuthenticAvatarUrl rejects insecure schemes and malformed inputs', () => {
+    assert.strictEqual(isAuthenticAvatarUrl('http://lh3.googleusercontent.com/pic.png'), false, 'HTTP must be rejected');
+    assert.strictEqual(isAuthenticAvatarUrl('javascript:alert(1)'), false, 'javascript: scheme must be rejected');
+    assert.strictEqual(isAuthenticAvatarUrl('data:image/png;base64,iVBORw0KGgoAAA='), false, 'data: scheme must be rejected');
+    assert.strictEqual(isAuthenticAvatarUrl('blob:https://keyflow.app/1234'), false, 'blob: scheme must be rejected');
     assert.strictEqual(isAuthenticAvatarUrl(''), false, 'Empty string must be rejected');
     assert.strictEqual(isAuthenticAvatarUrl('   '), false, 'Whitespace must be rejected');
     assert.strictEqual(isAuthenticAvatarUrl(null), false, 'Null must be rejected');
     assert.strictEqual(isAuthenticAvatarUrl(undefined), false, 'Undefined must be rejected');
-
-    // Non-http schemes
-    assert.strictEqual(isAuthenticAvatarUrl('javascript:alert(1)'), false, 'javascript: scheme must be rejected');
-    assert.strictEqual(isAuthenticAvatarUrl('blob:http://localhost/123'), false, 'blob: scheme must be rejected');
+    assert.strictEqual(isAuthenticAvatarUrl('https:///invalid-domain'), false, 'Malformed URL must be rejected');
   });
 
   it('getInitials extracts clean two-letter initials with safe fallbacks', () => {

@@ -9,29 +9,76 @@ from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseU
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
+from urllib.parse import urlparse
 import base64
 import json
 
+def is_google_avatar_host(url: str) -> bool:
+    """
+    Validates that a URL originates strictly from verified Google profile picture domains
+    (e.g. *.googleusercontent.com or *.ggpht.com) over HTTPS.
+    """
+    if not url or not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url.strip())
+        if parsed.scheme != 'https':
+            return False
+        hostname = (parsed.hostname or '').lower().strip()
+        if not hostname:
+            return False
+        if hostname == 'googleusercontent.com' or hostname.endswith('.googleusercontent.com'):
+            return True
+        if hostname == 'ggpht.com' or hostname.endswith('.ggpht.com'):
+            return True
+        return False
+    except Exception:
+        return False
+
 def is_authentic_avatar_url(url: str) -> bool:
     """
-    Validates whether an avatar URL points to an authentic user-provided profile picture.
-    Rejects empty values and Clerk's auto-generated generic purple placeholder avatars (type: default).
+    Validates whether an avatar URL points to an authentic Google profile picture.
+    Accepts:
+    1. Direct HTTPS Google profile picture URLs (*.googleusercontent.com, *.ggpht.com).
+    2. Approved Clerk image proxy URLs (img.clerk.com) wrapping verified Google profile picture URLs.
+    Rejects:
+    - Arbitrary external HTTPS image URLs from non-Google domains.
+    - Clerk's auto-generated generic purple placeholder avatars (type: default).
+    - Clerk proxies wrapping non-Google URLs.
+    - Misleading domains, non-HTTPS schemes (http, javascript, data, blob), and empty/malformed URLs.
     """
     if not url or not isinstance(url, str):
         return False
     clean = url.strip()
     if not clean:
         return False
-    if 'img.clerk.com/' in clean:
-        try:
-            token = clean.split('img.clerk.com/')[-1].split('?')[0].split('/')[0]
+    try:
+        parsed = urlparse(clean)
+        if parsed.scheme != 'https':
+            return False
+        hostname = (parsed.hostname or '').lower().strip()
+        if not hostname:
+            return False
+
+        # 1. Direct verified Google profile picture host
+        if is_google_avatar_host(clean):
+            return True
+
+        # 2. Approved Clerk image proxy wrapping an authentic Google photo
+        if hostname == 'img.clerk.com' or hostname.endswith('.clerk.com') or hostname.endswith('.clerk.dev'):
+            token = parsed.path.strip('/').split('/')[0]
+            if not token:
+                return False
             padded = token + '=' * (-len(token) % 4)
             data = json.loads(base64.b64decode(padded.replace('-', '+').replace('_', '/')).decode('utf-8'))
-            if data and data.get('type') == 'default':
-                return False
-        except Exception:
-            pass
-    return clean.startswith('http://') or clean.startswith('https://')
+            if isinstance(data, dict) and data.get('type') == 'proxy':
+                src = data.get('src')
+                return bool(src and is_google_avatar_host(src))
+            return False
+
+        return False
+    except Exception:
+        return False
 
 OWNER_EMAIL = getattr(settings, 'OWNER_EMAIL', 'sina44n07@gmail.com')
 

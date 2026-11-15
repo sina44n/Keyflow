@@ -12,9 +12,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { isAuthenticAvatarUrl, getInitials } from '../../utils/avatarUtils';
+import { isAuthenticAvatarUrl, isGoogleAvatarHost, getInitials } from '../../utils/avatarUtils';
 
-export { isAuthenticAvatarUrl, getInitials };
+export { isAuthenticAvatarUrl, isGoogleAvatarHost, getInitials };
 
 export const LeaderboardAvatar = ({
   src,
