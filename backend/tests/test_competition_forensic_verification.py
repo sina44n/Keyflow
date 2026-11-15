@@ -599,3 +599,248 @@ class CompetitionForensicVerificationTests(TestCase):
         # Physical plausibility bounds duration to at least 4 seconds (100 / 25)
         # Gross WPM cannot exceed 300 WPM
         self.assertLessEqual(float(p_data['gross_wpm']), 300.0)
+
+    def test_17_audit_a_adversarial_all_incorrect_cannot_override_matching_count(self):
+        """Audit A Required Adversarial Test:
+        Challenge: 'hello', Submitted typed_text: 'xxxxx', Matching: 0.
+        Client claims correct_chars=5.
+        Server must reject 5 and set correct_chars to 0 independently."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Audit A Arena', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        host_pid = create_res.json()['participant_id']
+        comp = Competition.objects.get(code=code)
+        comp.challenge_text = "hello"
+        comp.save()
+
+        submit_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'duration_seconds': 60,
+                'correct_chars': 5,  # Forged client claim
+                'incorrect_chars': 0,
+                'typed_text': 'xxxxx',  # 0 matching chars with 'hello'
+                'gross_wpm': 1.0,
+                'net_wpm': 1.0,
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(submit_res.status_code, 200)
+        p_data = submit_res.json()['participant']
+        # Server must derive matching count independently: 0 correct characters
+        self.assertEqual(p_data['correct_chars'], 0)
+        self.assertEqual(p_data['incorrect_chars'], 5)
+        self.assertEqual(p_data['total_chars'], 5)
+        self.assertEqual(float(p_data['accuracy']), 0.0)
+
+    def test_18_audit_a_matching_variations_parity(self):
+        """Audit A: Test exact match, partial, longer, shorter, empty, missing typed_text."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Variations Arena', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        comp = Competition.objects.get(code=code)
+        comp.challenge_text = "hello"
+        comp.save()
+
+        # Helper to join a participant and submit
+        def run_case(name, typed_text, claimed_correct, claimed_incorrect, duration=60):
+            join_res = self.client.post(
+                f'/api/practice/competitions/{code}/join/',
+                {'display_name': name},
+                content_type='application/json',
+            )
+            pid = join_res.json()['participant_id']
+            payload = {
+                'participant_id': pid,
+                'duration_seconds': duration,
+                'correct_chars': claimed_correct,
+                'incorrect_chars': claimed_incorrect,
+            }
+            if typed_text is not None:
+                payload['typed_text'] = typed_text
+            res = self.client.post(
+                f'/api/practice/competitions/{code}/submit/',
+                payload,
+                content_type='application/json',
+            )
+            self.assertEqual(res.status_code, 200)
+            return res.json()['participant']
+
+        # 1. Exact match ('hello' vs 'hello')
+        p1 = run_case('Exact', 'hello', 5, 0)
+        self.assertEqual(p1['correct_chars'], 5)
+        self.assertEqual(p1['incorrect_chars'], 0)
+        self.assertEqual(p1['total_chars'], 5)
+        self.assertEqual(float(p1['accuracy']), 100.0)
+
+        # 2. Partially correct ('helix' vs 'hello' -> 'h','e','l' match (3), 'i','x' err (2))
+        p2 = run_case('Partial', 'helix', 10, 0)  # Client forged 10
+        self.assertEqual(p2['correct_chars'], 3)
+        self.assertEqual(p2['incorrect_chars'], 2)
+        self.assertEqual(p2['total_chars'], 5)
+        self.assertEqual(float(p2['accuracy']), 60.0)
+
+        # 3. Shorter than challenge ('hel' vs 'hello' -> 3 match, 0 uncorrected)
+        p3 = run_case('Shorter', 'hel', 3, 0)
+        self.assertEqual(p3['correct_chars'], 3)
+        self.assertEqual(p3['incorrect_chars'], 0)
+        self.assertEqual(p3['total_chars'], 3)
+        self.assertEqual(float(p3['accuracy']), 100.0)
+
+        # 4. Longer than challenge ('hello world' vs 'hello' -> 5 match, 6 uncorrected)
+        p4 = run_case('Longer', 'hello world', 5, 0)
+        self.assertEqual(p4['correct_chars'], 5)
+        self.assertEqual(p4['incorrect_chars'], 6)
+        self.assertEqual(p4['total_chars'], 11)
+        self.assertEqual(float(p4['accuracy']), 45.45)
+
+        # 5. Empty text ('' vs 'hello' -> 0 match, 0 uncorrected)
+        p5 = run_case('Empty', '', 0, 0)
+        self.assertEqual(p5['correct_chars'], 0)
+        self.assertEqual(p5['incorrect_chars'], 0)
+        self.assertEqual(p5['total_chars'], 0)
+        self.assertEqual(float(p5['accuracy']), 0.0)
+
+        # 6. Missing typed_text (None) -> follows documented trust policy
+        p6 = run_case('Missing', None, 40, 10)
+        self.assertEqual(p6['correct_chars'], 40)
+        self.assertEqual(p6['incorrect_chars'], 10)
+        self.assertEqual(p6['total_chars'], 50)
+        self.assertEqual(float(p6['accuracy']), 80.0)
+
+    def test_19_audit_b_forged_incorrect_chars_cannot_inflate_printable_attempts(self):
+        """Audit B Required Adversarial Test:
+        Challenge: 'hello', Submitted typed_text: 'hi', Client claims correct_chars=2, incorrect_chars=100.
+        Server must NOT accept 102 printable attempts; total_chars must bound to len(typed_text)=2.
+        Gross WPM must be 0.4 WPM, not 20.2 WPM."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Audit B Arena', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        host_pid = create_res.json()['participant_id']
+        comp = Competition.objects.get(code=code)
+        comp.challenge_text = "hello"
+        comp.save()
+
+        submit_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'duration_seconds': 60,
+                'correct_chars': 2,        # Claimed 2 correct
+                'incorrect_chars': 100,    # Malicious attempt: 100 fake errors to inflate attempts to 102
+                'typed_text': 'hi',        # Only 2 characters actually typed ('h' matches, 'i' mismatch)
+                'gross_wpm': 20.2,         # Claimed (102 / 5) / 1.0 = 20.4 WPM
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(submit_res.status_code, 200)
+        p_data = submit_res.json()['participant']
+
+        # Server bounds total_chars to len('hi') = 2 (NOT 102!)
+        self.assertEqual(p_data['total_chars'], 2)
+        self.assertEqual(p_data['correct_chars'], 1)  # Only 'h' matches 'hello'
+        self.assertEqual(p_data['incorrect_chars'], 1) # 'i' does not match 'e'
+        # Gross WPM derived from 2 chars in 60s = (2 / 5) / 1.0 = 0.4 WPM
+        self.assertEqual(float(p_data['gross_wpm']), 0.4)
+        # Net WPM with 1 uncorrected error penalty (1.0 WPM) = max(0, 0.4 - 1.0) = 0.0 WPM
+        self.assertEqual(float(p_data['net_wpm']), 0.0)
+        # Typed-Position Accuracy = (1 / 2) * 100 = 50.0%
+        self.assertEqual(float(p_data['accuracy']), 50.0)
+
+    def test_20_audit_c_physical_duration_upward_rounding_table(self):
+        """Audit C: Verify upward rounding (ceil) ensures Gross WPM never exceeds 300 WPM
+        for values immediately below, exactly at, and immediately above multiples of 25."""
+        import math
+        test_cases = [
+            (1, 1),
+            (24, 1),
+            (25, 1),
+            (26, 2),  # Crucial test: 26 chars in 1s would be 312 WPM; math.ceil enforces 2s -> 156 WPM
+            (49, 2),
+            (50, 2),
+            (51, 3),
+            (99, 4),
+            (100, 4),
+            (101, 5),
+        ]
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Audit C Arena', 'max_participants': 20, 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+
+        for total_chars, expected_min_dur in test_cases:
+            join_res = self.client.post(
+                f'/api/practice/competitions/{code}/join/',
+                {'display_name': f'P_{total_chars}'},
+                content_type='application/json',
+            )
+            pid = join_res.json()['participant_id']
+            # Client submits duration_seconds=1 for all cases
+            submit_res = self.client.post(
+                f'/api/practice/competitions/{code}/submit/',
+                {
+                    'participant_id': pid,
+                    'duration_seconds': 1,
+                    'correct_chars': total_chars,
+                    'incorrect_chars': 0,
+                },
+                content_type='application/json',
+            )
+            self.assertEqual(submit_res.status_code, 200)
+            p_data = submit_res.json()['participant']
+            self.assertEqual(p_data['duration_seconds'], expected_min_dur)
+            # Computed Gross WPM must NEVER exceed 300.0 WPM
+            self.assertLessEqual(float(p_data['gross_wpm']), 300.0)
+
+    def test_21_audit_d_typed_position_accuracy_parity_and_historical_limitation(self):
+        """Audit D: Canonical cases for Typed-Position Accuracy vs Full Passage Accuracy
+        and demonstration of the historical keystroke accuracy limitation."""
+        create_res = self.client.post(
+            '/api/practice/competitions/',
+            {'name': 'Audit D Arena', 'display_name': 'Host Commander'},
+            content_type='application/json',
+            **self.host_headers,
+        )
+        code = create_res.json()['code']
+        host_pid = create_res.json()['participant_id']
+        comp = Competition.objects.get(code=code)
+        comp.challenge_text = "quick brown"  # length 11
+        comp.save()
+
+        # Canonical Case: Typed 'quick' (length 5, matching 5) against 'quick brown' (length 11)
+        submit_res = self.client.post(
+            f'/api/practice/competitions/{code}/submit/',
+            {
+                'participant_id': host_pid,
+                'duration_seconds': 60,
+                'typed_text': 'quick',
+                'correct_chars': 5,
+                'incorrect_chars': 0,
+            },
+            content_type='application/json',
+            **self.host_headers,
+        )
+        self.assertEqual(submit_res.status_code, 200)
+        p_data = submit_res.json()['participant']
+        # Typed-Position Accuracy in Competition is 100% (5 matching / 5 typed positions)
+        self.assertEqual(float(p_data['accuracy']), 100.0)
+        self.assertEqual(p_data['correct_chars'], 5)
+        self.assertEqual(p_data['total_chars'], 5)

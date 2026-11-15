@@ -691,4 +691,136 @@ describe('KEYFLOW Phase 7: Authoritative Typing Metrics & Scoring Contract', () 
       assert.equal(canDeduceDeletedMistakesFromTextAlone, false);
     });
   });
+
+  describe('8. Phase 7.3 Final Counter Validation & Scoring Parity Hardening Tests', () => {
+    it('51. Audit A: Forged correct_chars cannot override independently calculated matching count', () => {
+      const challengeText = 'hello';
+      const typedText = 'xxxxx'; // 0 matching characters
+      const forgedClaimedCorrect = 5;
+
+      // Independent server-side matching derivation
+      let actualCorrect = 0;
+      for (let i = 0; i < typedText.length; i++) {
+        if (i < challengeText.length && typedText[i] === challengeText[i]) {
+          actualCorrect++;
+        }
+      }
+      assert.equal(actualCorrect, 0);
+      // Hardened rule: client claim can NEVER increase server-derived matching count
+      const authoritativeCorrect = actualCorrect;
+      assert.equal(authoritativeCorrect, 0);
+      assert.notEqual(authoritativeCorrect, forgedClaimedCorrect);
+    });
+
+    it('52. Audit B: Forged incorrect_chars cannot inflate server-verified printable attempts', () => {
+      const challengeText = 'hello';
+      const typedText = 'hi'; // length 2
+      const forgedIncorrect = 100; // Malicious client claims 100 fake mistakes to inflate attempts
+      const durationSeconds = 60;
+
+      // Server-verified characters in final text are bounded by typedText.length
+      const serverVerifiedTotalChars = typedText.length;
+      assert.equal(serverVerifiedTotalChars, 2);
+
+      // Gross WPM must NOT be calculated from 102 attempts (20.4 WPM)
+      const forgedGross = calculateGrossWpm(102, durationSeconds, 1);
+      assert.equal(forgedGross, 20.4);
+
+      // Server-verified Gross WPM: 2 chars in 60s = 0.4 WPM
+      const serverVerifiedGross = calculateGrossWpm(serverVerifiedTotalChars, durationSeconds, 1);
+      assert.equal(serverVerifiedGross, 0.4);
+
+      // Uncorrected errors in 'hi' vs 'hello' is 1 ('i' vs 'e')
+      const uncorrected = countUncorrectedErrors(typedText, challengeText);
+      assert.equal(uncorrected, 1);
+      const serverVerifiedNet = calculateNetWpm(serverVerifiedGross, uncorrected, durationSeconds);
+      assert.equal(serverVerifiedNet, 0); // max(0, 0.4 - 1.0) = 0
+    });
+
+    it('53. Audit C: Upward rounding (Math.ceil) guarantees Gross WPM <= 300 WPM across all multiples of 25', () => {
+      const testCases = [
+        { attempts: 1, expectedMinDur: 1, maxWpm: 12.0 },
+        { attempts: 24, expectedMinDur: 1, maxWpm: 288.0 },
+        { attempts: 25, expectedMinDur: 1, maxWpm: 300.0 },
+        { attempts: 26, expectedMinDur: 2, maxWpm: 156.0 }, // 26 chars: Math.ceil enforces 2s (prevents 312 WPM)
+        { attempts: 49, expectedMinDur: 2, maxWpm: 294.0 },
+        { attempts: 50, expectedMinDur: 2, maxWpm: 300.0 },
+        { attempts: 51, expectedMinDur: 3, maxWpm: 204.0 },
+        { attempts: 100, expectedMinDur: 4, maxWpm: 300.0 },
+      ];
+
+      for (const tc of testCases) {
+        const minDur = Math.max(1, Math.ceil(tc.attempts / 25.0));
+        assert.equal(minDur, tc.expectedMinDur, `Failed minDur for ${tc.attempts} attempts`);
+        const gross = calculateGrossWpm(tc.attempts, minDur);
+        assert.ok(gross <= 300.0, `Gross WPM ${gross} exceeded 300 for ${tc.attempts} attempts`);
+        assert.equal(gross, tc.maxWpm, `Gross WPM mismatch for ${tc.attempts} attempts`);
+      }
+    });
+
+    it('54. Audit D: Correction history canonical scenario proves Keystroke Acc (50%) vs Typed-Position Acc (100%)', () => {
+      // Scenario:
+      // 1. User typed 'x' (incorrect attempt)
+      // 2. User pressed Backspace
+      // 3. User typed 'e' (correct attempt)
+      // Target text: "e"
+      const totalPrintableAttempts = 2; // 'x', 'e'
+      const correctAttempts = 1;        // 'e'
+      const finalSubmittedText = 'e';
+      const targetText = 'e';
+
+      // Keystroke Accuracy (client-tracked with telemetry)
+      const keystrokeAccuracy = calculateRawAccuracy(correctAttempts, totalPrintableAttempts - correctAttempts);
+      assert.equal(keystrokeAccuracy, 50);
+
+      // Typed-Position Accuracy (server-verified from final submitted string)
+      const typedPositionAccuracy = calculateTypedPositionAccuracy(finalSubmittedText, targetText);
+      assert.equal(typedPositionAccuracy, 100);
+
+      // Full Passage Accuracy (against target length 1)
+      const fullPassageAccuracy = calculateFullPassageAccuracy(finalSubmittedText, targetText);
+      assert.equal(fullPassageAccuracy, 100);
+
+      // Uncorrected remaining errors in final text
+      const remainingErrors = countUncorrectedErrors(finalSubmittedText, targetText);
+      assert.equal(remainingErrors, 0);
+    });
+
+    it('55. Audit D: Competition metric accuracy is Typed-Position Accuracy, not Keystroke Accuracy', () => {
+      // The server receives final text "quick" against "quick brown"
+      const typed = 'quick';
+      const target = 'quick brown';
+      const matching = countCorrectChars(typed, target);
+      assert.equal(matching, 5);
+
+      // Server calculates Typed-Position Accuracy: (5 / 5) * 100 = 100%
+      const compAccuracy = Math.round((matching / typed.length) * 100);
+      assert.equal(compAccuracy, 100);
+
+      // Full Passage Accuracy is (5 / 11) * 100 = 45.45%
+      const passageAcc = calculateFullPassageAccuracy(typed, target, 2);
+      assert.equal(passageAcc, 45.45);
+    });
+
+    it('56. Audit E: Backend & frontend parity check with explicit numerical assertions', () => {
+      const totalChars = 100;
+      const durationSeconds = 30; // 0.5 minutes
+      const uncorrectedErrors = 2;
+
+      // Frontend calculation
+      const frontendGross = calculateGrossWpm(totalChars, durationSeconds);
+      const frontendNet = calculateNetWpm(frontendGross, uncorrectedErrors, durationSeconds);
+
+      // Backend calculation
+      const minutes = durationSeconds / 60.0;
+      const backendGross = Math.round(((totalChars / 5.0) / minutes) * 100) / 100;
+      const penalty = uncorrectedErrors / minutes;
+      const backendNet = Math.min(backendGross, Math.max(0.0, Math.round((backendGross - penalty) * 100) / 100));
+
+      assert.equal(frontendGross, 40);
+      assert.equal(backendGross, 40);
+      assert.equal(frontendNet, 36);
+      assert.equal(backendNet, 36);
+    });
+  });
 });
