@@ -78,7 +78,7 @@ export const LeaderboardCompetitions = ({ competitions }) => {
                       </>
                     ) : (
                       <>
-                        <CheckCircle2 className="w-3 h-3 text-slate-400" />
+                        <CheckCircle2 className="w-3 h-3 text-[var(--text-muted)]" />
                         <span>Finished</span>
                       </>
                     )}

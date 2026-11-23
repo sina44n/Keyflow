@@ -3,11 +3,22 @@ import { Gauge } from 'lucide-react';
 
 export const SpeedAccuracySummary = ({ metrics }) => {
   const hasData = metrics && metrics.hasData;
-
   const avgWpm = metrics?.avgWpm || 0;
-  // Calculate specific character speeds if available, or realistic proportional estimations based on real user WPM
-  const lowercaseWpm = hasData ? Math.round(avgWpm * 1.05) : 0;
-  const symbolWpm = hasData ? Math.max(10, Math.round(avgWpm * 0.42)) : 0;
+
+  // Derive genuine letter vs symbol typing velocity from authentic character keystrokes
+  const characterStatsList = Array.isArray(metrics?.characterStats) ? metrics.characterStats : [];
+  const letterStats = characterStatsList.filter((c) => c.category === 'letter' && (c.total > 0 || c.wpm > 0));
+  const letterStrokes = letterStats.reduce((sum, c) => sum + (c.total || 1), 0);
+  const lowercaseWpm = letterStats.length > 0 && letterStrokes > 0
+    ? Math.round(letterStats.reduce((sum, c) => sum + (c.wpm * (c.total || 1)), 0) / letterStrokes)
+    : (hasData ? avgWpm : 0);
+
+  const symbolStats = characterStatsList.filter((c) => (c.category === 'symbol' || c.category === 'number') && (c.total > 0 || c.wpm > 0));
+  const symbolStrokes = symbolStats.reduce((sum, c) => sum + (c.total || 1), 0);
+  const symbolWpm = symbolStats.length > 0 && symbolStrokes > 0
+    ? Math.round(symbolStats.reduce((sum, c) => sum + (c.wpm * (c.total || 1)), 0) / symbolStrokes)
+    : 0;
+
   const accuracy = metrics?.accuracy || 0;
   const coverage = metrics?.coveragePercent || 0;
 

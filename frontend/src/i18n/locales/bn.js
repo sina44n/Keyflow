@@ -10,6 +10,7 @@ export default {
   "nav.about": "কেন KEYFLOW",
   "nav.signIn": "সাইন ইন",
   "nav.getStarted": "শুরু করুন",
+  "nav.continue": "চালিয়ে যান",
   "nav.continuePractice": "অনুশীলন চালিয়ে যান",
   "nav.logout": "সাইন আউট",
   "nav.profile": "প্রোফাইল",

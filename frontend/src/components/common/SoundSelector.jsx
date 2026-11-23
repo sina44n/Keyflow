@@ -16,17 +16,20 @@ import { useI18n } from '../../i18n/I18nContext';
  */
 export const SoundSelector = ({
   variant = 'default', // 'navbar' | 'toolbar' | 'compact' | 'default'
-  align = 'right', // 'left' | 'right'
+  align = 'auto', // 'auto' | 'left' | 'right'
   className = '',
+  onOpenModal = null,
 }) => {
   const { t } = useI18n();
   const {
     soundEnabled,
     soundProfile,
+    volume = 0.75,
     currentProfileObj,
     isAudible,
     setSoundEnabled,
     setSoundProfile,
+    setVolume,
     previewSound,
     profiles,
     categories,
@@ -35,8 +38,75 @@ export const SoundSelector = ({
   const [isOpen, setIsOpen] = useState(false);
   const [activeCategory, setActiveCategory] = useState('all');
   const [playingPreviewId, setPlayingPreviewId] = useState(null);
+  const [placement, setPlacement] = useState(() => {
+    if (align === 'left') return { alignClass: 'left-0', style: {} };
+    if (align === 'right') return { alignClass: 'right-0', style: {} };
+    return { alignClass: 'left-0', style: {} };
+  });
   const containerRef = useRef(null);
   const previewTimerRef = useRef(null);
+
+  // Responsive dynamic placement calculation
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const computePlacement = () => {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const panelWidth = Math.min(360, Math.max(300, viewportWidth - 24));
+
+      const spaceRight = viewportWidth - rect.left - 12;
+      const spaceLeft = rect.right - 12;
+
+      if (align === 'left') {
+        if (spaceRight < 340 && spaceLeft > spaceRight) {
+          setPlacement({ alignClass: 'right-0', style: {} });
+        } else if (spaceRight < 340) {
+          const idealLeft = Math.max(12, Math.min(rect.left, viewportWidth - panelWidth - 12));
+          setPlacement({
+            alignClass: '',
+            style: { left: `${idealLeft - rect.left}px`, right: 'auto' },
+          });
+        } else {
+          setPlacement({ alignClass: 'left-0', style: {} });
+        }
+      } else if (align === 'right') {
+        if (spaceLeft < 340 && spaceRight > spaceLeft) {
+          setPlacement({ alignClass: 'left-0', style: {} });
+        } else if (spaceLeft < 340) {
+          const idealLeft = Math.max(12, Math.min(rect.left, viewportWidth - panelWidth - 12));
+          setPlacement({
+            alignClass: '',
+            style: { left: `${idealLeft - rect.left}px`, right: 'auto' },
+          });
+        } else {
+          setPlacement({ alignClass: 'right-0', style: {} });
+        }
+      } else {
+        // align === 'auto'
+        if (spaceRight >= 360) {
+          setPlacement({ alignClass: 'left-0', style: {} });
+        } else if (spaceLeft >= 360) {
+          setPlacement({ alignClass: 'right-0', style: {} });
+        } else {
+          const idealLeft = Math.max(12, Math.min(rect.left, viewportWidth - panelWidth - 12));
+          setPlacement({
+            alignClass: '',
+            style: { left: `${idealLeft - rect.left}px`, right: 'auto' },
+          });
+        }
+      }
+    };
+
+    computePlacement();
+    window.addEventListener('resize', computePlacement);
+    window.addEventListener('scroll', computePlacement, true);
+    return () => {
+      window.removeEventListener('resize', computePlacement);
+      window.removeEventListener('scroll', computePlacement, true);
+    };
+  }, [isOpen, align]);
 
   // Close on Escape or click outside
   useEffect(() => {
@@ -89,7 +159,7 @@ export const SoundSelector = ({
       return (
         <button
           type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
+          onClick={() => (onOpenModal ? onOpenModal() : setIsOpen((prev) => !prev))}
           title={`Keyboard Sound Studio: ${isAudible ? currentProfileObj.name : 'Muted'} (Click to configure)`}
           aria-label={`Keyboard Sound Studio: ${isAudible ? currentProfileObj.name : 'Muted'}. Click to configure sound profiles.`}
           aria-expanded={isOpen}
@@ -118,18 +188,18 @@ export const SoundSelector = ({
       return (
         <button
           type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          className={`p-1.5 rounded-lg border transition-colors cursor-pointer flex items-center gap-1.5 ${
+          onClick={() => (onOpenModal ? onOpenModal() : setIsOpen((prev) => !prev))}
+          className={`h-8 px-2 rounded-xl border transition-all cursor-pointer flex items-center gap-1 font-medium shrink-0 ${
             isAudible
-              ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-elevated)]'
-              : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+              ? 'border-[var(--accent)] bg-[var(--bg-elevated)] text-[var(--accent)] font-semibold shadow-xs'
+              : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[var(--bg-surface)]'
           } ${className}`}
-          title={`Keyboard Sound Studio: ${isAudible ? currentProfileObj.name : 'Muted'}`}
-          aria-label={`Keyboard sound options: ${isAudible ? currentProfileObj.name : 'Muted'}`}
+          title={`Keyboard Sound: ${isAudible ? currentProfileObj.name : 'Muted'} (Click to configure)`}
+          aria-label={`Keyboard Sound: ${isAudible ? currentProfileObj.name : 'Muted'}`}
           aria-expanded={isOpen}
           aria-haspopup="dialog"
         >
-          {isAudible ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          {isAudible ? <Volume2 className="w-3.5 h-3.5 text-[var(--accent)]" /> : <VolumeX className="w-3.5 h-3.5" />}
           <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </button>
       );
@@ -139,8 +209,8 @@ export const SoundSelector = ({
       return (
         <button
           type="button"
-          onClick={() => setIsOpen((prev) => !prev)}
-          className={`px-2 py-1 rounded-md border text-xs flex items-center gap-1.5 transition-colors cursor-pointer ${
+          onClick={() => (onOpenModal ? onOpenModal() : setIsOpen((prev) => !prev))}
+          className={`px-2 py-1 rounded-md border text-[11px] font-mono flex items-center gap-1.5 transition-colors cursor-pointer ${
             isAudible
               ? 'border-[var(--accent)] text-[var(--accent)] bg-[var(--bg-elevated)]'
               : 'border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'
@@ -151,11 +221,11 @@ export const SoundSelector = ({
           aria-haspopup="dialog"
         >
           {isAudible ? (
-            <Volume2 className="w-3.5 h-3.5 text-[var(--accent)]" />
+            <Volume2 className="w-3 h-3 text-[var(--accent)]" />
           ) : (
-            <VolumeX className="w-3.5 h-3.5" />
+            <VolumeX className="w-3 h-3" />
           )}
-          <span className="text-[10px] hidden sm:inline font-mono">
+          <span className="text-[11px] hidden sm:inline font-mono">
             {isAudible ? currentProfileObj.tag : 'OFF'}
           </span>
           <ChevronDown className={`w-2.5 h-2.5 opacity-60 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -167,7 +237,7 @@ export const SoundSelector = ({
     return (
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => (onOpenModal ? onOpenModal() : setIsOpen((prev) => !prev))}
         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] hover:border-[var(--accent)] text-xs font-mono transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
           isAudible ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'
         } ${className}`}
@@ -190,32 +260,33 @@ export const SoundSelector = ({
       {isOpen && (
         <div
           className={`absolute z-50 ${
-            align === 'left' ? 'left-0' : 'right-0'
-          } top-full mt-2 w-80 sm:w-96 rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-3.5 font-mono animate-in fade-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] select-none text-left`}
+            placement.alignClass
+          } top-full mt-2 w-[320px] sm:w-[360px] max-w-[calc(100vw-1.5rem)] rounded-2xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-2xl p-3 sm:p-3.5 font-mono animate-in fade-in zoom-in-95 duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] select-none text-left`}
+          style={placement.style}
           role="dialog"
           aria-label="Keyboard Sound Studio"
         >
           {/* Header with Title and Dedicated Sound Toggle */}
           <div className="flex items-center justify-between pb-3 mb-2.5 border-b border-[var(--border)]">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--accent)] shadow-xs">
+            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+              <div className="p-2 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[var(--accent)] shadow-xs shrink-0">
                 <SlidersHorizontal className="w-4 h-4" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider font-mono">
+                  <h3 className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-wider font-mono truncate">
                     {t('sound.title', 'Sound Studio')}
                   </h3>
-                  <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-semibold">
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-[var(--accent)]/15 text-[var(--accent)] font-semibold shrink-0">
                     {t('sound.profilesCount', { count: profiles.length }, `${profiles.length} Profiles`)}
                   </span>
                 </div>
-                <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                <p className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
                   {isAudible ? (
                     <span className="flex items-center gap-1">
-                      <span className="text-[var(--text-secondary)] font-medium">{currentProfileObj.name}</span>
+                      <span className="text-[var(--text-secondary)] font-medium truncate">{currentProfileObj.name}</span>
                       <span className="opacity-50">•</span>
-                      <span>{currentProfileObj.tag}</span>
+                      <span className="shrink-0">{currentProfileObj.tag}</span>
                     </span>
                   ) : (
                     t('sound.muted', 'Typing Audio Muted')
@@ -238,7 +309,7 @@ export const SoundSelector = ({
                   setSoundEnabled(false);
                 }
               }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-bold font-mono transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] font-bold font-mono transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer shrink-0 ${
                 isAudible
                   ? 'border-[var(--accent)] bg-[var(--accent)] text-[var(--accent-fg)] shadow-xs'
                   : 'border-[var(--border)] bg-[var(--bg-elevated)] text-[var(--text-muted)] hover:border-[var(--text-secondary)]'
@@ -254,8 +325,35 @@ export const SoundSelector = ({
             </button>
           </div>
 
+          {/* Master Output Volume Slider */}
+          <div className="flex items-center gap-2 px-2.5 py-1.5 mb-2 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[11px]">
+            {isAudible ? (
+              volume > 0.5 ? (
+                <Volume2 className="w-3.5 h-3.5 text-[var(--accent)] shrink-0" />
+              ) : (
+                <Volume1 className="w-3.5 h-3.5 text-[var(--accent)] shrink-0" />
+              )
+            ) : (
+              <VolumeX className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
+            )}
+            <span className="text-[10px] text-[var(--text-muted)] shrink-0">Vol:</span>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={volume ?? 0.75}
+              onChange={(e) => setVolume(parseFloat(e.target.value))}
+              className="w-full accent-[var(--accent)] cursor-pointer h-1 bg-[var(--border)] rounded appearance-none"
+              aria-label="Sound volume level"
+            />
+            <span className="text-[10px] font-bold text-[var(--text-primary)] min-w-[28px] text-right">
+              {Math.round((volume ?? 0.75) * 100)}%
+            </span>
+          </div>
+
           {/* Category Filter Tabs */}
-          <div className="flex items-center gap-1 p-1 mb-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[10px] font-medium overflow-x-auto">
+          <div className="flex items-center gap-1 p-1 mb-2.5 rounded-xl bg-[var(--bg-main)] border border-[var(--border-subtle)] text-[10px] font-medium overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {categories.map((cat) => {
               const isCatActive = activeCategory === cat.id;
               return (
@@ -276,7 +374,7 @@ export const SoundSelector = ({
           </div>
 
           {/* Sound Profiles Scrollable List */}
-          <div className="space-y-1 max-h-[340px] sm:max-h-[380px] overflow-y-auto pr-1">
+          <div className="space-y-1 max-h-[280px] sm:max-h-[320px] overflow-y-auto pr-1.5 [scrollbar-width:thin]">
             {filteredProfiles.map((p) => {
               const isSelected = soundProfile === p.id;
               const isSilent = p.id === 'silent-office' || p.id === 'silent';
@@ -306,7 +404,7 @@ export const SoundSelector = ({
                     }
                   }}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                  <div className="flex items-center gap-2.5 min-w-0 pr-2 flex-1">
                     {/* Radio indicator */}
                     <div
                       className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
@@ -320,7 +418,7 @@ export const SoundSelector = ({
                       )}
                     </div>
 
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-xs font-semibold truncate text-[var(--text-primary)]">
                           {p.name}
@@ -346,7 +444,7 @@ export const SoundSelector = ({
                       onClick={(e) => handlePreviewClick(e, p.id)}
                       title={`Preview ${p.name}`}
                       aria-label={`Preview ${p.name} sound`}
-                      className={`p-1.5 rounded-lg transition-all shrink-0 cursor-pointer ${
+                      className={`w-7 h-7 rounded-lg transition-all shrink-0 flex items-center justify-center cursor-pointer ${
                         isPreviewing
                           ? 'bg-[var(--accent)] text-[var(--accent-fg)] scale-110'
                           : 'text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-[var(--bg-main)]'
@@ -373,9 +471,23 @@ export const SoundSelector = ({
               <Sparkles className="w-3 h-3 text-[var(--accent)]" />
               <span>Plays on valid keystrokes</span>
             </span>
-            <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border)] text-[9px]">
-              Esc to close
-            </kbd>
+            <div className="flex items-center gap-1.5">
+              {onOpenModal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onOpenModal();
+                  }}
+                  className="text-[10px] text-[var(--accent)] hover:underline cursor-pointer font-bold"
+                >
+                  Full Studio →
+                </button>
+              )}
+              <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-elevated)] border border-[var(--border)] text-[9px]">
+                Esc to close
+              </kbd>
+            </div>
           </div>
         </div>
       )}

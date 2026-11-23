@@ -215,7 +215,7 @@ describe('KEYFLOW Finger Mastery & Biomechanical Analytics Engine', () => {
     assert.equal(ACCURACY_SHADES.highest, '#1e68d0', 'Highest accuracy is Blue');
     assert.equal(ACCURACY_SHADES.secondHighest, '#fecdd3', 'Second-highest accuracy is Very Light Red');
     assert.equal(ACCURACY_SHADES.thirdHighest, '#f87171', 'Third-highest accuracy is Medium Red');
-    assert.equal(ACCURACY_SHADES.lowest, '#991b1b', 'Lowest accuracy is Dark Red');
+    assert.equal(ACCURACY_SHADES.lowest, '#dc2626', 'Lowest accuracy is Normal Red');
     assert.equal(ACCURACY_SHADES.neutral, '#e2e8f0', 'Neutral color exists');
 
     const uniqueColors = new Set([
@@ -245,9 +245,9 @@ describe('KEYFLOW Finger Mastery & Biomechanical Analytics Engine', () => {
     const thirdHighestColor = computeAccuracyShade(89, true, bounds);
     assert.equal(thirdHighestColor, ACCURACY_SHADES.thirdHighest, 'Third-highest receives Medium Red');
 
-    // Lowest Accuracy (84%) -> Dark Red
+    // Lowest Accuracy (84%) -> Normal Red
     const lowestColor = computeAccuracyShade(84, true, bounds);
-    assert.equal(lowestColor, ACCURACY_SHADES.lowest, 'Lowest accuracy receives Dark Red');
+    assert.equal(lowestColor, ACCURACY_SHADES.lowest, 'Lowest accuracy receives Normal Red');
 
     // 4. Standard benchmark fallback (e.g. all fingers have high accuracy)
     const benchmarkBounds = { min: 95, max: 99, dynamic: false };

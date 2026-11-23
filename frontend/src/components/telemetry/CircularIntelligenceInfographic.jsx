@@ -93,7 +93,7 @@ export const CircularIntelligenceInfographic = ({
     return {
       hasData: true,
       latestWpm: latest ? (Number(latest.wpm) || Number(latest.grossWpm) || 0) : null,
-      latestAccuracy: latest ? (Number(latest.accuracy) || 100) : null,
+      latestAccuracy: latest ? (latest.accuracy !== undefined && latest.accuracy !== null ? Number(latest.accuracy) : (Number(latest.grossWpm) > 0 ? 100 : 0)) : null,
       latestDate: latest?.date || (latest?.timestamp ? new Date(latest.timestamp).toLocaleDateString() : null),
       totalDuration: totalDur,
       totalSessions: sorted.length,

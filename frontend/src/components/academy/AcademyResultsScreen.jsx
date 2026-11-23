@@ -345,9 +345,9 @@ export const AcademyResultsScreen = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-[#080C14] overflow-hidden flex flex-col items-center justify-center p-2 sm:p-4 select-none font-sans"
+      className="fixed inset-0 z-50 bg-[var(--bg-main)] overflow-hidden flex flex-col items-center justify-center p-2 sm:p-4 select-none font-sans"
       style={{
-        background: 'radial-gradient(circle at 50% 36%, #141C2E 0%, #090E18 60%, #05080E 100%)',
+        background: 'radial-gradient(circle at 50% 36%, var(--bg-surface) 0%, var(--bg-main) 100%)',
       }}
     >
       {/* ── Top Header matching Reference Image with Five Stars ───────── */}
@@ -355,17 +355,17 @@ export const AcademyResultsScreen = ({
         {/* 5-Star Arc Header matching Reference Image */}
         <FiveStarRating earnedCount={earnedStars} />
 
-        <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-sans">
+        <div className="text-2xl sm:text-3xl font-extrabold text-[var(--text-primary)] tracking-tight font-sans">
           Typing Performance
         </div>
         <div className="flex items-center justify-center gap-2 mt-0.5">
-          <span className="text-xs sm:text-sm text-[#7E8D9F] font-medium tracking-wide font-sans">
+          <span className="text-xs sm:text-sm text-[var(--text-muted)] font-medium tracking-wide font-sans">
             Real-time speed overview
           </span>
           {lesson?.title && (
             <>
-              <span className="text-slate-600 text-xs">•</span>
-              <span className="text-xs text-slate-400 font-semibold">{lesson.title}</span>
+              <span className="text-[var(--text-muted)] text-xs">•</span>
+              <span className="text-xs text-[var(--text-secondary)] font-semibold">{lesson.title}</span>
             </>
           )}
         </div>
@@ -697,17 +697,17 @@ export const AcademyResultsScreen = ({
 
       {/* ── Large Balanced Statistics Dashboard matching Reference Image ─ */}
       <div className="w-full max-w-[740px] sm:max-w-[820px] px-2 z-10">
-        <div className="rounded-2xl sm:rounded-3xl bg-[#0B0F19]/95 border border-slate-700/60 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.9)] py-3.5 sm:py-4 px-4 sm:px-8 backdrop-blur-md">
+        <div className="rounded-2xl sm:rounded-3xl bg-[var(--bg-surface)] border border-[var(--border)] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.15)] py-3.5 sm:py-4 px-4 sm:px-8 backdrop-blur-md">
           <div className="grid grid-cols-5 gap-1 sm:gap-2 text-center">
             {/* 1. GROSS WPM */}
             <div className="flex flex-col items-center justify-center px-1">
               <div className="text-[#00E676] mb-1">
                 <Gauge className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-sans text-white tracking-tight">
+              <div className="text-xl sm:text-2xl font-black font-sans text-[var(--text-primary)] tracking-tight">
                 {wpm}
               </div>
-              <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-slate-400 mt-0.5">
+              <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-[var(--text-muted)] mt-0.5">
                 WPM
               </div>
             </div>
@@ -717,10 +717,10 @@ export const AcademyResultsScreen = ({
               <div className="text-[#38BDF8] mb-1">
                 <Crosshair className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-sans text-white tracking-tight">
+              <div className="text-xl sm:text-2xl font-black font-sans text-[var(--text-primary)] tracking-tight">
                 {accuracy}%
               </div>
-              <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-slate-400 mt-0.5">
+              <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-[var(--text-muted)] mt-0.5">
                 ACCURACY
               </div>
             </div>
@@ -730,10 +730,10 @@ export const AcademyResultsScreen = ({
               <div className="text-[#A855F7] mb-1">
                 <Activity className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-sans text-white tracking-tight">
+              <div className="text-xl sm:text-2xl font-black font-sans text-[var(--text-primary)] tracking-tight">
                 {netWpm}
               </div>
-              <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-slate-400 mt-0.5">
+              <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-[var(--text-muted)] mt-0.5">
                 NET WPM
               </div>
             </div>
@@ -743,10 +743,10 @@ export const AcademyResultsScreen = ({
               <div className="text-[#F59E0B] mb-1">
                 <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-sans text-white tracking-tight">
+              <div className="text-xl sm:text-2xl font-black font-sans text-[var(--text-primary)] tracking-tight">
                 {mistakes}
               </div>
-              <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-slate-400 mt-0.5">
+              <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-[var(--text-muted)] mt-0.5">
                 ERRORS
               </div>
             </div>
@@ -756,10 +756,10 @@ export const AcademyResultsScreen = ({
               <div className="text-[#F43F5E] mb-1">
                 <Clock className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <div className="text-xl sm:text-2xl font-black font-sans text-white tracking-tight">
+              <div className="text-xl sm:text-2xl font-black font-sans text-[var(--text-primary)] tracking-tight">
                 {duration}s
               </div>
-              <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-slate-400 mt-0.5">
+              <div className="text-[10px] sm:text-xs font-bold tracking-wider uppercase text-[var(--text-muted)] mt-0.5">
                 TIME
               </div>
             </div>
@@ -773,9 +773,9 @@ export const AcademyResultsScreen = ({
         <button
           type="button"
           onClick={onRetry}
-          className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-bold font-mono text-xs uppercase tracking-wider transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] flex items-center justify-center gap-2 cursor-pointer shadow-md"
+          className="flex-1 py-2.5 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-surface)] text-[var(--text-primary)] font-bold font-mono text-xs uppercase tracking-wider transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] flex items-center justify-center gap-2 cursor-pointer shadow-md"
         >
-          <RotateCcw className="w-4 h-4 text-slate-400" />
+          <RotateCcw className="w-4 h-4 text-[var(--text-secondary)]" />
           <span>Try Again</span>
         </button>
 
@@ -783,9 +783,9 @@ export const AcademyResultsScreen = ({
         <button
           type="button"
           onClick={onBack}
-          className="flex-1 py-2.5 px-4 rounded-xl border border-slate-700/80 bg-slate-900/80 hover:bg-slate-800 text-slate-200 font-bold font-mono text-xs uppercase tracking-wider transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] flex items-center justify-center gap-2 cursor-pointer shadow-md"
+          className="flex-1 py-2.5 px-4 rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] hover:bg-[var(--bg-surface)] text-[var(--text-primary)] font-bold font-mono text-xs uppercase tracking-wider transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] flex items-center justify-center gap-2 cursor-pointer shadow-md"
         >
-          <LayoutGrid className="w-4 h-4 text-slate-400" />
+          <LayoutGrid className="w-4 h-4 text-[var(--text-secondary)]" />
           <span>Back to Academy</span>
         </button>
 
@@ -797,7 +797,7 @@ export const AcademyResultsScreen = ({
           className={`flex-[1.2] py-2.5 px-4 rounded-xl font-black font-mono text-xs uppercase tracking-wider transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] flex items-center justify-center gap-2 shadow-lg ${
             passed || onNext
               ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 hover:brightness-110 shadow-emerald-500/25 cursor-pointer active:scale-98'
-              : 'bg-slate-800/60 text-slate-500 border border-slate-700/40 cursor-not-allowed'
+              : 'bg-[var(--bg-elevated)]/60 text-[var(--text-muted)] border border-[var(--border)] cursor-not-allowed'
           }`}
         >
           <span>{hasNextStage && !hasNextLesson ? 'Next Stage' : 'Next Lesson'}</span>

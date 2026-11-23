@@ -2,7 +2,7 @@
  * KEYFLOW Global Leaderboard Page
  * ===============================
  * Exact MasterTyper Reference Image 4 & 5 Layout Match:
- * 1. Centered Header: "⚡ Live Rankings", large "Leaderboard", "See how you rank against other typists"
+ * 1. Centered Header: "⚡ Live Rankings", large "Leaderboard"
  * 2. Centered Scope Navigation (Row 1): Global | Weekly | Competitions
  * 3. Centered Duration Selector (Row 2): 15s | 30s | 60s | 120s
  * 4. Competitive 3-Player Podium: Left #2 (Silver), Center #1 (Gold, elevated with Crown), Right #3 (Pink)
@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { leaderboardAPI } from '../utils/api';
 import { LeaderboardOverview } from '../components/leaderboard/LeaderboardOverview';
@@ -27,10 +28,13 @@ import { Zap, AlertCircle, RefreshCw } from 'lucide-react';
 export const LeaderboardPage = () => {
   const { user, isAuthenticated } = useAuth();
 
-  const [scope, setScope] = useState('global');
-  const [period, setPeriod] = useState('all_time');
-  const [category, setCategory] = useState('speed');
-  const [duration, setDuration] = useState('15');
+  const [searchParams] = useSearchParams();
+  const sessionIdParam = searchParams.get('session_id') || searchParams.get('sessionId') || '';
+
+  const [scope, setScope] = useState(() => searchParams.get('scope') || 'global');
+  const [period, setPeriod] = useState(() => searchParams.get('period') || 'all_time');
+  const [category, setCategory] = useState(() => searchParams.get('category') || 'speed');
+  const [duration, setDuration] = useState(() => searchParams.get('duration') || '15');
   const [leaderboardData, setLeaderboardData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,6 +49,7 @@ export const LeaderboardPage = () => {
         period: scope === 'weekly' ? 'weekly' : period,
         category,
         duration,
+        session_id: sessionIdParam || undefined,
         limit: 10,
       });
       setLeaderboardData(response.data);
@@ -54,7 +59,7 @@ export const LeaderboardPage = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [scope, period, category, duration]);
+  }, [scope, period, category, duration, sessionIdParam]);
 
   useEffect(() => {
     fetchLeaderboard();
@@ -117,11 +122,6 @@ export const LeaderboardPage = () => {
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black font-mono tracking-tight text-[var(--text-primary)]">
             Leaderboard
           </h1>
-
-          {/* Centered Subtitle */}
-          <p className="text-sm sm:text-base font-mono text-[var(--text-secondary)] max-w-lg mx-auto">
-            See how you rank against other typists
-          </p>
         </div>
 
         {/* Error Notification */}
@@ -184,7 +184,7 @@ export const LeaderboardPage = () => {
         )}
 
         {/* Platform Overview Cards (Subordinate Telemetry Section) */}
-        <div className="space-y-3 pt-4">
+        <div className="space-y-3 pt-8 sm:pt-12">
           <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
             Platform Benchmarks & Community Telemetry
           </h2>

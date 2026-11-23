@@ -48,12 +48,21 @@ describe('Workstation Toolbar Precision & Pause/Resume Upgrade Contract', () => 
       assert.ok(toolbarContent.includes('h-8 px-2.5 rounded-xl'), 'Row 2 controls use standardized h-8 px-2.5');
     });
 
-    it('provides a standardized 32px Reset button that matches the toolbar baseline', () => {
-      // Must not use mismatched 36px button
-      assert.ok(!toolbarContent.includes('min-h-[36px]'), 'Must not have 36px height discrepancy');
+    it('provides centered minimal Reset button between typing viewport and keyboard without toolbar overflow', () => {
+      // Must not have text-labeled Reset button inside the toolbar (preventing toolbar overflow)
+      assert.ok(!toolbarContent.includes('<span>Reset</span>'), 'Toolbar does not contain text-labeled Reset button');
+      // Reset is positioned in WorkstationPage as an icon-only centered control
       assert.ok(
-        toolbarContent.includes('h-8 px-3 rounded-xl border border-[var(--accent)]'),
-        'Reset button has standardized 32px height matching toolbar baseline'
+        workstationContent.includes('Centered Minimal Reset Control'),
+        'WorkstationPage includes centered minimal Reset control'
+      );
+      assert.ok(
+        workstationContent.includes('onClick={handleReset}'),
+        'Centered Reset triggers handleReset'
+      );
+      assert.ok(
+        workstationContent.includes('aria-label="Reset typing session"'),
+        'Centered Reset has accessible aria-label'
       );
     });
 
@@ -96,18 +105,19 @@ describe('Workstation Toolbar Precision & Pause/Resume Upgrade Contract', () => 
       );
     });
 
-    it('blocks typing input advances and errors while paused', () => {
+    it('handles typing input and auto-resumes smoothly when paused', () => {
       assert.ok(
-        workstationContent.includes('if (isCompleted || isPaused) return;'),
-        'handleInputChange ignores all keystrokes during pause'
+        workstationContent.includes('if (isCompleted) return;') &&
+          workstationContent.includes('isPausedRef.current'),
+        'handleInputChange guards against completed session and coordinates with isPausedRef'
       );
     });
 
-    it('resumes on Space or Enter keypress inside typing container', () => {
+    it('resumes instantly on valid typing keypress inside typing container', () => {
       assert.ok(
-        workstationContent.includes("e.key === ' ' || e.key === 'Enter'") &&
+        workstationContent.includes('isValidTypingKey(e)') &&
           workstationContent.includes('handleResume()'),
-        'Space or Enter in typing input resumes paused session'
+        'Valid typing keypress in typing input resumes paused session'
       );
     });
 

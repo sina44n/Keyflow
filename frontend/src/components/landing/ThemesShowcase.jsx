@@ -1,72 +1,56 @@
 import React, { useState } from 'react';
 import { useTheme, THEMES } from '../../context/ThemeContext';
 import { useI18n } from '../../i18n/I18nContext';
-import { Check, ArrowRight } from 'lucide-react';
+import { THEME_ROWS, CARD_ROTATION_PRESETS } from '../../context/themeRows';
+import {
+  Wine,
+  Droplets,
+  Leaf,
+  Layers,
+  Moon,
+  Terminal,
+  Waves,
+  Sparkles,
+  TreePine,
+  Compass,
+  Flame,
+  Sun,
+  Snowflake,
+  BookOpen,
+  Mountain,
+  Contrast,
+  Check,
+  ArrowRight,
+  Zap,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+export { THEME_ROWS, CARD_ROTATION_PRESETS };
+
 /**
- * ThemesShowcase — Exact Reference Image Redesign
- * ===============================================
- * Faithfully reproduces the attached visual reference:
- * - Soft, light grey / off-white background with subtle radial depth
- * - Small centered heading and subtle uppercase subtitle at top
- * - Four prominent vertical cards arranged horizontally on desktop
- * - Each card consists of a white, vertically oriented rounded rectangle
- * - Behind every white card: a colorful, rotated offset backing shape (Orange, Pink, Cyan, Blue)
- * - Layered floating drop shadows giving tactile depth
- * - Complete, uncompromised support for all 16 KEYFLOW themes (4 balanced rows of 4)
- * - Real zero-flash theme switching, active state indicators, and localStorage persistence
+ * THEME_ICONS
+ * Strict thematic Lucide icons matching each of the 16 studio palettes.
  */
+const THEME_ICONS = {
+  'burgundy-cream': Wine,
+  'glacier-aqua': Droplets,
+  'forest-sage': Leaf,
+  'midnight-slate': Sun,
+  'dark-theme': Moon,
+  'dark-charcoal-lime': Terminal,
+  'midnight-blue': Waves,
+  'lavender-purple': Sparkles,
+  'forest-green': Zap,
+  'ocean-teal': Compass,
+  'sunset-orange': Flame,
+  'rose-pink': Sun,
+  'arctic-blue': Leaf,
+  'solarized-light': BookOpen,
+  'warm-sand': Mountain,
+  'classic-black-white': Contrast,
+};
 
-// 16 Themes organized across 4 curated typing collections
-const THEME_ROWS = [
-  // 1: Premier Masterpiece & Flagship Palettes
-  {
-    category: 'Masterpiece',
-    rowTitle: 'Masterpiece Collection',
-    cards: [
-      { num: '01', themeId: 'burgundy-cream', backingColor: '#FF6B00', tag: 'Masterpiece' },
-      { num: '02', themeId: 'espresso-latte', backingColor: '#E91E63', tag: 'Artisan' },
-      { num: '03', themeId: 'forest-sage', backingColor: '#00C0FA', tag: 'Botanical' },
-      { num: '04', themeId: 'midnight-slate', backingColor: '#0066FF', tag: 'Industrial' },
-    ],
-  },
-  // 2: Nocturnal & Dark Studios
-  {
-    category: 'Nocturnal',
-    rowTitle: 'Nocturnal Collection',
-    cards: [
-      { num: '05', themeId: 'dark-theme', backingColor: '#FF1744', tag: 'Nocturnal' },
-      { num: '06', themeId: 'dark-charcoal-lime', backingColor: '#10B981', tag: 'Terminal' },
-      { num: '07', themeId: 'midnight-blue', backingColor: '#0EA5E9', tag: 'Oceanic' },
-      { num: '08', themeId: 'lavender-purple', backingColor: '#8B5CF6', tag: 'Twilight' },
-    ],
-  },
-  // 3: High-Cadence Vibrant Palettes
-  {
-    category: 'Vibrant',
-    rowTitle: 'Vibrant Collection',
-    cards: [
-      { num: '09', themeId: 'forest-green', backingColor: '#059669', tag: 'Focus' },
-      { num: '10', themeId: 'ocean-teal', backingColor: '#0D9488', tag: 'Velocity' },
-      { num: '11', themeId: 'sunset-orange', backingColor: '#F97316', tag: 'Cadence' },
-      { num: '12', themeId: 'rose-pink', backingColor: '#EC4899', tag: 'Neon' },
-    ],
-  },
-  // 4: Daylight & Clean Minimalist Palettes
-  {
-    category: 'Daylight',
-    rowTitle: 'Daylight & Minimalist Palettes',
-    cards: [
-      { num: '13', themeId: 'arctic-blue', backingColor: '#06B6D4', tag: 'Sub-Zero' },
-      { num: '14', themeId: 'solarized-light', backingColor: '#2563EB', tag: 'Daylight' },
-      { num: '15', themeId: 'warm-sand', backingColor: '#D97706', tag: 'Natural' },
-      { num: '16', themeId: 'classic-black-white', backingColor: '#475569', tag: 'Monochrome' },
-    ],
-  },
-];
-
-export const ThemesShowcase = () => {
+export const ThemesShowcase = ({ isStandalone = false }) => {
   const { theme, setTheme, currentThemeObj } = useTheme();
   const { t } = useI18n();
   const [selectedFilter, setSelectedFilter] = useState('all'); // 'all' | 0 | 1 | 2 | 3
@@ -75,47 +59,44 @@ export const ThemesShowcase = () => {
   const getTheme = (id) => THEMES.find((t) => t.id === id) || THEMES[0];
 
   // Filter rows if user chooses a specific set, or display all 4 rows
-  const visibleRows = selectedFilter === 'all'
-    ? THEME_ROWS
-    : [THEME_ROWS[selectedFilter]];
+  const visibleRows =
+    selectedFilter === 'all' ? THEME_ROWS : [THEME_ROWS[selectedFilter]];
 
   return (
     <section
       id="themes"
-      className="py-12 sm:py-14 lg:py-16 border-t border-[var(--border)] relative bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-300 overflow-hidden"
+      className={`py-12 sm:py-14 lg:py-16 ${
+        isStandalone ? '' : 'border-t border-[var(--border)]'
+      } relative bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-300 overflow-hidden`}
     >
-      <div className="container-app max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+      <div className="container-app max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
         {/* ================================================================= */}
         {/* TOP HEADER: FIND YOUR FLOW                                        */}
         {/* ================================================================= */}
-        <div className="text-center max-w-xl mx-auto space-y-2 select-none">
+        <div className="text-center max-w-xl mx-auto select-none">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text-primary)] font-sans">
             {t('themes.heading', 'Find Your Flow')}
           </h2>
-          <p className="text-xs sm:text-sm text-[var(--text-muted)] font-normal max-w-md mx-auto">
-            {t('themes.subheading', 'Choose a visual theme that suits your typing experience.')}
-          </p>
         </div>
 
         {/* Minimal Control Bar: Current Active Badge & Filter Tabs */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 max-w-5xl mx-auto border-b border-[var(--border)] pb-3 text-xs font-mono">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 max-w-5xl mx-auto border-b border-[var(--border)] pb-4 text-xs font-mono">
           <div className="flex items-center gap-2.5 text-[var(--text-secondary)]">
             <span
               className="w-3.5 h-3.5 rounded-full shadow-xs shrink-0"
               style={{ backgroundColor: currentThemeObj.accent }}
             />
             <span className="text-[11px] text-[var(--text-muted)]">Current Theme:</span>
-            <span className="font-bold text-[var(--text-primary)] font-sans">{currentThemeObj.name}</span>
-            <span className="text-[10px] uppercase px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border)] text-[var(--text-muted)]">
-              {currentThemeObj.tag}
+            <span className="font-bold text-[var(--text-primary)] font-sans">
+              {currentThemeObj.name}
             </span>
           </div>
 
-          <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[11px]">
+          <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border)] text-[11px] overflow-x-auto max-w-full">
             <button
               type="button"
               onClick={() => setSelectedFilter('all')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold shrink-0 ${
                 selectedFilter === 'all'
                   ? 'bg-[var(--text-primary)] text-[var(--bg-main)] shadow-xs'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -126,7 +107,7 @@ export const ThemesShowcase = () => {
             <button
               type="button"
               onClick={() => setSelectedFilter(0)}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold shrink-0 ${
                 selectedFilter === 0
                   ? 'bg-[var(--text-primary)] text-[var(--bg-main)] shadow-xs'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -137,7 +118,7 @@ export const ThemesShowcase = () => {
             <button
               type="button"
               onClick={() => setSelectedFilter(1)}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold shrink-0 ${
                 selectedFilter === 1
                   ? 'bg-[var(--text-primary)] text-[var(--bg-main)] shadow-xs'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -148,7 +129,7 @@ export const ThemesShowcase = () => {
             <button
               type="button"
               onClick={() => setSelectedFilter(2)}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold shrink-0 ${
                 selectedFilter === 2
                   ? 'bg-[var(--text-primary)] text-[var(--bg-main)] shadow-xs'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -159,7 +140,7 @@ export const ThemesShowcase = () => {
             <button
               type="button"
               onClick={() => setSelectedFilter(3)}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold ${
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer font-semibold shrink-0 ${
                 selectedFilter === 3
                   ? 'bg-[var(--text-primary)] text-[var(--bg-main)] shadow-xs'
                   : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
@@ -171,27 +152,30 @@ export const ThemesShowcase = () => {
         </div>
 
         {/* ================================================================= */}
-        {/* MAIN CONTENT: FOUR-CARD HORIZONTAL COMPOSITIONS                   */}
+        {/* MAIN CONTENT: DOUBLE-LAYER TILTED CARDS                           */}
+        {/* 4 columns on Desktop (>= 1280px), 2 on Tablet, 1 on Mobile        */}
         {/* ================================================================= */}
-        <div className="space-y-10">
+        <div className="space-y-12">
           {visibleRows.map((row) => (
-            <div key={row.rowTitle} className="space-y-4">
-              {/* Subtle collection subtitle when viewing all rows */}
+            <div key={row.rowTitle} className="space-y-6">
+              {/* Collection divider and title */}
               {selectedFilter === 'all' && (
-                <div className="flex items-center gap-2 max-w-5xl mx-auto px-2">
+                <div className="flex items-center gap-3 max-w-5xl mx-auto px-2">
                   <div className="h-px bg-[var(--border)] flex-1" />
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] font-semibold">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-[var(--text-muted)] font-bold">
                     {row.rowTitle}
                   </span>
                   <div className="h-px bg-[var(--border)] flex-1" />
                 </div>
               )}
 
-              {/* Four prominent cards arranged horizontally on desktop */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-4 lg:gap-5 max-w-5xl mx-auto items-center justify-center">
-                {row.cards.map((card) => {
+              {/* Responsive Grid: 1 col on mobile, 2 col on tablet (640px-1279px), 4 col on desktop (>=1280px) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-8 sm:gap-7 xl:gap-8 max-w-6xl mx-auto items-stretch justify-center">
+                {row.cards.map((card, cardIdx) => {
                   const themeItem = getTheme(card.themeId);
                   const isActive = themeItem.id === theme;
+                  const rotation =
+                    CARD_ROTATION_PRESETS[cardIdx % CARD_ROTATION_PRESETS.length];
 
                   return (
                     <TiltedThemeCard
@@ -199,6 +183,7 @@ export const ThemesShowcase = () => {
                       card={card}
                       themeItem={themeItem}
                       isActive={isActive}
+                      rotation={rotation}
                       onSelect={() => setTheme(themeItem.id)}
                     />
                   );
@@ -209,7 +194,7 @@ export const ThemesShowcase = () => {
         </div>
 
         {/* Bottom subtle note & practice link */}
-        <div className="text-center pt-6 border-t border-[var(--border)] max-w-2xl mx-auto space-y-3">
+        <div className="text-center pt-8 border-t border-[var(--border)] max-w-2xl mx-auto space-y-3">
           <p className="text-xs text-[var(--text-muted)]">
             Instant theme transitions apply site-wide to all typing workstations, virtual keyboards, and analytics.
           </p>
@@ -229,108 +214,140 @@ export const ThemesShowcase = () => {
 };
 
 /**
- * TiltedThemeCard
- * 
- * Recreates the exact visual appearance of the reference card:
- * 1. Colorful rotated backing shape (rotated counter-clockwise ~ -4.5deg)
- * 2. Pure white rounded foreground card (rotated clockwise ~ +1.2deg)
- * 3. Compact number, theme title, category tag, swatches, description, and selection indicator
+ * TiltedThemeCard — Exact Double-Layer Reference Architecture
+ * ============================================================
+ * Reproduces the visual design of Reference Image 2:
+ * 1. Layer A (Rear Card): Solid/gradient theme-backing card with rounded corners,
+ *    subtle rotation, soft deep dimensional shadow, visible extension around front.
+ * 2. Layer B (Front Card): Crisp pure-white card with opposing subtle rotation,
+ *    rounded corners, soft elevation shadow.
+ * 3. Dashed Inset Border: Distinct 2.5px dashed border matching theme accent.
+ * 4. Content Architecture:
+ *    - Top: Small uppercase label `OPTION` and large bold condensed number `01`-`16` in theme color.
+ *    - Top-right: ACTIVE badge (with checkmark) or category tag.
+ *    - Middle: Bold uppercase theme name and concise description.
+ *    - Bottom-left: Compact `Select Theme` or `✓ Applied` action button.
+ *    - Bottom-right: Circular outlined badge containing the theme-specific icon.
  */
-const TiltedThemeCard = ({ card, themeItem, isActive, onSelect }) => {
+const TiltedThemeCard = ({ card, themeItem, isActive, rotation, onSelect }) => {
+  const IconComponent = THEME_ICONS[card.themeId] || Leaf;
+
   return (
-    <div className="relative group w-full max-w-[205px] mx-auto py-2.5 select-none">
-      {/* 1. COLORFUL ROTATED BACKING SHAPE */}
+    <div className="relative group w-full max-w-[270px] mx-auto py-5 px-3 select-none">
+      {/* =================================================================== */}
+      {/* LAYER A — REAR COLORED BACKING CARD                                 */}
+      {/* =================================================================== */}
       <div
-        className="absolute inset-x-1.5 inset-y-2 rounded-[22px] transition-transform duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] pointer-events-none group-hover:scale-[1.03]"
+        className="absolute inset-0 sm:-inset-1 rounded-[26px] transition-all duration-300 ease-out pointer-events-none group-hover:scale-[1.03]"
         style={{
-          backgroundColor: card.backingColor,
-          transform: 'rotate(-4.5deg)',
-          boxShadow: `0 14px 24px -6px ${card.backingColor}55, 0 4px 10px -3px rgba(0,0,0,0.1)`,
+          background: card.backingGradient || card.backingColor,
+          transform: `rotate(${rotation.rear}deg)`,
+          boxShadow: isActive
+            ? `0 24px 44px -8px ${card.backingColor}99, 0 8px 22px -4px rgba(0,0,0,0.38)`
+            : `0 18px 36px -8px ${card.backingColor}70, 0 6px 18px -4px rgba(0,0,0,0.22)`,
         }}
         aria-hidden="true"
       />
 
-      {/* 2. PURE WHITE FOREGROUND ROUNDED RECTANGLE */}
-      <button
-        type="button"
-        onClick={onSelect}
+      {/* =================================================================== */}
+      {/* LAYER B — FRONT WHITE INFORMATION CARD                              */}
+      {/* =================================================================== */}
+      <div
         role="button"
+        tabIndex={0}
+        onClick={onSelect}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
         aria-pressed={isActive}
-        className={`relative z-10 w-full rounded-[18px] bg-white text-gray-800 p-3.5 sm:p-4 flex flex-col items-center text-center transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer shadow-md hover:shadow-xl group-hover:translate-y-[-2px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/30 ${
-          isActive ? 'ring-2 ring-black/40 shadow-lg' : ''
+        className={`relative z-10 w-full rounded-[20px] bg-white text-neutral-800 p-2.5 sm:p-3 transition-all duration-300 ease-out cursor-pointer shadow-md group-hover:shadow-2xl group-hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/40 ${
+          isActive ? 'ring-2 ring-neutral-900/50 shadow-xl' : ''
         }`}
         style={{
-          transform: 'rotate(1.2deg)',
-          minHeight: '260px',
+          transform: `rotate(${rotation.front}deg)`,
         }}
       >
-        {/* Active Pill / Indicator */}
-        {isActive && (
-          <div
-            className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full text-[8px] font-mono font-bold flex items-center gap-0.5 shadow-xs"
-            style={{
-              backgroundColor: card.backingColor,
-              color: '#FFFFFF',
-            }}
-          >
-            <Check className="w-2.5 h-2.5 stroke-[3]" />
-            <span>ACTIVE</span>
+        {/* ================================================================= */}
+        {/* INSET DASHED BORDER (Physical Stitched Patch Design)               */}
+        {/* ================================================================= */}
+        <div
+          className="w-full rounded-[15px] border-[2.2px] border-dashed p-3 sm:p-3.5 flex flex-col justify-between"
+          style={{
+            borderColor: card.dashedColor || themeItem.accent,
+            minHeight: '286px',
+          }}
+        >
+          {/* Top Section: OPTION label, Large Bold Number, Active Pill */}
+          <div>
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex flex-col text-left">
+                <span className="text-[10px] font-mono uppercase font-bold tracking-widest text-neutral-400">
+                  OPTION
+                </span>
+                <span
+                  className="text-3xl sm:text-[36px] font-black tracking-tight leading-none mt-0.5 font-sans"
+                  style={{ color: card.dashedColor || themeItem.accent }}
+                >
+                  {card.num}
+                </span>
+              </div>
+
+              {isActive ? (
+                <span
+                  className="px-2 py-0.5 rounded-full text-[9px] font-mono font-bold tracking-wider uppercase flex items-center gap-1 shadow-xs text-white shrink-0 mt-0.5"
+                  style={{ backgroundColor: card.backingColor }}
+                >
+                  <Check className="w-2.5 h-2.5 stroke-[3]" />
+                  <span>ACTIVE</span>
+                </span>
+              ) : (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-mono uppercase tracking-wider font-semibold bg-neutral-100 text-neutral-500 shrink-0 mt-0.5">
+                  {card.tag}
+                </span>
+              )}
+            </div>
+
+            {/* Middle Section: Theme Title and Description */}
+            <div className="mt-4 text-left">
+              <h4 className="text-xs sm:text-[13px] font-extrabold uppercase tracking-wider text-neutral-900 line-clamp-1 font-sans">
+                {themeItem.name}
+              </h4>
+              <p className="text-[10.5px] leading-relaxed text-neutral-500 font-sans line-clamp-3 mt-1.5">
+                {themeItem.subtitle}
+              </p>
+            </div>
           </div>
-        )}
 
-        {/* Compact Bold Number (01, 02, 03, 04...) */}
-        <span className="text-2xl sm:text-[26px] font-extrabold tracking-tight text-gray-800 font-sans mt-0.5">
-          {card.num}
-        </span>
+          {/* Bottom Section: Action Button (Left) & Circular Icon Badge (Right) */}
+          <div className="flex items-center justify-between gap-2 pt-3 mt-auto">
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg text-[9px] font-mono font-bold uppercase tracking-wider transition-all ${
+                isActive
+                  ? 'bg-neutral-900 text-white shadow-xs'
+                  : 'bg-neutral-100 text-neutral-700 group-hover:bg-neutral-900 group-hover:text-white'
+              }`}
+            >
+              {isActive && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+              <span>{isActive ? 'Applied' : 'Select Theme'}</span>
+            </span>
 
-        {/* Theme Name */}
-        <h4 className="text-xs sm:text-[12px] font-bold uppercase tracking-wider text-gray-900 line-clamp-1 mt-0.5">
-          {themeItem.name}
-        </h4>
-
-        {/* Category Tag Badge */}
-        <span className="inline-block text-[8.5px] font-mono uppercase tracking-wider text-gray-500 font-semibold px-2 py-0.5 rounded-full bg-gray-100 mt-1">
-          {card.tag}
-        </span>
-
-        {/* Subtle Horizontal Divider */}
-        <div className="w-8 h-[1px] bg-gray-200 my-2 rounded-full" />
-
-        {/* Palette Color Swatch Circles */}
-        <div className="flex items-center justify-center gap-1.5 mb-2">
-          {[
-            { label: 'Accent', color: themeItem.accent },
-            { label: 'Surface', color: themeItem.surface },
-            { label: 'Border', color: themeItem.border },
-            { label: 'Background', color: themeItem.bg },
-          ].map((swatch) => (
+            {/* Circular Outlined Theme Icon Badge (Positioned Lower-Right) */}
             <div
-              key={swatch.label}
-              className="w-3.5 h-3.5 rounded-full border border-black/10 shadow-xs"
-              style={{ backgroundColor: swatch.color }}
-              title={`${swatch.label}: ${swatch.color}`}
-            />
-          ))}
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border-[2.2px] flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-110 bg-white shadow-xs"
+              style={{ borderColor: card.dashedColor || themeItem.accent }}
+              title={themeItem.name}
+            >
+              <IconComponent
+                className="w-4 h-4 sm:w-[18px] sm:h-[18px] stroke-[2.4]"
+                style={{ color: card.dashedColor || themeItem.accent }}
+              />
+            </div>
+          </div>
         </div>
-
-        {/* Description: Clean 2 lines */}
-        <p className="text-[9px] leading-snug text-gray-400 font-sans line-clamp-2 px-0.5 mt-auto">
-          {themeItem.subtitle}
-        </p>
-
-        {/* Bottom Selection Action Button */}
-        <div className="w-full pt-2 mt-2 border-t border-gray-100">
-          <span
-            className={`inline-block w-full py-1 rounded-lg text-[9px] font-mono font-bold uppercase tracking-wider transition-colors ${
-              isActive
-                ? 'bg-gray-900 text-white shadow-xs'
-                : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
-            }`}
-          >
-            {isActive ? 'Applied' : 'Select Theme'}
-          </span>
-        </div>
-      </button>
+      </div>
     </div>
   );
 };

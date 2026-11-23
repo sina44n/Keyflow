@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark-theme">
+<html lang="en" dir="ltr" data-theme="dark-theme">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -14,7 +14,7 @@
     <link rel="shortcut icon" href="/favicon.ico?v=3" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,600;1,700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
     <!--
       Theme flash prevention script — runs synchronously before any render.
@@ -23,14 +23,22 @@
     -->
     <script>
       (function() {
-        var stored = localStorage.getItem('keyflow-theme');
         var validThemes = [
           'dark-theme','dark-charcoal-lime','classic-black-white','burgundy-cream',
           'midnight-blue','lavender-purple','forest-green','ocean-teal',
-          'sunset-orange','rose-pink','arctic-blue','solarized-light','warm-sand'
+          'sunset-orange','rose-pink','arctic-blue','solarized-light',
+          'warm-sand','glacier-aqua','forest-sage','midnight-slate'
         ];
-        if (stored && validThemes.indexOf(stored) !== -1) {
-          document.documentElement.setAttribute('data-theme', stored);
+        var theme = null;
+        try {
+          var userId = localStorage.getItem('keyflow_current_user_id');
+          var userKey = userId ? 'keyflow_theme_u_' + userId : null;
+          theme = (userKey && localStorage.getItem(userKey)) || localStorage.getItem('keyflow-theme');
+          if (theme === 'espresso-latte') theme = 'glacier-aqua';
+        } catch (e) {}
+
+        if (theme && validThemes.indexOf(theme) !== -1) {
+          document.documentElement.setAttribute('data-theme', theme);
         }
       })();
     </script>

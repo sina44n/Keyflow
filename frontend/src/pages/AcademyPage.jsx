@@ -302,9 +302,6 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
     );
   }
 
-  const startLessonNum = viewAllLevels ? 1 : (currentUnit?.startLesson || 1);
-  const endLessonNum = viewAllLevels ? (activeStageMeta?.totalLessons || 700) : (currentUnit?.endLesson || 10);
-
   return (
     <div className="relative min-h-screen bg-[var(--bg-main)] text-[var(--text-primary)] pb-16 overflow-x-hidden selection:bg-[var(--accent)] selection:text-[var(--accent-fg)]">
       {/* Subtle Atmospheric Background Glow */}
@@ -367,9 +364,6 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
 
           {/* Recommended Next Lesson Resume Pill */}
           <div className="flex items-center gap-2.5">
-            <span className="text-[var(--text-muted)] hidden md:inline text-[11px]">
-              Next Up: <span className="text-[var(--accent)] font-bold">Stage {recommended.stageId} Level {recommended.lessonNum}</span>
-            </span>
             <button
               type="button"
               onClick={() => handleSelectLesson(recommended.stageId, recommended.lessonNum)}
@@ -389,29 +383,14 @@ export const AcademyPage = ({ initialLevelId = 1, onExit }) => {
           {/* Left Column: Contextual Hierarchy matching Reference Images */}
           <div className="space-y-2.5">
             {/* Red Accent Bar with Dynamic Active Stage Identity */}
-            <div className="border-l-4 border-[var(--accent)] pl-3.5 space-y-1">
+            <div className="border-l-4 border-[var(--accent)] pl-3.5">
               <h2 className="text-xl sm:text-2xl font-extrabold text-[var(--text-primary)] tracking-tight">
                 Stage {activeStageId} — <span className="text-[var(--text-primary)]">{activeStageMeta.title}</span>
               </h2>
-              <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-normal leading-relaxed max-w-2xl">
-                {activeStageMeta.subtitle || activeStageMeta.objective}
-              </p>
             </div>
 
             {/* Context & Select Stage Dropdown */}
             <div className="flex flex-wrap items-center gap-3 pt-0.5 pl-3.5" ref={stageMenuRef}>
-              <div className="flex items-center gap-2 text-xs font-mono text-[var(--text-muted)]">
-                <span>
-                  {viewAllLevels ? (
-                    <>All {activeStageMeta?.totalLessons || 700} Lessons · Full Stage Overview</>
-                  ) : (
-                    <>Unit {activeUnit} of {stageUnits.length}: <span className="text-[var(--text-primary)] font-semibold">{currentUnit?.unitLabel}</span></>
-                  )}
-                </span>
-                <span className="text-[var(--border)]">•</span>
-                <span>Lessons {startLessonNum}–{endLessonNum} ({displayLessons.length} Modules)</span>
-              </div>
-
               {/* Select Stage Dropdown Button */}
               <div className="relative">
                 <button

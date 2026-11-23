@@ -23,6 +23,7 @@ const SHORTCUTS = [
       { key: 'Alt + F', description: 'Toggle Focus Mode (distraction-free)' },
       { key: 'Alt + H', description: 'Open Practice History' },
       { key: 'Alt + S', description: 'Open Saved Passages library' },
+      { key: 'Alt + U', description: 'Open Sound System (Audio Studio)' },
       { key: 'Alt + K', description: 'Open this Keyboard Shortcuts cheat sheet' },
     ],
   },

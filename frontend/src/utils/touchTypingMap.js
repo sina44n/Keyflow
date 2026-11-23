@@ -340,14 +340,14 @@ export function computeSpeedShade(wpm, hasData, bounds = { min: 20, max: 40, dyn
  * - Highest Accuracy: Blue (#1e68d0)
  * - Second-highest Accuracy: Very Light Red (#fecdd3)
  * - Third-highest Accuracy: Medium Red (#f87171)
- * - Lowest Accuracy: Dark Red (#991b1b)
+ * - Lowest Accuracy: Normal Red (#dc2626, matching Keyboard Mastery status bar)
  * - Neutral (unpracticed / no data): (#e2e8f0)
  */
 export const ACCURACY_SHADES = {
   highest: '#1e68d0',       // Blue for highest accuracy
   secondHighest: '#fecdd3', // Very light red
   thirdHighest: '#f87171',  // Medium red
-  lowest: '#991b1b',        // Dark red
+  lowest: '#dc2626',        // Normal Red matching Keyboard Mastery status bar
   neutral: '#e2e8f0',       // Neutral for unpracticed fingers
   // Compatibility aliases
   good: '#f87171',
@@ -383,7 +383,7 @@ export function computeAccuracyShade(acc, hasData, bounds = { min: 80, max: 100,
   if (acc >= min + step) {
     return ACCURACY_SHADES.thirdHighest;  // Medium Red
   }
-  return ACCURACY_SHADES.lowest;          // Dark Red
+  return ACCURACY_SHADES.lowest;          // Normal Red (matches Keyboard Mastery)
 }
 
 /**

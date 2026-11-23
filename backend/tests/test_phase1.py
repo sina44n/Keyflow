@@ -73,7 +73,7 @@ class AccountsAndThemesTests(TestCase):
             'arctic-blue',
             'solarized-light',
             'warm-sand',
-            'espresso-latte',
+            'glacier-aqua',
             'forest-sage',
             'midnight-slate',
         }
@@ -84,7 +84,7 @@ class AccountsAndThemesTests(TestCase):
     def test_theme_update_persistence(self):
         """Verify user can update and persist theme preference across new themes."""
         prefs = self.user.preferences
-        for new_theme in ['espresso-latte', 'forest-sage', 'midnight-slate', 'midnight-blue']:
+        for new_theme in ['glacier-aqua', 'forest-sage', 'midnight-slate', 'midnight-blue']:
             prefs.theme = new_theme
             prefs.save()
 

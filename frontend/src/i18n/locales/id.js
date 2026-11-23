@@ -10,6 +10,7 @@ export default {
   "nav.about": "Tentang KEYFLOW",
   "nav.signIn": "Masuk",
   "nav.getStarted": "Mulai Sekarang",
+  "nav.continue": "Lanjutkan",
   "nav.continuePractice": "Lanjutkan Latihan",
   "nav.logout": "Keluar",
   "nav.profile": "Profil",

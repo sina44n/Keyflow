@@ -6,6 +6,7 @@
  */
 
 import { removeZeroWidth } from './textUtilities.js';
+import { practiceAPI } from './api.js';
 
 const STARTER_CUSTOM_TEXTS = [
   {
@@ -80,6 +81,74 @@ export const getSavedCustomTexts = (userId = null) => {
 };
 
 /**
+ * Fetch and reconcile custom texts from the persistent backend database.
+ * Merges backend records with local storage for true multi-device account persistence.
+ */
+export const fetchAndSyncCustomTexts = async (userId = null) => {
+  if (!userId || typeof window === 'undefined') {
+    return getSavedCustomTexts(userId);
+  }
+
+  try {
+    const response = await practiceAPI.getCustomPassages();
+    const backendItems = response.data || [];
+
+    const formattedBackend = backendItems.map((p) => ({
+      id: `backend_${p.id}`,
+      backendId: p.id,
+      title: p.title,
+      text: p.text,
+      wordCount: p.word_count || p.text.split(/\s+/).filter(Boolean).length,
+      charCount: p.char_count || p.text.length,
+      createdAt: new Date(p.created_at).getTime(),
+      updatedAt: new Date(p.updated_at).getTime(),
+    }));
+
+    const key = getStorageKey(userId);
+    const local = getSavedCustomTexts(userId);
+
+    // Identify any local custom passages not yet persisted to backend
+    const unsyncedLocal = local.filter(
+      (item) =>
+        item.id.startsWith('ct_') &&
+        !item.backendId &&
+        !formattedBackend.some((b) => b.title === item.title && b.text === item.text)
+    );
+
+    // Asynchronously push any unsynced local creations to backend
+    for (const unsynced of unsyncedLocal) {
+      try {
+        const createRes = await practiceAPI.createCustomPassage({
+          title: unsynced.title,
+          text: unsynced.text,
+        });
+        if (createRes.data?.id) {
+          unsynced.backendId = createRes.data.id;
+          unsynced.id = `backend_${createRes.data.id}`;
+        }
+      } catch (uploadErr) {
+        console.warn('Background sync upload notice:', uploadErr);
+      }
+    }
+
+    // Retain starter texts for new users if no custom passages exist yet
+    const starters = local.filter((item) => item.id.startsWith('starter_'));
+    const merged = [
+      ...formattedBackend,
+      ...unsyncedLocal.filter((u) => !formattedBackend.some((b) => b.backendId === u.backendId)),
+      ...(formattedBackend.length === 0 ? starters : []),
+    ];
+
+    localStorage.setItem(key, JSON.stringify(merged));
+    notifyCustomTextsChanged();
+    return merged;
+  } catch (err) {
+    console.warn('Failed to sync custom passages with backend, using cached local copy:', err);
+    return getSavedCustomTexts(userId);
+  }
+};
+
+/**
  * Save a new custom text entry.
  */
 export const saveCustomText = ({ title, text, userId = null }) => {
@@ -94,8 +163,9 @@ export const saveCustomText = ({ title, text, userId = null }) => {
   const words = sanitizedText.split(/\s+/).filter(Boolean).length;
   const chars = sanitizedText.length;
 
+  const localId = `ct_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
   const newEntry = {
-    id: `ct_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+    id: localId,
     title: sanitizedTitle,
     text: sanitizedText,
     wordCount: words,
@@ -111,6 +181,28 @@ export const saveCustomText = ({ title, text, userId = null }) => {
   } catch (err) {
     console.error('Failed to save custom text to localStorage:', err);
   }
+
+  // Persist to backend database when authenticated
+  if (userId) {
+    practiceAPI
+      .createCustomPassage({ title: sanitizedTitle, text: sanitizedText })
+      .then((res) => {
+        if (res.data?.id) {
+          const fresh = getSavedCustomTexts(userId);
+          const idx = fresh.findIndex((i) => i.id === localId);
+          if (idx !== -1) {
+            fresh[idx].backendId = res.data.id;
+            fresh[idx].id = `backend_${res.data.id}`;
+            localStorage.setItem(getStorageKey(userId), JSON.stringify(fresh));
+            notifyCustomTextsChanged();
+          }
+        }
+      })
+      .catch((err) => {
+        console.warn('Background custom passage creation notice:', err);
+      });
+  }
+
   return newEntry;
 };
 
@@ -133,6 +225,8 @@ export const updateCustomText = (id, { title, text }, userId = null) => {
   const words = sanitizedText.split(/\s+/).filter(Boolean).length;
   const chars = sanitizedText.length;
 
+  const backendId = existing[index].backendId || (String(id).startsWith('backend_') ? id.replace('backend_', '') : null);
+
   const updatedEntry = {
     ...existing[index],
     title: sanitizedTitle,
@@ -149,6 +243,16 @@ export const updateCustomText = (id, { title, text }, userId = null) => {
   } catch (err) {
     console.error('Failed to update custom text in localStorage:', err);
   }
+
+  // Persist update to backend database when authenticated
+  if (userId && backendId) {
+    practiceAPI
+      .updateCustomPassage(backendId, { title: sanitizedTitle, text: sanitizedText })
+      .catch((err) => {
+        console.warn('Background custom passage update notice:', err);
+      });
+  }
+
   return updatedEntry;
 };
 
@@ -157,6 +261,9 @@ export const updateCustomText = (id, { title, text }, userId = null) => {
  */
 export const deleteCustomText = (id, userId = null) => {
   const existing = getSavedCustomTexts(userId);
+  const target = existing.find((item) => item.id === id);
+  const backendId = target?.backendId || (String(id).startsWith('backend_') ? id.replace('backend_', '') : null);
+
   const filtered = existing.filter((item) => item.id !== id);
   try {
     localStorage.setItem(getStorageKey(userId), JSON.stringify(filtered));
@@ -164,5 +271,13 @@ export const deleteCustomText = (id, userId = null) => {
   } catch (err) {
     console.error('Failed to delete custom text from localStorage:', err);
   }
+
+  // Persist deletion to backend database when authenticated
+  if (userId && backendId) {
+    practiceAPI.deleteCustomPassage(backendId).catch((err) => {
+      console.warn('Background custom passage deletion notice:', err);
+    });
+  }
+
   return filtered;
 };

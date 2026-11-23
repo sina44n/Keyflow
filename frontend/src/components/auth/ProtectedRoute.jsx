@@ -11,7 +11,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 export const ProtectedRoute = ({ children }) => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, isSigningOut } = useAuth();
   const location = useLocation();
 
   // Instant bypass for dev_preview and automated testing
@@ -19,13 +19,15 @@ export const ProtectedRoute = ({ children }) => {
     return children;
   }
 
-  // Still checking token validity — show loading
-  if (isLoading) {
+  // Still checking token validity or completing active sign-out — show loading
+  if (isLoading || isSigningOut) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[var(--bg-main)]">
         <div className="flex flex-col items-center gap-4">
           <div className="w-10 h-10 border-3 border-[var(--border)] border-t-[var(--accent)] rounded-full animate-spin" />
-          <p className="text-sm text-[var(--text-muted)] font-mono">Verifying session...</p>
+          <p className="text-sm text-[var(--text-muted)] font-mono">
+            {isSigningOut ? 'Signing out...' : 'Verifying session...'}
+          </p>
         </div>
       </div>
     );

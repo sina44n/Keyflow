@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { KeyboardGuide } from '../academy/KeyboardGuide';
+import { CapsLockNotification } from '../common/CapsLockNotification';
 import { SoundSelector } from '../common/SoundSelector';
 import { useKeyboardSound } from '../../context/SoundContext';
 import { useI18n } from '../../i18n/I18nContext';
@@ -93,6 +94,7 @@ export const HeroSection = () => {
       setLastKeystroke({ key: val[val.length - 1], code: '', id: performance.now() });
     } else if (val.length < inputVal.length) {
       const addedBackspaces = inputVal.length - val.length;
+      playClick(false);
       setBackspaces((b) => b + addedBackspaces);
       setLastKeystroke({ key: 'backspace', code: 'Backspace', id: performance.now() });
     }
@@ -168,16 +170,10 @@ export const HeroSection = () => {
       />
 
       <div className="container-app relative z-10 space-y-12 sm:space-y-16">
-        {/* Main Balanced 2-Column Hero Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-center">
+        {/* Main Balanced 2-Column Hero Grid (anchored with items-start to eliminate vertical layout shift when typing results appear) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-12 items-start">
           {/* Left Column: Value Proposition & CTAs */}
-          <div className="lg:col-span-5 space-y-5 text-left">
-            {/* Status Chip */}
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-xs text-[var(--text-secondary)] font-mono">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
-              <span>{t('hero.badge', 'Interactive ANSI 60% Virtual Guide')}</span>
-            </div>
-
+          <div className="lg:col-span-5 space-y-6 text-left lg:pt-[112px] xl:pt-[135px]">
             {/* Headline */}
             <h1 className="text-3xl sm:text-4xl xl:text-5xl font-extrabold tracking-tight leading-[1.12] text-[var(--text-primary)]">
               {t('hero.title', 'Type with intuition.')}<br />
@@ -207,29 +203,13 @@ export const HeroSection = () => {
                 {t('hero.exploreAcademy', { count: totalStages }, `Explore ${totalStages}-Stage Academy`)}
               </Button>
             </div>
-
-            {/* Micro Highlights */}
-            <div className="pt-2 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-mono text-[var(--text-muted)]">
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--ui-success)]" />
-                <span>{t('features.card2.title', 'Sub-Millisecond Engine')}</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]" />
-                <span>{t('hero.anchoring', 'Tactile Key Anchoring')}</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[var(--text-secondary)]" />
-                <span>{t('nav.themes', 'Studio Themes')}</span>
-              </span>
-            </div>
           </div>
 
           {/* Right Column: Integrated Tactile Typing Workstation */}
           <div className="lg:col-span-7">
             <div
               id="sandbox"
-              className="card-panel p-4 sm:p-6 shadow-xl relative overflow-hidden transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]"
+              className="card-panel p-4 sm:p-6 shadow-xl relative overflow-visible transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)]"
             >
               {/* Terminal Titlebar & Metrics Header */}
               <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-[var(--border)]">
@@ -297,7 +277,7 @@ export const HeroSection = () => {
                   </button>
 
                   {/* Sound Selector Popover */}
-                  <SoundSelector variant="compact" />
+                  <SoundSelector variant="compact" align="auto" />
 
                   <Button variant="outline" size="sm" icon={RotateCcw} onClick={handleReset}>
                     {t('common.restart', 'Reset')}
@@ -358,13 +338,20 @@ export const HeroSection = () => {
                   </div>
 
                   {(keyboardGuideOn || handGuideOn) && (
-                    <div className="w-full flex justify-center pt-2">
-                      <KeyboardGuide
-                        targetChar={currentTargetChar}
-                        lastKeystroke={lastKeystroke}
-                        isVisible={keyboardGuideOn}
-                        handGuideVisible={handGuideOn}
-                      />
+                    <div className="w-full flex justify-center pt-2 relative">
+                      <div className="relative w-full max-w-[820px]">
+                        <CapsLockNotification
+                          className="left-0 -top-2.5 sm:-top-3"
+                          id="hero-capslock-notification"
+                          data-testid="hero-capslock-notification"
+                        />
+                        <KeyboardGuide
+                          targetChar={currentTargetChar}
+                          lastKeystroke={lastKeystroke}
+                          isVisible={keyboardGuideOn}
+                          handGuideVisible={handGuideOn}
+                        />
+                      </div>
                     </div>
                   )}
                 </div>

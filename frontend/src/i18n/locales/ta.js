@@ -10,6 +10,7 @@ export default {
   "nav.about": "ஏன் KEYFLOW",
   "nav.signIn": "உள்நுழைய",
   "nav.getStarted": "தொடங்கவும்",
+  "nav.continue": "தொடரவும்",
   "nav.continuePractice": "பயிற்சியைத் தொடரவும்",
   "nav.logout": "வெளியேறு",
   "nav.profile": "சுயவிவரம்",

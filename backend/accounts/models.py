@@ -12,6 +12,7 @@ from django.conf import settings
 from urllib.parse import urlparse
 import base64
 import json
+import uuid
 
 def is_google_avatar_host(url: str) -> bool:
     """
@@ -176,22 +177,28 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_super_admin(self):
-        """Owner or explicit Super Admin role check."""
-        owner_clerk_ids = set(getattr(settings, 'OWNER_CLERK_IDS', ['user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn']))
-        if (self.email and self.email.lower() == OWNER_EMAIL.lower()) or (getattr(self, 'clerk_id', '') in owner_clerk_ids):
-            return True
-        return self.role == ROLE_SUPER_ADMIN or self.is_superuser
+        """Strictly verified platform owner check."""
+        return bool(self.is_owner)
 
     @property
     def is_admin(self):
-        """Admin or Super Admin check."""
-        return self.is_super_admin or self.role == ROLE_ADMIN or self.is_staff
+        """Strictly verified platform owner check."""
+        return bool(self.is_owner)
 
     @property
     def is_owner(self):
-        """True if this account represents the verified platform owner."""
+        """
+        True ONLY if this account represents the verified platform owner with BOTH
+        canonical email and verified Clerk ID. Fails closed if clerk_id is missing or unverified.
+        """
+        owner_email = getattr(settings, 'OWNER_EMAIL', OWNER_EMAIL).strip().lower()
         owner_clerk_ids = set(getattr(settings, 'OWNER_CLERK_IDS', ['user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn']))
-        return bool((self.email and self.email.lower() == OWNER_EMAIL.lower()) or (getattr(self, 'clerk_id', '') in owner_clerk_ids))
+        if not self.email or self.email.strip().lower() != owner_email:
+            return False
+        clerk_id = getattr(self, 'clerk_id', None)
+        if not clerk_id or clerk_id not in owner_clerk_ids:
+            return False
+        return True
 
     def can_be_managed_by(self, acting_user):
         """
@@ -249,21 +256,21 @@ class UserPreferences(models.Model):
     """
     THEME_CHOICES = [
         ('dark-theme', 'Dark Theme'),
-        ('dark-charcoal-lime', 'Dark Charcoal + Lime'),
+        ('dark-charcoal-lime', 'Charcoal Lime'),
         ('classic-black-white', 'Classic Black + White'),
         ('burgundy-cream', 'Burgundy + Cream'),
-        ('midnight-blue', 'Midnight Blue'),
-        ('lavender-purple', 'Lavender + Purple'),
-        ('forest-green', 'Forest Green'),
+        ('midnight-blue', 'Midnight Ocean'),
+        ('lavender-purple', 'Lavender Dream'),
+        ('forest-green', 'Electric Cobalt'),
         ('ocean-teal', 'Ocean Teal'),
-        ('sunset-orange', 'Sunset Orange'),
+        ('sunset-orange', 'Fiery Orange'),
         ('rose-pink', 'Rose Pink'),
-        ('arctic-blue', 'Arctic Blue'),
+        ('arctic-blue', 'Warm Sage'),
         ('solarized-light', 'Solarized Light'),
         ('warm-sand', 'Warm Sand'),
-        ('espresso-latte', 'Espresso & Latte'),
-        ('forest-sage', 'Forest Sage'),
-        ('midnight-slate', 'Midnight Slate'),
+        ('glacier-aqua', 'Glacier Aqua'),
+        ('forest-sage', 'Forest Green'),
+        ('midnight-slate', 'Sunny Golden Yellow'),
     ]
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='preferences')
@@ -328,3 +335,65 @@ class EmailVerificationToken(models.Model):
 
     def is_valid(self):
         return not self.is_used and timezone.now() < self.expires_at
+
+
+class RevokedClerkIdentity(models.Model):
+    """
+    Tombstone registry of deleted or permanently revoked Clerk authentication identities.
+    Prevents unexpired Clerk session JWTs or delayed webhooks from resurrecting deleted accounts.
+    Keyed strictly by clerk_id (sub claim), NOT by email alone, ensuring that future legitimate
+    re-registrations using the same email with a new Clerk ID succeed cleanly.
+    """
+    clerk_id = models.CharField(max_length=128, unique=True, db_index=True)
+    original_email = models.EmailField(db_index=True)
+    revoked_at = models.DateTimeField(auto_now_add=True)
+    revocation_reason = models.CharField(max_length=255, default='account_deletion')
+
+    class Meta:
+        db_table = 'auth_revoked_clerk_identities'
+        ordering = ['-revoked_at']
+        verbose_name = 'Revoked Clerk Identity'
+        verbose_name_plural = 'Revoked Clerk Identities'
+
+    def __str__(self):
+        return f'RevokedClerkIdentity({self.clerk_id}, {self.original_email})'
+
+
+class WebhookEventReceipt(models.Model):
+    """
+    Durable event-receipt registry for webhook deduplication and failure-safe retry handling.
+    Tracks incoming Svix webhook message IDs across distributed backend workers.
+    Ensures that:
+    1. A successfully processed event is never executed twice.
+    2. An event that fails during downstream processing remains retryable.
+    3. An event is not marked PROCESSED until downstream processing succeeds.
+    """
+    STATUS_PROCESSING = 'PROCESSING'
+    STATUS_PROCESSED = 'PROCESSED'
+    STATUS_FAILED = 'FAILED'
+
+    STATUS_CHOICES = (
+        (STATUS_PROCESSING, 'Processing'),
+        (STATUS_PROCESSED, 'Processed'),
+        (STATUS_FAILED, 'Failed'),
+    )
+
+    svix_id = models.CharField(max_length=255, unique=True, db_index=True)
+    event_type = models.CharField(max_length=100, db_index=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PROCESSING, db_index=True)
+    claim_token = models.UUIDField(default=uuid.uuid4, db_index=True)
+    lease_expires_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    error_message = models.TextField(blank=True, default='')
+
+    class Meta:
+        db_table = 'auth_webhook_event_receipts'
+        ordering = ['-created_at']
+        verbose_name = 'Webhook Event Receipt'
+        verbose_name_plural = 'Webhook Event Receipts'
+
+    def __str__(self):
+        return f'WebhookEventReceipt({self.svix_id}, {self.event_type}, {self.status})'
+
+

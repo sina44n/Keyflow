@@ -15,7 +15,7 @@ Calculates authentic rankings across:
 import datetime
 import logging
 from django.utils import timezone
-from django.db.models import Count, Avg, Max
+from django.db.models import Count, Avg, Max, Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import permissions, status
@@ -82,6 +82,12 @@ class GlobalLeaderboardView(APIView):
             duration = request.query_params.get('duration', 'all').lower().strip()
             if duration not in ['all', '15', '30', '60', '120']:
                 duration = 'all'
+
+            source = request.query_params.get('source', 'all').lower().strip()
+            if source not in ['all', 'workstation_a', 'workstation_b', 'academy']:
+                source = 'all'
+
+            target_session_id = request.query_params.get('session_id', '').strip() or None
 
             continent = request.query_params.get('continent', 'all').lower().strip()
             valid_continents = ['all', 'africa', 'asia', 'europe', 'north_america', 'south_america', 'oceania', 'antarctica']
@@ -229,6 +235,8 @@ class GlobalLeaderboardView(APIView):
                             'score': round(score, 2),
                             'duration_seconds': duration,
                             'session_type': 'competition',
+                            'source_environment': 'competition',
+                            'session_id': str(p.id),
                             'total_chars': p.correct_chars + p.incorrect_chars,
                             'sessions_count': user_total_sessions.get(uid, 1),
                             'achieved_at': p.completed_at or p.joined_at,
@@ -237,15 +245,19 @@ class GlobalLeaderboardView(APIView):
                 base_eval_qs = comp_qs
 
             else:
-                # Global or Weekly Practice Sessions
+                # Global or Weekly Practice Sessions — strictly standard qualifying tests
                 base_qs = PracticeSession.objects.filter(
                     user__isnull=False,
                     user__is_active=True,
+                    session_type__in=['timed', 'words', 'passage', 'accuracy'],
                     net_wpm__gt=0,
                     accuracy__gt=0,
                     total_chars__gte=15,
                     duration_seconds__gte=10,
                 )
+
+                if source != 'all':
+                    base_qs = base_qs.filter(source_environment=source)
 
                 if category == 'accuracy':
                     # Require at least 50 typed characters so that 1-word tests cannot monopolize accuracy
@@ -306,6 +318,10 @@ class GlobalLeaderboardView(APIView):
                         except Exception:
                             pass
 
+                        src_env = getattr(s, 'source_environment', None) or 'workstation_a'
+                        if not src_env:
+                            src_env = 'workstation_a'
+
                         user_best_sessions[uid] = {
                             'sort_key': sort_key,
                             'user_id': uid,
@@ -319,6 +335,8 @@ class GlobalLeaderboardView(APIView):
                             'score': round(score, 2),
                             'duration_seconds': duration_val,
                             'session_type': s.session_type,
+                            'source_environment': src_env,
+                            'session_id': s.client_session_id or str(s.id),
                             'total_chars': s.total_chars,
                             'sessions_count': user_total_sessions.get(uid, 1),
                             'achieved_at': s.created_at,
@@ -376,8 +394,58 @@ class GlobalLeaderboardView(APIView):
                 try:
                     user_id = getattr(user, 'id', None) or getattr(user, 'pk', None)
                     if user_id:
+                        # 1. Target specific session if requested
+                        target_session = None
+                        if target_session_id:
+                            target_session = PracticeSession.objects.filter(
+                                user_id=user_id
+                            ).filter(
+                                Q(client_session_id=target_session_id) | Q(id=int(target_session_id) if str(target_session_id).isdigit() else -1)
+                            ).first()
+
                         my_entry = next((e for e in all_ranked_entries if e['user_id'] == user_id), None)
-                        if my_entry:
+
+                        if target_session:
+                            t_net = float(target_session.net_wpm)
+                            t_gross = float(target_session.gross_wpm)
+                            t_acc = float(target_session.accuracy)
+                            t_dur = int(target_session.duration_seconds)
+                            t_time = target_session.created_at
+
+                            if category == 'speed':
+                                t_score = t_net
+                                t_sort = (t_net, t_acc, -t_dur, -t_time.timestamp())
+                            elif category == 'accuracy':
+                                t_score = t_acc
+                                t_sort = (t_acc, t_net, -t_dur, -t_time.timestamp())
+                            else:
+                                dur_fac = min(1.0, (t_dur / 30.0) ** 0.5)
+                                t_score = round(t_net * (t_acc / 100.0) * dur_fac, 2)
+                                t_sort = (t_score, t_net, t_acc, -t_time.timestamp())
+
+                            higher_count = sum(1 for cand in user_best_sessions.values() if cand['user_id'] != user_id and cand['sort_key'] > t_sort)
+                            session_rank = higher_count + 1
+                            total_comps = max(1, len(all_ranked_entries))
+                            percentile = round((1.0 - (session_rank - 1) / total_comps) * 100.0, 1)
+
+                            my_rank_data = {
+                                'ranked': True,
+                                'rank': session_rank,
+                                'total_competitors': len(all_ranked_entries),
+                                'percentile': max(1.0, percentile),
+                                'net_wpm': round(t_net, 2),
+                                'gross_wpm': round(t_gross, 2),
+                                'accuracy': round(t_acc, 2),
+                                'score': round(t_score, 2),
+                                'duration_seconds': t_dur,
+                                'session_type': target_session.session_type,
+                                'source_environment': getattr(target_session, 'source_environment', 'workstation_a') or 'workstation_a',
+                                'session_id': target_session.client_session_id or str(target_session.id),
+                                'sessions_count': user_total_sessions.get(user_id, 1),
+                                'achieved_at': target_session.created_at,
+                                'message': f"Session score: #{session_rank} of {len(all_ranked_entries)} (Top {max(1.0, 100.0 - percentile + 1.0):.0f}%).",
+                            }
+                        elif my_entry:
                             percentile = (
                                 round((1.0 - (my_entry['rank'] - 1) / max(1, len(all_ranked_entries))) * 100.0, 1)
                                 if len(all_ranked_entries) > 0
@@ -393,6 +461,9 @@ class GlobalLeaderboardView(APIView):
                                 'accuracy': my_entry['accuracy'],
                                 'score': my_entry['score'],
                                 'duration_seconds': my_entry['duration_seconds'],
+                                'session_type': my_entry['session_type'],
+                                'source_environment': my_entry.get('source_environment', 'workstation_a'),
+                                'session_id': my_entry.get('session_id', ''),
                                 'sessions_count': my_entry['sessions_count'],
                                 'achieved_at': my_entry['achieved_at'],
                                 'message': f"You are ranked #{my_entry['rank']} of {len(all_ranked_entries)} typists (Top {max(1.0, 100.0 - percentile + 1.0):.0f}%).",
@@ -409,6 +480,9 @@ class GlobalLeaderboardView(APIView):
                                 'accuracy': None,
                                 'score': None,
                                 'duration_seconds': None,
+                                'session_type': None,
+                                'source_environment': None,
+                                'session_id': None,
                                 'sessions_count': user_all_time_count,
                                 'achieved_at': None,
                                 'message': "No qualifying practice sessions found for this filter. Complete a session on the Workstation to establish your rank!",

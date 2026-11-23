@@ -9,12 +9,13 @@ from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
-from .models import Passage, PracticeSession, Competition, CompetitionParticipant
+from .models import Passage, PracticeSession, Competition, CompetitionParticipant, CustomPassage
 from .serializers import (
     PassageSerializer,
     PracticeSessionSerializer,
     CompetitionSerializer,
     CompetitionParticipantSerializer,
+    CustomPassageSerializer,
 )
 
 
@@ -154,9 +155,33 @@ class RecordPracticeSessionView(APIView):
             except Passage.DoesNotExist:
                 pass
 
+        lesson_obj = None
+        lesson_id = data.get('lesson_id') or data.get('lessonId')
+        if lesson_id:
+            try:
+                from lessons.models import Lesson
+                lesson_obj = Lesson.objects.filter(id=lesson_id).first()
+            except Exception:
+                pass
+
         character_stats = data.get('character_stats') or data.get('characterStats') or {}
         if not isinstance(character_stats, dict):
             character_stats = {}
+
+        source = (data.get('source') or data.get('source_environment') or data.get('sourceEnvironment') or '').strip().lower()
+        if not source:
+            source = 'academy' if session_type == 'lesson' else 'workstation_a'
+
+        # Ensure metadata is stored within character_stats for lossless persistence
+        if not isinstance(character_stats.get('_meta'), dict):
+            character_stats['_meta'] = {}
+        character_stats['_meta']['source'] = source
+        if data.get('stage_id') or data.get('stageId'):
+            character_stats['_meta']['stage_id'] = data.get('stage_id') or data.get('stageId')
+        if data.get('level_number') or data.get('levelNumber'):
+            character_stats['_meta']['level_number'] = data.get('level_number') or data.get('levelNumber')
+        if data.get('mode'):
+            character_stats['_meta']['mode'] = data.get('mode')
 
         finger_stats = data.get('finger_stats') or data.get('fingerStats') or {}
         if not isinstance(finger_stats, (dict, list)):
@@ -165,6 +190,7 @@ class RecordPracticeSessionView(APIView):
         session = PracticeSession.objects.create(
             user=user,
             session_type=session_type,
+            source_environment=source,
             duration_seconds=duration,
             total_chars=total_chars,
             correct_chars=correct_chars,
@@ -174,6 +200,7 @@ class RecordPracticeSessionView(APIView):
             accuracy=accuracy,
             error_count=uncorrected_errors,
             passage=passage,
+            lesson=lesson_obj,
             client_session_id=client_session_id,
             character_stats=character_stats,
             finger_stats=finger_stats,
@@ -665,6 +692,16 @@ class CompetitionListView(APIView):
         is_public = bool(data.get('is_public', True))
         difficulty = data.get('difficulty', 'medium')
 
+        # Optional Competition Timer Configuration
+        time_limit_raw = data.get('time_limit_seconds')
+        time_limit_seconds = None
+        if time_limit_raw is not None and str(time_limit_raw).isdigit():
+            val = int(time_limit_raw)
+            if val in [15, 30, 60, 120, 300]:
+                time_limit_seconds = val
+
+        competition_mode = 'timed' if time_limit_seconds is not None else 'text_completion'
+
         # Challenge text selection
         challenge_text = (data.get('challenge_text') or '').strip()
         if not challenge_text:
@@ -681,6 +718,8 @@ class CompetitionListView(APIView):
             challenge_text=challenge_text,
             challenge_type=challenge_type,
             target_limit=target_limit,
+            competition_mode=competition_mode,
+            time_limit_seconds=time_limit_seconds,
             difficulty=difficulty,
             max_participants=max_participants,
             is_public=is_public,
@@ -717,6 +756,7 @@ class CompetitionListView(APIView):
 class CompetitionDetailView(APIView):
     """
     GET    /api/practice/competitions/<str:code>/ — Retrieve status, challenge text, and leaderboard.
+    PATCH  /api/practice/competitions/<str:code>/ — Host updates competition room configuration.
     DELETE /api/practice/competitions/<str:code>/ — Host cancels and deletes competition room.
     """
     permission_classes = [AllowAny]
@@ -727,8 +767,106 @@ class CompetitionDetailView(APIView):
         except Competition.DoesNotExist:
             return Response({'error': 'Competition not found.'}, status=status.HTTP_404_NOT_FOUND)
 
+        from django.utils import timezone
+        if competition.status == 'active' and competition.ended_at and timezone.now() >= competition.ended_at:
+            competition.status = 'completed'
+            competition.save(update_fields=['status'])
+
         serializer = CompetitionSerializer(competition)
         return Response(serializer.data)
+
+    def patch(self, request, code):
+        try:
+            competition = Competition.objects.get(code__iexact=code)
+        except Competition.DoesNotExist:
+            return Response({'error': 'Competition not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+        user = request.user if request.user and request.user.is_authenticated else None
+        participant_id = request.data.get('participant_id') or request.query_params.get('participant_id')
+
+        is_host = False
+        if competition.created_by:
+            if user and competition.created_by == user:
+                is_host = True
+        else:
+            first_p = competition.participants.order_by('id').first()
+            provided_token = (
+                request.data.get('participant_token') or
+                request.query_params.get('participant_token') or
+                request.headers.get('X-Participant-Token')
+            )
+            if first_p and str(first_p.id) == str(participant_id):
+                if first_p.guest_token_hash:
+                    if provided_token and first_p.verify_guest_token(provided_token):
+                        is_host = True
+                else:
+                    is_host = True
+            elif not participant_id and first_p and not first_p.guest_token_hash:
+                is_host = True
+
+        if not is_host:
+            return Response({'error': 'Only the host can edit this competition room.'}, status=status.HTTP_403_FORBIDDEN)
+
+        if competition.status != 'waiting':
+            return Response({'error': f'Cannot edit a competition that is already {competition.status}.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = request.data
+        update_fields = []
+        if 'name' in data:
+            name = (data.get('name') or '').strip()
+            if not name:
+                return Response({'error': 'Room name cannot be empty.'}, status=status.HTTP_400_BAD_REQUEST)
+            competition.name = name
+            update_fields.append('name')
+
+        if 'challenge_type' in data:
+            ctype = data.get('challenge_type')
+            if ctype in ['words', 'timed']:
+                competition.challenge_type = ctype
+                update_fields.append('challenge_type')
+
+        if 'target_limit' in data:
+            try:
+                tlimit = int(data.get('target_limit'))
+                if 5 <= tlimit <= 500:
+                    competition.target_limit = tlimit
+                    update_fields.append('target_limit')
+            except (ValueError, TypeError):
+                pass
+
+        if 'max_participants' in data:
+            try:
+                mpart = int(data.get('max_participants'))
+                if 2 <= mpart <= 500:
+                    competition.max_participants = mpart
+                    update_fields.append('max_participants')
+            except (ValueError, TypeError):
+                pass
+
+        if 'challenge_text' in data:
+            ctext = (data.get('challenge_text') or '').strip()
+            if ctext:
+                competition.challenge_text = ctext
+                update_fields.append('challenge_text')
+
+        if 'is_public' in data:
+            competition.is_public = bool(data.get('is_public'))
+            update_fields.append('is_public')
+
+        if 'time_limit_seconds' in data:
+            tl_val = data.get('time_limit_seconds')
+            if tl_val in [15, 30, 60, 120, 300, '15', '30', '60', '120', '300']:
+                competition.time_limit_seconds = int(tl_val)
+                competition.competition_mode = 'timed'
+            elif tl_val in [None, 0, '0', '', False]:
+                competition.time_limit_seconds = None
+                competition.competition_mode = 'text_completion'
+            update_fields.extend(['time_limit_seconds', 'competition_mode'])
+
+        if update_fields:
+            competition.save(update_fields=list(set(update_fields)))
+
+        return Response(CompetitionSerializer(competition).data, status=status.HTTP_200_OK)
 
     def delete(self, request, code):
         try:
@@ -794,8 +932,17 @@ class CompetitionStartView(APIView):
         if competition.status == 'cancelled':
             return Response({'error': 'Cannot start a cancelled competition.'}, status=status.HTTP_400_BAD_REQUEST)
 
+        from django.utils import timezone
+        from datetime import timedelta
+
         competition.status = 'active'
-        competition.save(update_fields=['status'])
+        competition.started_at = timezone.now()
+        if competition.time_limit_seconds:
+            competition.ended_at = competition.started_at + timedelta(seconds=competition.time_limit_seconds)
+        else:
+            competition.ended_at = None
+
+        competition.save(update_fields=['status', 'started_at', 'ended_at'])
         return Response(CompetitionSerializer(competition).data, status=status.HTTP_200_OK)
 
 
@@ -1062,7 +1209,12 @@ class CompetitionSubmitView(APIView):
         # Update competition status to active or completed
         total_p = competition.participants.count()
         completed_p = competition.participants.filter(status='completed').count()
-        if completed_p >= total_p and total_p > 0:
+        is_timed_expired = bool(
+            competition.time_limit_seconds and
+            competition.ended_at and
+            timezone.now() >= competition.ended_at
+        )
+        if (completed_p >= total_p and total_p > 0) or is_timed_expired:
             competition.status = 'completed'
             competition.save()
         elif competition.status == 'waiting':
@@ -1093,4 +1245,54 @@ class UserCompetitionsView(APIView):
         ).distinct()[:20]
         serializer = CompetitionSerializer(qs, many=True)
         return Response(serializer.data)
+
+
+class CustomPassageListCreateView(generics.ListCreateAPIView):
+    """
+    GET /api/practice/custom-passages/
+    List all custom passages owned by the authenticated user.
+    POST /api/practice/custom-passages/
+    Create a new custom passage for the authenticated user.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = CustomPassageSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return CustomPassage.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        title = serializer.validated_data.get('title', '')
+        if not title or not title.strip():
+            title = f"Custom Passage ({timezone.now().strftime('%Y-%m-%d')})"
+        else:
+            title = title.strip()[:255]
+        text = serializer.validated_data.get('text', '')
+        words = len(text.split())
+        chars = len(text)
+        serializer.save(user=self.request.user, title=title, word_count=words, char_count=chars)
+
+
+class CustomPassageDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET /api/practice/custom-passages/<int:pk>/
+    PUT /api/practice/custom-passages/<int:pk>/
+    DELETE /api/practice/custom-passages/<int:pk>/
+    Strictly isolated to the passage owner.
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = CustomPassageSerializer
+
+    def get_queryset(self):
+        return CustomPassage.objects.filter(user=self.request.user)
+
+    def perform_update(self, serializer):
+        title = serializer.validated_data.get('title', serializer.instance.title)
+        if title:
+            title = title.strip()[:255]
+        text = serializer.validated_data.get('text', serializer.instance.text)
+        words = len(text.split())
+        chars = len(text)
+        serializer.save(title=title, word_count=words, char_count=chars)
+
 

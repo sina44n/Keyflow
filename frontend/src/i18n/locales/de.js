@@ -10,6 +10,7 @@ export default {
   "nav.about": "Warum KEYFLOW",
   "nav.signIn": "Anmelden",
   "nav.getStarted": "Loslegen",
+  "nav.continue": "Fortfahren",
   "nav.continuePractice": "Weiter üben",
   "nav.logout": "Abmelden",
   "nav.profile": "Profil",

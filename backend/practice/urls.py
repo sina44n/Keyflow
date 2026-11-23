@@ -16,12 +16,16 @@ from .views import (
     CompetitionSubmitView,
     CompetitionStartView,
     UserCompetitionsView,
+    CustomPassageListCreateView,
+    CustomPassageDetailView,
 )
 
 urlpatterns = [
     path('', PracticeHealthView.as_view(), name='practice_root'),
     path('passages/', PassageListView.as_view(), name='practice_passages'),
     path('passages/<int:pk>/', PassageDetailView.as_view(), name='practice_passage_detail'),
+    path('custom-passages/', CustomPassageListCreateView.as_view(), name='practice_custom_passages'),
+    path('custom-passages/<int:pk>/', CustomPassageDetailView.as_view(), name='practice_custom_passage_detail'),
     path('sessions/', RecordPracticeSessionView.as_view(), name='practice_record_session'),
     path('history/', UserPracticeHistoryView.as_view(), name='practice_history'),
     path('keyboard-mastery/', KeyboardMasteryView.as_view(), name='practice_keyboard_mastery'),

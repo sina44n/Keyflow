@@ -195,13 +195,13 @@ class ClerkAuthenticationTests(TestCase):
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         res = self.client.post("/api/auth/clerk-sync/", {
             "display_name": "Synced Name",
-            "avatar_url": "https://images.example.com/avatar.png",
+            "avatar_url": "https://lh3.googleusercontent.com/a/sync-avatar-test",
         }, format="json")
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(res.data["status"], "synchronized")
         self.assertEqual(res.data["user"]["profile"]["display_name"], "Synced Name")
-        self.assertEqual(res.data["user"]["profile"]["avatar_url"], "https://images.example.com/avatar.png")
+        self.assertEqual(res.data["user"]["profile"]["avatar_url"], "https://lh3.googleusercontent.com/a/sync-avatar-test")
 
     def test_get_clerk_domain_from_publishable_key(self):
         """Verifies base64 domain extraction from Clerk publishable keys."""

@@ -146,6 +146,10 @@ describe('KEYFLOW — Clerk Authentication Frontend Architecture & Contracts', (
       'AuthContext.jsx must configure redirectUrl to /sso-callback'
     );
     assert.ok(
+      authContextContent.includes("oidcPrompt: 'select_account'"),
+      'AuthContext.jsx must configure oidcPrompt to select_account for explicit Google account selection'
+    );
+    assert.ok(
       authContextContent.includes('isOfflineFallback'),
       'AuthContext.jsx must provide resilient offline fallback user object'
     );

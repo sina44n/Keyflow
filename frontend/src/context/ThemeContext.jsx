@@ -9,6 +9,9 @@ const getInitialTheme = () => {
     const userId = typeof localStorage !== 'undefined' ? localStorage.getItem('keyflow_current_user_id') : null;
     const userKey = userId ? `keyflow_theme_u_${userId}` : null;
     const stored = (userKey && localStorage.getItem(userKey)) || localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'espresso-latte') {
+      return 'glacier-aqua';
+    }
     if (stored && THEMES.some((t) => t.id === stored)) {
       return stored;
     }
@@ -33,17 +36,38 @@ export const ThemeProvider = ({ children }) => {
     const handleSync = (e) => {
       const remoteTheme = e.detail;
       if (remoteTheme && THEMES.some((t) => t.id === remoteTheme)) {
+        // Prevent stale remote sync from overriding a recent explicit local user selection (within 15s)
+        try {
+          const lastLocalSet = Number(localStorage.getItem('keyflow_theme_timestamp')) || 0;
+          if (Date.now() - lastLocalSet < 15000) {
+            return;
+          }
+        } catch {}
+
         setThemeState(remoteTheme);
         try {
           const userId = localStorage.getItem('keyflow_current_user_id');
           const key = userId ? `keyflow_theme_u_${userId}` : THEME_STORAGE_KEY;
           localStorage.setItem(key, remoteTheme);
+          localStorage.setItem(THEME_STORAGE_KEY, remoteTheme);
         } catch {}
         document.documentElement.setAttribute('data-theme', remoteTheme);
       }
     };
+
+    const handleStorage = (e) => {
+      if ((e.key === THEME_STORAGE_KEY || (e.key && e.key.startsWith('keyflow_theme_u_'))) && e.newValue && THEMES.some((t) => t.id === e.newValue)) {
+        setThemeState(e.newValue);
+        document.documentElement.setAttribute('data-theme', e.newValue);
+      }
+    };
+
     window.addEventListener('keyflow-theme-sync', handleSync);
-    return () => window.removeEventListener('keyflow-theme-sync', handleSync);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('keyflow-theme-sync', handleSync);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
   const setTheme = (themeId) => {
@@ -54,6 +78,7 @@ export const ThemeProvider = ({ children }) => {
       const key = userId ? `keyflow_theme_u_${userId}` : THEME_STORAGE_KEY;
       localStorage.setItem(key, themeId);
       localStorage.setItem(THEME_STORAGE_KEY, themeId);
+      localStorage.setItem('keyflow_theme_timestamp', Date.now().toString());
 
       if (userId) {
         profileAPI.updatePreferences({ theme_preset: themeId }).catch(() => {});

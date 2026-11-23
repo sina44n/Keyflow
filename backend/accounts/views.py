@@ -16,6 +16,7 @@ from knox.models import AuthToken
 from knox.views import LoginView as KnoxLoginView, LogoutView, LogoutAllView
 
 from .models import UserProfile, UserPreferences, EmailVerificationToken, is_authentic_avatar_url
+from .debug_logger import log_auth_event
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -552,6 +553,25 @@ class ClerkSyncView(APIView):
     def post(self, request):
         user = request.user
         data = request.data or {}
+        log_auth_event("clerk_sync_entry", {
+            "user_id": getattr(user, 'id', None),
+            "user_email": getattr(user, 'email', None),
+            "user_clerk_id": getattr(user, 'clerk_id', None),
+            "user_role": getattr(user, 'role', None),
+            "data_email": data.get('email'),
+            "data_display_name": data.get('display_name'),
+            "owner_email": getattr(settings, 'OWNER_EMAIL', 'sina44n07@gmail.com').strip().lower(),
+            "owner_clerk_ids": list(getattr(settings, 'OWNER_CLERK_IDS', [])),
+        })
+        from accounts.models import RevokedClerkIdentity
+        if getattr(user, 'clerk_id', None) and RevokedClerkIdentity.objects.filter(clerk_id=user.clerk_id).exists():
+            return Response({'detail': 'This authentication identity has been permanently revoked.'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        data = request.data or {}
+        incoming_clerk_id = data.get('clerk_id')
+        if incoming_clerk_id and RevokedClerkIdentity.objects.filter(clerk_id=incoming_clerk_id).exists():
+            return Response({'detail': 'Incoming identity has been permanently revoked.'}, status=status.HTTP_401_UNAUTHORIZED)
+
         profile = getattr(user, 'profile', None)
         if not profile:
             profile, _ = UserProfile.objects.get_or_create(user=user)
@@ -579,32 +599,29 @@ class ClerkSyncView(APIView):
         owner_clerk_ids = set(getattr(settings, 'OWNER_CLERK_IDS', ['user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn']))
 
         is_verified_owner = bool(
-            (user.email and user.email.lower() == owner_email) or
-            (getattr(user, 'clerk_id', '') in owner_clerk_ids)
+            user.email and user.email.lower() == owner_email and
+            getattr(user, 'clerk_id', '') in owner_clerk_ids
         )
 
         if email and isinstance(email, str):
             clean_email = email.strip().lower()
             if '@' in clean_email:
                 if clean_email == owner_email:
-                    if not is_verified_owner:
+                    # Security check: only verified owner Clerk ID can claim or link to owner email
+                    if getattr(user, 'clerk_id', '') not in owner_clerk_ids:
+                        log_auth_event("clerk_sync_403_rejection", {
+                            "reason": "clean_email == owner_email but user.clerk_id not in owner_clerk_ids",
+                            "user_clerk_id": getattr(user, 'clerk_id', ''),
+                            "owner_clerk_ids": list(owner_clerk_ids),
+                            "owner_email": owner_email,
+                            "clean_email": clean_email,
+                        })
                         return Response({
                             'detail': 'Permission denied: Cannot claim platform owner identity.'
                         }, status=status.HTTP_403_FORBIDDEN)
 
                     canonical_owner = User.objects.filter(email__iexact=owner_email).first()
                     if canonical_owner and canonical_owner.pk != user.pk:
-                        try:
-                            from practice.models import PracticeSession
-                            from games.models import GameSession
-                            from lessons.models import CurriculumLessonProgress, LessonProgress
-                            PracticeSession.objects.filter(user=user).update(user=canonical_owner)
-                            GameSession.objects.filter(user=user).update(user=canonical_owner)
-                            CurriculumLessonProgress.objects.filter(user=user).update(user=canonical_owner)
-                            LessonProgress.objects.filter(user=user).update(user=canonical_owner)
-                        except Exception as transfer_err:
-                            pass
-
                         c_id = user.clerk_id
                         user.clerk_id = None
                         user.save(update_fields=['clerk_id'])
@@ -617,6 +634,7 @@ class ClerkSyncView(APIView):
                         canonical_owner.is_email_verified = True
                         canonical_owner.save()
                         user = canonical_owner
+                        is_verified_owner = True
 
                         profile, _ = UserProfile.objects.get_or_create(user=user)
                         if display_name and display_name.strip():
@@ -626,44 +644,27 @@ class ClerkSyncView(APIView):
                             if is_authentic_avatar_url(clean_avatar):
                                 profile.avatar_url = clean_avatar
                         profile.save()
+                    else:
+                        is_verified_owner = True
                 else:
+                    # Non-owner email:
+                    # If this user currently holds a placeholder email (@clerk.keyflow.local),
+                    # allow updating user.email to clean_email ONLY if no conflict exists.
+                    # Never silently detach or hijack another existing Django account!
                     if user.email.endswith('@clerk.keyflow.local') or not user.email:
-                        existing_user = User.objects.filter(email__iexact=clean_email).exclude(pk=user.pk).first()
-                        if existing_user:
-                            c_id = user.clerk_id
-                            user.clerk_id = None
-                            user.save(update_fields=['clerk_id'])
-
-                            existing_user.clerk_id = c_id
-                            existing_user.is_email_verified = True
-                            existing_user.save(update_fields=['clerk_id', 'is_email_verified'])
-
-                            try:
-                                from practice.models import PracticeSession
-                                from games.models import GameSession
-                                from lessons.models import CurriculumLessonProgress, LessonProgress
-                                PracticeSession.objects.filter(user=user).update(user=existing_user)
-                                GameSession.objects.filter(user=user).update(user=existing_user)
-                                CurriculumLessonProgress.objects.filter(user=user).update(user=existing_user)
-                                LessonProgress.objects.filter(user=user).update(user=existing_user)
-                            except Exception:
-                                pass
-                            user = existing_user
-                            profile, _ = UserProfile.objects.get_or_create(user=user)
-                            if display_name and display_name.strip():
-                                profile.display_name = str(display_name).strip()[:50]
-                            if avatar_url and avatar_url.strip():
-                                clean_avatar = str(avatar_url).strip()
-                                if is_authentic_avatar_url(clean_avatar):
-                                    profile.avatar_url = clean_avatar
-                            profile.save()
+                        conflict_user = User.objects.filter(email__iexact=clean_email).exclude(pk=user.pk).first()
+                        if conflict_user:
+                            logger.warning(
+                                f"[KEYFLOW Clerk] Refusing to reassign existing email {clean_email} to placeholder user {user.id}. "
+                                "Identity takeover prevented."
+                            )
                         else:
                             user.email = clean_email
                             user.is_email_verified = True
                             user.save(update_fields=['email', 'is_email_verified'])
 
-        # Guarantee owner status if user is owner
-        if user.email and user.email.lower() == owner_email:
+        # Guarantee owner status ONLY if user is verified owner
+        if is_verified_owner:
             needs_save = False
             fields = []
             if getattr(user, 'role', '') != 'SUPER_ADMIN':
@@ -678,6 +679,8 @@ class ClerkSyncView(APIView):
                 user.is_superuser = True
                 fields.append('is_superuser')
                 needs_save = True
+            if needs_save:
+                user.save(update_fields=fields)
             if getattr(user, 'status', '') != 'ACTIVE':
                 user.status = 'ACTIVE'
                 fields.append('status')
@@ -688,6 +691,13 @@ class ClerkSyncView(APIView):
                 needs_save = True
             if needs_save:
                 user.save(update_fields=fields)
+        else:
+            # Guarantee non-owner account is strictly USER
+            if getattr(user, 'role', '') in ('SUPER_ADMIN', 'ADMIN') or user.is_staff or user.is_superuser:
+                user.role = 'USER'
+                user.is_staff = False
+                user.is_superuser = False
+                user.save(update_fields=['role', 'is_staff', 'is_superuser'])
 
         user.refresh_from_db()
         user.profile = profile
@@ -695,3 +705,463 @@ class ClerkSyncView(APIView):
             'status': 'synchronized',
             'user': FullUserSerializer(user).data,
         }, status=status.HTTP_200_OK)
+
+
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+
+
+def _validate_and_normalize_email(val):
+    """
+    Validates and normalizes an email candidate string.
+    Returns cleaned lowercase email if valid; otherwise None.
+    Rejects non-string types (int, bool, etc.), empty/whitespace strings,
+    and strings that fail Django's validate_email validator.
+    """
+    if not isinstance(val, str) or isinstance(val, bool):
+        return None
+    cleaned = val.strip().lower()
+    if not cleaned:
+        return None
+    try:
+        validate_email(cleaned)
+        return cleaned
+    except ValidationError:
+        return None
+
+
+def _extract_verified_email(data):
+    """
+    Extracts a validated email from Clerk event data or user info.
+    Prioritizes primary email address, falls back to secondary valid entries,
+    and finally checks top-level 'email'.
+    Returns normalized email string, or None if no valid candidate is found.
+    """
+    if not isinstance(data, dict):
+        return None
+
+    raw_email_addresses = data.get('email_addresses')
+    email_addresses = raw_email_addresses if isinstance(raw_email_addresses, list) else []
+    primary_id = data.get('primary_email_address_id')
+
+    primary_candidate = None
+    fallback_candidate = None
+
+    for ea in email_addresses:
+        if isinstance(ea, dict):
+            raw_addr = ea.get('email_address')
+            clean_addr = _validate_and_normalize_email(raw_addr)
+            if clean_addr:
+                entry_id = ea.get('id')
+                if primary_id and entry_id == primary_id and not primary_candidate:
+                    primary_candidate = clean_addr
+                elif not fallback_candidate:
+                    fallback_candidate = clean_addr
+
+    if primary_candidate:
+        return primary_candidate
+    if fallback_candidate:
+        return fallback_candidate
+
+    raw_top_email = data.get('email')
+    clean_top_email = _validate_and_normalize_email(raw_top_email)
+    if clean_top_email:
+        return clean_top_email
+
+    return None
+
+
+class ClerkWebhookView(APIView):
+    """
+    POST /api/auth/clerk-webhook/
+    Processes incoming Clerk webhooks (user.created, user.updated, user.deleted).
+    Enforces:
+    1. Svix HMAC-SHA256 signature verification (rejects missing/invalid signatures).
+    2. Timestamp tolerance / replay attack protection (300s window).
+    3. Fail-closed behavior if CLERK_WEBHOOK_SECRET is not configured.
+    4. Idempotent event processing and deduplication via svix-id.
+    5. Rejection of tombstoned Clerk IDs immediately (status=401).
+    6. Non-owner webhook cannot claim Owner identity or elevated privileges.
+    7. Owner identity cannot be deleted through untrusted or forged webhooks.
+    8. Stale user.deleted webhooks cannot purge fresh accounts.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        import time
+        import hmac
+        import hashlib
+        import base64
+        from django.core.cache import cache
+
+        # 1. Verify webhook secret is configured (fail-closed)
+        webhook_secret = getattr(settings, 'CLERK_WEBHOOK_SECRET', '')
+        if not webhook_secret:
+            logger.error("[KEYFLOW Webhook] Rejection: CLERK_WEBHOOK_SECRET is not configured on server.")
+            return Response(
+                {'error': 'Webhook secret is not configured on server.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # 2. Extract Svix headers
+        svix_id = request.META.get('HTTP_SVIX_ID')
+        svix_timestamp = request.META.get('HTTP_SVIX_TIMESTAMP')
+        svix_signature = request.META.get('HTTP_SVIX_SIGNATURE')
+
+        if not svix_id or not svix_timestamp or not svix_signature:
+            logger.warning("[KEYFLOW Webhook] Rejection: Missing required svix headers.")
+            return Response(
+                {'error': 'Missing required svix webhook headers.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3. Verify timestamp tolerance (replay protection: 300 seconds)
+        try:
+            ts = int(svix_timestamp)
+        except (ValueError, TypeError):
+            return Response(
+                {'error': 'Invalid svix-timestamp header.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if abs(int(time.time()) - ts) > 300:
+            logger.warning(f"[KEYFLOW Webhook] Rejection: Timestamp {ts} outside tolerance window.")
+            return Response(
+                {'error': 'Webhook timestamp outside tolerance window.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 4. Cryptographic HMAC-SHA256 signature verification
+        try:
+            if webhook_secret.startswith("whsec_"):
+                try:
+                    key = base64.b64decode(webhook_secret[len("whsec_"):])
+                except Exception:
+                    key = webhook_secret.encode("utf-8")
+            else:
+                key = webhook_secret.encode("utf-8")
+
+            body_bytes = request.body
+            to_sign = f"{svix_id}.{svix_timestamp}.".encode("utf-8") + body_bytes
+            expected_sig = base64.b64encode(hmac.new(key, to_sign, hashlib.sha256).digest()).decode("utf-8")
+
+            verified = False
+            for item in svix_signature.split(" "):
+                parts = item.split(",", 1)
+                if len(parts) == 2 and parts[0] == "v1":
+                    if hmac.compare_digest(expected_sig, parts[1]):
+                        verified = True
+                        break
+
+            if not verified:
+                logger.warning(f"[KEYFLOW Webhook] Rejection: Invalid signature for event {svix_id}.")
+                return Response(
+                    {'error': 'Invalid webhook signature.'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+        except Exception as exc:
+            logger.warning(f"[KEYFLOW Webhook] Verification error: {exc}")
+            return Response(
+                {'error': 'Error verifying webhook signature.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        # 5. Parse and validate JSON payload
+        payload = request.data
+        if not isinstance(payload, dict):
+            return Response(
+                {'error': 'Malformed webhook payload; JSON object expected.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        event_type = payload.get('type')
+        event_data = payload.get('data') or {}
+        clerk_id = event_data.get('id')
+
+        if not clerk_id:
+            return Response({'error': 'Missing Clerk ID in webhook data'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # 6. Check RevokedClerkIdentity tombstone registry
+        from accounts.models import RevokedClerkIdentity
+        if RevokedClerkIdentity.objects.filter(clerk_id=clerk_id).exists():
+            logger.warning(f"[KEYFLOW Webhook] Rejection: Clerk ID {clerk_id} is in RevokedClerkIdentity registry.")
+            return Response(
+                {'error': 'This authentication identity has been permanently revoked and deleted.'},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        owner_email = getattr(settings, 'OWNER_EMAIL', 'sina44n07@gmail.com').strip().lower()
+        owner_clerk_ids = set(getattr(settings, 'OWNER_CLERK_IDS', ['user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn']))
+
+        # 7. Owner security guards
+        if event_type == 'user.deleted':
+            if clerk_id in owner_clerk_ids:
+                return Response({'error': 'Security Violation: Cannot delete platform owner.'}, status=status.HTTP_403_FORBIDDEN)
+            target = User.objects.filter(clerk_id=clerk_id).first()
+            if target and (target.is_owner or target.email.lower() == owner_email):
+                return Response({'error': 'Security Violation: Cannot delete platform owner.'}, status=status.HTTP_403_FORBIDDEN)
+
+        elif event_type in ('user.created', 'user.updated'):
+            email = _extract_verified_email(event_data)
+
+            if not email and clerk_id in owner_clerk_ids:
+                email = owner_email
+
+            if email == owner_email and clerk_id not in owner_clerk_ids:
+                return Response({'error': 'Security Violation: Non-owner identity attempting to claim owner email.'}, status=status.HTTP_403_FORBIDDEN)
+
+            if clerk_id in owner_clerk_ids and email and email != owner_email:
+                return Response({'error': 'Security Violation: Non-owner email claiming owner clerk ID.'}, status=status.HTTP_403_FORBIDDEN)
+
+        # 8. Durable Database Idempotency via WebhookEventReceipt with Safe Atomic Claim & Fencing
+        from accounts.models import WebhookEventReceipt
+        from django.utils import timezone
+        from django.db import IntegrityError, OperationalError, transaction
+        from django.db.models import Q
+        import uuid
+        from datetime import timedelta
+
+        now = timezone.now()
+        worker_claim_token = uuid.uuid4()
+        lease_expiry = now + timedelta(seconds=60)
+
+        # Fast-path check: If already PROCESSED, immediately acknowledge with 200
+        try:
+            receipt = WebhookEventReceipt.objects.filter(svix_id=svix_id).first()
+            if receipt and receipt.status == WebhookEventReceipt.STATUS_PROCESSED:
+                logger.info(f"[KEYFLOW Webhook] Duplicate event already processed: svix-id={svix_id}")
+                return Response(
+                    {'status': 'duplicate_ignored', 'svix_id': svix_id},
+                    status=status.HTTP_200_OK
+                )
+        except OperationalError:
+            # Active write lock held by competing worker
+            logger.info(f"[KEYFLOW Webhook] DB lock collision on fast-path check for svix-id={svix_id}; returning 429")
+            return Response(
+                {'status': 'processing_in_progress', 'svix_id': svix_id, 'retry_after': 5},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+                headers={'Retry-After': '5'}
+            )
+
+        claimed = False
+        if not receipt:
+            try:
+                # Atomic insert: Status defaults to PROCESSING, with explicit claim_token and lease_expires_at
+                receipt = WebhookEventReceipt.objects.create(
+                    svix_id=svix_id,
+                    event_type=event_type or 'unknown',
+                    status=WebhookEventReceipt.STATUS_PROCESSING,
+                    claim_token=worker_claim_token,
+                    lease_expires_at=lease_expiry,
+                )
+                claimed = True
+            except (IntegrityError, OperationalError):
+                # svix_id collision (another worker inserted simultaneously) or database lock
+                try:
+                    receipt = WebhookEventReceipt.objects.filter(svix_id=svix_id).first()
+                except OperationalError:
+                    return Response(
+                        {'status': 'processing_in_progress', 'svix_id': svix_id, 'retry_after': 5},
+                        status=status.HTTP_429_TOO_MANY_REQUESTS,
+                        headers={'Retry-After': '5'}
+                    )
+
+        if not claimed:
+            # Receipt exists in DB. Check if it's already PROCESSED
+            if receipt and receipt.status == WebhookEventReceipt.STATUS_PROCESSED:
+                return Response(
+                    {'status': 'duplicate_ignored', 'svix_id': svix_id},
+                    status=status.HTTP_200_OK
+                )
+
+            # Atomically attempt to claim or reclaim:
+            # Worker may only claim if status is FAILED or lease has expired (lease_expires_at <= now or null)
+            try:
+                claimed_rows = WebhookEventReceipt.objects.filter(
+                    svix_id=svix_id
+                ).filter(
+                    Q(status=WebhookEventReceipt.STATUS_FAILED) |
+                    Q(status=WebhookEventReceipt.STATUS_PROCESSING, lease_expires_at__lte=now) |
+                    Q(status=WebhookEventReceipt.STATUS_PROCESSING, lease_expires_at__isnull=True)
+                ).update(
+                    status=WebhookEventReceipt.STATUS_PROCESSING,
+                    claim_token=worker_claim_token,
+                    lease_expires_at=lease_expiry,
+                    error_message='',
+                )
+            except OperationalError:
+                # Active write lock held by concurrent worker. Return 429 Retry-After.
+                logger.info(f"[KEYFLOW Webhook] DB lock collision for svix-id={svix_id}; returning 429 Retry-After: 5")
+                return Response(
+                    {'status': 'processing_in_progress', 'svix_id': svix_id, 'retry_after': 5},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                    headers={'Retry-After': '5'}
+                )
+
+            if claimed_rows == 1:
+                claimed = True
+            else:
+                # Re-check status: if completed in the interim, return 200 duplicate_ignored
+                try:
+                    re_check = WebhookEventReceipt.objects.filter(svix_id=svix_id).first()
+                    if re_check and re_check.status == WebhookEventReceipt.STATUS_PROCESSED:
+                        return Response(
+                            {'status': 'duplicate_ignored', 'svix_id': svix_id},
+                            status=status.HTTP_200_OK
+                        )
+                except OperationalError:
+                    pass
+
+                # Active claim collision: Another worker is actively processing within valid lease window.
+                # Return HTTP 429 Too Many Requests with Retry-After header so Clerk safely retries.
+                logger.info(f"[KEYFLOW Webhook] Active claim conflict for svix-id={svix_id}; returning 429 Retry-After: 5")
+                return Response(
+                    {'status': 'processing_in_progress', 'svix_id': svix_id, 'retry_after': 5},
+                    status=status.HTTP_429_TOO_MANY_REQUESTS,
+                    headers={'Retry-After': '5'}
+                )
+
+        # 9. Verify Required Identity Data Outside Protected Transaction (Zero In-Transaction HTTP Calls)
+        if event_type in ('user.created', 'user.updated'):
+            user_exists = User.objects.filter(clerk_id=clerk_id).exists()
+            if not email and not user_exists:
+                # Pre-fetch external Clerk user info outside any database transaction or row lock
+                try:
+                    from accounts.authentication import fetch_clerk_user_info
+                    clerk_info = fetch_clerk_user_info(clerk_id)
+                    if isinstance(clerk_info, dict):
+                        fetched_email = _extract_verified_email(clerk_info)
+                        if fetched_email:
+                            email = fetched_email
+                        if not event_data.get('first_name') and clerk_info.get('first_name'):
+                            event_data['first_name'] = clerk_info.get('first_name')
+                        if not event_data.get('last_name') and clerk_info.get('last_name'):
+                            event_data['last_name'] = clerk_info.get('last_name')
+                        if not event_data.get('username') and clerk_info.get('username'):
+                            event_data['username'] = clerk_info.get('username')
+                        if not event_data.get('image_url') and clerk_info.get('image_url'):
+                            event_data['image_url'] = clerk_info.get('image_url')
+                except Exception as exc:
+                    logger.warning(f"[KEYFLOW Webhook] Pre-fetch external user info failed: {exc}")
+
+                # Re-verify owner security invariants with prefetched email
+                if email == owner_email and clerk_id not in owner_clerk_ids:
+                    WebhookEventReceipt.objects.filter(
+                        svix_id=svix_id,
+                        claim_token=worker_claim_token,
+                    ).update(
+                        status=WebhookEventReceipt.STATUS_FAILED,
+                        error_message='Security Violation: Non-owner identity attempting to claim owner email.'
+                    )
+                    return Response({'error': 'Security Violation: Non-owner identity attempting to claim owner email.'}, status=status.HTTP_403_FORBIDDEN)
+
+                if clerk_id in owner_clerk_ids and email and email != owner_email:
+                    WebhookEventReceipt.objects.filter(
+                        svix_id=svix_id,
+                        claim_token=worker_claim_token,
+                    ).update(
+                        status=WebhookEventReceipt.STATUS_FAILED,
+                        error_message='Security Violation: Non-owner email claiming owner clerk ID.'
+                    )
+                    return Response({'error': 'Security Violation: Non-owner email claiming owner clerk ID.'}, status=status.HTTP_403_FORBIDDEN)
+
+                if not email:
+                    # Required email data could not be obtained: fail receipt safely and return retryable 503
+                    logger.warning(
+                        f"[KEYFLOW Webhook] Cannot process {event_type} for clerk_id={clerk_id}: "
+                        f"no usable email in payload or pre-fetch. Transitioning receipt to FAILED with claim token fencing."
+                    )
+                    WebhookEventReceipt.objects.filter(
+                        svix_id=svix_id,
+                        claim_token=worker_claim_token,
+                    ).update(
+                        status=WebhookEventReceipt.STATUS_FAILED,
+                        error_message='User email unavailable: pre-fetch failed or returned no usable email.'
+                    )
+                    return Response(
+                        {
+                            'error': 'User email unavailable: pre-fetch failed or returned no usable email.',
+                            'clerk_id': clerk_id,
+                            'retry_after': 5,
+                        },
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                        headers={'Retry-After': '5'}
+                    )
+
+        # 10. Execute Downstream Business Mutation within Protected Atomic Transaction with Row Lock & Claim Fencing
+        try:
+            with transaction.atomic():
+                # Lock receipt row and re-verify claim ownership inside transaction
+                locked_receipt = WebhookEventReceipt.objects.select_for_update().filter(svix_id=svix_id).first()
+
+                # Verify all ownership invariants before executing any business mutation:
+                # 1. Receipt must exist.
+                # 2. Receipt status must be PROCESSING.
+                # 3. claim_token must strictly match worker_claim_token.
+                if (
+                    not locked_receipt
+                    or locked_receipt.status != WebhookEventReceipt.STATUS_PROCESSING
+                    or locked_receipt.claim_token != worker_claim_token
+                ):
+                    logger.warning(
+                        f"[KEYFLOW Webhook] Mutation aborted: worker {worker_claim_token} lost claim ownership "
+                        f"for svix_id={svix_id} (current status={getattr(locked_receipt, 'status', None)}, "
+                        f"current token={getattr(locked_receipt, 'claim_token', None)})"
+                    )
+                    if locked_receipt and locked_receipt.status == WebhookEventReceipt.STATUS_PROCESSED:
+                        return Response(
+                            {'status': 'duplicate_ignored', 'svix_id': svix_id},
+                            status=status.HTTP_200_OK
+                        )
+                    return Response(
+                        {'status': 'processing_in_progress', 'svix_id': svix_id, 'retry_after': 5},
+                        status=status.HTTP_429_TOO_MANY_REQUESTS,
+                        headers={'Retry-After': '5'}
+                    )
+
+                # Execute database-only business mutation
+                if event_type == 'user.deleted':
+                    target = User.objects.filter(clerk_id=clerk_id).first()
+                    if target:
+                        from accounts.services.account_deletion import safe_delete_account
+                        safe_delete_account(target_email=target.email, expected_clerk_id=clerk_id, dry_run=False)
+                    result_response = Response({'status': 'deleted', 'clerk_id': clerk_id}, status=status.HTTP_200_OK)
+
+                elif event_type in ('user.created', 'user.updated'):
+                    jwt_payload = {
+                        'sub': clerk_id,
+                        'email': email,
+                        'first_name': event_data.get('first_name', ''),
+                        'last_name': event_data.get('last_name', ''),
+                        'username': event_data.get('username'),
+                        'image_url': event_data.get('image_url', ''),
+                        'allow_external_fetch': False,
+                    }
+                    from accounts.authentication import resolve_clerk_identity
+                    user = resolve_clerk_identity(jwt_payload)
+                    result_response = Response({'status': 'processed', 'user_id': user.id}, status=status.HTTP_200_OK)
+
+                else:
+                    result_response = Response({'status': 'ignored', 'event_type': event_type}, status=status.HTTP_200_OK)
+
+                # Transition receipt to PROCESSED within the exact same transaction
+                locked_receipt.status = WebhookEventReceipt.STATUS_PROCESSED
+                locked_receipt.processed_at = timezone.now()
+                locked_receipt.error_message = ''
+                locked_receipt.save(update_fields=['status', 'processed_at', 'error_message'])
+
+            # Atomic transaction committed: both business mutation and PROCESSED receipt are committed together
+            return result_response
+
+        except Exception as exc:
+            # Transaction rolled back automatically!
+            # Fenced transition to FAILED so Clerk retries remain cleanly claimable
+            WebhookEventReceipt.objects.filter(
+                svix_id=svix_id,
+                claim_token=worker_claim_token,
+            ).update(
+                status=WebhookEventReceipt.STATUS_FAILED,
+                error_message=str(exc)[:255]
+            )
+            logger.error(f"[KEYFLOW Webhook] Downstream processing failed for svix_id={svix_id}: {exc}")
+            return Response({'error': str(exc)}, status=status.HTTP_400_BAD_REQUEST)

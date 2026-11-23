@@ -107,7 +107,7 @@ export const shuffleArray = (arr, seed = null) => {
  *
  * @param {Object} options
  * @param {string} options.sourceText - Original text
- * @param {'simple'|'repeat'|'shuffle'|'random'} options.generationMode - Generation mode
+ * @param {'repeat'|'shuffle'|'random'} options.generationMode - Generation mode
  * @param {' ' | '|'} options.delimiter - Word separator
  * @param {'timed'|'words'|'passage'|'unlimited'} options.limitType - Limit type
  * @param {number} options.limitValue - Limit count (words or seconds)
@@ -118,7 +118,7 @@ export const shuffleArray = (arr, seed = null) => {
  */
 export const generateCustomTypingPrompt = ({
   sourceText = '',
-  generationMode = 'simple',
+  generationMode = 'random',
   delimiter = ' ',
   limitType = 'words',
   limitValue = 25,
@@ -128,10 +128,26 @@ export const generateCustomTypingPrompt = ({
 }) => {
   let cleaned = removeZeroWidth(sourceText || '').trim();
 
-  // If random mode and source text is empty, generate from vocabulary
+  // Simple mode with full passage preserves exact original text, newlines, and paragraphs
+  if (
+    generationMode === 'simple' &&
+    (limitType === 'passage' || limitType === 'unlimited' || !limitValue) &&
+    delimiter === ' ' &&
+    includePunctuation &&
+    includeNumbers
+  ) {
+    return cleaned;
+  }
+
+  // If random mode, sample from source passage pool or vocabulary
   if (generationMode === 'random') {
     const pool = (cleaned.length > 0 ? cleaned.split(/\s+/) : vocabulary).filter(Boolean);
-    const targetWordCount = limitType === 'words' ? Math.max(5, limitValue || 25) : 30;
+    const targetWordCount =
+      limitType === 'words' && limitValue > 0
+        ? Math.max(5, limitValue)
+        : pool.length > 0
+        ? pool.length
+        : 30;
     const generated = [];
     for (let i = 0; i < targetWordCount; i++) {
       const idx = Math.floor(Math.random() * pool.length);
@@ -158,7 +174,10 @@ export const generateCustomTypingPrompt = ({
   if (generationMode === 'shuffle') {
     processedWords = shuffleArray(words);
   } else if (generationMode === 'repeat') {
-    const targetWordCount = limitType === 'words' ? Math.max(words.length, limitValue || 25) : words.length * 3;
+    const targetWordCount =
+      limitType === 'words' && limitValue > 0
+        ? Math.max(words.length, limitValue)
+        : words.length * 2;
     processedWords = [];
     while (processedWords.length < targetWordCount) {
       for (const w of words) {

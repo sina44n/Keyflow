@@ -12,6 +12,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth as useClerkAuth, useUser as useClerkUser, useClerk } from '@clerk/react';
+import { useSignIn, useSignUp } from '@clerk/react';
 import {
   authAPI,
   lessonsAPI,
@@ -30,6 +31,8 @@ import {
   resetGuestProgress,
 } from '../utils/lessonProgress';
 import { isAuthenticAvatarUrl } from '../utils/avatarUtils';
+import { getOrWaitAuthResource } from '../utils/clerkAuthHelper';
+export { getOrWaitAuthResource } from '../utils/clerkAuthHelper';
 import {
   setArcadeStorageUser,
   syncArcadeRecordsFromBackend,
@@ -163,9 +166,16 @@ const ClerkAuthBridge = ({ children }) => {
   const { isSignedIn, isLoaded, getToken } = useClerkAuth();
   const { user: clerkUser } = useClerkUser();
   const clerk = useClerk();
+  const { isLoaded: isSignInLoaded, signIn } = useSignIn();
+  const { isLoaded: isSignUpLoaded, signUp } = useSignUp();
+
+  const isAuthReady = Boolean(
+    isLoaded && (isSignInLoaded || clerk?.loaded || clerk?.client?.signIn)
+  );
 
   const [djangoUser, setDjangoUser] = useState(null);
   const [isSyncing, setIsSyncing] = useState(true);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const syncedClerkIdRef = useRef(null);
   const mountedRef = useRef(true);
 
@@ -212,7 +222,11 @@ const ClerkAuthBridge = ({ children }) => {
           return;
         }
 
+        // Keep local token cache in sync for non-Clerk helper routines
+        setStoredToken(token);
+
         const syncPayload = {
+          clerk_id: clerkUser.id,
           display_name: clerkUser.fullName || clerkUser.firstName || clerkUser.username || '',
           avatar_url: (clerkUser.hasImage !== false && isAuthenticAvatarUrl(clerkUser.imageUrl))
             ? clerkUser.imageUrl
@@ -221,15 +235,18 @@ const ClerkAuthBridge = ({ children }) => {
         };
 
         const res = await authAPI.clerkSync(syncPayload);
+
         if (isMounted && res?.data?.user) {
           syncedClerkIdRef.current = clerkUser.id;
           setDjangoUser(res.data.user);
           await applyUserSession(res.data.user);
         }
       } catch (err) {
-        console.warn('[KEYFLOW Clerk] User sync notice, falling back to /api/auth/me/:', err);
+        console.warn('[KEYFLOW Clerk] User sync notice, falling back to /api/auth/me/:', err?.response?.data || err?.message);
         try {
-          const meRes = await authAPI.me();
+          const freshToken = (await getToken()) || getStoredToken();
+          const meHeaders = freshToken ? { Authorization: `Bearer ${freshToken}` } : {};
+          const meRes = await authAPI.me({ headers: meHeaders });
           if (isMounted && meRes?.data) {
             syncedClerkIdRef.current = clerkUser.id;
             setDjangoUser(meRes.data);
@@ -282,13 +299,12 @@ const ClerkAuthBridge = ({ children }) => {
   }, [isLoaded, isSignedIn, clerkUser?.id, getToken]);
 
   const logout = useCallback(async () => {
-    try {
-      await clerk.signOut();
-    } catch {}
-    clearStoredToken();
+    setIsSigningOut(true);
     try {
       localStorage.removeItem('keyflow_current_user_id');
     } catch {}
+
+    clearStoredToken();
     setLessonProgressUser(null);
     setArcadeStorageUser(null);
     resetGuestProgress();
@@ -298,6 +314,16 @@ const ClerkAuthBridge = ({ children }) => {
     }
     setDjangoUser(null);
     syncedClerkIdRef.current = null;
+
+    try {
+      if (clerk?.signOut) {
+        await clerk.signOut();
+      }
+    } catch (err) {
+      console.warn('[KEYFLOW Auth] Clerk signOut notice:', err?.message);
+    } finally {
+      setIsSigningOut(false);
+    }
   }, [clerk]);
 
   const refreshUser = useCallback(async () => {
@@ -319,7 +345,10 @@ const ClerkAuthBridge = ({ children }) => {
     isAuthenticated: Boolean(isSignedIn && djangoUser),
     isLoading: !isLoaded || isSyncing,
     isSyncing,
+    isSigningOut,
     isClerkConfigured: true,
+    isAuthReady,
+    isLoaded,
     getToken,
     logout,
     refreshUser,
@@ -331,14 +360,36 @@ const ClerkAuthBridge = ({ children }) => {
       clerk.openSignUp();
     },
     loginWithGoogle: async (options = {}) => {
-      if (clerk?.authenticateWithRedirect) {
-        return clerk.authenticateWithRedirect({
+      // 1. Inspect and clear any active Clerk session before initiating a new OAuth flow
+      if (clerk?.session || clerk?.user) {
+        try {
+          await clerk.signOut();
+        } catch (signOutErr) {
+          console.error('[KEYFLOW Clerk] Pre-login sign out failed:', signOutErr);
+          throw new Error('Unable to clear previous session before Google login. Please sign out manually.');
+        }
+      }
+      // 2. Clear any stored tokens or cached user IDs to prevent cross-account contamination
+      clearStoredToken();
+      try {
+        localStorage.removeItem('keyflow_current_user_id');
+      } catch {}
+      setLessonProgressUser(null);
+      setArcadeStorageUser(null);
+      setDjangoUser(null);
+      syncedClerkIdRef.current = null;
+
+      // 3. Resolve live authentication resource, waiting for Clerk readiness if initialization is in progress
+      const authResource = await getOrWaitAuthResource(clerk, signIn, signUp);
+      if (authResource?.authenticateWithRedirect) {
+        return await authResource.authenticateWithRedirect({
           strategy: 'oauth_google',
           redirectUrl: '/sso-callback',
-          redirectUrlComplete: options?.destination || '/workstation',
+          redirectUrlComplete: options?.destination || '/',
+          oidcPrompt: 'select_account',
         });
       }
-      clerk.openSignIn();
+      throw new Error('Authentication service is still initializing. Please wait a moment and try again.');
     },
   };
 
@@ -352,6 +403,7 @@ const ClerkAuthBridge = ({ children }) => {
 const FallbackAuthBridge = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     const token = getStoredToken();
@@ -380,18 +432,21 @@ const FallbackAuthBridge = ({ children }) => {
   }, []);
 
   const logout = useCallback(async () => {
-    try {
-      await authAPI.logout();
-    } catch {}
-    clearStoredToken();
+    setIsSigningOut(true);
     try {
       localStorage.removeItem('keyflow_current_user_id');
+    } catch {}
+
+    clearStoredToken();
+    try {
+      await authAPI.logout();
     } catch {}
     setLessonProgressUser(null);
     setArcadeStorageUser(null);
     resetGuestProgress();
     resetGuestArcadeRecords();
     setUser(null);
+    setIsSigningOut(false);
   }, []);
 
   const refreshUser = useCallback(async () => {
@@ -411,7 +466,10 @@ const FallbackAuthBridge = ({ children }) => {
     isAuthenticated: Boolean(user),
     isLoading,
     isSyncing: isLoading,
+    isSigningOut,
     isClerkConfigured: false,
+    isAuthReady: !isLoading,
+    isLoaded: !isLoading,
     getToken: async () => getStoredToken(),
     logout,
     refreshUser,

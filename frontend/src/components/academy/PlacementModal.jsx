@@ -20,6 +20,8 @@ import {
   evaluatePlacementDiagnostic,
 } from '../../utils/placementEngine.js';
 import { applyPlacementAccess } from '../../utils/lessonProgress.js';
+import { useKeyboardSound } from '../../context/SoundContext.jsx';
+import { CapsLockNotification } from '../common/CapsLockNotification';
 
 /**
  * Dedicated Tactile Spacebar Keycap Component
@@ -76,6 +78,7 @@ export const PlacementModal = ({
   const backspacesRef = useRef(0);
 
   const targetText = PLACEMENT_DIAGNOSTIC_PASSAGE;
+  const { playClick } = useKeyboardSound();
 
   // Format seconds to mm:ss
   const formatTime = (totalSeconds) => {
@@ -194,6 +197,7 @@ export const PlacementModal = ({
         const nextTyped = typedRef.current.slice(0, -1);
         typedRef.current = nextTyped;
         setTyped(nextTyped);
+        playClick(false);
         backspacesRef.current += 1;
         setBackspaces(backspacesRef.current);
         keystrokesRef.current.push({ key: 'Backspace', time: now });
@@ -210,6 +214,8 @@ export const PlacementModal = ({
 
       const expectedChar = targetText[currentIndex];
       const isCorrect = e.key === expectedChar;
+
+      playClick(!isCorrect);
 
       if (isCorrect) {
         correctKeystrokesRef.current += 1;
@@ -387,7 +393,7 @@ export const PlacementModal = ({
               KEYFLOW Typing Placement Test
             </h2>
             <p className="text-xs sm:text-sm text-[var(--text-muted)] mt-0.5">
-              Type the passage below to discover your current typing ability and find your ideal Academy Stage.
+              Type the passage below to diagnose your multi-row competencies and place into your optimal learning stage.
             </p>
           </div>
         </div>
@@ -397,18 +403,25 @@ export const PlacementModal = ({
         {/* ======================================================== */}
         {modalState === 'testing' && (
           <div className="space-y-4 animate-in fade-in duration-200">
-            {/* Slim Assessment Progress Bar */}
-            <div className="w-full h-1.5 rounded-full bg-[var(--bg-elevated)] overflow-hidden">
-              <div
-                className="h-full bg-[var(--accent)] transition-all duration-150"
-                style={{ width: `${Math.round((typed.length / targetText.length) * 100)}%` }}
+            {/* Slim Assessment Progress Bar & Floating Caps Lock Indicator */}
+            <div className="relative">
+              <CapsLockNotification
+                className="left-0 -top-7 sm:-top-7.5"
+                id="placement-capslock-notification"
+                data-testid="placement-capslock-notification"
               />
+              <div className="w-full h-1.5 rounded-full bg-[var(--bg-elevated)] overflow-hidden">
+                <div
+                  className="h-full bg-[var(--accent)] transition-all duration-150"
+                  style={{ width: `${Math.round((typed.length / targetText.length) * 100)}%` }}
+                />
+              </div>
             </div>
 
             {/* Main Typing Passage Area (4 to 5 Readable Desktop Lines) */}
             <div
               data-testid="placement-typing-passage"
-              className="relative p-5 sm:p-6 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--border)] font-mono text-base sm:text-lg leading-[2.2] tracking-wide cursor-text outline-none focus-within:border-[var(--accent)] transition-colors shadow-inner min-h-[175px]"
+              className="relative p-5 sm:p-6 rounded-2xl bg-[var(--bg-elevated)] border border-[var(--accent)]/30 font-mono text-base sm:text-lg leading-[2.2] tracking-wide cursor-text outline-none focus-within:border-[var(--accent)] transition-colors shadow-inner min-h-[175px]"
               onClick={() => inputRef.current?.focus()}
             >
               <div className="select-none text-left">
@@ -525,7 +538,7 @@ export const PlacementModal = ({
                   </span>
                 )}
                 <span className="hidden sm:inline text-[var(--text-muted)]">
-                  Focus and type naturally at your normal speed.
+                  Focus and type naturally at your standard speed
                 </span>
               </div>
 

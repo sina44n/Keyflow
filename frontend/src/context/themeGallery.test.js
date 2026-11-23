@@ -13,9 +13,9 @@ describe('KEYFLOW Exact Reference Theme Gallery Architecture', () => {
   it('confirms Row 1 features the 4 flagship themes with exact reference backing colors', () => {
     const row1Expected = [
       { themeId: 'burgundy-cream', color: '#FF6B00' }, // Orange
-      { themeId: 'espresso-latte', color: '#E91E63' }, // Pink / Magenta
+      { themeId: 'glacier-aqua', color: '#008890' },   // Teal / Cyan
       { themeId: 'forest-sage', color: '#00C0FA' },    // Cyan / Sky Blue
-      { themeId: 'midnight-slate', color: '#0066FF' }, // Royal / Cobalt Blue
+      { themeId: 'midnight-slate', color: '#F6C638' }, // Sunny Yellow
     ];
 
     row1Expected.forEach(({ themeId, color }) => {
@@ -26,7 +26,7 @@ describe('KEYFLOW Exact Reference Theme Gallery Architecture', () => {
   });
 
   it('confirms all 16 themes are partitioned into exactly 4 rows of 4 cards without duplicates', () => {
-    const row1 = ['burgundy-cream', 'espresso-latte', 'forest-sage', 'midnight-slate'];
+    const row1 = ['burgundy-cream', 'glacier-aqua', 'forest-sage', 'midnight-slate'];
     const row2 = ['dark-charcoal-lime', 'dark-theme', 'midnight-blue', 'lavender-purple'];
     const row3 = ['forest-green', 'ocean-teal', 'sunset-orange', 'rose-pink'];
     const row4 = ['arctic-blue', 'solarized-light', 'warm-sand', 'classic-black-white'];
@@ -62,21 +62,45 @@ describe('KEYFLOW Exact Reference Theme Gallery Architecture', () => {
     });
   });
 
-  it('verifies Burgundy & Cream, Espresso & Latte, Forest Sage, and Midnight Slate values remain intact', () => {
+  it('verifies Burgundy & Cream, Glacier Aqua, Forest Sage, and Midnight Slate values remain intact', () => {
     const burgundy = THEMES.find((t) => t.id === 'burgundy-cream');
     assert.equal(burgundy.accent, '#9E2A2B');
     assert.equal(burgundy.bg, '#FFFDF9');
 
-    const espresso = THEMES.find((t) => t.id === 'espresso-latte');
-    assert.equal(espresso.bg, '#2B1D17');
-    assert.equal(espresso.accent, '#C48A5A');
+    const glacier = THEMES.find((t) => t.id === 'glacier-aqua');
+    assert.equal(glacier.bg, '#FFFFFF');
+    assert.equal(glacier.accent, '#008890');
 
     const forest = THEMES.find((t) => t.id === 'forest-sage');
-    assert.equal(forest.bg, '#0F2A1D');
-    assert.equal(forest.accent, '#6B9071');
+    assert.equal(forest.bg, '#FFFFFF');
+    assert.equal(forest.accent, '#09473A');
 
     const slate = THEMES.find((t) => t.id === 'midnight-slate');
-    assert.equal(slate.bg, '#06141B');
-    assert.equal(slate.accent, '#9BA8AB');
+    assert.equal(slate.bg, '#FFFFFF');
+    assert.equal(slate.accent, '#F6C638');
+
+    const cobalt = THEMES.find((t) => t.id === 'forest-green');
+    assert.equal(cobalt.bg, '#FFFFFF');
+    assert.equal(cobalt.accent, '#173CFF');
+
+    const lime = THEMES.find((t) => t.id === 'dark-charcoal-lime');
+    assert.equal(lime.bg, '#000000');
+    assert.equal(lime.accent, '#C5FF00');
+
+    const lavender = THEMES.find((t) => t.id === 'lavender-purple');
+    assert.equal(lavender.bg, '#FFFFFF');
+    assert.equal(lavender.accent, '#32214A');
+
+    const ocean = THEMES.find((t) => t.id === 'midnight-blue');
+    assert.equal(ocean.bg, '#000000');
+    assert.equal(ocean.accent, '#1749F5');
+
+    const fiery = THEMES.find((t) => t.id === 'sunset-orange');
+    assert.equal(fiery.bg, '#000000');
+    assert.equal(fiery.accent, '#D7410E');
+
+    const sage = THEMES.find((t) => t.id === 'arctic-blue');
+    assert.equal(sage.bg, '#FFFFFF');
+    assert.equal(sage.accent, '#949686');
   });
 });

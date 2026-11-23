@@ -218,11 +218,8 @@ export const FingerMasteryMatrix = ({
     return (
       <svg
         viewBox="0 0 100 120"
-        className="w-13 h-16 sm:w-16 sm:h-20 transition-transform duration-260 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-105"
-        style={{
-          transform: isLeft ? 'none' : 'scaleX(-1)',
-          transformOrigin: '50% 50%',
-        }}
+        shapeRendering="geometricPrecision"
+        className="w-[50px] h-[60px] sm:w-[60px] sm:h-[72px] transition-transform duration-260 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-105"
         aria-hidden="true"
       >
         <defs>
@@ -231,22 +228,30 @@ export const FingerMasteryMatrix = ({
           </clipPath>
         </defs>
 
-        {/* Base Hand Silhouette (Palm, wrist, thumb & non-active digits in performance shade) */}
-        <path
-          d={ANATOMICAL_HAND_PATH}
-          fill={handColor}
-          className="transition-colors duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]"
-        />
-
-        {/* Targeted Active Finger Highlight (TypingClub Orange) */}
-        {digitPath && (
+        <g transform={isLeft ? undefined : 'translate(100, 0) scale(-1, 1)'}>
+          {/* Base Hand Silhouette (Palm, wrist, thumb & non-active digits in performance shade) */}
           <path
-            d={digitPath}
-            fill={ACTIVE_FINGER_COLOR}
-            clipPath={`url(#${clipId})`}
+            d={ANATOMICAL_HAND_PATH}
+            fill={handColor}
+            stroke={handColor}
+            strokeWidth="0.5"
+            strokeLinejoin="round"
             className="transition-colors duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]"
           />
-        )}
+
+          {/* Targeted Active Finger Highlight (TypingClub Orange) */}
+          {digitPath && (
+            <path
+              d={digitPath}
+              fill={ACTIVE_FINGER_COLOR}
+              stroke={ACTIVE_FINGER_COLOR}
+              strokeWidth="0.5"
+              strokeLinejoin="round"
+              clipPath={`url(#${clipId})`}
+              className="transition-colors duration-240 ease-[cubic-bezier(0.22,1,0.36,1)]"
+            />
+          )}
+        </g>
       </svg>
     );
   };
@@ -402,8 +407,8 @@ export const FingerMasteryMatrix = ({
                   title="Third-Highest Accuracy (Medium Red)"
                 />
                 <span
-                  className="w-3.5 h-3.5 rounded-xs bg-[#991b1b] border border-[#7f1d1d]"
-                  title="Lowest Accuracy (Dark Red)"
+                  className="w-3.5 h-3.5 rounded-xs bg-[#dc2626] border border-[#b91c1c]"
+                  title="Lowest Accuracy (Normal Red)"
                 />
               </div>
               <span>Lower Accuracy</span>

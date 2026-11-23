@@ -41,8 +41,20 @@ export const CTASection = () => {
               size="md"
               icon={ArrowRight}
               onClick={() => {
-                const el = document.getElementById('sandbox');
-                if (el) el.scrollIntoView({ behavior: 'smooth' });
+                window.scrollTo({
+                  top: 0,
+                  left: 0,
+                  behavior: 'smooth',
+                });
+                const root = document.scrollingElement || document.documentElement || document.body;
+                if (root) {
+                  root.scrollTo({ top: 0, left: 0, behavior: 'smooth' });
+                }
+                setTimeout(() => {
+                  if (window.scrollY > 0 && window.scrollY < 15) {
+                    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+                  }
+                }, 1800);
               }}
             >
               {t('cta.startPractice')}

@@ -81,7 +81,9 @@ export const AdminHeader = ({ title = 'Command Center' }) => {
               <span>{user?.display_name || user?.username || 'Sinan'}</span>
               <Crown className="w-3 h-3 text-amber-500" />
             </span>
-            <span className="text-[10px] text-[#7357D9] font-mono font-medium">Platform Owner</span>
+            <span className="text-[10px] text-[#7357D9] font-mono font-medium">
+              {user?.is_owner ? 'Platform Owner' : 'Administrator'}
+            </span>
           </div>
         </div>
       </div>

@@ -40,6 +40,7 @@ import {
 } from '../../utils/textUtilities.js';
 import {
   getSavedCustomTexts,
+  fetchAndSyncCustomTexts,
   saveCustomText,
   updateCustomText,
   deleteCustomText,
@@ -51,7 +52,7 @@ export const CustomTypingStudio = ({
   onApplyCustomText,
   userId = null,
   initialText = '',
-  generationMode: propGenerationMode = 'simple',
+  generationMode: propGenerationMode = 'random',
   onGenerationModeChange,
 }) => {
   const [activeTab, setActiveTab] = useState('editor'); // 'editor' | 'saved'
@@ -93,6 +94,11 @@ export const CustomTypingStudio = ({
   useEffect(() => {
     if (isOpen) {
       setSavedTexts(getSavedCustomTexts(userId));
+      if (userId) {
+        fetchAndSyncCustomTexts(userId).then((res) => {
+          if (Array.isArray(res)) setSavedTexts(res);
+        });
+      }
     }
   }, [isOpen, userId]);
 
@@ -192,7 +198,7 @@ export const CustomTypingStudio = ({
 
   // Reset settings group
   const handleResetDefaults = () => {
-    setGenerationMode('simple');
+    setGenerationMode('random');
     setDelimiter(' ');
     setLimitType('words');
     setWordLimit(25);
@@ -457,12 +463,11 @@ export const CustomTypingStudio = ({
                     <span className="text-[10px] text-[var(--text-muted)] uppercase">Behavior</span>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-1 p-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
+                  <div className="grid grid-cols-3 gap-1 p-1 rounded-lg bg-[var(--bg-surface)] border border-[var(--border)]">
                     {[
-                      { id: 'simple', label: 'Simple', icon: Type },
-                      { id: 'repeat', label: 'Repeat', icon: Repeat },
-                      { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
                       { id: 'random', label: 'Random', icon: Sparkles },
+                      { id: 'shuffle', label: 'Shuffle', icon: Shuffle },
+                      { id: 'repeat', label: 'Repeat', icon: Repeat },
                     ].map((m) => {
                       const Icon = m.icon;
                       const active = generationMode === m.id;
@@ -485,10 +490,9 @@ export const CustomTypingStudio = ({
                   </div>
 
                   <p className="text-[11px] text-[var(--text-muted)] font-mono leading-snug">
-                    {generationMode === 'simple' && 'Types the text verbatim exactly as input.'}
-                    {generationMode === 'repeat' && 'Repeats the sequence continuously to reach the target word limit.'}
-                    {generationMode === 'shuffle' && 'Shuffles the order of eligible words or delimited tokens.'}
                     {generationMode === 'random' && 'Generates randomized words using active vocabulary or word tokens.'}
+                    {generationMode === 'shuffle' && 'Shuffles the order of eligible words or delimited tokens.'}
+                    {generationMode === 'repeat' && 'Repeats the sequence continuously to reach the target word limit.'}
                   </p>
                 </div>
 

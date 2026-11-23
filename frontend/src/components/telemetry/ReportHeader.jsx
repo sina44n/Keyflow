@@ -51,17 +51,9 @@ export const ReportHeader = ({
       {/* Top Title & Metadata Bar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-[var(--border)] pb-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--bg-elevated)] border border-[var(--border)] text-xs font-mono text-[var(--accent)] mb-2">
-            <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse" />
-            <span>{t('telemetry.badge') || 'Biomechanical Telemetry & Analytics'}</span>
-          </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-[var(--text-primary)]">
             {t('telemetry.title') || 'Scientific Keystroke Intelligence'}
           </h1>
-          <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1 max-w-3xl leading-relaxed">
-            {t('telemetry.subtitle') ||
-              'Eliminate guesswork. KEYFLOW aggregates individual finger latencies, misstrike clusters, and cadence variance to pinpoint exactly where you lose velocity.'}
-          </p>
         </div>
 
         {/* Global Action Tools */}

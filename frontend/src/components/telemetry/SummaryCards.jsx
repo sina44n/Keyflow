@@ -91,7 +91,7 @@ export const SummaryCards = ({ metrics, activeReport }) => {
     {
       id: 'accuracy',
       title: 'Accuracy Rating',
-      value: hasData ? `${metrics.accuracy}%` : '100%',
+      value: hasData ? `${metrics.accuracy}%` : '0%',
       subtitle: hasData
         ? `Real accuracy: ${metrics.realAccuracy}% (no corrections)`
         : 'Eradicate glance habits',

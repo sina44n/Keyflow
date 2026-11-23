@@ -10,6 +10,7 @@ export default {
   "nav.about": "关于 KEYFLOW",
   "nav.signIn": "登录",
   "nav.getStarted": "立即开始",
+  "nav.continue": "继续",
   "nav.continuePractice": "继续练习",
   "nav.logout": "退出登录",
   "nav.profile": "个人资料",

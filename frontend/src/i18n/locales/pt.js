@@ -10,6 +10,7 @@ export default {
   "nav.about": "Por que KEYFLOW",
   "nav.signIn": "Entrar",
   "nav.getStarted": "Começar",
+  "nav.continue": "Continuar",
   "nav.continuePractice": "Continuar prática",
   "nav.logout": "Sair",
   "nav.profile": "Perfil",

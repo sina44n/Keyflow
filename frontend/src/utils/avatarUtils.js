@@ -1,8 +1,9 @@
 /**
  * KEYFLOW Avatar Utilities
  * ========================
- * Authoritative utility functions for validating authentic Google profile avatar URLs
- * and generating safe initials fallbacks.
+ * Authoritative utility functions for validating authentic Google profile avatar URLs,
+ * generating intelligent single-character initials fallbacks, and deterministically
+ * assigning unique background colors from an accessible curated palette.
  */
 
 /**
@@ -80,7 +81,84 @@ export function isAuthenticAvatarUrl(url) {
 }
 
 /**
- * Extracts clean, two-letter initials from a display name or username.
+ * Centrally managed palette of 26 curated, professional, vibrant solid colors.
+ * Every color strictly satisfies WCAG AA contrast (> 4.5:1) against pure white (#FFFFFF).
+ */
+export const AVATAR_PALETTE = [
+  { bg: '#0F766E', text: '#FFFFFF', name: 'Teal' },
+  { bg: '#047857', text: '#FFFFFF', name: 'Emerald' },
+  { bg: '#15803D', text: '#FFFFFF', name: 'Forest Green' },
+  { bg: '#0E7490', text: '#FFFFFF', name: 'Cyan' },
+  { bg: '#0369A1', text: '#FFFFFF', name: 'Sky Blue' },
+  { bg: '#2563EB', text: '#FFFFFF', name: 'Royal Blue' },
+  { bg: '#4F46E5', text: '#FFFFFF', name: 'Indigo' },
+  { bg: '#7C3AED', text: '#FFFFFF', name: 'Violet' },
+  { bg: '#9333EA', text: '#FFFFFF', name: 'Purple' },
+  { bg: '#C026D3', text: '#FFFFFF', name: 'Magenta' },
+  { bg: '#E11D48', text: '#FFFFFF', name: 'Rose' },
+  { bg: '#DC2626', text: '#FFFFFF', name: 'Crimson' },
+  { bg: '#C2410C', text: '#FFFFFF', name: 'Deep Orange' },
+  { bg: '#9A3412', text: '#FFFFFF', name: 'Rust' },
+  { bg: '#B45309', text: '#FFFFFF', name: 'Amber' },
+  { bg: '#A16207', text: '#FFFFFF', name: 'Mustard' },
+  { bg: '#881337', text: '#FFFFFF', name: 'Burgundy' },
+  { bg: '#701A75', text: '#FFFFFF', name: 'Plum' },
+  { bg: '#1E3A8A', text: '#FFFFFF', name: 'Midnight Blue' },
+  { bg: '#334155', text: '#FFFFFF', name: 'Slate' },
+  { bg: '#166534', text: '#FFFFFF', name: 'Pine Green' },
+  { bg: '#115E59', text: '#FFFFFF', name: 'Dark Teal' },
+  { bg: '#1D4ED8', text: '#FFFFFF', name: 'Cobalt' },
+  { bg: '#A21CAF', text: '#FFFFFF', name: 'Dark Fuchsia' },
+  { bg: '#BE123C', text: '#FFFFFF', name: 'Ruby' },
+  { bg: '#475569', text: '#FFFFFF', name: 'Charcoal' },
+];
+
+/**
+ * Deterministically assigns a unique, stable color from the curated palette
+ * based on an immutable user identifier (user_id, username, email, or display name).
+ * Guarantees the same user always receives the exact same color across refreshes,
+ * podium slots, table rows, and filter toggles.
+ */
+export function getAvatarColor(identifier) {
+  if (identifier === null || identifier === undefined) {
+    return AVATAR_PALETTE[0];
+  }
+  const str = String(identifier).trim();
+  if (!str) {
+    return AVATAR_PALETTE[0];
+  }
+
+  // FNV-1a 32-bit hash for uniform distribution
+  let hash = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    hash ^= str.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const idx = (hash >>> 0) % AVATAR_PALETTE.length;
+  return AVATAR_PALETTE[idx];
+}
+
+/**
+ * Extracts exactly one centered uppercase initial from the first meaningful
+ * alphanumeric character of a display name or username.
+ * e.g., 'sinan kp' -> 'S', 'robith' -> 'R', 'alex john' -> 'A', 'michael' -> 'M'
+ * Fallback to '?' if no name or meaningful character is available.
+ */
+export function getInitial(name) {
+  if (!name || typeof name !== 'string') return '?';
+  const clean = name.trim();
+  if (!clean) return '?';
+
+  const match = clean.match(/[a-zA-Z0-9]/);
+  if (match) {
+    return match[0].toUpperCase();
+  }
+  return clean[0].toUpperCase() || '?';
+}
+
+/**
+ * Extracts clean initials from a display name or username.
+ * Supported for backward compatibility with 2-letter requests.
  */
 export function getInitials(name) {
   if (!name || typeof name !== 'string') return 'KF';

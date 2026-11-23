@@ -411,11 +411,52 @@ CLERK_ISSUER = config('CLERK_ISSUER', default='')
 CLERK_JWKS_URL = config('CLERK_JWKS_URL', default='')
 CLERK_PEM_PUBLIC_KEY = config('CLERK_PEM_PUBLIC_KEY', default='')
 CLERK_TEST_PUBLIC_KEY = None
+CLERK_WEBHOOK_SECRET = config('CLERK_WEBHOOK_SECRET', default='')
 
 # Platform Owner Identity Settings
-OWNER_EMAIL = config('OWNER_EMAIL', default='sina44n07@gmail.com')
-_owner_clerk_ids_str = config('OWNER_CLERK_IDS', default='user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn')
-OWNER_CLERK_IDS = [cid.strip() for cid in _owner_clerk_ids_str.split(',') if cid.strip()]
+# Supports canonical names with backward-compatible aliases
+OWNER_EMAIL = config('OWNER_EMAIL', default=config('CANONICAL_OWNER_EMAIL', default='sina44n07@gmail.com'))
+
+
+def parse_owner_clerk_ids(raw_val):
+    """
+    Parses configured Owner Clerk IDs supporting:
+    1. Plain single Clerk ID: 'user_xxx' -> ['user_xxx']
+    2. Comma-separated list: 'user_1, user_2' -> ['user_1', 'user_2']
+    3. JSON array string: '["user_1", "user_2"]' -> ['user_1', 'user_2']
+    Guarantees no accidental brackets or quotes are retained.
+    """
+    if not raw_val or not isinstance(raw_val, str):
+        return []
+    cleaned = raw_val.strip()
+    if not cleaned:
+        return []
+    if cleaned.startswith('[') and cleaned.endswith(']'):
+        try:
+            import json
+            parsed = json.loads(cleaned)
+            if isinstance(parsed, list):
+                return [str(cid).strip() for cid in parsed if str(cid).strip()]
+        except Exception:
+            pass
+    result = []
+    for cid in cleaned.split(','):
+        item = cid.strip().strip('"\'[]')
+        if item:
+            result.append(item)
+    return result
+
+
+# In development or test environments, default to known development owner ID.
+# In production (DEBUG=False), do NOT default to development Clerk ID; require explicit environment configuration.
+import sys
+_is_dev_or_test = DEBUG or ('test' in sys.argv)
+_default_owner_clerk_id = 'user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn' if _is_dev_or_test else ''
+_owner_clerk_ids_str = config(
+    'OWNER_CLERK_IDS',
+    default=config('CLERK_OWNER_USER_IDS', default=_default_owner_clerk_id)
+)
+OWNER_CLERK_IDS = parse_owner_clerk_ids(_owner_clerk_ids_str)
 
 # ---------------------------------------------------------------------------
 # Email (Password Reset & Verification)

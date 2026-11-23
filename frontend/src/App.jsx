@@ -43,6 +43,7 @@ const ArcadePage = lazy(() => import('./pages/ArcadePage').then((m) => ({ defaul
 const TelemetryPage = lazy(() => import('./pages/TelemetryPage'));
 const LeaderboardPage = lazy(() => import('./pages/LeaderboardPage'));
 const ThemesPage = lazy(() => import('./pages/ThemesPage'));
+const CompetitionResultsPage = lazy(() => import('./pages/CompetitionResultsPage').then((m) => ({ default: m.CompetitionResultsPage || m.default })));
 
 import { ClerkProvider } from '@clerk/react';
 import { AuthenticateWithRedirectCallback } from '@clerk/react';
@@ -95,42 +96,60 @@ const AppShell = ({ children }) => {
     location.pathname.startsWith('/sso-callback');
 
   const { isMaintenanceMode } = usePlatformConfig();
-  const { user, clerkUser } = useAuth();
+  const { user } = useAuth();
 
   const isSuperAdmin = Boolean(
-    user?.is_super_admin ||
-    user?.role === 'SUPER_ADMIN' ||
-    (user?.email && user.email.toLowerCase() === 'sina44n07@gmail.com') ||
-    (clerkUser?.primaryEmailAddress?.emailAddress && clerkUser.primaryEmailAddress.emailAddress.toLowerCase() === 'sina44n07@gmail.com')
+    user?.is_owner && (user?.is_super_admin || user?.role === 'SUPER_ADMIN')
   );
 
-  if (isAdminRoute) {
-    return (
-      <div className="min-h-screen bg-[#F7F7FC] text-[#29243B]">
-        <Suspense fallback={<PageLoadingFallback />}>
-          {children}
-        </Suspense>
-      </div>
+  // Pages where footer must be completely removed: Home, Workstation, Academy, Arcade, Telemetry, Leaderboard, Themes, Competitions
+  const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+  const isNoFooterRoute =
+    isAuthRoute ||
+    normalizedPath === '/' ||
+    ['/workstation', '/practice', '/academy', '/arcade', '/telemetry', '/analytics', '/leaderboard', '/themes', '/competitions', '/competition'].some(
+      (prefix) => normalizedPath === prefix || normalizedPath.startsWith(`${prefix}/`)
     );
-  }
-
-  // When Maintenance Mode is active, restrict non-admin users from consumer features
-  if (isMaintenanceMode && !isSuperAdmin && !isAuthRoute) {
-    return <MaintenanceScreen />;
-  }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg-main)] text-[var(--text-primary)] transition-colors duration-200">
-      {isMaintenanceMode && isSuperAdmin && <MaintenanceAlertBadge />}
-      <Navbar />
-      <AnnouncementBanner />
-      <div className="flex-1">
-        <Suspense fallback={<PageLoadingFallback />}>
-          {children}
-        </Suspense>
-      </div>
-      <Footer />
-    </div>
+    <>
+      {isAdminRoute ? (
+        <div className="min-h-screen bg-[#F7F7FC] text-[#29243B]">
+          <Suspense fallback={<PageLoadingFallback />}>
+            {children}
+          </Suspense>
+        </div>
+      ) : isMaintenanceMode && !isSuperAdmin && !isAuthRoute ? (
+        <MaintenanceScreen />
+      ) : (
+        <div
+          className={`min-h-screen min-h-[100svh] flex flex-col text-[var(--text-primary)] transition-colors duration-200 ${
+            isAuthRoute
+              ? 'relative overflow-x-clip bg-gradient-to-b from-[#96cdf2] via-[#bde1f8] to-[#edf7fd]'
+              : 'bg-[var(--bg-main)]'
+          }`}
+        >
+          {/* Full-viewport Atmospheric Sky & Cloud Overlays for Auth Routes */}
+          {isAuthRoute && (
+            <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/40 via-transparent to-transparent" />
+              <div className="absolute -top-10 -left-10 w-96 h-48 bg-white/60 rounded-full blur-3xl" />
+              <div className="absolute top-1/4 -right-20 w-[30rem] h-64 bg-white/70 rounded-full blur-3xl" />
+              <div className="absolute -bottom-10 left-1/3 w-[36rem] h-56 bg-white/50 rounded-full blur-3xl" />
+            </div>
+          )}
+          {isMaintenanceMode && isSuperAdmin && <MaintenanceAlertBadge />}
+          <Navbar />
+          {!isAuthRoute && <AnnouncementBanner />}
+          <div className={`flex-1 flex flex-col ${isAuthRoute ? 'relative z-10' : ''}`}>
+            <Suspense fallback={<PageLoadingFallback />}>
+              {children}
+            </Suspense>
+          </div>
+          {!isNoFooterRoute && !isAuthRoute && <Footer />}
+        </div>
+      )}
+    </>
   );
 };
 
@@ -160,8 +179,8 @@ function App() {
                   element={
                     isClerkConfigured ? (
                       <AuthenticateWithRedirectCallback
-                        signInForceRedirectUrl="/workstation"
-                        signUpForceRedirectUrl="/workstation"
+                        signInFallbackRedirectUrl="/"
+                        signUpFallbackRedirectUrl="/"
                       />
                     ) : (
                       <Navigate to="/login" replace />
@@ -173,8 +192,8 @@ function App() {
                   element={
                     isClerkConfigured ? (
                       <AuthenticateWithRedirectCallback
-                        signInForceRedirectUrl="/workstation"
-                        signUpForceRedirectUrl="/workstation"
+                        signInFallbackRedirectUrl="/"
+                        signUpFallbackRedirectUrl="/"
                       />
                     ) : (
                       <Navigate to="/login" replace />
@@ -183,6 +202,8 @@ function App() {
                 />
                 <Route path="/telemetry" element={<TelemetryPage />} />
                 <Route path="/leaderboard" element={<LeaderboardPage />} />
+                <Route path="/competitions/:code/results" element={<CompetitionResultsPage />} />
+                <Route path="/competition/:code/results" element={<CompetitionResultsPage />} />
                 <Route path="/analytics" element={<Navigate to="/telemetry" replace />} />
                 <Route path="/themes" element={<ThemesPage />} />
 

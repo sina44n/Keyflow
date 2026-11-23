@@ -252,3 +252,176 @@ class LeaderboardPersistenceAuditTestCase(TestCase):
         self.assertEqual(entries[0]['net_wpm'], 80.0)
         self.assertEqual(entries[1]['username'], 'leaderboard_pers_user_a')
         self.assertEqual(entries[1]['net_wpm'], 70.0)
+
+    def test_exact_47_wpm_preservation_and_custom_drill_isolation(self):
+        """
+        Critical Audit Scenario:
+        1. User performs an unstandardized custom drill at 50 WPM (session_type='custom').
+        2. User performs a standardized 15s timed test at 47 Net WPM (session_type='timed', Gross 55, Net 47, Acc 94%).
+        3. Standardized Leaderboard MUST isolate and display the authentic 47.0 Net WPM test, NOT the 50 WPM custom drill!
+        """
+        now = timezone.now()
+
+        # Step 1: Older custom drill with 50 WPM
+        s_custom = PracticeSession.objects.create(
+            user=self.user_a,
+            session_type='custom',
+            source_environment='workstation_a',
+            duration_seconds=15,
+            total_chars=62,
+            correct_chars=62,
+            incorrect_chars=0,
+            error_count=0,
+            gross_wpm=Decimal('50.00'),
+            net_wpm=Decimal('50.00'),
+            accuracy=Decimal('100.00'),
+            client_session_id='sess_custom_drill_50',
+            created_at=now - datetime.timedelta(minutes=10),
+        )
+
+        # Step 2: Genuine 15s timed test on Workstation with 47 Net WPM
+        s_timed = PracticeSession.objects.create(
+            user=self.user_a,
+            session_type='timed',
+            source_environment='workstation_a',
+            duration_seconds=15,
+            total_chars=69,
+            correct_chars=65,
+            incorrect_chars=4,
+            error_count=2,
+            gross_wpm=Decimal('55.00'),
+            net_wpm=Decimal('47.00'),
+            accuracy=Decimal('94.00'),
+            client_session_id='sess_workstation_timed_47',
+            created_at=now - datetime.timedelta(minutes=5),
+        )
+
+        # Query speed leaderboard for 15s duration
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token_a}')
+        res = self.client.get('/api/leaderboard/?period=all_time&category=speed&duration=15')
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+
+        entries = data.get('entries', [])
+        self.assertEqual(len(entries), 1)
+
+        # The entry MUST show the authentic 47.0 Net WPM, NOT 50 WPM!
+        entry = entries[0]
+        self.assertEqual(entry['username'], 'leaderboard_pers_user_a')
+        self.assertEqual(entry['net_wpm'], 47.0)
+        self.assertEqual(entry['gross_wpm'], 55.0)
+        self.assertEqual(entry['accuracy'], 94.0)
+        self.assertEqual(entry['session_type'], 'timed')
+        self.assertEqual(entry['session_id'], 'sess_workstation_timed_47')
+
+        # MyRank card verification
+        my_rank = data.get('my_rank', {})
+        self.assertTrue(my_rank['ranked'])
+        self.assertEqual(my_rank['rank'], 1)
+        self.assertEqual(my_rank['net_wpm'], 47.0)
+        self.assertEqual(my_rank['gross_wpm'], 55.0)
+        self.assertEqual(my_rank['accuracy'], 94.0)
+
+        # Query specifically with session_id parameter
+        res_session = self.client.get(f'/api/leaderboard/?period=all_time&category=speed&duration=15&session_id=sess_workstation_timed_47')
+        self.assertEqual(res_session.status_code, 200)
+        session_rank = res_session.json().get('my_rank', {})
+        self.assertEqual(session_rank['net_wpm'], 47.0)
+        self.assertEqual(session_rank['gross_wpm'], 55.0)
+        self.assertEqual(session_rank['session_id'], 'sess_workstation_timed_47')
+
+    def test_workstation_page_a_and_page_b_isolation(self):
+        """
+        Verify Workstation Page A and Workstation Page B:
+        1. Maintain strict source_environment segregation.
+        2. Do not overwrite each other's score records.
+        3. Support source filtering in API.
+        """
+        now = timezone.now()
+
+        # Page A test: 52 Net WPM
+        s_page_a = PracticeSession.objects.create(
+            user=self.user_a,
+            session_type='timed',
+            source_environment='workstation_a',
+            duration_seconds=15,
+            total_chars=65,
+            correct_chars=65,
+            incorrect_chars=0,
+            gross_wpm=Decimal('52.00'),
+            net_wpm=Decimal('52.00'),
+            accuracy=Decimal('100.00'),
+            client_session_id='sess_page_a_001',
+            created_at=now - datetime.timedelta(minutes=15),
+        )
+
+        # Page B (Focus/Switch mode) test: 47 Net WPM
+        s_page_b = PracticeSession.objects.create(
+            user=self.user_a,
+            session_type='timed',
+            source_environment='workstation_b',
+            duration_seconds=15,
+            total_chars=69,
+            correct_chars=65,
+            incorrect_chars=4,
+            error_count=2,
+            gross_wpm=Decimal('55.00'),
+            net_wpm=Decimal('47.00'),
+            accuracy=Decimal('94.00'),
+            client_session_id='sess_page_b_001',
+            created_at=now - datetime.timedelta(minutes=5),
+        )
+
+        # Both sessions exist independently in database
+        self.assertEqual(PracticeSession.objects.filter(user=self.user_a, source_environment='workstation_a').count(), 1)
+        self.assertEqual(PracticeSession.objects.filter(user=self.user_a, source_environment='workstation_b').count(), 1)
+
+        # Filter by source=workstation_b
+        res_b = self.client.get('/api/leaderboard/?duration=15&category=speed&source=workstation_b')
+        self.assertEqual(res_b.status_code, 200)
+        entries_b = res_b.json().get('entries', [])
+        self.assertEqual(len(entries_b), 1)
+        self.assertEqual(entries_b[0]['net_wpm'], 47.0)
+        self.assertEqual(entries_b[0]['source_environment'], 'workstation_b')
+
+        # Filter by source=workstation_a
+        res_a = self.client.get('/api/leaderboard/?duration=15&category=speed&source=workstation_a')
+        self.assertEqual(res_a.status_code, 200)
+        entries_a = res_a.json().get('entries', [])
+        self.assertEqual(len(entries_a), 1)
+        self.assertEqual(entries_a[0]['net_wpm'], 52.0)
+        self.assertEqual(entries_a[0]['source_environment'], 'workstation_a')
+
+    def test_record_practice_session_api_idempotency_and_score_fidelity(self):
+        """
+        Verify RecordPracticeSessionView preserves client scores and handles idempotency without corruption.
+        """
+        self.client.credentials(HTTP_AUTHORIZATION=f'Token {self.token_a}')
+        payload = {
+            'session_id': 'sess_fidelity_47',
+            'session_type': 'timed',
+            'source': 'workstation_b',
+            'duration_seconds': 15,
+            'total_chars': 69,
+            'correct_chars': 65,
+            'incorrect_chars': 4,
+            'gross_wpm': 55.0,
+            'net_wpm': 47.0,
+            'accuracy': 94.0,
+            'error_count': 2,
+        }
+
+        # First post creates session
+        res1 = self.client.post('/api/practice/sessions/', payload, format='json')
+        self.assertEqual(res1.status_code, 201)
+        data1 = res1.json()
+        self.assertEqual(float(data1['net_wpm']), 47.0)
+        self.assertEqual(float(data1['gross_wpm']), 55.0)
+        self.assertEqual(float(data1['accuracy']), 94.0)
+        self.assertEqual(data1['source_environment'], 'workstation_b')
+
+        # Idempotent second post with same session_id returns existing record, does not create duplicate
+        res2 = self.client.post('/api/practice/sessions/', payload, format='json')
+        self.assertEqual(res2.status_code, 200)
+        self.assertEqual(res2.json()['id'], data1['id'])
+        self.assertEqual(PracticeSession.objects.filter(client_session_id='sess_fidelity_47').count(), 1)

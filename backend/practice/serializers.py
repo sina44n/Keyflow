@@ -3,7 +3,7 @@ Practice Serializers — Passages and Session Results.
 """
 from django.db import models
 from rest_framework import serializers
-from .models import Passage, PracticeSession, Competition, CompetitionParticipant
+from .models import Passage, PracticeSession, Competition, CompetitionParticipant, CustomPassage
 
 
 class PassageSerializer(serializers.ModelSerializer):
@@ -23,6 +23,7 @@ class PassageSerializer(serializers.ModelSerializer):
 
 class PracticeSessionSerializer(serializers.ModelSerializer):
     username = serializers.CharField(source='user.username', read_only=True, default='Guest')
+    source = serializers.SerializerMethodField()
 
     class Meta:
         model = PracticeSession
@@ -31,6 +32,8 @@ class PracticeSessionSerializer(serializers.ModelSerializer):
             'user',
             'username',
             'session_type',
+            'source',
+            'source_environment',
             'duration_seconds',
             'total_chars',
             'correct_chars',
@@ -47,7 +50,18 @@ class PracticeSessionSerializer(serializers.ModelSerializer):
             'metric_version',
             'created_at',
         ]
-        read_only_fields = ['id', 'user', 'username', 'client_session_id', 'metric_version', 'created_at']
+        read_only_fields = ['id', 'user', 'username', 'source', 'client_session_id', 'metric_version', 'created_at']
+
+    def get_source(self, obj):
+        if obj.session_type == 'lesson':
+            return 'academy'
+        if isinstance(obj.character_stats, dict):
+            meta = obj.character_stats.get('_meta', {})
+            if isinstance(meta, dict) and meta.get('source'):
+                return meta['source']
+            if obj.character_stats.get('source'):
+                return obj.character_stats['source']
+        return 'workstation_a'
 
 
 class CompetitionParticipantSerializer(serializers.ModelSerializer):
@@ -58,12 +72,20 @@ class CompetitionParticipantSerializer(serializers.ModelSerializer):
     correct_words = serializers.SerializerMethodField()
     incorrect_words = serializers.SerializerMethodField()
     words_completed = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
+    is_verified = serializers.SerializerMethodField()
+    user_id = serializers.IntegerField(source='user.id', read_only=True, default=None)
+    username = serializers.CharField(source='user.username', read_only=True, default=None)
 
     class Meta:
         model = CompetitionParticipant
         fields = [
             'id',
+            'user_id',
+            'username',
             'display_name',
+            'avatar_url',
+            'is_verified',
             'status',
             'gross_wpm',
             'net_wpm',
@@ -81,7 +103,17 @@ class CompetitionParticipantSerializer(serializers.ModelSerializer):
             'completed_at',
             'rank',
         ]
-        read_only_fields = ['id', 'joined_at', 'completed_at', 'rank']
+        read_only_fields = ['id', 'user_id', 'username', 'joined_at', 'completed_at', 'rank']
+
+    def get_avatar_url(self, obj):
+        if obj.user and hasattr(obj.user, 'profile') and obj.user.profile:
+            return obj.user.profile.avatar_url or None
+        return None
+
+    def get_is_verified(self, obj):
+        if obj.user:
+            return bool(obj.user.is_email_verified or getattr(obj.user, 'role', '') in ('ADMIN', 'SUPER_ADMIN'))
+        return False
 
     def get_rank(self, obj):
         # Only rank completed participants
@@ -124,9 +156,13 @@ class CompetitionParticipantSerializer(serializers.ModelSerializer):
 
 class CompetitionSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.username', read_only=True, default='Anonymous')
+    created_by_id = serializers.IntegerField(source='created_by.id', read_only=True, default=None)
     participant_count = serializers.IntegerField(source='participants.count', read_only=True)
     participants = CompetitionParticipantSerializer(many=True, read_only=True)
     summary = serializers.SerializerMethodField()
+    server_time = serializers.SerializerMethodField()
+    is_timed = serializers.SerializerMethodField()
+    time_remaining_seconds = serializers.SerializerMethodField()
 
     class Meta:
         model = Competition
@@ -137,17 +173,43 @@ class CompetitionSerializer(serializers.ModelSerializer):
             'challenge_text',
             'challenge_type',
             'target_limit',
+            'competition_mode',
+            'time_limit_seconds',
+            'is_timed',
+            'started_at',
+            'ended_at',
+            'server_time',
+            'time_remaining_seconds',
             'difficulty',
             'max_participants',
             'is_public',
             'status',
             'created_by_name',
+            'created_by_id',
             'created_at',
             'participant_count',
             'participants',
             'summary',
         ]
-        read_only_fields = ['id', 'code', 'created_by_name', 'created_at', 'participant_count', 'participants', 'summary']
+        read_only_fields = [
+            'id', 'code', 'created_by_name', 'created_by_id', 'created_at',
+            'participant_count', 'participants', 'summary',
+            'server_time', 'is_timed', 'time_remaining_seconds'
+        ]
+
+    def get_server_time(self, obj):
+        from django.utils import timezone
+        return timezone.now().isoformat()
+
+    def get_is_timed(self, obj):
+        return bool(obj.time_limit_seconds and obj.time_limit_seconds > 0)
+
+    def get_time_remaining_seconds(self, obj):
+        from django.utils import timezone
+        if obj.started_at and obj.time_limit_seconds:
+            elapsed = (timezone.now() - obj.started_at).total_seconds()
+            return max(0, int(obj.time_limit_seconds - elapsed))
+        return None
 
     def get_summary(self, obj):
         participants = list(obj.participants.all())
@@ -190,4 +252,20 @@ class CompetitionSerializer(serializers.ModelSerializer):
             'top_score': top_score,
             'podium': podium,
         }
+
+
+class CustomPassageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomPassage
+        fields = [
+            'id',
+            'title',
+            'text',
+            'word_count',
+            'char_count',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['id', 'word_count', 'char_count', 'created_at', 'updated_at']
+
 

@@ -60,6 +60,11 @@ export const clearStoredToken = () => localStorage.removeItem(TOKEN_KEY);
 // ---------------------------------------------------------------------------
 api.interceptors.request.use(
   async (config) => {
+    // If request already carries an explicit Authorization header, preserve it
+    if (config.headers?.Authorization) {
+      return config;
+    }
+
     let token = null;
     if (tokenGetter) {
       try {
@@ -191,12 +196,17 @@ export const practiceAPI = {
   joinCompetition: (code, data) => api.post(`/practice/competitions/${code}/join/`, data),
   submitCompetition: (code, data) => api.post(`/practice/competitions/${code}/submit/`, data),
   getMyCompetitions: () => api.get('/practice/competitions/my/'),
+  getCustomPassages: () => api.get('/practice/custom-passages/'),
+  createCustomPassage: (data) => api.post('/practice/custom-passages/', data),
+  updateCustomPassage: (id, data) => api.put(`/practice/custom-passages/${id}/`, data),
+  deleteCustomPassage: (id) => api.delete(`/practice/custom-passages/${id}/`),
 };
 
 export const competitionAPI = {
   list: (params) => api.get('/practice/competitions/', { params }),
   create: (data) => api.post('/practice/competitions/', data),
   get: (code) => api.get(`/practice/competitions/${code}/`),
+  update: (code, data) => api.patch(`/practice/competitions/${code}/`, data),
   join: (code, data) => api.post(`/practice/competitions/${code}/join/`, data),
   submit: (code, data) => api.post(`/practice/competitions/${code}/submit/`, data),
   start: (code) => api.post(`/practice/competitions/${code}/start/`),

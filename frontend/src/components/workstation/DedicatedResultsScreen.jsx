@@ -228,49 +228,62 @@ export const DedicatedResultsScreen = ({
       canvas.height = height;
       const ctx = canvas.getContext('2d');
 
+      // Dynamic theme colors extracted from root CSS variables
+      const computed = typeof window !== 'undefined' ? window.getComputedStyle(document.documentElement) : null;
+      const getVar = (name, fallback) => (computed ? computed.getPropertyValue(name).trim() || fallback : fallback);
+
+      const colorBgMain = getVar('--bg-main', '#181412');
+      const colorBgSurface = getVar('--bg-surface', '#201A18');
+      const colorBorder = getVar('--border', '#382B27');
+      const colorAccent = getVar('--accent', '#8B1D2C');
+      const colorTextPrimary = getVar('--text-primary', '#F5F7FA');
+      const colorTextSecondary = getVar('--text-secondary', '#A89993');
+      const colorTextMuted = getVar('--text-muted', '#6E5D57');
+      const colorError = getVar('--typing-incorrect', '#E06D53');
+
       // Theme background
-      ctx.fillStyle = '#181412';
+      ctx.fillStyle = colorBgMain;
       ctx.fillRect(0, 0, width, height);
 
       // Subtle card border
-      ctx.strokeStyle = '#382B27';
+      ctx.strokeStyle = colorBorder;
       ctx.lineWidth = 2;
       ctx.strokeRect(20, 20, width - 40, height - 40);
 
       // Header: KEYFLOW Branding
-      ctx.fillStyle = '#8B1D2C';
+      ctx.fillStyle = colorAccent;
       ctx.font = 'bold 24px monospace';
       ctx.fillText('KEYFLOW', 60, 70);
 
-      ctx.fillStyle = '#A89993';
+      ctx.fillStyle = colorTextSecondary;
       ctx.font = '14px monospace';
       ctx.fillText('PRECISION TYPING ANALYTICS', 170, 70);
 
-      ctx.fillStyle = '#6E5D57';
+      ctx.fillStyle = colorTextMuted;
       ctx.font = '12px monospace';
       ctx.fillText(new Date().toLocaleDateString(undefined, { dateStyle: 'medium' }), width - 200, 70);
 
       // Divider line
-      ctx.strokeStyle = '#2E221E';
+      ctx.strokeStyle = colorBorder;
       ctx.beginPath();
       ctx.moveTo(60, 90);
       ctx.lineTo(width - 60, 90);
       ctx.stroke();
 
       // Left stats: Big WPM & ACC
-      ctx.fillStyle = '#7A6B65';
+      ctx.fillStyle = colorTextMuted;
       ctx.font = '16px monospace';
       ctx.fillText('wpm', 80, 160);
 
-      ctx.fillStyle = '#C48A5A';
+      ctx.fillStyle = colorAccent;
       ctx.font = 'bold 96px monospace';
       ctx.fillText(`${displayedWpm}`, 80, 255);
 
-      ctx.fillStyle = '#7A6B65';
+      ctx.fillStyle = colorTextMuted;
       ctx.font = '16px monospace';
       ctx.fillText('acc', 80, 320);
 
-      ctx.fillStyle = '#C48A5A';
+      ctx.fillStyle = colorTextPrimary;
       ctx.font = 'bold 96px monospace';
       ctx.fillText(`${accuracy}%`, 80, 415);
 
@@ -281,13 +294,13 @@ export const DedicatedResultsScreen = ({
       const chartH = 300;
 
       // Chart background
-      ctx.fillStyle = '#201A18';
+      ctx.fillStyle = colorBgSurface;
       ctx.fillRect(chartX, chartY, chartW, chartH);
-      ctx.strokeStyle = '#302622';
+      ctx.strokeStyle = colorBorder;
       ctx.strokeRect(chartX, chartY, chartW, chartH);
 
       // Grid lines
-      ctx.strokeStyle = '#2A201C';
+      ctx.strokeStyle = colorBorder;
       ctx.lineWidth = 1;
       for (let g = 0; g <= 4; g++) {
         const y = chartY + (chartH / 4) * g;
@@ -296,7 +309,7 @@ export const DedicatedResultsScreen = ({
         ctx.lineTo(chartX + chartW, y);
         ctx.stroke();
 
-        ctx.fillStyle = '#6E5D57';
+        ctx.fillStyle = colorTextMuted;
         ctx.font = '11px monospace';
         const val = Math.round(maxWpmValue - (maxWpmValue / 4) * g);
         ctx.fillText(String(val), chartX - 30, y + 4);
@@ -304,7 +317,7 @@ export const DedicatedResultsScreen = ({
 
       // Draw Raw WPM dashed line
       if (chartData.length > 1) {
-        ctx.strokeStyle = '#6E5D57';
+        ctx.strokeStyle = colorTextMuted;
         ctx.lineWidth = 2;
         ctx.setLineDash([4, 4]);
         ctx.beginPath();
@@ -320,7 +333,7 @@ export const DedicatedResultsScreen = ({
 
       // Draw Net WPM solid curve
       if (chartData.length > 1) {
-        ctx.strokeStyle = '#C48A5A';
+        ctx.strokeStyle = colorAccent;
         ctx.lineWidth = 3.5;
         ctx.beginPath();
         chartData.forEach((pt, i) => {
@@ -337,7 +350,7 @@ export const DedicatedResultsScreen = ({
         if (pt.errors > 0) {
           const x = chartX + ((pt.second - 1) / (chartData.length - 1)) * chartW;
           const y = chartY + chartH - 20;
-          ctx.strokeStyle = '#E06D53';
+          ctx.strokeStyle = colorError;
           ctx.lineWidth = 2;
           ctx.beginPath();
           ctx.moveTo(x - 4, y - 4);
@@ -361,18 +374,18 @@ export const DedicatedResultsScreen = ({
       const colWidth = (width - 160) / cols.length;
       cols.forEach((col, i) => {
         const x = 80 + i * colWidth;
-        ctx.fillStyle = '#7A6B65';
+        ctx.fillStyle = colorTextMuted;
         ctx.font = '14px monospace';
         ctx.fillText(col.label, x, statsY);
 
-        ctx.fillStyle = '#C48A5A';
+        ctx.fillStyle = colorTextPrimary;
         ctx.font = 'bold 26px monospace';
         ctx.fillText(col.value, x, statsY + 36);
       });
 
       // Export file
       const link = document.createElement('a');
-      link.download = `KEYFLOW-Results-${displayedWpm}-WPM.png`;
+      link.download = `KEYFLOW-Results-${displayedNetWpm}-WPM.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) {
@@ -384,7 +397,7 @@ export const DedicatedResultsScreen = ({
 
   const handleCopyLink = () => {
     try {
-      const summaryText = `KEYFLOW Precision Typing Result:\n⚡ Speed: ${displayedWpm} WPM\n🎯 Accuracy: ${displayedAccuracy}%\n📊 Consistency: ${consistency}%\n⏱️ Duration: ${actualDuration}s in ${mode} mode`;
+      const summaryText = `KEYFLOW Precision Typing Result:\n⚡ Speed: ${displayedNetWpm} WPM (Raw: ${displayedWpm} WPM)\n🎯 Accuracy: ${displayedAccuracy}%\n📊 Consistency: ${consistency}%\n⏱️ Duration: ${actualDuration}s in ${mode} mode`;
       navigator.clipboard.writeText(summaryText);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
@@ -759,10 +772,14 @@ export const DedicatedResultsScreen = ({
         )}
 
         {activeCompetition && (
-          <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold text-sm">
-            <Trophy className="w-4 h-4" />
-            <span>Room {activeCompetition?.competition?.code || 'Challenge'} Submitted</span>
-          </div>
+          <a
+            href={`/competitions/${activeCompetition?.competition?.code}/results`}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-[var(--accent-fg)] font-bold text-sm shadow-md transition-all cursor-pointer"
+            title="Open Dedicated Champions Leaderboard"
+          >
+            <Trophy className="w-4 h-4 fill-current" />
+            <span>View Room {activeCompetition?.competition?.code || 'Competition'} Standings</span>
+          </a>
         )}
       </div>
 

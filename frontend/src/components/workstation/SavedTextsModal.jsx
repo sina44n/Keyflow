@@ -19,6 +19,7 @@ import {
 import { Button } from '../common/Button';
 import {
   getSavedCustomTexts,
+  fetchAndSyncCustomTexts,
   updateCustomText,
   deleteCustomText,
 } from '../../utils/customTextStorage.js';
@@ -39,6 +40,11 @@ export const SavedTextsModal = ({
     const refresh = () => setTexts(getSavedCustomTexts(userId));
     if (isOpen) {
       refresh();
+      if (userId) {
+        fetchAndSyncCustomTexts(userId).then((res) => {
+          if (Array.isArray(res)) setTexts(res);
+        });
+      }
     }
     window.addEventListener('keyflow-custom-texts-updated', refresh);
     return () => window.removeEventListener('keyflow-custom-texts-updated', refresh);
@@ -201,7 +207,7 @@ export const SavedTextsModal = ({
                     <button
                       type="button"
                       onClick={() => {
-                        onApplyText(item.text, item.wordCount);
+                        onApplyText(item.text, item.wordCount, item.id);
                         onClose();
                       }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--accent)] text-[var(--accent-fg)] text-xs font-mono font-bold hover:bg-[var(--accent-hover)] transition-colors cursor-pointer"

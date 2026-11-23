@@ -47,6 +47,8 @@ class SuperAdminSecurityTests(TestCase):
             username='owner_sina',
             password='Password123!',
         )
+        self.owner_user.clerk_id = 'user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn'
+        self.owner_user.save()
 
         # Standard Admin
         self.admin_user = User.objects.create_user(
@@ -83,7 +85,7 @@ class SuperAdminSecurityTests(TestCase):
     def test_resolve_clerk_identity_promotes_owner(self):
         """When Clerk token with owner email arrives, user is automatically promoted to SUPER_ADMIN."""
         payload = {
-            'sub': 'user_clerk_owner_999',
+            'sub': 'user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn',
             'email': OWNER_EMAIL.upper(),  # Test case insensitivity
             'first_name': 'Sinan',
             'last_name': 'Owner',
@@ -93,7 +95,7 @@ class SuperAdminSecurityTests(TestCase):
         self.assertEqual(user.role, ROLE_SUPER_ADMIN)
         self.assertTrue(user.is_staff)
         self.assertTrue(user.is_superuser)
-        self.assertEqual(user.clerk_id, 'user_clerk_owner_999')
+        self.assertEqual(user.clerk_id, 'user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn')
 
     def test_is_super_admin_permission_denies_normal_user(self):
         """Normal users must receive 403 Forbidden from IsSuperAdminUser."""

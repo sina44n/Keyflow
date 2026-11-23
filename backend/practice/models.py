@@ -88,6 +88,7 @@ class PracticeSession(models.Model):
         related_name='practice_sessions',
     )
     metric_version = models.CharField(max_length=20, default='2.0')
+    source_environment = models.CharField(max_length=50, default='workstation_a', blank=True, db_index=True)
     client_session_id = models.CharField(max_length=128, blank=True, null=True, db_index=True)
     character_stats = models.JSONField(default=dict, blank=True)
     finger_stats = models.JSONField(default=dict, blank=True)
@@ -99,6 +100,7 @@ class PracticeSession(models.Model):
         indexes = [
             models.Index(fields=['user', '-created_at']),
             models.Index(fields=['user', 'session_type']),
+            models.Index(fields=['user', 'source_environment']),
             models.Index(fields=['user', '-net_wpm']),
         ]
 
@@ -137,6 +139,14 @@ class Competition(models.Model):
     difficulty = models.CharField(max_length=20, default='medium')
     max_participants = models.PositiveIntegerField(default=10)
     is_public = models.BooleanField(default=True)
+    competition_mode = models.CharField(
+        max_length=20,
+        choices=[('text_completion', 'Text Completion'), ('timed', 'Time Trial')],
+        default='text_completion',
+    )
+    time_limit_seconds = models.PositiveIntegerField(null=True, blank=True, default=None)
+    started_at = models.DateTimeField(null=True, blank=True, default=None)
+    ended_at = models.DateTimeField(null=True, blank=True, default=None)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='waiting')
     created_by = models.ForeignKey(
         'accounts.User',
@@ -209,4 +219,40 @@ class CompetitionParticipant(models.Model):
 
     def __str__(self):
         return f'{self.display_name} in {self.competition.code} — {self.net_wpm} WPM'
+
+
+class CustomPassage(models.Model):
+    """
+    User-persisted custom typing passage.
+    Stored with full multi-paragraph content, line breaks, and user ownership.
+    """
+    user = models.ForeignKey(
+        'accounts.User',
+        on_delete=models.CASCADE,
+        related_name='custom_passages',
+    )
+    title = models.CharField(max_length=255, blank=True)
+    text = models.TextField()
+    word_count = models.PositiveIntegerField(default=0)
+    char_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'practice_custom_passages'
+        ordering = ['-updated_at', '-created_at']
+        indexes = [
+            models.Index(fields=['user', '-updated_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.title or 'Custom Passage'} (User {self.user_id})"
+
+    def save(self, *args, **kwargs):
+        if not self.word_count:
+            self.word_count = len(self.text.split())
+        if not self.char_count:
+            self.char_count = len(self.text)
+        super().save(*args, **kwargs)
+
 

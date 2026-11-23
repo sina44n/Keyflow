@@ -30,9 +30,10 @@ export const ProgressOverviewChart = ({ sessions = [], activeReportMetrics, acti
   }, [sessions, aggregation]);
 
   // Overall time frame summary values (Reference Image 3 Left Panel)
-  const accuracyVal = activeReportMetrics?.accuracy !== undefined ? `${activeReportMetrics.accuracy}%` : '100%';
-  const coverageVal = activeReportMetrics?.coveragePercent !== undefined ? `${activeReportMetrics.coveragePercent}%` : '91%';
-  const speedVal = activeReportMetrics?.avgWpm !== undefined ? `${activeReportMetrics.avgWpm} wpm` : '0 wpm';
+  const hasReportData = Boolean(activeReportMetrics?.hasData);
+  const accuracyVal = hasReportData && activeReportMetrics?.accuracy !== undefined ? `${activeReportMetrics.accuracy}%` : '0%';
+  const coverageVal = hasReportData && activeReportMetrics?.coveragePercent !== undefined ? `${activeReportMetrics.coveragePercent}%` : '0%';
+  const speedVal = hasReportData && activeReportMetrics?.avgWpm !== undefined ? `${activeReportMetrics.avgWpm} wpm` : '0 wpm';
   const practiceTimeVal = activeReportMetrics?.durationFormatted || '0s';
 
   // SVG Chart Dimensions (ViewBox: 0 0 800 240)

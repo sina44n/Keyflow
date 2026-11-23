@@ -53,7 +53,7 @@ TEST_PRIV, TEST_PUB = _gen_keys()
 @override_settings(
     CLERK_TEST_PUBLIC_KEY=TEST_PUB,
     OWNER_EMAIL='sina44n07@gmail.com',
-    OWNER_CLERK_IDS=['user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn']
+    OWNER_CLERK_IDS=['user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn', 'user_owner_jwt_123']
 )
 class OwnerAccessRecoveryTests(TestCase):
     def setUp(self):
@@ -66,6 +66,8 @@ class OwnerAccessRecoveryTests(TestCase):
             username='sinankp_test',
             password='TestPassword123!',
         )
+        self.owner.clerk_id = 'user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn'
+        self.owner.save()
 
         # Normal typist account
         self.student = User.objects.create_user(
@@ -86,7 +88,7 @@ class OwnerAccessRecoveryTests(TestCase):
 
     def test_owner_receives_super_admin_from_verified_jwt(self):
         """Owner receives SUPER_ADMIN, is_staff, is_superuser when verified JWT arrives."""
-        token = self._make_jwt('user_owner_jwt_123', email='sina44n07@gmail.com')
+        token = self._make_jwt('user_3LN6vKBLr0Tsw9tJPLJe6v5VTwn', email='sina44n07@gmail.com')
         self.client.credentials(HTTP_AUTHORIZATION=f'Bearer {token}')
 
         res = self.client.get('/api/admin/auth/status/')

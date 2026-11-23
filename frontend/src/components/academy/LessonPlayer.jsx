@@ -8,6 +8,7 @@ import { Button } from '../common/Button';
 import { KeyboardGuide } from './KeyboardGuide';
 import { AcademyResultsScreen } from './AcademyResultsScreen';
 import { ThemeSwitcher } from '../common/ThemeSwitcher';
+import { CapsLockNotification } from '../common/CapsLockNotification';
 import { getLesson } from '../../data/curriculumEngine';
 import {
   recordLessonResult, calculateStars,
@@ -15,6 +16,7 @@ import {
   getCurrentUserId,
 } from '../../utils/lessonProgress';
 import { recordTelemetrySession } from '../../utils/telemetryStorage';
+import { practiceAPI } from '../../utils/api';
 import { getAuthoritativeFingerForChar } from '../../utils/touchTypingMap';
 import { SoundSelector } from '../common/SoundSelector';
 import { useKeyboardSound } from '../../context/SoundContext';
@@ -28,8 +30,515 @@ import {
   countUncorrectedErrors,
 } from '../../utils/typingFeedback';
 import { useI18n } from '../../i18n/I18nContext';
-import { calculateViewportScroll, isReducedMotionPreferred } from '../../utils/fourLineScroll';
+import {
+  calculateViewportScroll,
+  calculateTotalVisualLines,
+  calculateActiveRow,
+  isReducedMotionPreferred,
+} from '../../utils/fourLineScroll';
 import { useUniversalTypingFocus } from '../../utils/useUniversalTypingFocus';
+
+// ── MEMOIZED WORD COMPONENT (Isolates 98% of passage from per-keystroke reconciliation) ──
+const LessonWord = React.memo(
+  function LessonWord({
+    word,
+    typed,
+    targetText,
+    isCompleted,
+    correctedIndices,
+    activeCharSpanRef,
+  }) {
+    const currentTypedIndex = typed.length;
+    const isCurrentWord =
+      currentTypedIndex >= word.startIndex &&
+      currentTypedIndex <= word.endIndex &&
+      !isCompleted;
+
+    if (word.isSpace) {
+      return (
+        <span className="inline">
+          {word.text.split('').map((sp, spIdx) => {
+            const absoluteIdx = word.startIndex + spIdx;
+            const feedback = getCharacterFeedback(absoluteIdx, typed, targetText, isCompleted, correctedIndices);
+            const isCurrent = absoluteIdx === currentTypedIndex && !isCompleted;
+            let spCls = 'char-untyped opacity-40';
+            if (feedback.isTyped) {
+              spCls = feedback.className;
+            }
+            return (
+              <span
+                key={spIdx}
+                ref={isCurrent ? activeCharSpanRef : null}
+                className={`inline ${spCls} typing-char`}
+              >
+                {' '}
+              </span>
+            );
+          })}
+        </span>
+      );
+    }
+
+    return (
+      <span
+        className={`inline-block relative rounded-md transition-all duration-100 ${
+          isCurrentWord
+            ? 'px-1.5 py-0.5 -my-0.5 mx-0.5 border border-[var(--accent,#FF1744)]/50 bg-[color-mix(in_srgb,var(--accent,#FF1744)_15%,transparent)] shadow-[0_0_16px_rgba(255,23,68,0.3)]'
+            : 'border border-transparent'
+        }`}
+      >
+        {word.text.split('').map((char, charIdx) => {
+          const charAbsoluteIdx = word.startIndex + charIdx;
+          const feedback = getCharacterFeedback(charAbsoluteIdx, typed, targetText, isCompleted, correctedIndices);
+          const isAtCaret = feedback.isCurrent;
+          const isCurrent =
+            (charAbsoluteIdx === currentTypedIndex && !isCompleted) ||
+            (charAbsoluteIdx === targetText.length - 1 && currentTypedIndex >= targetText.length);
+
+          return (
+            <span
+              key={charIdx}
+              ref={isCurrent ? activeCharSpanRef : null}
+              className="relative inline typing-char"
+            >
+              {/* Blinking vertical cursor */}
+              {isAtCaret && (
+                <span
+                  className="absolute -left-[1px] top-[10%] bottom-[10%] w-[2px] rounded-full animate-pulse z-10"
+                  style={{
+                    background: 'var(--accent, #FF1744)',
+                    boxShadow: '0 0 8px var(--accent, #FF1744)',
+                  }}
+                />
+              )}
+              <span
+                className={feedback.className}
+                style={{
+                  fontWeight: feedback.isTyped || isCurrentWord ? '500' : '400',
+                }}
+              >
+                {char}
+              </span>
+            </span>
+          );
+        })}
+        {/* Blinking cursor at end of word if completely typed */}
+        {currentTypedIndex === word.endIndex && isCurrentWord && (
+          <span
+            className="inline-block w-[2px] h-[1.2em] align-middle ml-0.5 rounded-full animate-pulse"
+            style={{
+              background: 'var(--accent, #FF1744)',
+              boxShadow: '0 0 8px var(--accent, #FF1744)',
+            }}
+          />
+        )}
+      </span>
+    );
+  },
+  (prev, next) => {
+    // If targetText, completion state, or active ref identity changes, re-render
+    if (prev.targetText !== next.targetText) return false;
+    if (prev.isCompleted !== next.isCompleted) return false;
+    if (prev.word !== next.word) return false;
+    if (prev.activeCharSpanRef !== next.activeCharSpanRef) return false;
+
+    const start = prev.word.startIndex;
+    const end = prev.word.endIndex;
+    const prevLen = prev.typed.length;
+    const nextLen = next.typed.length;
+
+    // Boundary buffer for active caret & word highlight transitions
+    const buffer = 1;
+    const isPrevNear = prevLen >= start - buffer && prevLen <= end + buffer;
+    const isNextNear = nextLen >= start - buffer && nextLen <= end + buffer;
+
+    // Re-render word if typing was in or has moved into this word
+    if (isPrevNear || isNextNear) return false;
+
+    // Both positions strictly before this word (still completely untyped) -> skip
+    if (prevLen < start - buffer && nextLen < start - buffer) {
+      return true;
+    }
+
+    // Both positions strictly after this word (completed in past)
+    if (prevLen > end + buffer && nextLen > end + buffer) {
+      if (prev.typed.slice(start, end) !== next.typed.slice(start, end)) {
+        return false;
+      }
+      if (prev.correctedIndices !== next.correctedIndices) {
+        for (let i = start; i < end; i++) {
+          if (prev.correctedIndices?.has(i) !== next.correctedIndices?.has(i)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    }
+
+    return false;
+  }
+);
+
+// ── MEMOIZED NAVBAR (Zero re-renders during active typing) ───────────────────
+const LessonNavbar = React.memo(function LessonNavbar({
+  onBack,
+  stageId,
+  lessonNum,
+  lessonId,
+  lessonTitle,
+  handleReset,
+  toggleKeyboardGuide,
+  keyboardGuideOn,
+  toggleHandGuide,
+  handGuideOn,
+}) {
+  return (
+    <nav
+      className="w-full relative z-30 border-b border-[var(--border,#1e293b)] backdrop-blur-md shrink-0"
+      style={{
+        background: 'color-mix(in srgb, var(--bg-surface, #0c1322) 80%, transparent)',
+      }}
+    >
+      <div className="w-full px-2.5 sm:px-8 h-14 sm:h-16 flex items-center justify-between relative">
+        {/* Left: Brand & Breadcrumb */}
+        <div className="flex items-center gap-2 sm:gap-4 z-10 shrink-0">
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex items-center gap-1.5 transition-colors cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+              aria-label="Back to Academy"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* KEYFLOW Logo */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div
+              className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center shadow-xs"
+              style={{ background: 'var(--accent, #FF1744)' }}
+            >
+              <Keyboard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
+            </div>
+            <span className="font-mono text-sm font-extrabold tracking-wider hidden sm:inline text-[var(--text-primary)]">
+              KEY<span style={{ color: 'var(--accent, #FF1744)' }}>FLOW</span>
+            </span>
+          </div>
+
+          {/* Breadcrumb: Academy / Stage 1 / Level 1 (S1-L001) */}
+          <div className="flex items-center gap-1.5 text-xs font-mono text-[var(--text-muted)]">
+            <span className="opacity-40 hidden sm:inline">/</span>
+            <span className="hidden sm:inline">Stage {stageId || 1}</span>
+            <span className="opacity-40">/</span>
+            <span className="font-semibold text-[var(--accent,#FF1744)]">
+              Level {lessonNum} <span className="opacity-60 hidden md:inline">({lessonId})</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Center: Lesson Title */}
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden lg:block max-w-[360px] truncate text-center">
+          <span className="text-[15px] font-medium text-[var(--text-primary)] tracking-wide pointer-events-auto">
+            {lessonTitle}
+          </span>
+        </div>
+
+        {/* Right: Controls & Profile */}
+        <div className="flex items-center gap-0.5 sm:gap-2 z-10 shrink-0">
+          <button
+            type="button"
+            onClick={handleReset}
+            title="Restart lesson (Esc)"
+            aria-label="Restart lesson"
+            className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          >
+            <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleKeyboardGuide}
+            title={`Keyboard Guide: ${keyboardGuideOn ? 'ON' : 'OFF'}`}
+            aria-label={`Keyboard Guide ${keyboardGuideOn ? 'on' : 'off'}`}
+            className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer"
+            style={{ color: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
+          >
+            <Keyboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </button>
+
+          <button
+            type="button"
+            onClick={toggleHandGuide}
+            title={`Hand Guide: ${handGuideOn ? 'ON' : 'OFF'}`}
+            aria-label={`Hand Guide ${handGuideOn ? 'on' : 'off'}`}
+            className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer"
+            style={{ color: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
+          >
+            <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          </button>
+
+          <SoundSelector variant="navbar" />
+          <div className="hidden sm:block w-px h-5 mx-1 bg-[var(--border,#1e293b)]" />
+          <ThemeSwitcher compact={true} />
+
+          <div
+            className="hidden sm:flex items-center gap-1.5 pl-2 py-1 pr-1.5 rounded-full cursor-pointer transition-colors border border-[var(--border,#1e293b)] bg-[var(--bg-elevated,#131d31)]"
+            title="User Account"
+          >
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold font-mono text-white shadow-xs"
+              style={{ background: 'var(--accent, #FF1744)' }}
+            >
+              S
+            </div>
+            <span className="hidden md:inline text-[11px] font-mono font-semibold tracking-wider px-1 text-[var(--text-primary)]">
+              SINAN
+            </span>
+            <ChevronDown className="w-3 h-3 opacity-60 text-[var(--text-muted)]" />
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+});
+
+// ── MEMOIZED PROGRESS BAR ────────────────────────────────────────────────────
+const LessonProgressBar = React.memo(function LessonProgressBar({
+  stageId,
+  lessonNum,
+  lessonId,
+  unitLabel,
+  progressPercent,
+}) {
+  return (
+    <div className="w-full mb-6 sm:mb-8">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--text-muted,#64748b)]">
+          STAGE {stageId || 1} · LEVEL {lessonNum} ({lessonId}) · {unitLabel || 'WORD ACCURACY'}
+        </span>
+        <span className="text-xs font-mono font-bold text-[var(--accent,#FF1744)]">
+          {progressPercent}%
+        </span>
+      </div>
+
+      <div
+        className="w-full rounded-full overflow-hidden bg-[color-mix(in_srgb,var(--border,#1e293b)_70%,transparent)]"
+        style={{ height: '3px' }}
+      >
+        <div
+          className="h-full rounded-full transition-all duration-150"
+          style={{
+            width: `${progressPercent}%`,
+            background: 'var(--accent, #FF1744)',
+            boxShadow: progressPercent > 0 ? '0 0 10px var(--accent, #FF1744)' : 'none',
+          }}
+        />
+      </div>
+    </div>
+  );
+});
+
+// ── MEMOIZED 4-STAT METRIC ROW ───────────────────────────────────────────────
+const LessonMetricStrip = React.memo(function LessonMetricStrip({
+  wpm,
+  accuracy,
+  streak,
+  timeDisplay,
+  t,
+}) {
+  const stats = [
+    {
+      icon: Zap,
+      label: t('common.wpm'),
+      value: wpm,
+      color: 'var(--text-primary)',
+      iconColor: 'var(--accent, #FF1744)',
+    },
+    {
+      icon: Target,
+      label: t('common.accuracy'),
+      value: `${accuracy}%`,
+      color: 'var(--text-primary)',
+      iconColor: '#F59E0B',
+    },
+    {
+      icon: Flame,
+      label: t('common.streak'),
+      value: streak,
+      color: 'var(--text-primary)',
+      iconColor: '#F97316',
+    },
+    {
+      icon: Clock,
+      label: t('common.time'),
+      value: timeDisplay,
+      color: 'var(--text-primary)',
+      iconColor: '#38BDF8',
+    },
+  ];
+
+  return (
+    <div className="w-full grid grid-cols-4 gap-0 mb-8 sm:mb-10 items-center justify-between">
+      {stats.map((stat, i) => {
+        const Icon = stat.icon;
+        return (
+          <div
+            key={stat.label}
+            className="flex flex-col items-center justify-center py-2 px-0.5 sm:px-1 relative min-w-0"
+          >
+            {i > 0 && (
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-8 bg-[var(--border,#1e293b)] opacity-60" />
+            )}
+            <div className="flex items-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
+              <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" style={{ color: stat.iconColor }} aria-hidden="true" />
+              <span className="text-[9px] sm:text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted,#64748b)]">
+                {stat.label}
+              </span>
+            </div>
+            <div className="text-lg sm:text-2xl md:text-3xl font-mono font-medium tracking-tight text-[var(--text-primary)]">
+              {stat.value}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+});
+
+// ── MEMOIZED KEYBOARD + HAND GUIDE SECTION ───────────────────────────────────
+const LessonKeyboardSection = React.memo(function LessonKeyboardSection({
+  targetChar,
+  lastKeystroke,
+  keyboardGuideOn,
+  handGuideOn,
+}) {
+  return (
+    <div className="w-full min-w-0 flex items-center justify-center">
+      <div className="relative w-full max-w-[820px]">
+        <CapsLockNotification
+          className="left-1 sm:left-2 -top-8 sm:-top-9"
+          id="lesson-capslock-notification"
+          data-testid="lesson-capslock-notification"
+        />
+        <KeyboardGuide
+          targetChar={targetChar}
+          lastKeystroke={lastKeystroke}
+          isVisible={keyboardGuideOn}
+          handGuideVisible={handGuideOn}
+        />
+      </div>
+    </div>
+  );
+});
+
+// ── MEMOIZED DUAL PILL GUIDE TOGGLES & MOTIVATIONAL FOOTER ───────────────────
+const LessonFooterToggles = React.memo(function LessonFooterToggles({
+  keyboardGuideOn,
+  handGuideOn,
+  toggleKeyboardGuide,
+  toggleHandGuide,
+}) {
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 mt-6 max-w-full px-2">
+        {/* Keyboard Guide Toggle */}
+        <button
+          type="button"
+          onClick={toggleKeyboardGuide}
+          aria-pressed={keyboardGuideOn}
+          aria-label={`Keyboard guide ${keyboardGuideOn ? 'on' : 'off'}`}
+          className="flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-[var(--border,#1e293b)] bg-[color-mix(in_srgb,var(--bg-surface,#0c1322)_70%,transparent)] backdrop-blur-xs cursor-pointer transition-all duration-150 hover:border-[var(--text-muted)] shrink-0"
+        >
+          <Keyboard className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
+          <span className="text-[11px] sm:text-xs font-mono text-[var(--text-secondary)]">
+            Keyboard guide
+          </span>
+          <span
+            className="text-[11px] sm:text-xs font-bold font-mono"
+            style={{ color: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
+          >
+            {keyboardGuideOn ? 'ON' : 'OFF'}
+          </span>
+          <div
+            className="relative rounded-full transition-colors ml-1"
+            style={{
+              width: '32px',
+              height: '18px',
+              background: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--bg-elevated, #1e293b)',
+              border: '1px solid',
+              borderColor: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--border, #334155)',
+            }}
+          >
+            <div
+              className="absolute rounded-full transition-all"
+              style={{
+                width: '12px',
+                height: '12px',
+                top: '2px',
+                left: keyboardGuideOn ? '16px' : '2px',
+                background: keyboardGuideOn ? '#ffffff' : 'var(--text-muted)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                transition: 'left 150ms ease, background 150ms ease',
+              }}
+            />
+          </div>
+        </button>
+
+        {/* Hand Guide Toggle */}
+        <button
+          type="button"
+          onClick={toggleHandGuide}
+          aria-pressed={handGuideOn}
+          aria-label={`Hand guide ${handGuideOn ? 'on' : 'off'}`}
+          className="flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-[var(--border,#1e293b)] bg-[color-mix(in_srgb,var(--bg-surface,#0c1322)_70%,transparent)] backdrop-blur-xs cursor-pointer transition-all duration-150 hover:border-[var(--text-muted)] shrink-0"
+        >
+          <Hand className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
+          <span className="text-[11px] sm:text-xs font-mono text-[var(--text-secondary)]">
+            Hand guide
+          </span>
+          <span
+            className="text-[11px] sm:text-xs font-bold font-mono"
+            style={{ color: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
+          >
+            {handGuideOn ? 'ON' : 'OFF'}
+          </span>
+          <div
+            className="relative rounded-full transition-colors ml-1"
+            style={{
+              width: '32px',
+              height: '18px',
+              background: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--bg-elevated, #1e293b)',
+              border: '1px solid',
+              borderColor: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--border, #334155)',
+            }}
+          >
+            <div
+              className="absolute rounded-full transition-all"
+              style={{
+                width: '12px',
+                height: '12px',
+                top: '2px',
+                left: handGuideOn ? '16px' : '2px',
+                background: handGuideOn ? '#ffffff' : 'var(--text-muted)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                transition: 'left 150ms ease, background 150ms ease',
+              }}
+            />
+          </div>
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-6 sm:mt-8 text-[11px] sm:text-xs font-mono text-[var(--text-muted,#64748b)] text-center px-4">
+        <div className="hidden sm:block w-12 sm:w-16 h-px bg-[var(--border,#1e293b)] opacity-60" />
+        <span>Keep your eyes on the text</span>
+        <span className="opacity-40">•</span>
+        <span>Relax your hands</span>
+        <div className="hidden sm:block w-12 sm:w-16 h-px bg-[var(--border,#1e293b)] opacity-60" />
+      </div>
+    </>
+  );
+});
 
 /**
  * LessonPlayer — Masterpiece Typing Workstation matching the reference design.
@@ -103,6 +612,7 @@ export const LessonPlayer = ({
   const cachedLineHeightRef = useRef(null);
   const cachedBaseOffsetTopRef = useRef(null);
   const lastActiveOffsetTopRef = useRef(null);
+  const lastActiveRowRef = useRef(null);
 
   const inputRef = useRef(null);
   const timerRef = useRef(null);
@@ -110,6 +620,14 @@ export const LessonPlayer = ({
   const streakRef = useRef(0);
   const charStatsRef = useRef({});
   const lastKeystrokeTimeRef = useRef(null);
+  const typedRef = useRef(typed);
+  typedRef.current = typed;
+  const lastKeyDownPerfRef = useRef(0);
+
+  // Authoritative active typing duration tracking (excludes idle periods & tab blur)
+  const totalActiveMsRef = useRef(0);
+  const runningSegmentStartRef = useRef(null);
+  const lastTypingActionRef = useRef(null);
 
   const targetText = lesson?.exerciseText ?? '';
 
@@ -117,13 +635,9 @@ export const LessonPlayer = ({
   const currentTargetChar = useMemo(() => {
     if (!targetText || typed.length >= targetText.length) return null;
     return targetText[typed.length];
-  }, [typed, targetText]);
+  }, [typed.length, targetText]);
 
-  const correctChars = useMemo(() => {
-    return countCorrectChars(typed, targetText);
-  }, [typed, targetText]);
-
-  const totalValidStrokes = (correctStrokes + mistakes) > 0 ? (correctStrokes + mistakes) : (totalStrokes || correctChars);
+  const totalValidStrokes = (correctStrokes + mistakes) > 0 ? (correctStrokes + mistakes) : (totalStrokes || 0);
   const currentWpm = startTime && elapsedSeconds >= 0.5 ? calculateGrossWpm(totalValidStrokes, elapsedSeconds) : 0;
   // Live Raw Keystroke Accuracy: Correct Entries / (Correct Entries + Incorrect Entries) * 100
   // Backspace does NOT reset or erase mistakes from this calculation!
@@ -157,8 +671,14 @@ export const LessonPlayer = ({
     cachedLineHeightRef.current = null;
     cachedBaseOffsetTopRef.current = null;
     lastActiveOffsetTopRef.current = null;
+    lastActiveRowRef.current = null;
+    lastKeyDownPerfRef.current = 0;
+    totalActiveMsRef.current = 0;
+    runningSegmentStartRef.current = null;
+    lastTypingActionRef.current = null;
     if (viewportRef.current) {
       viewportRef.current.scrollTo({ top: 0, behavior: 'instant' });
+      viewportRef.current.scrollTop = 0;
     }
     completionFiredRef.current = false;
     clearInterval(timerRef.current);
@@ -175,6 +695,20 @@ export const LessonPlayer = ({
   });
 
   useEffect(() => { handleReset(); }, [lesson?.id, handleReset]);
+
+  // Tab visibility changes: pause active timing segment immediately when tab loses focus
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden) {
+        if (runningSegmentStartRef.current) {
+          totalActiveMsRef.current += Date.now() - runningSegmentStartRef.current;
+          runningSegmentStartRef.current = null;
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   // Visual QA & Dev Preview Hook for Results Screen
   useEffect(() => {
@@ -200,7 +734,9 @@ export const LessonPlayer = ({
   useEffect(() => {
     if (startTime && !isCompleted) {
       timerRef.current = setInterval(() => {
-        setElapsedSeconds(Math.max(1, Math.floor((Date.now() - startTime) / 1000)));
+        const runningMs = runningSegmentStartRef.current ? (Date.now() - runningSegmentStartRef.current) : 0;
+        const totalMs = totalActiveMsRef.current + runningMs;
+        setElapsedSeconds(Math.max(1, Math.floor(totalMs / 1000)));
       }, 500);
     } else {
       clearInterval(timerRef.current);
@@ -213,11 +749,12 @@ export const LessonPlayer = ({
   }, []);
 
   // Measure total visual lines when text loads or container resizes
-  useEffect(() => {
+  const measureVisualLines = useCallback(() => {
     if (!viewportRef.current || !textTrackRef.current) return;
     cachedLineHeightRef.current = null;
     cachedBaseOffsetTopRef.current = null;
     lastActiveOffsetTopRef.current = null;
+    lastActiveRowRef.current = null;
 
     const computedLineHeight =
       parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
@@ -229,11 +766,37 @@ export const LessonPlayer = ({
     if (allChars.length > 0) {
       const first = allChars[0].getBoundingClientRect();
       const last = allChars[allChars.length - 1].getBoundingClientRect();
-      totalLines = Math.round((last.top - first.top) / computedLineHeight) + 1;
+      totalLines = calculateTotalVisualLines(first, last, computedLineHeight);
     }
 
     setIsMultiLine(totalLines > 4);
-  }, [targetText]);
+  }, []);
+
+  useEffect(() => {
+    measureVisualLines();
+    if (!textTrackRef.current) return;
+
+    let resizeObserver = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        measureVisualLines();
+      });
+      resizeObserver.observe(textTrackRef.current);
+    }
+
+    const handleResize = () => {
+      measureVisualLines();
+      if (cachedLineHeightRef.current) {
+        setScrollOffsetPx(scrollLine * cachedLineHeightRef.current);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => {
+      if (resizeObserver) resizeObserver.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [targetText, measureVisualLines, scrollLine]);
 
   // ── Precision 4-Line Rendered-Line Auto-Scrolling (Workstation Reused) ────
   // Viewport strictly displays exactly 4 visual lines when text exceeds 4 lines.
@@ -247,27 +810,26 @@ export const LessonPlayer = ({
       if (!isMultiLine && (scrollLine !== 0 || scrollOffsetPx !== 0)) {
         setScrollLine(0);
         setScrollOffsetPx(0);
+        lastActiveRowRef.current = 0;
       }
       return;
     }
 
     if (typed.length === 0) {
       lastActiveOffsetTopRef.current = null;
+      lastActiveRowRef.current = 0;
       if (scrollLine !== 0 || scrollOffsetPx !== 0) {
         setScrollLine(0);
         setScrollOffsetPx(0);
+      }
+      if (viewportRef.current.scrollTop !== 0) {
+        viewportRef.current.scrollTop = 0;
       }
       return;
     }
 
     const activeSpan = activeCharSpanRef.current;
     if (!activeSpan) return;
-
-    // Fast-path: if active character has not moved to a new line offset, skip layout measurements completely
-    const currentOffsetTop = activeSpan.offsetTop;
-    if (lastActiveOffsetTopRef.current !== null && currentOffsetTop === lastActiveOffsetTopRef.current) {
-      return;
-    }
 
     const firstCharSpan = textTrackRef.current.querySelector('.typing-char') || textTrackRef.current.firstElementChild;
     if (!firstCharSpan) return;
@@ -280,76 +842,69 @@ export const LessonPlayer = ({
     }
     const computedLineHeight = cachedLineHeightRef.current;
 
-    if (cachedBaseOffsetTopRef.current === null) {
-      cachedBaseOffsetTopRef.current = firstCharSpan.offsetTop;
-    }
-    const baseOffsetTop = cachedBaseOffsetTopRef.current;
-    const relativeTop = Math.max(0, currentOffsetTop - baseOffsetTop);
-    lastActiveOffsetTopRef.current = currentOffsetTop;
+    // Invariant coordinate difference across nested inline-block words
+    const activeRect = activeSpan.getBoundingClientRect();
+    const firstRect = firstCharSpan.getBoundingClientRect();
 
-    const activeRow = Math.round(relativeTop / computedLineHeight);
+    const activeRow = calculateActiveRow(activeRect, firstRect, computedLineHeight);
+
+    // Fast-path: if active character has not moved to a new row, skip redundant calculations
+    if (lastActiveRowRef.current !== null && activeRow === lastActiveRowRef.current) {
+      return;
+    }
+
+    lastActiveRowRef.current = activeRow;
+    lastActiveOffsetTopRef.current = activeSpan.offsetTop;
+
     const { targetScrollTop, scrollLine: targetLine } = calculateViewportScroll(activeRow, computedLineHeight);
 
     if (targetLine !== scrollLine || targetScrollTop !== scrollOffsetPx) {
       setScrollLine(targetLine);
       setScrollOffsetPx(targetScrollTop);
     }
+
+    if (viewportRef.current.scrollTop !== 0) {
+      viewportRef.current.scrollTop = 0;
+    }
   }, [typed.length, isCompleted, scrollLine, scrollOffsetPx, isMultiLine]);
-
-  // Window resize handler ensures line alignment is preserved on responsive width changes
-  useEffect(() => {
-    const handleResize = () => {
-      if (!viewportRef.current || !textTrackRef.current) return;
-      cachedLineHeightRef.current = null;
-      cachedBaseOffsetTopRef.current = null;
-      lastActiveOffsetTopRef.current = null;
-      const computedLineHeight =
-        parseFloat(window.getComputedStyle(viewportRef.current).lineHeight) ||
-        44;
-      cachedLineHeightRef.current = computedLineHeight;
-
-      const allChars = textTrackRef.current.querySelectorAll('.typing-char');
-      if (allChars.length > 0) {
-        const first = allChars[0].getBoundingClientRect();
-        const last = allChars[allChars.length - 1].getBoundingClientRect();
-        const lines = Math.round((last.top - first.top) / computedLineHeight) + 1;
-        setIsMultiLine(lines > 4);
-      }
-
-      setScrollOffsetPx(scrollLine * computedLineHeight);
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [scrollLine]);
 
   // ── Input handler ────────────────────────────────────────────────────────
   const handleInputKeyDown = useCallback((e) => {
     if (isCompleted) return;
     if (e.key === 'Escape') return;
     if (e.key === 'Tab') {
-      if (targetText && targetText[typed.length] === '\t') {
+      if (targetText && targetText[typedRef.current.length] === '\t') {
         e.preventDefault();
       } else {
         return;
       }
     }
-    setLastKeystroke({ key: e.key, code: e.code, id: performance.now() });
-  }, [isCompleted, targetText, typed.length]);
+    lastKeyDownPerfRef.current = performance.now();
+    setLastKeystroke({ key: e.key, code: e.code, id: lastKeyDownPerfRef.current });
+  }, [isCompleted, targetText]);
 
   const handleInputChange = useCallback((e) => {
     if (isCompleted || !targetText) return;
     const value = e.target.value;
+    const now = Date.now();
 
     if (!startTime && value.length > 0) {
-      setStartTime(Date.now());
+      setStartTime(now);
+      runningSegmentStartRef.current = now;
+      lastTypingActionRef.current = now;
       lastKeystrokeTimeRef.current = performance.now();
       charStatsRef.current = {};
+    } else if (startTime && !runningSegmentStartRef.current && value.length > 0) {
+      runningSegmentStartRef.current = now;
+      lastTypingActionRef.current = now;
+    } else {
+      lastTypingActionRef.current = now;
     }
 
     if (value.length < typed.length) {
       // Backspace pressed: removes character, does NOT clear previous mistakes or alter error count
       setTyped(value);
+      playClick(false);
       lastKeystrokeTimeRef.current = performance.now();
       streakRef.current = 0;
       setStreak(0);
@@ -428,7 +983,9 @@ export const LessonPlayer = ({
     setMistakes(runningMistakes);
 
     setTyped(value);
-    setLastKeystroke({ key: lastKey, code: '', id: performance.now() });
+    if (performance.now() - lastKeyDownPerfRef.current > 30) {
+      setLastKeystroke({ key: lastKey, code: '', id: performance.now() });
+    }
 
     // Completion check
     if (value.length >= targetText.length && !completionFiredRef.current) {
@@ -436,7 +993,11 @@ export const LessonPlayer = ({
       setIsCompleted(true);
       clearInterval(timerRef.current);
 
-      const finalDuration = Math.max(1, Math.floor((Date.now() - (startTime || Date.now())) / 1000));
+      if (runningSegmentStartRef.current) {
+        totalActiveMsRef.current += Date.now() - runningSegmentStartRef.current;
+        runningSegmentStartRef.current = null;
+      }
+      const finalDuration = Math.max(1, Math.round(totalActiveMsRef.current / 1000));
       const finalStrokes = totalStrokes + addedStrokes;
       const finalCorrectStrokes = runningCorrectStrokes;
       const finalMistakes = runningMistakes;
@@ -537,12 +1098,25 @@ export const LessonPlayer = ({
       }
 
       // Record in scientific telemetry engine
+      const sId = lesson?.stageId || 1;
+      const lNum = lesson?.lessonNum || lesson?.levelNumber || 1;
+      const lessonKey = `S${sId}-L${lNum}`;
+      const canonicalSessionId = `lesson_${sId}_${lNum}_${Date.now()}`;
+
       try {
         const currentUid = getCurrentUserId ? getCurrentUserId() : null;
         recordTelemetrySession({
           userId: currentUid,
-          id: `lesson_${lesson?.stageId || 1}_${lesson?.lessonNum || 1}_${Date.now()}`,
-          sessionId: `lesson_${lesson?.stageId || 1}_${lesson?.lessonNum || 1}_${Date.now()}`,
+          id: canonicalSessionId,
+          sessionId: canonicalSessionId,
+          clientSessionId: canonicalSessionId,
+          source: 'academy',
+          sourceEnvironment: 'academy',
+          environment: 'academy',
+          stageId: sId,
+          levelNumber: lNum,
+          lessonKey,
+          lessonId: lesson?.id || lessonKey,
           wpm: finalWpm,
           netWpm: finalNetWpm,
           grossWpm: finalWpm,
@@ -565,12 +1139,35 @@ export const LessonPlayer = ({
           characterStats: finalCharStats,
           fingerStats: finalFingerStats,
         });
+
+        // Async backend sync via practiceAPI with idempotency key
+        practiceAPI
+          .recordSession({
+            session_id: canonicalSessionId,
+            session_type: 'lesson',
+            source: 'academy',
+            source_environment: 'academy',
+            stage_id: sId,
+            level_number: lNum,
+            duration_seconds: finalDuration,
+            total_chars: finalTotalValid,
+            correct_chars: finalCorrectStrokes,
+            incorrect_chars: finalMistakes,
+            gross_wpm: finalWpm,
+            net_wpm: finalNetWpm,
+            accuracy: finalAccuracy,
+            error_count: remainingErrors,
+            character_stats: {
+              ...finalCharStats,
+              _meta: { source: 'academy', stageId: sId, levelNumber: lNum, lessonKey },
+            },
+            finger_stats: finalFingerStats,
+          })
+          .catch(() => {});
       } catch { /* storage fallback */ }
 
       if (lesson) {
         try {
-          const sId = lesson.stageId || 1;
-          const lNum = lesson.lessonNum || lesson.levelNumber || 1;
           recordLessonResult(sId, lNum, {
             wpm: finalWpm,
             accuracy: finalAccuracy,
@@ -618,7 +1215,7 @@ export const LessonPlayer = ({
   // Prevent accidental tab closure while active exercise is in progress
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (startTime && !isCompleted && typed.length > 5) {
+      if (startTime && !isCompleted && typedRef.current.length > 5) {
         e.preventDefault();
         e.returnValue = '';
         return '';
@@ -626,7 +1223,7 @@ export const LessonPlayer = ({
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [startTime, isCompleted, typed.length]);
+  }, [startTime, isCompleted]);
 
   // ── Parse words for reference-matched passage rendering ──────────────────
   const words = useMemo(() => {
@@ -706,157 +1303,31 @@ export const LessonPlayer = ({
       </svg>
 
       {/* ── TOP NAVIGATION BAR (Reference Match) ───────────────────────── */}
-      <nav
-        className="w-full relative z-30 border-b border-[var(--border,#1e293b)] backdrop-blur-md shrink-0"
-        style={{
-          background: 'color-mix(in srgb, var(--bg-surface, #0c1322) 80%, transparent)',
-        }}
-      >
-        <div className="w-full px-2.5 sm:px-8 h-14 sm:h-16 flex items-center justify-between relative">
-          {/* Left: Brand & Breadcrumb */}
-          <div className="flex items-center gap-2 sm:gap-4 z-10 shrink-0">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex items-center gap-1.5 transition-colors cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                aria-label="Back to Academy"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* KEYFLOW Logo */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <div
-                className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center shadow-xs"
-                style={{ background: 'var(--accent, #FF1744)' }}
-              >
-                <Keyboard className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" />
-              </div>
-              <span className="font-mono text-sm font-extrabold tracking-wider hidden sm:inline text-[var(--text-primary)]">
-                KEY<span style={{ color: 'var(--accent, #FF1744)' }}>FLOW</span>
-              </span>
-            </div>
-
-            {/* Breadcrumb: Academy / Stage 1 / Level 1 (S1-L001) */}
-            <div className="flex items-center gap-1.5 text-xs font-mono text-[var(--text-muted)]">
-              <span className="opacity-40 hidden sm:inline">/</span>
-              <span className="hidden sm:inline">Stage {lesson.stageId || 1}</span>
-              <span className="opacity-40">/</span>
-              <span className="font-semibold text-[var(--accent,#FF1744)]">
-                Level {lesson.lessonNum || lesson.levelNumber} <span className="opacity-60 hidden md:inline">({lesson.id || `S${lesson.stageId || 1}-L${String(lesson.lessonNum || 1).padStart(3, '0')}`})</span>
-              </span>
-            </div>
-          </div>
-
-          {/* Center: Lesson Title — Centered relative to viewport */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none hidden lg:block max-w-[360px] truncate text-center">
-            <span className="text-[15px] font-medium text-[var(--text-primary)] tracking-wide pointer-events-auto">
-              {lesson.title || `Lesson ${lesson.lessonNum || lesson.levelNumber}`}
-            </span>
-          </div>
-
-          {/* Right: Controls & Profile */}
-          <div className="flex items-center gap-0.5 sm:gap-2 z-10 shrink-0">
-            {/* Restart */}
-            <button
-              type="button"
-              onClick={handleReset}
-              title="Restart lesson (Esc)"
-              aria-label="Restart lesson"
-              className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-            >
-              <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-
-            {/* Keyboard Guide Toggle Icon */}
-            <button
-              type="button"
-              onClick={toggleKeyboardGuide}
-              title={`Keyboard Guide: ${keyboardGuideOn ? 'ON' : 'OFF'}`}
-              aria-label={`Keyboard Guide ${keyboardGuideOn ? 'on' : 'off'}`}
-              className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer"
-              style={{ color: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
-            >
-              <Keyboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-
-            {/* Hand Guide Toggle Icon */}
-            <button
-              type="button"
-              onClick={toggleHandGuide}
-              title={`Hand Guide: ${handGuideOn ? 'ON' : 'OFF'}`}
-              aria-label={`Hand Guide ${handGuideOn ? 'on' : 'off'}`}
-              className="p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer"
-              style={{ color: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
-            >
-              <Hand className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            </button>
-
-            {/* Sound Selector Popover */}
-            <SoundSelector variant="navbar" />
-
-            {/* Divider */}
-            <div className="hidden sm:block w-px h-5 mx-1 bg-[var(--border,#1e293b)]" />
-
-            {/* Hidden-until-clicked Studio Theme Switcher */}
-            <ThemeSwitcher compact={true} />
-
-            {/* Profile Avatar Pill */}
-            <div
-              className="hidden sm:flex items-center gap-1.5 pl-2 py-1 pr-1.5 rounded-full cursor-pointer transition-colors border border-[var(--border,#1e293b)] bg-[var(--bg-elevated,#131d31)]"
-              title="User Account"
-            >
-              <div
-                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold font-mono text-white shadow-xs"
-                style={{ background: 'var(--accent, #FF1744)' }}
-              >
-                S
-              </div>
-              <span className="hidden md:inline text-[11px] font-mono font-semibold tracking-wider px-1 text-[var(--text-primary)]">
-                SINAN
-              </span>
-              <ChevronDown className="w-3 h-3 opacity-60 text-[var(--text-muted)]" />
-            </div>
-          </div>
-        </div>
-      </nav>
+      <LessonNavbar
+        onBack={onBack}
+        stageId={lesson.stageId}
+        lessonNum={lesson.lessonNum || lesson.levelNumber}
+        lessonId={lesson.id || `S${lesson.stageId || 1}-L${String(lesson.lessonNum || 1).padStart(3, '0')}`}
+        lessonTitle={lesson.title || `Lesson ${lesson.lessonNum || lesson.levelNumber}`}
+        handleReset={handleReset}
+        toggleKeyboardGuide={toggleKeyboardGuide}
+        keyboardGuideOn={keyboardGuideOn}
+        toggleHandGuide={toggleHandGuide}
+        handGuideOn={handGuideOn}
+      />
 
       {/* ── UNIFIED CENTERED CONTENT COLUMN (780px Design Target) ────── */}
       <main
         className="flex-1 min-w-0 flex flex-col justify-center items-center relative z-10 w-full max-w-[820px] mx-auto px-2 sm:px-6 py-4 sm:py-6"
       >
         {/* ── LESSON SUBTITLE & GLOWING PROGRESS BAR ─────────────────── */}
-        <div className="w-full mb-6 sm:mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span
-              className="text-[11px] font-mono tracking-widest uppercase font-semibold text-[var(--text-muted,#64748b)]"
-            >
-              STAGE {lesson.stageId || 1} · LEVEL {lesson.lessonNum || lesson.levelNumber} ({lesson.id}) · {lesson.unitLabel || 'WORD ACCURACY'}
-            </span>
-            <span
-              className="text-xs font-mono font-bold text-[var(--accent,#FF1744)]"
-            >
-              {progressPercent}%
-            </span>
-          </div>
-
-          {/* Slim 3px Progress Bar */}
-          <div
-            className="w-full rounded-full overflow-hidden bg-[color-mix(in_srgb,var(--border,#1e293b)_70%,transparent)]"
-            style={{ height: '3px' }}
-          >
-            <div
-              className="h-full rounded-full transition-all duration-150"
-              style={{
-                width: `${progressPercent}%`,
-                background: 'var(--accent, #FF1744)',
-                boxShadow: progressPercent > 0 ? '0 0 10px var(--accent, #FF1744)' : 'none',
-              }}
-            />
-          </div>
-        </div>
+        <LessonProgressBar
+          stageId={lesson.stageId}
+          lessonNum={lesson.lessonNum || lesson.levelNumber}
+          lessonId={lesson.id}
+          unitLabel={lesson.unitLabel}
+          progressPercent={progressPercent}
+        />
 
         {/* ── SEAMLESS FLOATING PASSAGE CANVAS (Active Word Highlight) ── */}
         <div
@@ -901,94 +1372,17 @@ export const LessonPlayer = ({
                   : undefined
               }
             >
-              {words.map((word) => {
-                const isCurrentWord =
-                  currentTypedIndex >= word.startIndex &&
-                  currentTypedIndex <= word.endIndex &&
-                  !isCompleted;
-
-                if (word.isSpace) {
-                  return (
-                    <span key={word.key} className="inline">
-                      {word.text.split('').map((sp, spIdx) => {
-                        const absoluteIdx = word.startIndex + spIdx;
-                        const feedback = getCharacterFeedback(absoluteIdx, typed, targetText, isCompleted, correctedIndices);
-                        const isCurrent = absoluteIdx === currentTypedIndex && !isCompleted;
-                        let spCls = 'char-untyped opacity-40';
-                        if (feedback.isTyped) {
-                          spCls = feedback.className;
-                        }
-                        return (
-                          <span
-                            key={spIdx}
-                            ref={isCurrent ? activeCharSpanRef : null}
-                            className={`inline ${spCls} typing-char`}
-                          >
-                            {' '}
-                          </span>
-                        );
-                      })}
-                    </span>
-                  );
-                }
-
-                return (
-                  <span
-                    key={word.key}
-                    className={`inline-block relative rounded-md transition-all duration-100 ${
-                      isCurrentWord
-                        ? 'px-1.5 py-0.5 -my-0.5 mx-0.5 border border-[var(--accent,#FF1744)]/50 bg-[color-mix(in_srgb,var(--accent,#FF1744)_15%,transparent)] shadow-[0_0_16px_rgba(255,23,68,0.3)]'
-                        : 'border border-transparent'
-                    }`}
-                  >
-                    {word.text.split('').map((char, charIdx) => {
-                      const charAbsoluteIdx = word.startIndex + charIdx;
-                      const feedback = getCharacterFeedback(charAbsoluteIdx, typed, targetText, isCompleted, correctedIndices);
-                      const isAtCaret = feedback.isCurrent;
-                      const isCurrent =
-                        (charAbsoluteIdx === currentTypedIndex && !isCompleted) ||
-                        (charAbsoluteIdx === targetText.length - 1 && currentTypedIndex >= targetText.length);
-
-                      return (
-                        <span
-                          key={charIdx}
-                          ref={isCurrent ? activeCharSpanRef : null}
-                          className="relative inline typing-char"
-                        >
-                          {/* Blinking vertical cursor */}
-                          {isAtCaret && (
-                            <span
-                              className="absolute -left-[1px] top-[10%] bottom-[10%] w-[2px] rounded-full animate-pulse z-10"
-                              style={{
-                                background: 'var(--accent, #FF1744)',
-                                boxShadow: '0 0 8px var(--accent, #FF1744)',
-                              }}
-                            />
-                          )}
-                          <span
-                            className={feedback.className}
-                            style={{
-                              fontWeight: feedback.isTyped || isCurrentWord ? '500' : '400',
-                            }}
-                          >
-                            {char}
-                          </span>
-                        </span>
-                      );
-                    })}
-                    {/* Blinking cursor at end of word if completely typed */}
-                    {currentTypedIndex === word.endIndex && isCurrentWord && (
-                      <span
-                        className="inline-block w-[2px] h-[1.2em] align-middle ml-0.5 rounded-full animate-pulse"
-                        style={{
-                          background: 'var(--accent, #FF1744)',
-                          boxShadow: '0 0 8px var(--accent, #FF1744)',
-                        }}
-                      />
-                    )}
-                  </span>
-                );
-              })}
+              {words.map((word) => (
+                <LessonWord
+                  key={word.key}
+                  word={word}
+                  typed={typed}
+                  targetText={targetText}
+                  isCompleted={isCompleted}
+                  correctedIndices={correctedIndices}
+                  activeCharSpanRef={activeCharSpanRef}
+                />
+              ))}
             </div>
           </div>
 
@@ -1012,178 +1406,29 @@ export const LessonPlayer = ({
         </div>
 
         {/* ── 4-STAT METRIC ROW (Matching Reference Layout) ──────────── */}
-        <div
-          className="w-full grid grid-cols-4 gap-0 mb-8 sm:mb-10 items-center justify-between"
-        >
-          {[
-            {
-              icon: Zap,
-              label: t('common.wpm'),
-              value: currentWpm,
-              color: 'var(--text-primary)',
-              iconColor: 'var(--accent, #FF1744)',
-            },
-            {
-              icon: Target,
-              label: t('common.accuracy'),
-              value: `${currentAccuracy}%`,
-              color: 'var(--text-primary)',
-              iconColor: '#F59E0B',
-            },
-            {
-              icon: Flame,
-              label: t('common.streak'),
-              value: streak,
-              color: 'var(--text-primary)',
-              iconColor: '#F97316',
-            },
-            {
-              icon: Clock,
-              label: t('common.time'),
-              value: timeDisplay,
-              color: 'var(--text-primary)',
-              iconColor: '#38BDF8',
-            },
-          ].map((stat, i) => {
-            const Icon = stat.icon;
-            return (
-              <div
-                key={stat.label}
-                className="flex flex-col items-center justify-center py-2 px-0.5 sm:px-1 relative min-w-0"
-              >
-                {/* Vertical Divider */}
-                {i > 0 && (
-                  <div
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-px h-8 bg-[var(--border,#1e293b)] opacity-60"
-                  />
-                )}
-                <div className="flex items-center gap-1 sm:gap-1.5 mb-1 sm:mb-1.5">
-                  <Icon className="w-3 h-3 sm:w-3.5 sm:h-3.5 shrink-0" style={{ color: stat.iconColor }} aria-hidden="true" />
-                  <span
-                    className="text-[9px] sm:text-[11px] font-mono uppercase tracking-widest text-[var(--text-muted,#64748b)]"
-                  >
-                    {stat.label}
-                  </span>
-                </div>
-                <div
-                  className="text-lg sm:text-2xl md:text-3xl font-mono font-medium tracking-tight text-[var(--text-primary)]"
-                >
-                  {stat.value}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <LessonMetricStrip
+          wpm={currentWpm}
+          accuracy={currentAccuracy}
+          streak={streak}
+          timeDisplay={timeDisplay}
+          t={t}
+        />
 
         {/* ── PRECISION ANSI 60% KEYBOARD + INTEGRATED HUMAN HANDS ──── */}
-        <div className="w-full min-w-0 flex items-center justify-center">
-          <KeyboardGuide
-            targetChar={currentTargetChar}
-            lastKeystroke={lastKeystroke}
-            isVisible={keyboardGuideOn}
-            handGuideVisible={handGuideOn}
-          />
-        </div>
+        <LessonKeyboardSection
+          targetChar={currentTargetChar}
+          lastKeystroke={lastKeystroke}
+          keyboardGuideOn={keyboardGuideOn}
+          handGuideOn={handGuideOn}
+        />
 
-        {/* ── DUAL PILL GUIDE TOGGLES (Reference Match) ──────────────── */}
-        <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-4 mt-6 max-w-full px-2">
-          {/* Keyboard Guide Toggle */}
-          <button
-            type="button"
-            onClick={toggleKeyboardGuide}
-            aria-pressed={keyboardGuideOn}
-            aria-label={`Keyboard guide ${keyboardGuideOn ? 'on' : 'off'}`}
-            className="flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-[var(--border,#1e293b)] bg-[color-mix(in_srgb,var(--bg-surface,#0c1322)_70%,transparent)] backdrop-blur-xs cursor-pointer transition-all duration-150 hover:border-[var(--text-muted)] shrink-0"
-          >
-            <Keyboard className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
-            <span className="text-[11px] sm:text-xs font-mono text-[var(--text-secondary)]">
-              Keyboard guide
-            </span>
-            <span
-              className="text-[11px] sm:text-xs font-bold font-mono"
-              style={{ color: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
-            >
-              {keyboardGuideOn ? 'ON' : 'OFF'}
-            </span>
-            {/* Toggle switch */}
-            <div
-              className="relative rounded-full transition-colors ml-1"
-              style={{
-                width: '32px',
-                height: '18px',
-                background: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--bg-elevated, #1e293b)',
-                border: '1px solid',
-                borderColor: keyboardGuideOn ? 'var(--accent, #FF1744)' : 'var(--border, #334155)',
-              }}
-            >
-              <div
-                className="absolute rounded-full transition-all"
-                style={{
-                  width: '12px',
-                  height: '12px',
-                  top: '2px',
-                  left: keyboardGuideOn ? '16px' : '2px',
-                  background: keyboardGuideOn ? '#ffffff' : 'var(--text-muted)',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                  transition: 'left 150ms ease, background 150ms ease',
-                }}
-              />
-            </div>
-          </button>
-
-          {/* Hand Guide Toggle */}
-          <button
-            type="button"
-            onClick={toggleHandGuide}
-            aria-pressed={handGuideOn}
-            aria-label={`Hand guide ${handGuideOn ? 'on' : 'off'}`}
-            className="flex items-center gap-1.5 sm:gap-2.5 px-2.5 py-1 sm:px-4 sm:py-2 rounded-full border border-[var(--border,#1e293b)] bg-[color-mix(in_srgb,var(--bg-surface,#0c1322)_70%,transparent)] backdrop-blur-xs cursor-pointer transition-all duration-150 hover:border-[var(--text-muted)] shrink-0"
-          >
-            <Hand className="w-3.5 h-3.5 text-[var(--text-muted)]" aria-hidden="true" />
-            <span className="text-[11px] sm:text-xs font-mono text-[var(--text-secondary)]">
-              Hand guide
-            </span>
-            <span
-              className="text-[11px] sm:text-xs font-bold font-mono"
-              style={{ color: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--text-muted)' }}
-            >
-              {handGuideOn ? 'ON' : 'OFF'}
-            </span>
-            {/* Toggle switch */}
-            <div
-              className="relative rounded-full transition-colors ml-1"
-              style={{
-                width: '32px',
-                height: '18px',
-                background: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--bg-elevated, #1e293b)',
-                border: '1px solid',
-                borderColor: handGuideOn ? 'var(--accent, #FF1744)' : 'var(--border, #334155)',
-              }}
-            >
-              <div
-                className="absolute rounded-full transition-all"
-                style={{
-                  width: '12px',
-                  height: '12px',
-                  top: '2px',
-                  left: handGuideOn ? '16px' : '2px',
-                  background: handGuideOn ? '#ffffff' : 'var(--text-muted)',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                  transition: 'left 150ms ease, background 150ms ease',
-                }}
-              />
-            </div>
-          </button>
-        </div>
-
-        {/* ── MOTIVATIONAL FOOTER HINT (Reference Match) ─────────────── */}
-        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mt-6 sm:mt-8 text-[11px] sm:text-xs font-mono text-[var(--text-muted,#64748b)] text-center px-4">
-          <div className="hidden sm:block w-12 sm:w-16 h-px bg-[var(--border,#1e293b)] opacity-60" />
-          <span>Keep your eyes on the text</span>
-          <span className="opacity-40">•</span>
-          <span>Relax your hands</span>
-          <div className="hidden sm:block w-12 sm:w-16 h-px bg-[var(--border,#1e293b)] opacity-60" />
-        </div>
+        {/* ── DUAL PILL GUIDE TOGGLES & MOTIVATIONAL FOOTER ──────────── */}
+        <LessonFooterToggles
+          keyboardGuideOn={keyboardGuideOn}
+          handGuideOn={handGuideOn}
+          toggleKeyboardGuide={toggleKeyboardGuide}
+          toggleHandGuide={toggleHandGuide}
+        />
       </main>
     </div>
   );

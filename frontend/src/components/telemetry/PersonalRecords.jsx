@@ -30,8 +30,11 @@ export default function PersonalRecords({
       ? "This Week's Peak Speed"
       : 'Highest Typing Speed';
 
+  const periodBestWpm = periodMetrics?.maxWpm || periodMetrics?.bestWpm || 0;
+  const periodAttempts = periodMetrics?.totalAttempts !== undefined ? periodMetrics.totalAttempts : (periodMetrics?.attempts || 0);
+
   const speedVal = isToday || isWeekly
-    ? ((periodMetrics?.bestWpm || 0) > 0 ? `${periodMetrics.bestWpm} WPM` : '—')
+    ? (periodBestWpm > 0 ? `${periodBestWpm} WPM` : '—')
     : ((records?.highestWpm || 0) > 0 ? `${records.highestWpm} WPM` : '—');
 
   const speedDesc = isToday
@@ -47,7 +50,7 @@ export default function PersonalRecords({
       : 'Peak Accuracy';
 
   const accuracyVal = isToday || isWeekly
-    ? ((periodMetrics?.accuracy !== null && periodMetrics?.accuracy !== undefined && (periodMetrics?.attempts || 0) > 0) ? `${periodMetrics.accuracy}%` : '—')
+    ? ((periodMetrics?.accuracy !== null && periodMetrics?.accuracy !== undefined && periodAttempts > 0) ? `${periodMetrics.accuracy}%` : '—')
     : ((records?.bestAccuracy || 0) > 0 ? `${records.bestAccuracy}%` : '—');
 
   const accuracyDesc = isToday
@@ -63,7 +66,7 @@ export default function PersonalRecords({
       : 'Completed Sessions';
 
   const sessionsVal = isToday || isWeekly
-    ? (periodMetrics?.attempts || 0).toLocaleString()
+    ? periodAttempts.toLocaleString()
     : totalCompleted.toLocaleString();
 
   const sessionsDesc = isToday

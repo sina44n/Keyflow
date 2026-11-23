@@ -10,6 +10,7 @@ export default {
   "nav.about": "KEYFLOW 소개",
   "nav.signIn": "로그인",
   "nav.getStarted": "시작하기",
+  "nav.continue": "계속하기",
   "nav.continuePractice": "연습 계속하기",
   "nav.logout": "로그아웃",
   "nav.profile": "프로필",

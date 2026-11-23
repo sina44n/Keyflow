@@ -10,6 +10,7 @@ export default {
   "nav.about": "എന്തുകൊണ്ട് KEYFLOW",
   "nav.signIn": "പ്രവേശിക്കുക",
   "nav.getStarted": "ആരംഭിക്കുക",
+  "nav.continue": "തുടരുക",
   "nav.continuePractice": "പരിശീലനം തുടരുക",
   "nav.logout": "പുറത്തു കടക്കുക",
   "nav.profile": "പ്രൊഫൈൽ",

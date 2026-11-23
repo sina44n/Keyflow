@@ -49,13 +49,13 @@ describe('KEYFLOW World-Class Leaderboard Precision Redesign Tests', () => {
     assert.ok(!content.includes('Language Selection'), 'Must NOT include Language Selection dropdown');
   });
 
-  it('LeaderboardPage features horizontally centered heading and subtitle', () => {
+  it('LeaderboardPage features horizontally centered heading and clean layout', () => {
     const pagePath = path.resolve(__dirname, '../pages/LeaderboardPage.jsx');
     const content = fs.readFileSync(pagePath, 'utf-8');
 
     assert.ok(content.includes('text-center'), 'Header must be centered horizontally');
     assert.ok(content.includes('Leaderboard'), 'Page must contain Leaderboard title');
-    assert.ok(content.includes('See how you rank against other typists'), 'Must contain exact subtitle');
+    assert.ok(!content.includes('See how you rank against other typists'), 'Must not contain removed subtitle');
   });
 
   it('LeaderboardPodium implements 3-player hierarchy with Gold (center), Silver (left), and Pink (right)', () => {

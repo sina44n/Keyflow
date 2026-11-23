@@ -9,7 +9,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useI18n } from '../../i18n/I18nContext';
 import { Globe, Check, ChevronDown } from 'lucide-react';
 
-export const LanguageSelector = ({ compact = false }) => {
+export const LanguageSelector = ({ compact = false, borderless = true }) => {
   const { language, setLanguage, supportedLanguages, currentLanguageConfig, isRTL, t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -30,7 +30,11 @@ export const LanguageSelector = ({ compact = false }) => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)]"
+        className={`flex items-center gap-1 px-1.5 py-1.5 rounded-lg text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] shrink-0 min-h-[34px] ${
+          borderless
+            ? 'border border-transparent bg-transparent hover:bg-[var(--bg-elevated)]'
+            : 'border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)]'
+        }`}
         aria-label="Select language"
         aria-expanded={isOpen}
       >

@@ -214,14 +214,18 @@ export function syncTelemetrySessionsFromBackend(serverSessions, explicitUserId 
     const correctChars = Number(s.correct_chars || 0);
     const incorrectChars = Number(s.incorrect_chars || 0);
     const errorCount = Number(s.error_count || 0);
+    const source = s.source || s.character_stats?._meta?.source || (s.session_type === 'lesson' ? 'academy' : 'workstation_a');
 
     const formattedSession = {
       id: cid,
       sessionId: cid,
+      clientSessionId: s.client_session_id || cid,
       timestamp: date.getTime(),
       date: toLocalDateString(date),
       mode: s.session_type || 'timed',
       sessionType: s.session_type || 'workstation',
+      source,
+      sourceEnvironment: source,
       duration,
       durationSeconds: duration,
       wpm: grossWpm,
@@ -260,8 +264,28 @@ export function syncTelemetrySessionsFromBackend(serverSessions, explicitUserId 
 export function getAllMergedSessions(explicitUserId = null) {
   const explicitSessions = loadRawTelemetrySessions(explicitUserId);
   const explicitIds = new Set(explicitSessions.map((s) => s.id));
+  const explicitKeys = new Set();
 
-  // Synthesize sessions from completed Academy lessons if not already present
+  for (const s of explicitSessions) {
+    if (s.lessonKey) explicitKeys.add(String(s.lessonKey));
+    if (s.stageId && (s.lessonNum || s.levelNumber)) {
+      explicitKeys.add(`S${s.stageId}-L${s.lessonNum || s.levelNumber}`);
+    }
+    if (typeof s.id === 'string' && s.id.startsWith('lesson_')) {
+      const parts = s.id.split('_');
+      if (parts.length >= 3) {
+        explicitKeys.add(`S${parts[1]}-L${parts[2]}`);
+      }
+    }
+    if (typeof s.sessionId === 'string' && s.sessionId.startsWith('lesson_')) {
+      const parts = s.sessionId.split('_');
+      if (parts.length >= 3) {
+        explicitKeys.add(`S${parts[1]}-L${parts[2]}`);
+      }
+    }
+  }
+
+  // Synthesize sessions from completed Academy lessons ONLY if no genuine explicit attempt already exists
   const synthesized = [];
   try {
     const lessonState = getLessonProgress();
@@ -269,7 +293,7 @@ export function getAllMergedSessions(explicitUserId = null) {
       for (const [key, lesson] of Object.entries(lessonState.lessons)) {
         if (!lesson?.completed || !key.startsWith('S') || !key.includes('-L')) continue;
         const synthId = `legacy_lesson_${key}`;
-        if (explicitIds.has(synthId)) continue;
+        if (explicitIds.has(synthId) || explicitKeys.has(key)) continue;
 
         const date = lesson.completedAt ? new Date(lesson.completedAt) : new Date();
         const duration = lesson.lastDuration || 60;
@@ -284,15 +308,25 @@ export function getAllMergedSessions(explicitUserId = null) {
           timestamp: date.getTime(),
           date: toLocalDateString(date),
           mode: 'lesson',
+          sessionType: 'lesson',
+          source: 'academy',
+          sourceEnvironment: 'academy',
+          lessonKey: key,
           title: `Academy ${key}`,
           duration,
+          durationSeconds: duration,
           wpm,
           grossWpm: wpm,
+          netWpm: wpm,
           accuracy,
+          rawAccuracy: accuracy,
           realAccuracy: accuracy,
           totalChars,
+          totalKeystrokes: totalChars,
           correctChars,
+          correctKeystrokes: correctChars,
           incorrectChars: mistakes,
+          incorrectKeystrokes: mistakes,
           backspaces: mistakes,
           status: 'passed',
           characterStats: {},
@@ -316,7 +350,7 @@ export function recordTelemetrySession(data) {
   const timestamp = data.timestamp || now.getTime();
   const dateStr = data.date || toLocalDateString(now);
 
-  const duration = Math.max(1, Math.round(data.duration || data.duration_seconds || 1));
+  const duration = Math.max(1, Math.round(data.duration ?? data.durationSeconds ?? data.duration_seconds ?? 1));
   const totalChars = Math.max(0, Math.round(data.totalChars || data.total_chars || 0));
   const correctChars = Math.max(0, Math.round(data.correctChars || data.correct_chars || 0));
   const incorrectChars = Math.max(0, Math.round(data.incorrectChars || data.error_count || data.mistakes || 0));
@@ -352,6 +386,10 @@ export function recordTelemetrySession(data) {
     ? calculateRawAccuracy(correctChars, incorrectChars)
     : accuracy;
 
+  const rawAccuracy = typeof data.rawAccuracy === 'number'
+    ? Math.max(0, Math.min(100, Math.round(data.rawAccuracy)))
+    : realAccuracy;
+
   const finalTextAccuracy = typeof data.finalTextAccuracy === 'number'
     ? Math.max(0, Math.min(100, Math.round(data.finalTextAccuracy)))
     : totalChars > 0
@@ -359,23 +397,38 @@ export function recordTelemetrySession(data) {
       : 0;
 
   const status = data.status || (accuracy >= 85 ? 'passed' : 'failed');
+  const source = data.source || data.sourceEnvironment || data.environment || (data.mode === 'lesson' || data.sessionType === 'lesson' ? 'academy' : 'workstation_a');
 
   const session = {
     id: data.id || `sess_${timestamp}_${Math.random().toString(36).slice(2, 7)}`,
+    sessionId: data.sessionId || data.id || `sess_${timestamp}_${Math.random().toString(36).slice(2, 7)}`,
+    clientSessionId: data.clientSessionId || data.client_session_id || data.sessionId || data.id,
     timestamp,
     date: dateStr,
     mode: data.mode || data.session_type || 'practice',
-    title: data.title || (data.mode === 'lesson' ? 'Academy Drill' : 'Typing Sprint'),
+    sessionType: data.sessionType || data.session_type || data.mode || 'workstation',
+    source,
+    sourceEnvironment: source,
+    lessonId: data.lessonId || data.lesson_id || null,
+    stageId: data.stageId || data.stage_id || null,
+    levelNumber: data.levelNumber || data.level_number || null,
+    lessonKey: data.lessonKey || (data.stageId && data.levelNumber ? `S${data.stageId}-L${data.levelNumber}` : null),
+    title: data.title || (source === 'academy' ? 'Academy Drill' : source === 'workstation_b' ? 'Switch Mode Sprint' : 'Typing Sprint'),
     duration,
+    durationSeconds: duration,
     wpm: typeof data.wpm === 'number' ? Math.round(data.wpm) : grossWpm,
     grossWpm,
     netWpm,
     accuracy,
-    realAccuracy,
+    rawAccuracy,
     finalTextAccuracy,
     totalChars,
+    totalKeystrokes: totalChars,
     correctChars,
+    correctKeystrokes: correctChars,
     incorrectChars,
+    incorrectKeystrokes: incorrectChars,
+    mistakes: incorrectChars,
     backspaces,
     status,
     characterStats: data.characterStats || {},
@@ -1234,8 +1287,10 @@ export function generateProgressTimeSeries(sessions, aggregation = 'daily') {
   return sortedKeys.map((key) => {
     const b = buckets[key];
     const avgWpm = Math.round(b.wpmSum / b.count);
-    const acc = b.totalChars > 0 ? Math.round((b.correctChars / b.totalChars) * 100) : 100;
-    const cov = Math.min(100, Math.round((b.charsPracticed.size / STANDARD_COVERAGE_CHARS.length) * 100)) || 85;
+    const acc = b.totalChars > 0 ? Math.round((b.correctChars / b.totalChars) * 100) : 0;
+    const cov = STANDARD_COVERAGE_CHARS.length > 0
+      ? Math.min(100, Math.round((b.charsPracticed.size / STANDARD_COVERAGE_CHARS.length) * 100))
+      : 0;
 
     // Format human-readable label
     let label = key;
@@ -1519,7 +1574,7 @@ export function calculateTypingConsistency(sessions = []) {
   const cv = stdDev / mean;
 
   const speedConsistency = Math.max(0, Math.min(100, Math.round((1 - cv) * 100)));
-  const avgAcc = valid.reduce((sum, s) => sum + (Number(s.accuracy) || 100), 0) / valid.length;
+  const avgAcc = valid.reduce((sum, s) => sum + (s.accuracy !== undefined && s.accuracy !== null ? Number(s.accuracy) : 0), 0) / valid.length;
 
   return Math.min(100, Math.max(0, Math.round(speedConsistency * 0.6 + avgAcc * 0.4)));
 }

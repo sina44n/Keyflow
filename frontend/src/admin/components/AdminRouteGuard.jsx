@@ -26,26 +26,8 @@ export const AdminRouteGuard = ({ children }) => {
     }
 
     const verifyAdmin = async () => {
-      // 1. Client-side pre-check
-      if (!user) {
-        if (isMounted) {
-          setIsAuthorized(false);
-          setIsVerifying(false);
-        }
-        return;
-      }
-
-      const email = (user?.email || clerkUser?.primaryEmailAddress?.emailAddress || '').toLowerCase();
-      const isOwnerEmail = email === OWNER_EMAIL.toLowerCase();
-      const hasAdminFlag = Boolean(
-        user?.is_super_admin ||
-        user?.role === 'SUPER_ADMIN' ||
-        user?.is_staff ||
-        user?.is_superuser ||
-        isOwnerEmail
-      );
-
-      if (!hasAdminFlag) {
+      // 1. Client-side pre-check: strictly requires server-verified owner
+      if (!user || !user.is_owner) {
         if (isMounted) {
           setIsAuthorized(false);
           setIsVerifying(false);
@@ -57,7 +39,7 @@ export const AdminRouteGuard = ({ children }) => {
       try {
         const res = await adminApi.getAuthStatus();
         if (isMounted) {
-          if (res?.data?.status === 'authorized') {
+          if (res?.data?.status === 'authorized' && res?.data?.is_owner === true) {
             setIsAuthorized(true);
           } else {
             setIsAuthorized(false);
@@ -67,11 +49,7 @@ export const AdminRouteGuard = ({ children }) => {
       } catch (err) {
         console.warn('[KEYFLOW Admin] Server authorization check notice:', err?.response?.status);
         if (isMounted) {
-          if (isOwnerEmail && err?.response?.status !== 401 && err?.response?.status !== 403) {
-            setIsAuthorized(true);
-          } else {
-            setIsAuthorized(false);
-          }
+          setIsAuthorized(false);
           setIsVerifying(false);
         }
       }

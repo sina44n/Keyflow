@@ -49,9 +49,9 @@ export const LeaderboardFilters = ({
   ];
 
   const categories = [
-    { id: 'speed', label: 'Speed Ranking', icon: Zap },
-    { id: 'accuracy', label: 'Accuracy Ranking', icon: Target },
-    { id: 'overall', label: 'Overall Ranking', icon: Award },
+    { id: 'speed', label: 'Speed', icon: Zap },
+    { id: 'accuracy', label: 'Accuracy', icon: Target },
+    { id: 'overall', label: 'Overall', icon: Award },
   ];
 
   const periods = [
@@ -130,8 +130,7 @@ export const LeaderboardFilters = ({
                 }`}
               >
                 <Icon className={`w-3 h-3 ${isActive ? 'text-[var(--accent)]' : ''}`} />
-                <span className="hidden sm:inline">{cat.label}</span>
-                <span className="sm:hidden">{cat.id.toUpperCase()}</span>
+                <span>{cat.label}</span>
               </button>
             );
           })}

@@ -142,6 +142,12 @@ export function useUniversalTypingFocus({
   onDirectInput = null,
 }) {
   const isFocusedRef = useRef(false);
+  const onFocusStateChangeRef = useRef(onFocusStateChange);
+  onFocusStateChangeRef.current = onFocusStateChange;
+  const onKeystrokeRef = useRef(onKeystroke);
+  onKeystrokeRef.current = onKeystroke;
+  const onDirectInputRef = useRef(onDirectInput);
+  onDirectInputRef.current = onDirectInput;
 
   // Safe helper to focus input without unwanted page scroll jumps
   const focusInput = useCallback(() => {
@@ -150,19 +156,33 @@ export function useUniversalTypingFocus({
     if (typeof document === 'undefined') return;
     const activeEl = document.activeElement;
 
-    // Do not steal focus if user is intentionally inside another input or interactive element
-    if (activeEl && activeEl !== inputRef.current && isInteractiveElement(activeEl)) {
-      return;
+    // Do not steal focus if user is intentionally inside another input or interactive modal
+    if (activeEl && activeEl !== inputRef.current) {
+      const activeTag = (activeEl.tagName || '').toUpperCase();
+      const isTextInput =
+        activeTag === 'INPUT' ||
+        activeTag === 'TEXTAREA' ||
+        activeTag === 'SELECT' ||
+        activeEl.isContentEditable ||
+        (typeof activeEl.getAttribute === 'function' && (
+          activeEl.getAttribute('role') === 'textbox' ||
+          activeEl.getAttribute('role') === 'searchbox' ||
+          activeEl.getAttribute('role') === 'combobox'
+        ));
+      const isInsideModal = typeof activeEl.closest === 'function' && activeEl.closest('dialog, [role="dialog"], [aria-modal="true"], .modal-container');
+      if (isTextInput || isInsideModal) {
+        return;
+      }
     }
 
     try {
       inputRef.current.focus({ preventScroll: true });
       isFocusedRef.current = true;
-      if (onFocusStateChange) onFocusStateChange(true);
+      if (onFocusStateChangeRef.current) onFocusStateChangeRef.current(true);
     } catch {
       // Ignore any transient browser focus errors
     }
-  }, [isActive, disabled, inputRef, onFocusStateChange]);
+  }, [isActive, disabled, inputRef]);
 
   // 1. Proactive auto-focus on mount and state change (synchronous + fallback frame)
   useEffect(() => {
@@ -231,8 +251,23 @@ export function useUniversalTypingFocus({
       if (document.activeElement === inputRef.current) return;
 
       // If user is currently focused on another input or interactive modal: DO NOT INTERCEPT
-      if (document.activeElement && isInteractiveElement(document.activeElement)) {
-        return;
+      const activeEl = document.activeElement;
+      if (activeEl && activeEl !== inputRef.current) {
+        const activeTag = (activeEl.tagName || '').toUpperCase();
+        const isTextInput =
+          activeTag === 'INPUT' ||
+          activeTag === 'TEXTAREA' ||
+          activeTag === 'SELECT' ||
+          activeEl.isContentEditable ||
+          (typeof activeEl.getAttribute === 'function' && (
+            activeEl.getAttribute('role') === 'textbox' ||
+            activeEl.getAttribute('role') === 'searchbox' ||
+            activeEl.getAttribute('role') === 'combobox'
+          ));
+        const isInsideModal = typeof activeEl.closest === 'function' && activeEl.closest('dialog, [role="dialog"], [aria-modal="true"], .modal-container');
+        if (isTextInput || isInsideModal) {
+          return;
+        }
       }
 
       // Preserve browser shortcuts (Ctrl, Alt, Meta)
@@ -250,8 +285,15 @@ export function useUniversalTypingFocus({
       const isEnter = e.key === 'Enter';
 
       if (isPrintable || isBackspace || isEnter) {
-        // Prevent default browser behavior on the unfocused target (e.g. Space scrolling the page)
+        // Prevent default browser behavior on the unfocused target (e.g. Space scrolling or triggering button)
         e.preventDefault();
+
+        // If a non-modal button or control held focus, blur it
+        if (document.activeElement && document.activeElement !== inputRef.current && typeof document.activeElement.blur === 'function') {
+          try {
+            document.activeElement.blur();
+          } catch {}
+        }
 
         // Focus the input immediately
         focusInput();
@@ -259,7 +301,7 @@ export function useUniversalTypingFocus({
         let dispatched = false;
 
         // Authoritative single-path processing:
-        if (typeof onDirectInput === 'function') {
+        if (typeof onDirectInputRef.current === 'function') {
           const inputEl = inputRef.current;
           const currentVal = inputEl?.value || '';
           let nextVal = currentVal;
@@ -286,23 +328,23 @@ export function useUniversalTypingFocus({
                 }
               } catch {}
             }
-            onDirectInput(nextVal);
+            onDirectInputRef.current(nextVal);
             dispatched = true;
           }
         } else {
           dispatched = dispatchTypingCharacter(inputRef.current, e.key);
         }
 
-        if (dispatched && typeof onKeystroke === 'function') {
+        if (dispatched && typeof onKeystrokeRef.current === 'function') {
           const perfNow = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
-          onKeystroke({ key: e.key, code: e.code, id: perfNow });
+          onKeystrokeRef.current({ key: e.key, code: e.code, id: perfNow });
         }
       }
     };
 
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isActive, disabled, inputRef, focusInput, onKeystroke, onDirectInput]);
+  }, [isActive, disabled, inputRef, focusInput]);
 
   return {
     focusInput,

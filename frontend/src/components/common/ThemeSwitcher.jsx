@@ -1,9 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useTheme } from '../../context/ThemeContext';
 import { useI18n } from '../../i18n/I18nContext';
-import { Check, Sparkles, X, ChevronDown, Palette } from 'lucide-react';
+import { Check, Sparkles, X, ChevronDown, Sun } from 'lucide-react';
 
-export const ThemeSwitcher = ({ compact: _compact = false, showName = false }) => {
+export const ThemeSwitcher = ({
+  compact: _compact = false,
+  showName = false,
+  showDot = false,
+  borderless = true,
+}) => {
   const { theme, setTheme, themes, currentThemeObj } = useTheme();
   const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
@@ -37,19 +42,25 @@ export const ThemeSwitcher = ({ compact: _compact = false, showName = false }) =
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)] text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] shrink-0 min-h-[34px]"
+        className={`flex items-center gap-0.5 px-1.5 py-1.5 rounded-lg text-xs font-mono text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-240 ease-[cubic-bezier(0.22,1,0.36,1)] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--border-focus)] shrink-0 min-h-[34px] ${
+          borderless
+            ? 'border border-transparent bg-transparent hover:bg-[var(--bg-elevated)]'
+            : 'border border-[var(--border)] bg-[var(--bg-elevated)] hover:border-[var(--accent)]'
+        }`}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         aria-label={activeThemeLabel}
         title={activeThemeLabel}
         id="theme-switcher-trigger"
       >
-        <Palette className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" aria-hidden="true" />
-        <span
-          className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_0_6px_currentColor]"
-          style={{ backgroundColor: currentThemeObj.accent, color: currentThemeObj.accent }}
-          aria-hidden="true"
-        />
+        <Sun className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" aria-hidden="true" />
+        {showDot && (
+          <span
+            className="w-2.5 h-2.5 rounded-full shrink-0 shadow-[0_0_6px_currentColor]"
+            style={{ backgroundColor: currentThemeObj.accent, color: currentThemeObj.accent }}
+            aria-hidden="true"
+          />
+        )}
         {showName && (
           <span className="hidden sm:inline text-[11px] font-semibold tracking-wide text-[var(--text-primary)] truncate max-w-[90px]">
             {currentThemeObj.name}

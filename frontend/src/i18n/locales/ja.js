@@ -10,6 +10,7 @@ export default {
   "nav.about": "KEYFLOWについて",
   "nav.signIn": "サインイン",
   "nav.getStarted": "始める",
+  "nav.continue": "続ける",
   "nav.continuePractice": "練習を続ける",
   "nav.logout": "サインアウト",
   "nav.profile": "プロフィール",

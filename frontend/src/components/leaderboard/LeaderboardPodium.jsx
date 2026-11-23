@@ -31,7 +31,7 @@ export const LeaderboardPodium = ({ topThree, category, period, currentUserId })
       elevationClass: 'md:translate-y-0',
       cardBg: 'bg-[#F8FAFC]',
       cardBorder: 'border border-[#CBD5E1] shadow-sm',
-      avatarRing: 'border-2 border-slate-300 bg-slate-100 text-slate-800',
+      avatarRing: 'border-2 border-slate-300',
       iconColor: 'text-slate-400',
       icon: Medal,
       scoreColor: 'text-[#3B49DF]',
@@ -46,7 +46,7 @@ export const LeaderboardPodium = ({ topThree, category, period, currentUserId })
       elevationClass: 'md:-translate-y-4 z-10',
       cardBg: 'bg-[#FFFDF5]',
       cardBorder: 'border-2 border-amber-400 shadow-[0_12px_36px_rgba(245,158,11,0.20)]',
-      avatarRing: 'border-2 border-amber-400 bg-amber-100 text-amber-900',
+      avatarRing: 'border-2 border-amber-400',
       iconColor: 'text-amber-500 drop-shadow-[0_2px_6px_rgba(245,158,11,0.5)]',
       icon: Crown,
       scoreColor: 'text-[#3B49DF]',
@@ -61,7 +61,7 @@ export const LeaderboardPodium = ({ topThree, category, period, currentUserId })
       elevationClass: 'md:translate-y-0',
       cardBg: 'bg-[#FFF5F7]',
       cardBorder: 'border border-[#FECDD3] shadow-sm',
-      avatarRing: 'border-2 border-pink-300 bg-pink-100 text-pink-700',
+      avatarRing: 'border-2 border-pink-300',
       iconColor: 'text-pink-400',
       icon: Medal,
       scoreColor: 'text-[#E11D48]',
@@ -78,11 +78,18 @@ export const LeaderboardPodium = ({ topThree, category, period, currentUserId })
     return name.slice(0, 2).toUpperCase();
   };
 
+  const formatMetric = (val) => {
+    if (val === null || val === undefined) return '--';
+    const num = Number(val);
+    if (isNaN(num)) return '--';
+    return Number.isInteger(num) ? String(num) : num.toFixed(1);
+  };
+
   const getPrimaryScore = (player) => {
     if (!player) return '--';
-    if (category === 'speed') return player.net_wpm.toFixed(0);
-    if (category === 'accuracy') return `${player.accuracy.toFixed(0)}%`;
-    return player.score.toFixed(0);
+    if (category === 'speed') return formatMetric(player.net_wpm);
+    if (category === 'accuracy') return `${formatMetric(player.accuracy)}%`;
+    return formatMetric(player.score);
   };
 
   const getScoreUnit = () => {
@@ -105,14 +112,14 @@ export const LeaderboardPodium = ({ topThree, category, period, currentUserId })
           return (
             <div
               key={slot.targetRank}
-              className={`relative rounded-3xl overflow-hidden border border-dashed border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/40 flex flex-col justify-between h-auto ${unclaimedHeight} transition-all duration-200 ${slot.desktopOrder} ${slot.elevationClass}`}
+              className={`relative rounded-3xl overflow-hidden border border-dashed border-[var(--border)] bg-[var(--bg-surface)]/70 flex flex-col justify-between h-auto ${unclaimedHeight} transition-all duration-200 ${slot.desktopOrder} ${slot.elevationClass}`}
             >
               {/* Top Medal Icon & Avatar Placeholder */}
               <div className="pt-6 px-4 flex flex-col items-center text-center">
                 <div className="w-6 h-6 mb-1 flex items-center justify-center">
                   <Icon className={`w-5 h-5 ${slot.iconColor} opacity-50`} />
                 </div>
-                <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-600 flex items-center justify-center font-mono font-bold text-sm text-slate-500 mb-3">
+                <div className="w-14 h-14 rounded-full bg-[var(--bg-elevated)] border-2 border-dashed border-[var(--border)] flex items-center justify-center font-mono font-bold text-sm text-[var(--text-muted)] mb-3">
                   #{slot.targetRank}
                 </div>
                 <h3 className="text-sm font-semibold text-[var(--text-primary)] font-mono">
@@ -135,7 +142,7 @@ export const LeaderboardPodium = ({ topThree, category, period, currentUserId })
               </div>
 
               {/* Bottom Rank Bar */}
-              <div className="w-full py-2.5 text-center font-mono font-black text-xs tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-500 border-t border-slate-200 dark:border-slate-700">
+              <div className="w-full py-2.5 text-center font-mono font-black text-xs tracking-wider bg-[var(--bg-elevated)] text-[var(--text-muted)] border-t border-[var(--border)]">
                 #{slot.targetRank} UNCLAIMED
               </div>
             </div>
@@ -168,6 +175,7 @@ export const LeaderboardPodium = ({ topThree, category, period, currentUserId })
                 <LeaderboardAvatar
                   src={player.avatar_url}
                   name={player.display_name || player.username}
+                  userId={player.user_id || player.username}
                   size="podium"
                   ringClass={slot.avatarRing}
                 />
@@ -187,7 +195,7 @@ export const LeaderboardPodium = ({ topThree, category, period, currentUserId })
               >
                 {player.display_name || player.username}
               </h3>
-              <p className="text-[11px] font-mono text-[#64748B] truncate max-w-full">
+              <p className="text-[11px] font-mono text-[var(--text-muted)] truncate max-w-full">
                 @{player.username}
               </p>
             </div>
@@ -197,15 +205,15 @@ export const LeaderboardPodium = ({ topThree, category, period, currentUserId })
               <div className="font-mono font-black text-5xl tracking-tight leading-none">
                 <span className={slot.scoreColor}>{getPrimaryScore(player)}</span>
               </div>
-              <p className="text-[10px] font-mono font-bold text-[#64748B] mt-1 uppercase tracking-wider">
+              <p className="text-[10px] font-mono font-bold text-[var(--text-muted)] mt-1 uppercase tracking-wider">
                 {getScoreUnit()}
               </p>
 
               {/* Sub-Metric Line (Reference Image 4: e.g. "63 WPM · 98%") */}
-              <div className="mt-2 flex items-center justify-center gap-1.5 text-xs font-mono text-[#64748B] font-semibold">
-                <span>{player.net_wpm.toFixed(0)} WPM</span>
+              <div className="mt-2 flex items-center justify-center gap-1.5 text-xs font-mono text-[var(--text-secondary)] font-semibold">
+                <span>{formatMetric(player.net_wpm)} WPM</span>
                 <span>•</span>
-                <span>{player.accuracy.toFixed(0)}% Accuracy</span>
+                <span>{formatMetric(player.accuracy)}% Accuracy</span>
               </div>
             </div>
 
