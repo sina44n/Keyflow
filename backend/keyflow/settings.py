@@ -9,6 +9,7 @@ Compatible:
 """
 
 import os
+import sys
 from pathlib import Path
 from datetime import timedelta
 
@@ -335,6 +336,9 @@ REST_FRAMEWORK = {
         'user': '1000/hour',
     },
 }
+
+if 'test' in sys.argv:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
 
 # ---------------------------------------------------------------------------
 # Knox Token Authentication
